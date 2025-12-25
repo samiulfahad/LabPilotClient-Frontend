@@ -130,8 +130,8 @@ const MobileMenu = () => {
                 <span className="text-white font-bold text-sm">LabPilotPro</span>
               </div> */}
               <div>
-                <p className="text-gray-800 font-semibold">Azizul Haque Diagnostic Center and Hospital</p>
-                <p className="text-gray-800 text-sm mt-0.5">@sfahad</p>
+                <p className="text-gray-800 font-semibold">Lab Pilot Pro</p>
+                <p className="text-gray-800 text-sm mt-0.5">Azizul Haque Diagnostic Center and Hospital</p>
               </div>
             </div>
 
