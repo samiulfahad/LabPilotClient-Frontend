@@ -137,9 +137,9 @@ const MobileMenu = () => {
 
             <button
               onClick={toggleMenu}
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-200 hover:bg-gray-300 transition-all duration-200 border border-gray-200 shadow-sm"
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-500 hover:bg-gray-700 transition-all duration-200 border border-gray-200 shadow-sm"
             >
-              <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
