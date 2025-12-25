@@ -1,6 +1,6 @@
 const menu = [
   { label: "Home", path: "/", icon: "🏠" },
-  { label: "Cashmemo", path: "/cashmemo", icon: "🧾" },
+  { label: "Cash Memo", path: "/cashMemo", icon: "🧾" },
   { label: "New Invoice", path: "/createInvoice", icon: "📄" },
   { label: "Invoice List", path: "/invoiceList", icon: "📋" },
   { label: "Delete Invoice", path: "/deleteInvoice", icon: "🗑️" },
