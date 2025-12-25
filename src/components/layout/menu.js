@@ -4,9 +4,9 @@ const menu = [
   { label: "New Invoice", path: "/createInvoice", icon: "📄" },
   { label: "Invoice List", path: "/invoiceList", icon: "📋" },
   { label: "Delete Invoice", path: "/deleteInvoice", icon: "🗑️" },
+  { label: "Commission", path: "/commission", icon: "💰" },
   { label: "Billing", path: "/billing", icon: "💳" },
   { label: "Lab Management", path: "/labManagement", icon: "⚙️" },
-  { label: "Commission", path: "/commission", icon: "💰" },
   { label: "Support", path: "/support", icon: "🛟" },
 ];
 
