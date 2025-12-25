@@ -131,7 +131,7 @@ const MobileMenu = () => {
               </div> */}
               <div>
                 <p className="text-gray-800 font-semibold">Lab Pilot Pro</p>
-                <p className="text-gray-800 text-sm mt-0.5">Azizul Haque Diagnostic Center and Hospital</p>
+                <p className="text-gray-800 text-xs mt-0.5">Azizul Haque Diagnostic Center and Hospital</p>
               </div>
             </div>
 
