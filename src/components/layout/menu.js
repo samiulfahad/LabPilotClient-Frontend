@@ -5,7 +5,7 @@ const menu = [
   { label: "Invoice List", path: "/invoiceList", icon: "📋" },
   { label: "Delete Invoice", path: "/deleteInvoice", icon: "🗑️" },
   { label: "Billing", path: "/billing", icon: "💳" },
-  { label: "Settings", path: "/settings", icon: "⚙️" },
+  { label: "Lab Management", path: "/labManagement", icon: "⚙️" },
   { label: "Commission", path: "/commission", icon: "💰" },
   { label: "Medical Test List", path: "/medicalTestList", icon: "🩺" },
   { label: "Staffs", path: "/staffs", icon: "👥" },
