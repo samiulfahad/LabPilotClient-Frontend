@@ -124,9 +124,9 @@ const MobileMenu = () => {
         {/* Flex container for proper scrolling */}
         <div className="flex flex-col h-full">
           {/* Header - Fixed */}
-          <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-100 bg-sky-200">
+          <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-gray-700 to-gray-100">
             <div className="flex flex-col items-center space-x-3">
-               <div className="w-20 h-10 bg-gradient-to-br from-gray-600 to-gray-200 rounded-2xl flex items-center justify-center shadow-sm">
+               <div className="w-20 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center shadow-sm">
                 <span className="text-blue-500 font-bold text-sm">Lab Pilot</span>
               </div> 
               { /* <div>
