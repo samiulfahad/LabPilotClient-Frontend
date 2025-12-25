@@ -7,9 +7,6 @@ const menu = [
   { label: "Billing", path: "/billing", icon: "💳" },
   { label: "Lab Management", path: "/labManagement", icon: "⚙️" },
   { label: "Commission", path: "/commission", icon: "💰" },
-  { label: "Medical Test List", path: "/medicalTestList", icon: "🩺" },
-  { label: "Staffs", path: "/staffs", icon: "👥" },
-  { label: "Referrers", path: "/referrers", icon: "🤝" },
   { label: "Support", path: "/support", icon: "🛟" },
 ];
 
