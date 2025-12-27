@@ -7,14 +7,14 @@ const DesktopMenu = () => {
       {/* Flex container for proper scrolling */}
       <div className="flex flex-col h-full">
         {/* Fixed Header */}
-        <div className="flex-shrink-0 px-2 py-4 bg-sky-200 text-gray-500 border-b border-gray-200">
+        <div className="flex-shrink-0 px-2 py-4 bg-gradient-to-r from-blue-600 to-blue-400 text-gray-500 border-b border-gray-200">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-sky-300 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-blue-800 rounded-xl flex items-center justify-center">
               <span className="text-white font-bold text-lg">LP</span>
             </div>
             <div className="text-start">
-              <h1 className="text-gray-900 font-bold text-sm">Lab Pilot Pro</h1>
-              <p className="text-gray-500 text-xs">Azizul Haque Diagnostic Center </p>
+              <h1 className="text-white font-bold text-sm">Azizul Haque Diagnostic Center & Hospital</h1>
+              {/* <p className="text-gray-500 text-xs">Azizul Haque Diagnostic Center </p> */}
             </div>
           </div>
         </div>
