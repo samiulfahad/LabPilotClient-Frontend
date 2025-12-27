@@ -1,4 +1,4 @@
-import Icons from "../../components/icons"; // Adjust the import path as needed
+import Icons from "../../components/icons"; 
 
 const LabManagement = () => {
   const handleCardClick = (section) => {
@@ -66,7 +66,7 @@ const LabManagement = () => {
               </div>
               <h2 className="text-xl font-semibold text-gray-800">Manage Staff</h2>
             </div>
-            <p className="text-gray-600 mb-4">আপনার প্রতিষ্ঠানের কর্মরত ব্যক্তিদের Account, তাদের Access Management ইত্যাদি</p>
+            <p className="text-gray-600 mb-4">আপনার প্রতিষ্ঠানে কর্মরত ব্যক্তিদের Account, তাদের Access Management ইত্যাদি</p>
             <div className="flex justify-between items-center">
               <span className="text-sm text-emerald-600 font-medium group-hover:text-emerald-800">
                 Click to manage →
