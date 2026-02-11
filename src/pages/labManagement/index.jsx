@@ -1,12 +1,7 @@
-import Icons from "../../components/icons"; 
+import Icons from "../../components/icons";
+import { Link } from "react-router-dom";
 
 const LabManagement = () => {
-  const handleCardClick = (section) => {
-    // In a real app, this would use react-router or navigation
-    alert(`Navigating to ${section} section...`);
-    // Example: navigate(`/${section.toLowerCase().replace(/\s+/g, '-')}`);
-  };
-
   const handleChangeCredentials = () => {
     alert("Opening change password/email modal...");
     // In a real app, this would open a modal or navigate to settings
@@ -17,10 +12,7 @@ const LabManagement = () => {
       {/* Main Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
         {/* Manage Test List Card */}
-        <div
-          onClick={() => handleCardClick("Manage Test List")}
-          className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer border border-gray-100 overflow-hidden"
-        >
+        <div className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer border border-gray-100 overflow-hidden">
           <div className="p-6">
             <div className="flex items-center mb-4">
               <div className="p-3 bg-blue-100 rounded-xl mr-4 group-hover:bg-blue-200 transition-colors">
@@ -36,10 +28,7 @@ const LabManagement = () => {
         </div>
 
         {/* Manage Not Test Item List Card */}
-        <div
-          onClick={() => handleCardClick("Manage Not Test Item List")}
-          className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer border border-gray-100 overflow-hidden"
-        >
+        <div className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer border border-gray-100 overflow-hidden">
           <div className="p-6">
             <div className="flex items-center mb-4">
               <div className="p-3 bg-amber-100 rounded-xl mr-4 group-hover:bg-amber-200 transition-colors">
@@ -55,10 +44,7 @@ const LabManagement = () => {
         </div>
 
         {/* Manage Staffs Card */}
-        <div
-          onClick={() => handleCardClick("Manage Staffs")}
-          className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer border border-gray-100 overflow-hidden"
-        >
+        <div className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer border border-gray-100 overflow-hidden">
           <div className="p-6">
             <div className="flex items-center mb-4">
               <div className="p-3 bg-emerald-100 rounded-xl mr-4 group-hover:bg-emerald-200 transition-colors">
@@ -66,7 +52,9 @@ const LabManagement = () => {
               </div>
               <h2 className="text-xl font-semibold text-gray-800">Manage Staff</h2>
             </div>
-            <p className="text-gray-600 mb-4">আপনার প্রতিষ্ঠানে কর্মরত ব্যক্তিদের Account, তাদের Access Management ইত্যাদি</p>
+            <p className="text-gray-600 mb-4">
+              আপনার প্রতিষ্ঠানে কর্মরত ব্যক্তিদের Account, তাদের Access Management ইত্যাদি
+            </p>
             <div className="flex justify-between items-center">
               <span className="text-sm text-emerald-600 font-medium group-hover:text-emerald-800">
                 Click to manage →
@@ -76,23 +64,24 @@ const LabManagement = () => {
         </div>
 
         {/* Manage Referrers Card */}
-        <div
-          onClick={() => handleCardClick("Manage Referrers")}
-          className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer border border-gray-100 overflow-hidden"
-        >
-          <div className="p-6">
-            <div className="flex items-center mb-4">
-              <div className="p-3 bg-purple-100 rounded-xl mr-4 group-hover:bg-purple-200 transition-colors">
-                <Icons.Referrers className="w-8 h-8 text-purple-600" />
+        <Link to="/manage-referrers" className="group bg-white rounded-2xl shadow-lg hover:shadow-xl...">
+          <div className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer border border-gray-100 overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="p-3 bg-purple-100 rounded-xl mr-4 group-hover:bg-purple-200 transition-colors">
+                  <Icons.Referrers className="w-8 h-8 text-purple-600" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-800">Manage Referrers</h2>
               </div>
-              <h2 className="text-xl font-semibold text-gray-800">Manage Referrers</h2>
-            </div>
-            <p className="text-gray-600 mb-4">Referrer List, Add, Edit, Delete</p>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-purple-600 font-medium group-hover:text-purple-800">Click to manage →</span>
+              <p className="text-gray-600 mb-4">Referrer List, Add, Edit, Delete</p>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-purple-600 font-medium group-hover:text-purple-800">
+                  Click to manage →
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* Account Settings Card */}
         <div

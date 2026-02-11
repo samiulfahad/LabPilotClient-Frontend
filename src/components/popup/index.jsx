@@ -1,6 +1,6 @@
 import React from "react";
 import Portal from "../Portal";
-import Icons from "../../components/icons"; // Import the centralized icons
+import Icons from "../icons"; // Import the centralized icons
 
 // Only three types: success, error, warning
 const typeConfig = {
