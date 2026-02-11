@@ -43,7 +43,7 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
                     />
                   </svg>
                 )}
-                <span>Yes, Doctor</span>
+                <span>Doctor</span>
               </div>
             </button>
             <button
@@ -65,7 +65,7 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
                     />
                   </svg>
                 )}
-                <span>No, Non-Doctor</span>
+                <span>Agent</span>
               </div>
             </button>
           </div>
