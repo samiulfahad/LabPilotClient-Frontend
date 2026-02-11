@@ -71,7 +71,7 @@ const ManageReferrer = () => {
         (r) =>
           r.name.toLowerCase().includes(query) ||
           r.contactNumber.includes(query) ||
-          r.degree?.toLowerCase().includes(query)
+          r.degree?.toLowerCase().includes(query),
       );
     }
 
@@ -122,9 +122,7 @@ const ManageReferrer = () => {
 
       if (formData.type === "editReferrer") {
         await referrerService.editReferrer(formData);
-        setReferrers((prev) =>
-          prev.map((item) => (item._id === formData._id ? { ...item, ...formData } : item))
-        );
+        setReferrers((prev) => prev.map((item) => (item._id === formData._id ? { ...item, ...formData } : item)));
         setPopup({ type: "success", message: "Referrer updated successfully" });
       }
 
@@ -168,9 +166,7 @@ const ManageReferrer = () => {
       await serviceCall;
 
       setReferrers((prev) =>
-        prev.map((referrer) =>
-          referrer._id === popup._id ? { ...referrer, isActive: isActivating } : referrer
-        )
+        prev.map((referrer) => (referrer._id === popup._id ? { ...referrer, isActive: isActivating } : referrer)),
       );
       setPopup({
         type: "success",
@@ -200,10 +196,10 @@ const ManageReferrer = () => {
             popup.type === "warning" && popup.action === "delete"
               ? handleDelete
               : popup.type === "warning" && popup.action === "deactivate"
-              ? () => handleToggleStatus(false)
-              : popup.type === "warning" && popup.action === "activate"
-              ? () => handleToggleStatus(true)
-              : null
+                ? () => handleToggleStatus(false)
+                : popup.type === "warning" && popup.action === "activate"
+                  ? () => handleToggleStatus(true)
+                  : null
           }
         />
       )}
@@ -216,11 +212,7 @@ const ManageReferrer = () => {
               Referrer Management
             </h1>
             <p className="text-xs sm:text-sm text-gray-600 flex items-center gap-1 mt-0.5 truncate">
-              <svg
-                className="w-3.5 h-3.5 text-blue-500 flex-shrink-0"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
+              <svg className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"
@@ -243,15 +235,10 @@ const ManageReferrer = () => {
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M12 4v16m8-8H4"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
             </svg>
             <span className="hidden sm:inline">Add Referrer</span>
-            <span className="inline sm:hidden">Add</span>
+            <span className="inline p-2 sm:hidden">Add New</span>
           </button>
         </div>
 
@@ -272,76 +259,55 @@ const ManageReferrer = () => {
             </span>
           </div>
 
-          {/* Filter bar – takes remaining width */}
+          {/* Filter bar – takes remaining width, internal layout unchanged */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 flex-1 flex flex-wrap items-center gap-4">
-            {/* Combined filter groups – always in one row on mobile */}
-            <div className="flex flex-row flex-nowrap items-center gap-2 sm:gap-4">
-              {/* Type Filter */}
-              <div className="flex items-center gap-1 sm:gap-2">
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </span>
-                <div className="flex rounded-md bg-gray-100 p-0.5">
-                  {["all", "doctor", "agent"].map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => setTypeFilter(type)}
-                      className={`px-2.5 sm:px-3 py-1 text-xs font-medium rounded transition-all capitalize ${
-                        typeFilter === type
-                          ? "bg-white text-blue-600 shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
-                      }`}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Status Filter */}
-              <div className="flex items-center gap-1 sm:gap-2">
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </span>
-                <div className="flex rounded-md bg-gray-100 p-0.5">
-                  {["all", "active", "inactive"].map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => setStatusFilter(status)}
-                      className={`px-2.5 sm:px-3 py-1 text-xs font-medium rounded transition-all capitalize ${
-                        statusFilter === status
-                          ? "bg-white text-blue-600 shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
-                      }`}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
+            {/* Type Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Type</span>
+              <div className="flex rounded-md bg-gray-100 p-0.5">
+                {["all", "doctor", "agent"].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setTypeFilter(type)}
+                    className={`px-3 py-1 text-xs font-medium rounded transition-all capitalize ${
+                      typeFilter === type ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Reset – auto margin pushes it to the right when space allows */}
+            {/* Status Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</span>
+              <div className="flex rounded-md bg-gray-100 p-0.5">
+                {["all", "active", "inactive"].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setStatusFilter(status)}
+                    className={`px-3 py-1 text-xs font-medium rounded transition-all capitalize ${
+                      statusFilter === status ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Reset – auto margin pushes it to the right */}
             {(typeFilter !== "all" || statusFilter !== "all") && (
               <button
                 onClick={() => {
                   setTypeFilter("all");
                   setStatusFilter("all");
                 }}
-                className="ml-auto text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1 transition-colors whitespace-nowrap"
+                className="ml-auto text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1 transition-colors"
               >
-                <svg
-                  className="w-3.5 h-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
                 Reset
               </button>
@@ -377,18 +343,8 @@ const ManageReferrer = () => {
                 onClick={() => setSearchQuery("")}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             )}
@@ -410,12 +366,7 @@ const ManageReferrer = () => {
         {filteredReferrers.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 text-center">
             <div className="bg-gray-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-              <svg
-                className="w-6 h-6 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
