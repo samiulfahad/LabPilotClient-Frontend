@@ -69,7 +69,7 @@ const Modal = ({
         style={{ margin: 0 }}
       >
         <div
-          className={`${sizeClasses[size]} bg-white rounded-3xl shadow-2xl transform transition-all duration-200 flex flex-col max-h-[90vh] border border-gray-100 pointer-events-auto ${
+          className={`${sizeClasses[size]} bg-white rounded-xl shadow-2xl transform transition-all duration-200 flex flex-col max-h-[90vh] border border-gray-100 pointer-events-auto ${
             isClosing ? "opacity-0 scale-95 -translate-y-4" : "opacity-100 scale-100 translate-y-0"
           }`}
           onClick={(e) => e.stopPropagation()}

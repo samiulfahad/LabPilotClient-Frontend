@@ -329,7 +329,7 @@ const ManageReferrer = () => {
         </div>
 
         {/* Modal */}
-        <Modal isOpen={isModalOpen} size="lg">
+        <Modal isOpen={isModalOpen} size="md">
           <ReferrerForm
             formData={formData}
             onChange={handleFormChange}
