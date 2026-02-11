@@ -238,7 +238,7 @@ const ManageReferrer = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
             </svg>
             <span className="hidden xs:inline sm:inline">Add Referrer</span>
-            <span className="inline xs:hidden sm:hidden">Add</span>
+            <span className="inline p-2 xs:hidden sm:hidden">Add</span>
           </button>
         </div>
 
