@@ -4,6 +4,7 @@ import Popup from "../../../components/popup";
 import Referrer from "./Referrer";
 import ReferrerForm from "./ReferrerForm";
 import referrerService from "../../../api/referrers";
+import LoadingScreen from "../../../components/loadingPage";
 
 const initialData = {
   name: "",
@@ -26,9 +27,14 @@ const ManageReferrer = () => {
 
   const loadReferrers = async () => {
     try {
+      setLoading(true);
       const response = await referrerService.getReferrers();
       setReferrers(response.data);
-    } catch (e) {}
+    } catch (e) {
+      setPopup({ type: "error", message: "Could not load referrers" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -163,14 +169,7 @@ const ManageReferrer = () => {
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 px-4 py-6">
       {/* Loading Overlay */}
-      {loading && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-white rounded-2xl p-8 shadow-2xl">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto"></div>
-            <p className="mt-4 text-gray-700 font-semibold text-lg">Processing...</p>
-          </div>
-        </div>
-      )}
+      {loading && <LoadingScreen />}
 
       {/* Popup */}
       {popup && (
