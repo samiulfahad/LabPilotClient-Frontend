@@ -83,7 +83,7 @@ const Referrer = ({ input, index, onEdit, onDelete, onDeactivate, onActivate }) 
                       />
                     </svg>
                   </div>
-                  <span className="font-medium text-sm">{input.isDoctor ? "Doctor" : "Non-Doctor"}</span>
+                  <span className="font-medium text-sm">{input.isDoctor ? "Doctor" : "Agent"}</span>
                 </div>
 
                 <div className="flex items-center gap-2.5 text-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg px-3 py-2 border border-blue-200">
