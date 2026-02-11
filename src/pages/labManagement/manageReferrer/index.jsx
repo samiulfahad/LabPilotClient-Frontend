@@ -230,7 +230,7 @@ const ManageReferrer = () => {
             className="group bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2 px-3 sm:py-2.5 sm:px-5 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 flex items-center gap-1 sm:gap-2 text-xs sm:text-base whitespace-nowrap flex-shrink-0"
           >
             <svg
-              className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-90 transition-transform duration-300"
+              className="w-4 h-4 sm:w-5 sm:hidden lg:block group-hover:rotate-90 transition-transform duration-300"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -238,7 +238,7 @@ const ManageReferrer = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
             </svg>
             <span className="hidden xs:inline sm:inline">Add Referrer</span>
-            <span className="inline p-2 xs:hidden sm:hidden">Add</span>
+            <span className="inline p-2 xs:hidden sm:hidden">Add New</span>
           </button>
         </div>
 
