@@ -1,16 +1,14 @@
 import { useState } from "react";
-import { Settings, DollarSign, FileText, Eye, Check, Wifi, WifiOff, Star, FlaskConical } from "lucide-react";
+import { Settings, DollarSign, FileText, Eye, Star, FlaskConical } from "lucide-react";
 
 const TestConfigModal = ({ test, onClose, onSave }) => {
   const [price, setPrice] = useState(test.price || "");
-  const [isOnline, setIsOnline] = useState(test.isOnline ?? true);
   const [defaultFormat, setDefaultFormat] = useState(test.defaultFormat || test.formats?.[0]?.id || null);
 
   const handleSubmit = () => {
     onSave({
       ...test,
       price: parseFloat(price) || 0,
-      isOnline,
       defaultFormat,
     });
   };
@@ -29,58 +27,9 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
         </p>
       </div>
 
-      {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 bg-gray-50" style={{ paddingBottom: "88px" }}>
+      {/* Content – parent Modal handles scrolling */}
+      <div className="flex-1 px-6 py-6 bg-gray-50">
         <div className="space-y-5 max-w-2xl mx-auto">
-          {/* Online / Offline Toggle */}
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <Wifi className="w-4 h-4 text-gray-500" />
-              Delivery Mode
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setIsOnline(true)}
-                className={`relative py-3 px-3 rounded-lg font-medium transition-all duration-200 border-2 ${
-                  isOnline
-                    ? "border-blue-500 bg-blue-50 text-blue-700"
-                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                }`}
-              >
-                <div className="flex flex-col items-center gap-1.5">
-                  <Wifi className={`w-5 h-5 ${isOnline ? "text-blue-600" : "text-gray-400"}`} />
-                  <span className="text-xs font-semibold">Online</span>
-                </div>
-                {isOnline && (
-                  <div className="absolute top-1.5 right-1.5">
-                    <Check className="w-3.5 h-3.5 text-blue-600" />
-                  </div>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsOnline(false)}
-                className={`relative py-3 px-3 rounded-lg font-medium transition-all duration-200 border-2 ${
-                  !isOnline
-                    ? "border-orange-500 bg-orange-50 text-orange-700"
-                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                }`}
-              >
-                <div className="flex flex-col items-center gap-1.5">
-                  <WifiOff className={`w-5 h-5 ${!isOnline ? "text-orange-500" : "text-gray-400"}`} />
-                  <span className="text-xs font-semibold">Offline</span>
-                </div>
-                {!isOnline && (
-                  <div className="absolute top-1.5 right-1.5">
-                    <Check className="w-3.5 h-3.5 text-orange-500" />
-                  </div>
-                )}
-              </button>
-            </div>
-          </div>
-
           {/* Price */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
             <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -124,7 +73,7 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
             </div>
           </div>
 
-          {/* Formats — only shown when multiple formats exist */}
+          {/* Formats – only when multiple formats exist */}
           {test.formats && test.formats.length > 0 && (
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
               <h3 className="text-sm font-semibold text-gray-900 mb-1 flex items-center gap-2">
@@ -181,8 +130,8 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
         </div>
       </div>
 
-      {/* Fixed Footer */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-gray-200 px-6 py-4 bg-white shadow-lg">
+      {/* Footer – normal block */}
+      <div className="border-t border-gray-200 px-6 py-4 bg-white">
         <div className="flex gap-3 max-w-2xl mx-auto">
           <button
             type="button"

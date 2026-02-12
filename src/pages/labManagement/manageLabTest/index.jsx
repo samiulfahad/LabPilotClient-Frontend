@@ -1,6 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, X, FlaskConical, Filter, RotateCcw, Activity, Wifi, WifiOff, CheckCircle } from "lucide-react";
+import {
+  Plus,
+  Search,
+  X,
+  FlaskConical,
+  Filter,
+  RotateCcw,
+  Activity,
+  Wifi,
+  WifiOff,
+  CheckCircle,
+  ArrowLeft,
+} from "lucide-react";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
 import LabTest from "./LabTest";
@@ -8,8 +20,19 @@ import TestConfigModal from "./TestConfigModal";
 import labTestService from "../../../api/labTest";
 import LoadingScreen from "../../../components/loadingPage";
 
+// Helper: extract plain string ID from either a string or { $oid } object
+const resolveId = (id) => {
+  if (!id) return null;
+  if (typeof id === "object" && id.$oid) return id.$oid;
+  return String(id);
+};
+
+const UNCATEGORIZED_ID = "uncategorized";
+
 const ManageLabTest = () => {
   const [tests, setTests] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [popup, setPopup] = useState(null);
   const [configTest, setConfigTest] = useState(null);
@@ -17,30 +40,63 @@ const ManageLabTest = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const loadTests = async () => {
-    try {
-      setLoading(true);
-      const response = await labTestService.getTestList();
-      setTests(response.data);
-    } catch (e) {
-      setPopup({ type: "error", message: "Could not load lab tests" });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Utility to extract HTTP status from error
+  const getErrorStatus = (error) => error?.response?.status || error?.status || null;
 
+  // --- Initial data load ---
   useEffect(() => {
-    loadTests();
+    const loadAll = async () => {
+      try {
+        const [testsRes, catsRes] = await Promise.all([labTestService.getTestList(), labTestService.getCategoryList()]);
+        setTests(testsRes.data);
+        setCategories(catsRes.data);
+      } catch (e) {
+        const status = getErrorStatus(e);
+        if (status === 404) {
+          setPopup({
+            type: "info",
+            message: "No lab tests or categories found. Please add some tests.",
+          });
+          setTests([]);
+          setCategories([]);
+        } else {
+          setPopup({ type: "error", message: "Could not load lab tests. Please try again." });
+        }
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+    loadAll();
   }, []);
 
-  // Stats — React Compiler optimizes these automatically
-  const total = tests.length;
-  const online = tests.filter((t) => t.isOnline).length;
-  const offline = total - online;
-  const categoryCount = new Set(tests.map((t) => t.categoryName)).size;
+  // --- Build category map ---
+  const categoryMap = {};
+  categories.forEach((c) => {
+    const id = resolveId(c._id);
+    if (id) categoryMap[id] = c.name;
+  });
 
-  // Filtering
-  let filtered = [...tests];
+  // --- Enrich tests with categoryId, categoryName, isOnline ---
+  const enrichedTests = tests.map((t) => {
+    const rawId = resolveId(t.categoryId);
+    const categoryId = rawId || UNCATEGORIZED_ID;
+    const categoryName = rawId && categoryMap[rawId] ? categoryMap[rawId] : "Uncategorized";
+    return {
+      ...t,
+      categoryId,
+      categoryName,
+      isOnline: !!t.schemaId,
+    };
+  });
+
+  // --- Stats ---
+  const total = enrichedTests.length;
+  const online = enrichedTests.filter((t) => t.isOnline).length;
+  const offline = total - online;
+  const categoryCount = new Set(enrichedTests.map((t) => t.categoryId)).size;
+
+  // --- Filtering ---
+  let filtered = [...enrichedTests];
   if (statusFilter === "online") filtered = filtered.filter((t) => t.isOnline === true);
   else if (statusFilter === "offline") filtered = filtered.filter((t) => t.isOnline === false);
   if (searchQuery.trim()) {
@@ -48,62 +104,94 @@ const ManageLabTest = () => {
     filtered = filtered.filter((t) => t.name.toLowerCase().includes(q));
   }
 
-  // Group by category
-  const groupedTests = {};
+  // --- Group by categoryId (stable grouping) ---
+  const groupsMap = {};
   filtered.forEach((test) => {
-    const cat = test.categoryName || "Uncategorized";
-    if (!groupedTests[cat]) groupedTests[cat] = [];
-    groupedTests[cat].push(test);
+    const catId = test.categoryId;
+    if (!groupsMap[catId]) {
+      groupsMap[catId] = {
+        categoryId: catId,
+        categoryName: test.categoryName,
+        tests: [],
+      };
+    }
+    groupsMap[catId].tests.push(test);
   });
 
+  const groups = Object.values(groupsMap).sort((a, b) => {
+    if (a.categoryName === "Uncategorized") return 1;
+    if (b.categoryName === "Uncategorized") return -1;
+    return a.categoryName.localeCompare(b.categoryName);
+  });
+
+  // --- Delete handler (uses testId) ---
   const handleDelete = async () => {
+    const { testId, _id } = popup;
+
     try {
       setLoading(true);
-      await labTestService.deleteTest(popup._id);
-      setTests((prev) => prev.filter((t) => t._id !== popup._id));
-      setPopup({ type: "success", message: "Test deleted successfully" });
+      setPopup(null); // remove warning popup immediately
+
+      await labTestService.deleteTest(testId);
+      setTests((prev) => prev.filter((t) => t._id !== _id));
+
+      setTimeout(() => {
+        setPopup({ type: "success", message: "Test deleted successfully" });
+      }, 250);
     } catch (e) {
-      setPopup({ type: "error", message: "Could not delete test" });
+      const status = getErrorStatus(e);
+      setPopup(null);
+
+      if (status === 404) {
+        setTests((prev) => prev.filter((t) => t._id !== _id));
+        setTimeout(() => {
+          setPopup({
+            type: "info",
+            message: "This test was already deleted or does not exist.",
+          });
+        }, 250);
+      } else {
+        setTimeout(() => {
+          setPopup({ type: "error", message: "Could not delete test. Please try again." });
+        }, 250);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleToggleStatus = async (isActivating) => {
-    try {
-      setLoading(true);
-      const serviceCall = isActivating
-        ? labTestService.activateTest(popup._id)
-        : labTestService.deactivateTest(popup._id);
-      await serviceCall;
-      setTests((prev) => prev.map((t) => (t._id === popup._id ? { ...t, isActive: isActivating } : t)));
-      setPopup({
-        type: "success",
-        message: `Test ${isActivating ? "activated" : "deactivated"} successfully`,
-      });
-    } catch (e) {
-      setPopup({
-        type: "error",
-        message: `Could not ${isActivating ? "activate" : "deactivate"} test`,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // --- Edit handler ---
   const handleConfigSave = async (updatedTest) => {
     try {
       setLoading(true);
       await labTestService.editLabTest(updatedTest);
       setTests((prev) => prev.map((t) => (t._id === updatedTest._id ? { ...t, ...updatedTest } : t)));
       setIsConfigOpen(false);
-      setPopup({ type: "success", message: "Test configuration saved" });
+      setTimeout(() => {
+        setPopup({ type: "success", message: "Test configuration saved" });
+      }, 250);
     } catch (e) {
-      setPopup({ type: "error", message: "Could not save configuration" });
+      const status = getErrorStatus(e);
+      if (status === 404) {
+        setTests((prev) => prev.filter((t) => t._id !== updatedTest._id));
+        setIsConfigOpen(false);
+        setTimeout(() => {
+          setPopup({
+            type: "info",
+            message: "This test no longer exists. It has been removed from the list.",
+          });
+        }, 250);
+      } else {
+        setTimeout(() => {
+          setPopup({ type: "error", message: "Could not save configuration. Please try again." });
+        }, 250);
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  if (initialLoading) return <LoadingScreen />;
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50 to-cyan-50 px-4 py-6">
@@ -114,15 +202,7 @@ const ManageLabTest = () => {
           type={popup.type}
           message={popup.message}
           onClose={() => setPopup(null)}
-          onConfirm={
-            popup.type === "warning" && popup.action === "delete"
-              ? handleDelete
-              : popup.type === "warning" && popup.action === "deactivate"
-                ? () => handleToggleStatus(false)
-                : popup.type === "warning" && popup.action === "activate"
-                  ? () => handleToggleStatus(true)
-                  : null
-          }
+          onConfirm={popup.type === "warning" && popup.action === "delete" ? handleDelete : null}
         />
       )}
 
@@ -133,28 +213,59 @@ const ManageLabTest = () => {
       </Modal>
 
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        {/* ===== RESPONSIVE HEADER ===== */}
+        {/* Desktop + mobile row 1: Heading + Back (always) + Add Test (desktop only) */}
+        <div className="flex items-center justify-between mb-2 sm:mb-4">
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
               <FlaskConical className="w-7 h-7 sm:w-8 sm:h-8 text-teal-600" />
               Lab Test Management
             </h1>
-            <p className="text-sm text-gray-600 mt-1 flex items-center gap-1.5">
+            {/* Subtitle - visible only on desktop */}
+            <p className="text-sm text-gray-600 mt-1 hidden sm:flex items-center gap-1.5">
               <Activity className="w-4 h-4 text-teal-500" />
               Manage lab tests, pricing & formats
             </p>
           </div>
+
+          {/* Button group: Back + Add Test (desktop only) */}
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Back button - always visible */}
+            <Link
+              to="/labManagement"
+              className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white/50 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+              <span>Back</span>
+            </Link>
+
+            {/* Add Test button - desktop only */}
+            <Link
+              to="/labTest/add"
+              className="hidden sm:flex bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 items-center justify-center gap-2 text-sm sm:text-base"
+            >
+              <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+              <span>Add Test</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Mobile-only row: Subtitle + full-width Add Test button */}
+        <div className="flex flex-col gap-3 sm:hidden mb-6">
+          <p className="text-sm text-gray-600 flex items-center gap-1.5">
+            <Activity className="w-4 h-4 text-teal-500" />
+            Manage lab tests, pricing & formats
+          </p>
           <Link
             to="/labTest/add"
-            className="group bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base"
+            className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm"
           >
             <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
             <span>Add Test</span>
           </Link>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards – unchanged */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-2">
@@ -167,7 +278,6 @@ const ManageLabTest = () => {
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-blue-50 rounded-lg">
@@ -179,7 +289,6 @@ const ManageLabTest = () => {
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-orange-50 rounded-lg">
@@ -191,7 +300,6 @@ const ManageLabTest = () => {
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-purple-50 rounded-lg">
@@ -205,14 +313,13 @@ const ManageLabTest = () => {
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Filters – unchanged */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-gray-500" />
               <span className="text-sm font-semibold text-gray-700">Filters:</span>
             </div>
-
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-gray-500">Mode</span>
               <div className="flex rounded-lg bg-gray-100 p-1">
@@ -229,7 +336,6 @@ const ManageLabTest = () => {
                 ))}
               </div>
             </div>
-
             {statusFilter !== "all" && (
               <button
                 onClick={() => setStatusFilter("all")}
@@ -242,7 +348,7 @@ const ManageLabTest = () => {
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* Search Bar – unchanged */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -264,8 +370,8 @@ const ManageLabTest = () => {
           </div>
         </div>
 
-        {/* Category-wise Test List */}
-        {Object.keys(groupedTests).length === 0 ? (
+        {/* Category-wise Test List – unchanged */}
+        {groups.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
             <div className="bg-gradient-to-br from-teal-50 to-cyan-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <FlaskConical className="w-8 h-8 text-teal-600" />
@@ -290,25 +396,23 @@ const ManageLabTest = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            {Object.entries(groupedTests).map(([category, categoryTests]) => (
-              <div key={category}>
+            {groups.map((group) => (
+              <div key={group.categoryId}>
                 <div className="flex items-center gap-3 mb-3">
                   <div className="flex items-center gap-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm">
                     <FlaskConical className="w-3.5 h-3.5" />
-                    {category}
+                    {group.categoryName}
                   </div>
                   <div className="flex-1 h-px bg-gradient-to-r from-teal-200 to-transparent" />
                   <span className="text-xs text-gray-500 font-medium">
-                    {categoryTests.length} test{categoryTests.length !== 1 ? "s" : ""}
+                    {group.tests.length} test{group.tests.length !== 1 ? "s" : ""}
                   </span>
                 </div>
-
                 <div className="space-y-3">
-                  {categoryTests.map((item, index) => (
+                  {group.tests.map((item) => (
                     <LabTest
                       key={item._id}
                       input={item}
-                      index={index}
                       onConfigure={() => {
                         setConfigTest(item);
                         setIsConfigOpen(true);
@@ -319,22 +423,7 @@ const ManageLabTest = () => {
                           message: `Are you sure you want to delete "${item.name}"?`,
                           action: "delete",
                           _id: item._id,
-                        })
-                      }
-                      onDeactivate={() =>
-                        setPopup({
-                          type: "warning",
-                          message: `Are you sure you want to deactivate "${item.name}"?`,
-                          action: "deactivate",
-                          _id: item._id,
-                        })
-                      }
-                      onActivate={() =>
-                        setPopup({
-                          type: "warning",
-                          message: `Are you sure you want to activate "${item.name}"?`,
-                          action: "activate",
-                          _id: item._id,
+                          testId: item.testId,
                         })
                       }
                     />

@@ -1,123 +1,111 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  ArrowLeft,
-  Search,
-  X,
-  FlaskConical,
-  Check,
-  DollarSign,
-  Wifi,
-  WifiOff,
-  Plus,
-  ChevronDown,
-  ChevronRight,
-  CheckCircle2,
-} from "lucide-react";
+import { ArrowLeft, Search, X, FlaskConical, Check, Plus, ChevronDown, ChevronRight, CheckCircle2 } from "lucide-react";
 import labTestService from "../../../api/labTest";
 import LoadingScreen from "../../../components/loadingPage";
 import Popup from "../../../components/popup";
+import InputField from "../../../components/html/InputField";
+
+// Helper: extract a plain string ID from either a plain string or a { $oid } object
+const resolveId = (id) => {
+  if (!id) return null;
+  if (typeof id === "object" && id.$oid) return id.$oid;
+  return String(id);
+};
 
 const AddLabTest = ({ existingTests = [], onBack, onSave }) => {
   const navigate = useNavigate();
   const [availableTests, setAvailableTests] = useState([]);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [popup, setPopup] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTests, setSelectedTests] = useState({});
   const [expandedCategories, setExpandedCategories] = useState({});
   const [registeredTests, setRegisteredTests] = useState([]);
+  const [categories, setCategories] = useState([]);
 
-  // Fetch registered tests if not provided via props
+  // Load all three data sources in parallel on mount.
   useEffect(() => {
-    const fetchRegisteredTests = async () => {
-      if (existingTests.length === 0) {
-        try {
-          const response = await labTestService.getTestList();
-          setRegisteredTests(response.data);
-        } catch (e) {
-          console.error("Could not load registered tests", e);
-        }
-      } else {
-        setRegisteredTests(existingTests);
+    const loadAll = async () => {
+      try {
+        const [testsRes, catsRes, ownTestsRes] = await Promise.all([
+          labTestService.getGlobalTestList(),
+          labTestService.getCategoryList(),
+          existingTests.length === 0 ? labTestService.getTestList() : Promise.resolve({ data: existingTests }),
+        ]);
+
+        setAvailableTests(testsRes.data);
+        setCategories(catsRes.data);
+        setRegisteredTests(ownTestsRes.data);
+
+        const expanded = {};
+        catsRes.data.forEach((c) => {
+          const id = resolveId(c._id);
+          if (id) expanded[id] = true;
+        });
+        expanded["uncategorized"] = true;
+        setExpandedCategories(expanded);
+      } catch (e) {
+        setPopup({ type: "error", message: "Could not load tests" });
+      } finally {
+        setInitialLoading(false);
       }
     };
-    fetchRegisteredTests();
-  }, [existingTests]);
+    loadAll();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const existingIds = new Set(registeredTests.map((t) => t._id));
+  // Registered tests use `testId` field to reference a global test's _id
+  const existingTestIds = new Set(registeredTests.map((t) => t.testId));
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [testsRes, catsRes] = await Promise.all([
-        labTestService.getGlobalTestList(),
-        labTestService.getCategoryList(),
-      ]);
+  // Build category map: resolvedId -> name
+  const categoryMap = {};
+  categories.forEach((c) => {
+    const id = resolveId(c._id);
+    if (id) categoryMap[id] = c.name;
+  });
 
-      // Build category name map
-      const catMap = {};
-      catsRes.data.forEach((c) => {
-        catMap[c._id] = c.name;
-      });
-
-      // Merge category name into each test
-      const merged = testsRes.data.map((t) => ({
-        ...t,
-        categoryName: catMap[t.categoryId] || "Uncategorized",
-      }));
-
-      setAvailableTests(merged);
-
-      // Expand all categories by default
-      const expanded = {};
-      catsRes.data.forEach((c) => (expanded[c.name] = true));
-      expanded["Uncategorized"] = true;
-      setExpandedCategories(expanded);
-    } catch (e) {
-      setPopup({ type: "error", message: "Could not load tests" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // Filtering inline — React Compiler handles this
+  // Filter tests
   let filtered = [...availableTests];
   if (searchQuery.trim()) {
     const q = searchQuery.toLowerCase();
     filtered = filtered.filter((t) => t.name.toLowerCase().includes(q));
   }
 
-  // Group by category
+  // Group by category — resolve categoryId whether it's a string or { $oid }
   const groupedTests = {};
   filtered.forEach((test) => {
-    const cat = test.categoryName || "Uncategorized";
-    if (!groupedTests[cat]) groupedTests[cat] = [];
-    groupedTests[cat].push(test);
+    const catKey = resolveId(test.categoryId) || "uncategorized";
+    const catName = categoryMap[catKey] || "Uncategorized";
+    if (!groupedTests[catKey]) {
+      groupedTests[catKey] = { name: catName, tests: [] };
+    }
+    groupedTests[catKey].tests.push(test);
   });
 
-  const toggleSelect = (testId) => {
-    if (existingIds.has(testId)) return;
+  const getTestKey = (test) => resolveId(test._id);
+
+  const toggleSelect = (testKey) => {
+    if (!testKey) return;
+    if (existingTestIds.has(testKey)) return;
+
     setSelectedTests((prev) => {
       const updated = { ...prev };
-      if (updated[testId]) {
-        delete updated[testId];
+      if (updated[testKey]) {
+        delete updated[testKey];
       } else {
-        const test = availableTests.find((t) => t._id === testId);
-        updated[testId] = { price: "", isOnline: !!test?.schemaId };
+        const test = availableTests.find((t) => resolveId(t._id) === testKey);
+        if (!test) return prev;
+        updated[testKey] = { price: "" };
       }
       return updated;
     });
   };
 
-  const updateTestField = (testId, field, value) => {
+  const updateTestField = (testKey, field, value) => {
     setSelectedTests((prev) => ({
       ...prev,
-      [testId]: { ...prev[testId], [field]: value },
+      [testKey]: { ...prev[testKey], [field]: value },
     }));
   };
 
@@ -133,20 +121,20 @@ const AddLabTest = ({ existingTests = [], onBack, onSave }) => {
       return;
     }
 
-    const toSave = Object.entries(selectedTests).map(([id, config]) => {
-      const test = availableTests.find((t) => t._id === id);
+    const toSave = Object.entries(selectedTests).map(([testKey, config]) => {
+      const test = availableTests.find((t) => resolveId(t._id) === testKey);
       return {
-        ...test,
+        name: test.name,
+        testId: testKey,
+        categoryId: resolveId(test.categoryId),
+        schemaId: test.schemaId ? resolveId(test.schemaId) : null,
         price: parseFloat(config.price) || 0,
-        isOnline: config.isOnline,
       };
     });
 
     try {
       setLoading(true);
-      // Add each test via API
       await Promise.all(toSave.map((t) => labTestService.addLabTest(t)));
-
       if (onSave) {
         onSave(toSave);
       } else {
@@ -161,12 +149,11 @@ const AddLabTest = ({ existingTests = [], onBack, onSave }) => {
   };
 
   const handleBack = () => {
-    if (onBack) {
-      onBack();
-    } else {
-      navigate(-1);
-    }
+    if (onBack) onBack();
+    else navigate(-1);
   };
+
+  if (initialLoading) return <LoadingScreen />;
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50 to-cyan-50 px-4 py-6">
@@ -174,33 +161,32 @@ const AddLabTest = ({ existingTests = [], onBack, onSave }) => {
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       <div className="max-w-4xl mx-auto" style={{ paddingBottom: selectedCount > 0 ? "88px" : "0" }}>
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <button
-            onClick={handleBack}
-            className="p-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl shadow-sm transition-all"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
+        {/* ===== RESPONSIVE HEADER ===== */}
+        {/* Row 1: Heading + Back button */}
+        <div className="flex items-center justify-between mb-2 sm:mb-4">
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Plus className="w-6 h-6 text-teal-600" />
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
+              <Plus className="w-6 h-6 sm:w-7 sm:h-7 text-teal-600" />
               Add Lab Tests
             </h1>
-            <p className="text-sm text-gray-500 mt-0.5">Select tests, set price & mode, then save</p>
+            {/* Subtitle – hidden on desktop (will show below) */}
+            <p className="text-sm text-gray-500 mt-0.5 hidden sm:block">Select tests, set price, then save</p>
           </div>
-          {selectedCount > 0 && (
-            <button
-              onClick={handleSave}
-              className="hidden sm:flex bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 items-center gap-2 text-sm"
-            >
-              <Check className="w-4 h-4" />
-              Save {selectedCount} Test{selectedCount !== 1 ? "s" : ""}
-            </button>
-          )}
+
+          {/* Back button – always top right */}
+          <button
+            onClick={handleBack}
+            className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white/50 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back</span>
+          </button>
         </div>
 
-        {/* Search */}
+        {/* Row 2: Subtitle – visible only on mobile */}
+        <p className="text-sm text-gray-500 mb-4 sm:hidden">Select tests, set price, then save</p>
+
+        {/* Search – unchanged */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -222,19 +208,19 @@ const AddLabTest = ({ existingTests = [], onBack, onSave }) => {
           </div>
         </div>
 
-        {/* Category-wise Test List */}
+        {/* Category-wise Test List – unchanged */}
         <div className="space-y-4">
-          {Object.keys(groupedTests).length === 0 && !loading ? (
+          {Object.keys(groupedTests).length === 0 ? (
             <div className="bg-white rounded-xl p-8 text-center border border-gray-100">
               <FlaskConical className="w-10 h-10 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500 text-sm">No tests found</p>
             </div>
           ) : (
-            Object.entries(groupedTests).map(([categoryName, catTests]) => (
-              <div key={categoryName} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            Object.entries(groupedTests).map(([catKey, { name: categoryName, tests: catTests }]) => (
+              <div key={catKey} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 {/* Category Header */}
                 <button
-                  onClick={() => toggleCategory(categoryName)}
+                  onClick={() => toggleCategory(catKey)}
                   className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-gray-100 hover:from-teal-100 hover:to-cyan-100 transition-all"
                 >
                   <div className="flex items-center gap-2">
@@ -244,7 +230,7 @@ const AddLabTest = ({ existingTests = [], onBack, onSave }) => {
                       {catTests.length}
                     </span>
                   </div>
-                  {expandedCategories[categoryName] ? (
+                  {expandedCategories[catKey] ? (
                     <ChevronDown className="w-4 h-4 text-gray-500" />
                   ) : (
                     <ChevronRight className="w-4 h-4 text-gray-500" />
@@ -252,27 +238,28 @@ const AddLabTest = ({ existingTests = [], onBack, onSave }) => {
                 </button>
 
                 {/* Tests */}
-                {expandedCategories[categoryName] && (
+                {expandedCategories[catKey] && (
                   <div className="divide-y divide-gray-50">
-                    {catTests.map((test) => {
-                      const isAlreadyAdded = existingIds.has(test._id);
-                      const isSelected = !!selectedTests[test._id];
+                    {catTests.map((test, index) => {
+                      const testKey = getTestKey(test);
+                      const isAlreadyAdded = existingTestIds.has(testKey);
+                      const isSelected = !!selectedTests[testKey];
 
                       return (
                         <div
-                          key={test._id}
+                          key={testKey || `test-${catKey}-${index}`}
+                          onClick={() => !isAlreadyAdded && toggleSelect(testKey)}
                           className={`p-4 transition-all ${
                             isAlreadyAdded
-                              ? "bg-gray-50 opacity-70"
+                              ? "bg-gray-50 opacity-70 cursor-not-allowed"
                               : isSelected
-                                ? "bg-teal-50"
+                                ? "bg-teal-50 cursor-pointer"
                                 : "hover:bg-gray-50 cursor-pointer"
                           }`}
-                          onClick={() => !isAlreadyAdded && toggleSelect(test._id)}
                         >
-                          <div className="flex items-start gap-3">
+                          <div className="flex items-start sm:items-center gap-3">
                             {/* Checkbox */}
-                            <div className="mt-0.5 flex-shrink-0">
+                            <div className="flex-shrink-0 mt-0.5 sm:mt-0">
                               {isAlreadyAdded ? (
                                 <div className="w-5 h-5 rounded-full bg-green-100 border-2 border-green-400 flex items-center justify-center">
                                   <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
@@ -288,69 +275,42 @@ const AddLabTest = ({ existingTests = [], onBack, onSave }) => {
                               )}
                             </div>
 
-                            {/* Test Info */}
+                            {/* Right side: name row + price */}
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-semibold text-gray-800 text-sm">{test.name}</span>
-                                {isAlreadyAdded && (
-                                  <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-                                    Already registered
-                                  </span>
-                                )}
-                                {!isAlreadyAdded && test.schemaId && (
-                                  <span className="text-xs text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full font-medium">
-                                    Has schema
-                                  </span>
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3">
+                                {/* Name & badges */}
+                                <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                                  <span className="font-semibold text-gray-800 text-sm">{test.name}</span>
+                                  {!testKey && (
+                                    <span className="text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
+                                      Missing ID
+                                    </span>
+                                  )}
+                                  {isAlreadyAdded && (
+                                    <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                                      Already registered
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Price – only when selected */}
+                                {isSelected && !isAlreadyAdded && (
+                                  <div
+                                    className="mt-2 sm:mt-0 sm:flex-shrink-0 sm:w-48"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <InputField
+                                      label="Price"
+                                      name="price"
+                                      type="number"
+                                      value={selectedTests[testKey]?.price ?? ""}
+                                      onChange={(e) => updateTestField(testKey, "price", e.target.value)}
+                                      placeholder="0"
+                                      min="0"
+                                    />
+                                  </div>
                                 )}
                               </div>
-
-                              {/* Config fields — inline when selected */}
-                              {isSelected && !isAlreadyAdded && (
-                                <div
-                                  className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {/* Price */}
-                                  <div>
-                                    <label className="text-xs font-medium text-gray-600 mb-1.5 block">Price (৳)</label>
-                                    <div className="relative">
-                                      <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                                      <input
-                                        type="number"
-                                        value={selectedTests[test._id]?.price ?? ""}
-                                        onChange={(e) => updateTestField(test._id, "price", e.target.value)}
-                                        className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-100 outline-none text-sm"
-                                        placeholder="Enter price"
-                                        min="0"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  {/* Mode Display */}
-                                  <div>
-                                    <label className="text-xs font-medium text-gray-600 mb-1.5 block">Mode</label>
-                                    <div
-                                      className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border-2 ${
-                                        selectedTests[test._id]?.isOnline
-                                          ? "bg-blue-50 border-blue-200"
-                                          : "bg-orange-50 border-orange-200"
-                                      }`}
-                                    >
-                                      {selectedTests[test._id]?.isOnline ? (
-                                        <>
-                                          <Wifi className="w-4 h-4 text-blue-600" />
-                                          <span className="text-sm font-medium text-blue-700">Online</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <WifiOff className="w-4 h-4 text-orange-600" />
-                                          <span className="text-sm font-medium text-orange-700">Offline</span>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -364,7 +324,7 @@ const AddLabTest = ({ existingTests = [], onBack, onSave }) => {
         </div>
       </div>
 
-      {/* Sticky Bottom Save Bar */}
+      {/* Sticky Bottom Save Bar – unchanged */}
       {selectedCount > 0 && (
         <div className="fixed bottom-0 left-0 lg:left-64 right-0 z-20 border-t border-gray-200 px-4 sm:px-6 lg:px-8 py-4 bg-white shadow-lg">
           <div className="flex gap-3 max-w-4xl mx-auto">

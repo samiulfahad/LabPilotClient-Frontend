@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { Link } from "react-router-dom"; // ✅ added
 import {
   Plus,
   Search,
@@ -12,6 +13,7 @@ import {
   UserX,
   Stethoscope,
   Briefcase,
+  ArrowLeft, // ✅ added
 } from "lucide-react";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
@@ -221,31 +223,65 @@ const ManageReferrer = () => {
       )}
 
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        {/* ===== RESPONSIVE HEADER ===== */}
+        {/* Row 1: Heading + Back button (desktop: also includes Add Referrer) */}
+        <div className="flex items-center justify-between mb-2 sm:mb-4">
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
               <Users className="w-7 h-7 sm:w-8 sm:h-8 text-blue-600" />
               Referrer Management
             </h1>
-            <p className="text-sm text-gray-600 mt-1 flex items-center gap-1.5">
+            {/* Subtitle – hidden on desktop (shown below on mobile) */}
+            <p className="text-sm text-gray-600 mt-1 hidden sm:flex items-center gap-1.5">
               <Activity className="w-4 h-4 text-blue-500" />
               Manage referrers & commissions
             </p>
           </div>
+
+          {/* Right side: Back button + Add Referrer button (desktop) */}
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Back button – always visible */}
+            <Link
+              to="/labManagement" // change this to your desired back destination
+              className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white/50 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+              <span>Back</span>
+            </Link>
+
+            {/* Add Referrer button – desktop only */}
+            <button
+              onClick={() => {
+                setFormData({ ...initialData, type: "addReferrer" });
+                setIsModalOpen(true);
+              }}
+              className="hidden sm:flex bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 items-center justify-center gap-2 text-sm sm:text-base"
+            >
+              <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+              <span>Add Referrer</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: Mobile-only subtitle + full-width Add Referrer button */}
+        <div className="flex flex-col gap-3 sm:hidden mb-6">
+          <p className="text-sm text-gray-600 flex items-center gap-1.5">
+            <Activity className="w-4 h-4 text-blue-500" />
+            Manage referrers & commissions
+          </p>
           <button
             onClick={() => {
               setFormData({ ...initialData, type: "addReferrer" });
               setIsModalOpen(true);
             }}
-            className="group bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm"
           >
             <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
             <span>Add Referrer</span>
           </button>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards – unchanged */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-2">
@@ -296,7 +332,7 @@ const ManageReferrer = () => {
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Filters – unchanged */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
@@ -356,7 +392,7 @@ const ManageReferrer = () => {
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* Search Bar – unchanged */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -378,7 +414,7 @@ const ManageReferrer = () => {
           </div>
         </div>
 
-        {/* Modal */}
+        {/* Modal – unchanged */}
         <Modal isOpen={isModalOpen} size="md" onClose={handleClose}>
           <ReferrerForm
             formData={formData}
@@ -389,7 +425,7 @@ const ManageReferrer = () => {
           />
         </Modal>
 
-        {/* Referrers List */}
+        {/* Referrers List – unchanged */}
         {filteredReferrers.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
