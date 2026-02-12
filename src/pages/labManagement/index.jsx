@@ -16,7 +16,7 @@ const LabManagement = () => {
       color: "blue",
       gradient: "from-blue-500 to-blue-600",
       bgGradient: "from-blue-50 to-blue-100",
-      link: null,
+      link: "/manage-testList",
     },
     {
       title: "Non-Test Items",
