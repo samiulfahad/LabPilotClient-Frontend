@@ -19,7 +19,7 @@ import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
 import Referrer from "./Referrer";
 import ReferrerForm from "./ReferrerForm";
-import referrerService from "../../../api/referrers";
+import referrerService from "../../../api/referrer";
 import LoadingScreen from "../../../components/loadingPage";
 
 const initialData = {

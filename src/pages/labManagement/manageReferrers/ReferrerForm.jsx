@@ -27,17 +27,17 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-cyan-50">
+    <div className="relative">
+      {/* Header - Sticky at top */}
+      <div className="sticky top-0 z-10 px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-cyan-50">
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <Users className="w-6 h-6 text-blue-600" />
           {label.formTitle}
         </h2>
       </div>
 
-      {/* Scrollable Form Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 bg-gray-50" style={{ paddingBottom: "88px" }}>
+      {/* Scrollable Content - Parent modal handles overflow */}
+      <div className="px-6 py-6 bg-gray-50">
         <form onSubmit={onSubmit} className="space-y-5 max-w-2xl mx-auto">
           {/* Referrer Type */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
@@ -290,8 +290,8 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
         </form>
       </div>
 
-      {/* Fixed Footer - Always at bottom */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-gray-200 px-6 py-4 bg-white shadow-lg">
+      {/* Footer - Sticky at bottom */}
+      <div className="sticky bottom-0 z-10 border-t border-gray-200 px-6 py-4 bg-white">
         <div className="flex gap-3 max-w-2xl mx-auto">
           <button
             type="button"

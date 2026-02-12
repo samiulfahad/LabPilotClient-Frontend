@@ -15,9 +15,9 @@ import {
 } from "lucide-react";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
-import LabTest from "./LabTest";
+import Test from "./Test";
 import TestConfigModal from "./TestConfigModal";
-import labTestService from "../../../api/labTest";
+import testService from "../../../api/test";
 import LoadingScreen from "../../../components/loadingPage";
 
 // Helper: extract plain string ID from either a string or { $oid } object
@@ -29,7 +29,7 @@ const resolveId = (id) => {
 
 const UNCATEGORIZED_ID = "uncategorized";
 
-const ManageLabTest = () => {
+const ManageTest = () => {
   const [tests, setTests] = useState([]);
   const [categories, setCategories] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -47,7 +47,7 @@ const ManageLabTest = () => {
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const [testsRes, catsRes] = await Promise.all([labTestService.getTestList(), labTestService.getCategoryList()]);
+        const [testsRes, catsRes] = await Promise.all([testService.getTestList(), testService.getCategoryList()]);
         setTests(testsRes.data);
         setCategories(catsRes.data);
       } catch (e) {
@@ -132,7 +132,7 @@ const ManageLabTest = () => {
       setLoading(true);
       setPopup(null); // remove warning popup immediately
 
-      await labTestService.deleteTest(testId);
+      await testService.deleteTest(testId);
       setTests((prev) => prev.filter((t) => t._id !== _id));
 
       setTimeout(() => {
@@ -164,7 +164,7 @@ const ManageLabTest = () => {
   const handleConfigSave = async (updatedTest) => {
     try {
       setLoading(true);
-      await labTestService.editLabTest(updatedTest);
+      await testService.editTest(updatedTest);
       setTests((prev) => prev.map((t) => (t._id === updatedTest._id ? { ...t, ...updatedTest } : t)));
       setIsConfigOpen(false);
       setTimeout(() => {
@@ -241,7 +241,7 @@ const ManageLabTest = () => {
 
             {/* Add Test button - desktop only */}
             <Link
-              to="/labTest/add"
+              to="/test/add"
               className="hidden sm:flex bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 items-center justify-center gap-2 text-sm sm:text-base"
             >
               <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
@@ -257,7 +257,7 @@ const ManageLabTest = () => {
             Manage lab tests, pricing & formats
           </p>
           <Link
-            to="/labTest/add"
+            to="/test/add"
             className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm"
           >
             <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
@@ -386,7 +386,7 @@ const ManageLabTest = () => {
             </p>
             {!searchQuery && statusFilter === "all" && (
               <Link
-                to="/labTest/add"
+                to="/test/add"
                 className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm hover:shadow transition-all"
               >
                 <Plus className="w-4 h-4" />
@@ -410,7 +410,7 @@ const ManageLabTest = () => {
                 </div>
                 <div className="space-y-3">
                   {group.tests.map((item) => (
-                    <LabTest
+                    <Test
                       key={item._id}
                       input={item}
                       onConfigure={() => {
@@ -438,4 +438,4 @@ const ManageLabTest = () => {
   );
 };
 
-export default ManageLabTest;
+export default ManageTest;

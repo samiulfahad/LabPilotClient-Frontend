@@ -14,9 +14,9 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-teal-50 to-cyan-50">
+    <div className="relative">
+      {/* Header - Sticky at top */}
+      <div className="sticky top-0 z-10 px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-teal-50 to-cyan-50">
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <Settings className="w-6 h-6 text-teal-600" />
           Configure Test
@@ -27,8 +27,8 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
         </p>
       </div>
 
-      {/* Content – parent Modal handles scrolling */}
-      <div className="flex-1 px-6 py-6 bg-gray-50">
+      {/* Scrollable Content - Parent modal handles scrolling */}
+      <div className="px-6 py-6 bg-gray-50">
         <div className="space-y-5 max-w-2xl mx-auto">
           {/* Price */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
@@ -130,8 +130,8 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
         </div>
       </div>
 
-      {/* Footer – normal block */}
-      <div className="border-t border-gray-200 px-6 py-4 bg-white">
+      {/* Footer - Sticky at bottom */}
+      <div className="sticky bottom-0 z-10 border-t border-gray-200 px-6 py-4 bg-white">
         <div className="flex gap-3 max-w-2xl mx-auto">
           <button
             type="button"

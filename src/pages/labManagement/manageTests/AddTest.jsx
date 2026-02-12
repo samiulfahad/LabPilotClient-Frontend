@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Search, X, FlaskConical, Check, Plus, ChevronDown, ChevronRight, CheckCircle2 } from "lucide-react";
-import labTestService from "../../../api/labTest";
+import labTestService from "../../../api/test";
 import LoadingScreen from "../../../components/loadingPage";
 import Popup from "../../../components/popup";
 import InputField from "../../../components/html/InputField";
@@ -13,7 +13,7 @@ const resolveId = (id) => {
   return String(id);
 };
 
-const AddLabTest = ({ existingTests = [], onBack, onSave }) => {
+const AddTest = ({ existingTests = [], onBack, onSave }) => {
   const navigate = useNavigate();
   const [availableTests, setAvailableTests] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -349,4 +349,4 @@ const AddLabTest = ({ existingTests = [], onBack, onSave }) => {
   );
 };
 
-export default AddLabTest;
+export default AddTest;

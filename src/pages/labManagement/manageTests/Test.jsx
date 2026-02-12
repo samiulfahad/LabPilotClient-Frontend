@@ -1,6 +1,6 @@
 import { FlaskConical, Settings, Trash2, Wifi, WifiOff, DollarSign, FileText } from "lucide-react";
 
-const LabTest = ({ input, onConfigure, onDelete }) => {
+const Test = ({ input, onConfigure, onDelete }) => {
   return (
     <div className="group relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 p-5 border border-white/20 hover:border-teal-200">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
@@ -106,4 +106,4 @@ const LabTest = ({ input, onConfigure, onDelete }) => {
   );
 };
 
-export default LabTest;
+export default Test;
