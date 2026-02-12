@@ -71,7 +71,7 @@ const StaffForm = ({ formData, onChange, onSubmit, onClose }) => {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full max-h-[80vh] sm:max-h-full">
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50">
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -81,7 +81,7 @@ const StaffForm = ({ formData, onChange, onSubmit, onClose }) => {
       </div>
 
       {/* Scrollable Form Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 bg-gray-50" style={{ paddingBottom: "88px" }}>
+      <div className="flex-1 overflow-y-auto px-6 py-6 bg-gray-50">
         <form onSubmit={onSubmit} className="space-y-5 max-w-2xl mx-auto">
           {/* Basic Information */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
@@ -296,8 +296,8 @@ const StaffForm = ({ formData, onChange, onSubmit, onClose }) => {
         </form>
       </div>
 
-      {/* Fixed Footer - Always at bottom */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-gray-200 px-6 py-4 bg-white shadow-lg">
+      {/* Footer – normal block, no fixed positioning */}
+      <div className="border-t border-gray-200 px-6 py-4 bg-white">
         <div className="flex gap-3 max-w-2xl mx-auto">
           <button
             type="button"
