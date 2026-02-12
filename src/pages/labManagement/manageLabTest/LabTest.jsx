@@ -52,7 +52,7 @@ const LabTest = ({ input, onConfigure, onDelete }) => {
               {/* Price - soft pill */}
               <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 rounded-full text-xs">
                 <DollarSign className="w-3.5 h-3.5 text-gray-500" />
-                <span className="font-medium text-gray-700">{input.price ? `৳${input.price}` : "Not set"}</span>
+                <span className="font-medium text-gray-700">{input.price ? `৳${input.price}` : "Price NOT set"}</span>
               </div>
 
               {/* Formats count - soft pill */}
