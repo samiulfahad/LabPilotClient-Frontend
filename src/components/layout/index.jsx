@@ -3,27 +3,27 @@ import MobileMenu from "./MobileMenu";
 
 const Layout = ({ children }) => {
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-slate-50">
       <MobileMenu />
       <DesktopMenu />
 
-      {/* Main content wrapper */}
-      <div className="lg:ml-64 flex-1 flex flex-col min-h-screen">
-        {/* Main content area */}
-        <main className="flex-1 bg-white">
-          <div className="pt-20 lg:pt-6 px-4 sm:px-6 lg:px-8 pb-8">
+      {/* Main Content Wrapper */}
+      <div className="flex-1 flex flex-col min-h-screen lg:ml-64">
+        {/* Page Content */}
+        <main className="flex-1 bg-white/80 backdrop-blur-sm">
+          <div className="pt-20 lg:pt-8 px-4 sm:px-6 lg:px-8 pb-8">
             <div className="max-w-7xl mx-auto">{children}</div>
           </div>
         </main>
 
-        {/* Global Footer */}
-        <footer className="bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            {/* Bottom copyright */}
-            <div className=" pt-4 border-t border-gray-200">
-              <p className="text-center text-xs text-gray-500">
-                © {new Date().getFullYear()} LabPilot Pro by Samiul Fahad. All rights reserved.
+        {/* Global Footer – Minimal Enterprise */}
+        <footer className="border-t border-gray-200/80 bg-white/50 backdrop-blur-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <p className="text-xs text-gray-500 order-2 sm:order-1">
+                © {new Date().getFullYear()} LabPilot Pro. All rights reserved.
               </p>
+              <p className="text-xs text-gray-400 order-1 sm:order-2">Designed & Developed by Samiul Fahad</p>
             </div>
           </div>
         </footer>

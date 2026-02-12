@@ -1,14 +1,27 @@
+import {
+  Home,
+  Receipt,
+  FilePlus,
+  Upload,
+  List,
+  Trash2,
+  DollarSign,
+  CreditCard,
+  FlaskConical,
+  HelpCircle,
+} from "lucide-react";
+
 const menu = [
-  { label: "Home", path: "/", icon: "🏠" },
-  { label: "Cash Memo", path: "/cashMemo", icon: "🧾" },
-  { label: "New Invoice", path: "/createInvoice", icon: "📄" },
-   { label: "Report Upload", path: "/reportUpload", icon: "📤" },
-  { label: "Invoice List", path: "/invoiceList", icon: "📋" },
-  { label: "Delete Invoice", path: "/deleteInvoice", icon: "🗑️" },
-  { label: "Commission", path: "/commission", icon: "💰" },
-  { label: "Billing", path: "/billing", icon: "💳" },
-  { label: "Lab Management", path: "/labManagement", icon: "⚙️" },
-  { label: "Support", path: "/support", icon: "🛟" },
+  { label: "Home", path: "/", icon: Home },
+  { label: "Cash Memo", path: "/cashMemo", icon: Receipt },
+  { label: "New Invoice", path: "/createInvoice", icon: FilePlus },
+  { label: "Report Upload", path: "/reportUpload", icon: Upload },
+  { label: "Invoice List", path: "/invoiceList", icon: List },
+  { label: "Delete Invoice", path: "/deleteInvoice", icon: Trash2 },
+  { label: "Commission", path: "/commission", icon: DollarSign },
+  { label: "Billing", path: "/billing", icon: CreditCard },
+  { label: "Lab Management", path: "/labManagement", icon: FlaskConical },
+  { label: "Support", path: "/support", icon: HelpCircle },
 ];
 
 export default menu;
