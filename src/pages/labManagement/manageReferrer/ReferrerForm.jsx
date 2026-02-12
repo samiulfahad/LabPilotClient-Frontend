@@ -77,10 +77,6 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
 
           {/* Basic Information */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <Info className="w-4 h-4 text-gray-500" />
-              Basic Information
-            </h3>
             <div className="space-y-3">
               {/* Name and Contact Number - Same Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -198,9 +194,6 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
                   className="w-4 h-4 text-blue-600"
                 />
                 <div className="flex items-center gap-2">
-                  <Percent
-                    className={`w-4 h-4 ${formData.commissionType === "percentage" ? "text-blue-600" : "text-gray-400"}`}
-                  />
                   <span
                     className={`font-medium text-sm ${formData.commissionType === "percentage" ? "text-blue-700" : "text-gray-700"}`}
                   >
@@ -224,9 +217,6 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
                   className="w-4 h-4 text-green-600"
                 />
                 <div className="flex items-center gap-2">
-                  <DollarSign
-                    className={`w-4 h-4 ${formData.commissionType === "fixed" ? "text-green-600" : "text-gray-400"}`}
-                  />
                   <span
                     className={`font-medium text-sm ${formData.commissionType === "fixed" ? "text-green-700" : "text-gray-700"}`}
                   >
