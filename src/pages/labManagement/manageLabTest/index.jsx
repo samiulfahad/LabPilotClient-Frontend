@@ -146,7 +146,7 @@ const ManageLabTest = () => {
             </p>
           </div>
           <Link
-            to="/add-labTest"
+            to="/labTest/add"
             className="group bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
@@ -280,7 +280,7 @@ const ManageLabTest = () => {
             </p>
             {!searchQuery && statusFilter === "all" && (
               <Link
-                to="/admin/lab-tests/add"
+                to="/labTest/add"
                 className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm hover:shadow transition-all"
               >
                 <Plus className="w-4 h-4" />

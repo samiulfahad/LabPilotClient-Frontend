@@ -18,7 +18,7 @@ function App() {
         <Route path="/manage-referrers" element={<ManageReferrer />} />
         <Route path="/manage-staffs" element={<ManageStaff />} />
         <Route path="/manage-testList" element={<ManageLabTest />} />
-        <Route path="/add-labTest" element={<AddLabTest />} />
+        <Route path="/labTest/add" element={<AddLabTest />} />
       </Routes>
     </Layout>
   );

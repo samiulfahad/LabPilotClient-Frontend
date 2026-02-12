@@ -33,7 +33,7 @@ const DesktopMenu = () => {
                     to={item.path}
                     end={item.path === "/"}
                     className={({ isActive }) =>
-                      `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
+                      `flex items-center space-x-3 px-3 py-1 rounded-lg transition-all duration-200 group ${
                         isActive
                           ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200 shadow-sm"
                           : "text-gray-700 hover:bg-white hover:text-gray-900 hover:shadow-sm"
