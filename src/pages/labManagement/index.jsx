@@ -147,7 +147,7 @@ const LabManagement = () => {
                   <span className="text-sm font-medium text-gray-700">Mobile</span>
                 </div>
 
-                <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2.5 py-1 mt-3 rounded-md border border-gray-200">
+                <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2.5 py-1 mt-1 rounded-md border border-gray-200">
                   +880 1712 345678
                 </span>
 
