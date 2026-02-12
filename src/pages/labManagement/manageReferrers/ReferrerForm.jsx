@@ -27,7 +27,7 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
   };
 
   return (
-    <div className="relative">
+    <div className="relative max-h-[80vh] sm:max-h-full">
       {/* Header - Sticky at top */}
       <div className="sticky top-0 z-10 px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-cyan-50">
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
