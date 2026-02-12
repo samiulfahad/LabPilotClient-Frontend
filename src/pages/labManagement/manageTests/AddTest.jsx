@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Search, X, FlaskConical, Check, Plus, ChevronDown, ChevronRight, CheckCircle2 } from "lucide-react";
-import labTestService from "../../../api/test";
+import testService from "../../../api/test";
 import LoadingScreen from "../../../components/loadingPage";
 import Popup from "../../../components/popup";
 import InputField from "../../../components/html/InputField";
@@ -30,9 +30,9 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
     const loadAll = async () => {
       try {
         const [testsRes, catsRes, ownTestsRes] = await Promise.all([
-          labTestService.getGlobalTestList(),
-          labTestService.getCategoryList(),
-          existingTests.length === 0 ? labTestService.getTestList() : Promise.resolve({ data: existingTests }),
+          testService.getGlobalTestList(),
+          testService.getCategoryList(),
+          existingTests.length === 0 ? testService.getTestList() : Promise.resolve({ data: existingTests }),
         ]);
 
         setAvailableTests(testsRes.data);
@@ -134,7 +134,7 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
 
     try {
       setLoading(true);
-      await Promise.all(toSave.map((t) => labTestService.addLabTest(t)));
+      await Promise.all(toSave.map((t) => testService.addTest(t)));
       if (onSave) {
         onSave(toSave);
       } else {
