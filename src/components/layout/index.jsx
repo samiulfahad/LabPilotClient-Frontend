@@ -22,7 +22,7 @@ const Layout = ({ children }) => {
             {/* Bottom copyright */}
             <div className=" pt-4 border-t border-gray-200">
               <p className="text-center text-xs text-gray-500">
-                © {new Date().getFullYear()} LabPilot Pro. All rights reserved.
+                © {new Date().getFullYear()} LabPilot Pro by Samiul Fahad. All rights reserved.
               </p>
             </div>
           </div>

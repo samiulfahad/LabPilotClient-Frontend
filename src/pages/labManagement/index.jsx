@@ -1,107 +1,95 @@
 import Icons from "../../components/icons";
 import { Link } from "react-router-dom";
-import { Settings, ChevronRight } from "lucide-react";
+import { Settings, ChevronRight, Shield, Key, Phone, Mail } from "lucide-react";
 
 const LabManagement = () => {
-  const handleChangeCredentials = () => {
-    alert("Opening change password/email modal...");
-    // In a real app, this would open a modal or navigate to settings
+  const handleChangeCredentials = (type) => {
+    alert(`Opening ${type} change modal...`);
   };
 
   const cards = [
     {
       title: "Manage Test List",
-      description: "টেস্ট লিস্ট, নতুন টেস্ট Add করা, টেস্টের মূল্য ইত্যাদি",
       icon: Icons.TestList,
-      color: "blue",
-      gradient: "from-blue-500 to-blue-600",
-      bgGradient: "from-blue-50 to-blue-100",
       link: "/manage-testList",
+      bgIcon: "bg-gradient-to-br from-blue-50 to-indigo-50",
+      iconColor: "text-blue-600",
+      accentBorder: "bg-gradient-to-r from-blue-500 to-indigo-600",
+      hoverBorder: "group-hover:border-blue-200",
+      textColor: "text-blue-600",
     },
     {
       title: "Non-Test Items",
-      description: "টেস্ট ব্যতীত অন্যান্য সেবা ও পণ্যের নাম, তালিকা, মূল্য ইত্যাদি",
       icon: Icons.NonTestItems,
-      color: "amber",
-      gradient: "from-amber-500 to-amber-600",
-      bgGradient: "from-amber-50 to-amber-100",
       link: null,
+      bgIcon: "bg-gradient-to-br from-amber-50 to-amber-100",
+      iconColor: "text-amber-600",
+      accentBorder: "bg-gradient-to-r from-amber-500 to-amber-600",
+      hoverBorder: "group-hover:border-amber-200",
+      textColor: "text-amber-600",
     },
     {
       title: "Manage Staff",
-      description: "আপনার প্রতিষ্ঠানে কর্মরত ব্যক্তিদের Account, তাদের Access Management ইত্যাদি",
       icon: Icons.Staff,
-      color: "emerald",
-      gradient: "from-emerald-500 to-emerald-600",
-      bgGradient: "from-emerald-50 to-emerald-100",
       link: "/manage-staffs",
+      bgIcon: "bg-gradient-to-br from-emerald-50 to-emerald-100",
+      iconColor: "text-emerald-600",
+      accentBorder: "bg-gradient-to-r from-emerald-500 to-emerald-600",
+      hoverBorder: "group-hover:border-emerald-200",
+      textColor: "text-emerald-600",
     },
     {
       title: "Manage Referrers",
-      description: "Referrer List, Add, Edit, Delete",
       icon: Icons.Referrers,
-      color: "purple",
-      gradient: "from-purple-500 to-purple-600",
-      bgGradient: "from-purple-50 to-purple-100",
       link: "/manage-referrers",
+      bgIcon: "bg-gradient-to-br from-purple-50 to-purple-100",
+      iconColor: "text-purple-600",
+      accentBorder: "bg-gradient-to-r from-purple-500 to-purple-600",
+      hoverBorder: "group-hover:border-purple-200",
+      textColor: "text-purple-600",
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-blue-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        {/* Header Section */}
-        <div className="mb-8 sm:mb-12">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
-              <Settings className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">Lab Management</h1>
-              <p className="text-sm text-gray-600 mt-1">Manage your laboratory operations efficiently</p>
-            </div>
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        {/* Header – minimal */}
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2.5 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-md">
+            <Settings className="w-6 h-6 text-white" />
           </div>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900">Lab Management</h1>
         </div>
 
-        {/* Management Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5 sm:gap-6 mb-6">
+        {/* Cards – no descriptions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {cards.map((card, index) => {
             const CardContent = (
-              <div className="group relative bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-gray-100 overflow-hidden h-full">
-                {/* Gradient Accent */}
-                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${card.gradient}`} />
-
-                <div className="p-6 sm:p-7">
-                  {/* Icon and Title */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-4">
-                      <div
-                        className={`p-3.5 bg-gradient-to-br ${card.bgGradient} rounded-xl group-hover:scale-110 transition-transform duration-300 shadow-sm`}
-                      >
-                        <card.icon className={`w-7 h-7 text-${card.color}-600`} />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-gray-900 group-hover:text-gray-700 transition-colors">
-                          {card.title}
-                        </h2>
-                      </div>
+              <div
+                className={`
+                  group bg-white/80 backdrop-blur-sm rounded-xl
+                  border border-gray-200/80 hover:border-gray-300
+                  shadow-sm hover:shadow-md
+                  transition-all duration-200 p-5 h-full
+                  ${card.hoverBorder}
+                `}
+              >
+                <div className="flex flex-col h-full">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className={`flex-shrink-0 p-2.5 rounded-lg bg-white shadow-sm ${card.bgIcon}`}>
+                      <card.icon className={`w-5 h-5 ${card.iconColor}`} />
                     </div>
-                    <ChevronRight
-                      className={`w-5 h-5 text-${card.color}-500 group-hover:translate-x-1 transition-transform opacity-0 group-hover:opacity-100`}
-                    />
+                    <h2 className="text-base font-semibold text-gray-900 tracking-tight">{card.title}</h2>
                   </div>
 
-                  {/* Description */}
-                  <p className="text-gray-600 leading-relaxed mb-4 min-h-[3rem]">{card.description}</p>
-
-                  {/* Action Footer */}
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                  <div className="flex items-center justify-between pt-3 mt-auto border-t border-gray-100">
                     <span
-                      className={`text-sm font-semibold text-${card.color}-600 group-hover:text-${card.color}-700 transition-colors flex items-center gap-1.5`}
+                      className={`inline-flex items-center gap-1 text-xs font-medium ${card.textColor} opacity-80 group-hover:opacity-100`}
                     >
-                      Click to manage
-                      <ChevronRight className="w-4 h-4" />
+                      {card.link ? "Manage" : "Soon"}
+                      <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                     </span>
+                    {card.link && <span className="text-xs text-gray-400">→</span>}
                   </div>
                 </div>
               </div>
@@ -112,44 +100,120 @@ const LabManagement = () => {
                 {CardContent}
               </Link>
             ) : (
-              <div key={index} className="cursor-pointer h-full">
+              <div key={index} className="block h-full cursor-not-allowed opacity-70">
                 {CardContent}
               </div>
             );
           })}
         </div>
 
-        {/* Account Security Card - Full Width Highlight */}
-        <div
-          onClick={handleChangeCredentials}
-          className="group relative bg-gradient-to-br from-indigo-600 via-blue-600 to-indigo-700 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 cursor-pointer overflow-hidden"
-        >
-          {/* Decorative Elements */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24" />
+        {/* ===== ACCOUNT SECURITY – PASSWORD BUTTON AT 3RD POSITION ===== */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-[0_4px_12px_rgba(0,0,0,0.02)] p-5">
+          {/* Header */}
+          <div className="flex items-center gap-3 pb-3 border-b border-gray-100 mb-3">
+            <div className="p-2 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg">
+              <Shield className="w-4 h-4 text-indigo-600" />
+            </div>
+            <h2 className="text-sm font-semibold text-gray-800">Account Security</h2>
+          </div>
 
-          <div className="relative p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className="p-4 bg-white/20 backdrop-blur-sm rounded-xl group-hover:bg-white/30 transition-all shadow-lg">
-                  <Icons.AccountSecurity className="w-8 h-8 text-white" />
+          {/* Credential rows – Mobile → Email → Password */}
+          <div className="space-y-3">
+            {/* ─── 1. MOBILE ────────────────── */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg hover:bg-gray-50/80 transition-colors">
+              {/* Mobile row 1: label + button */}
+              <div className="flex items-center justify-between w-full sm:hidden">
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 bg-indigo-50 rounded-md">
+                    <Phone className="w-3.5 h-3.5 text-indigo-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">Mobile</span>
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
-                    Account Security
-                    <span className="px-2.5 py-0.5 bg-white/20 backdrop-blur-sm rounded-full text-xs font-semibold">
-                      Important
-                    </span>
-                  </h2>
-                  <p className="text-blue-100 text-sm sm:text-base">
-                    Update your password and email to keep your account secure
-                  </p>
+                <button
+                  onClick={() => handleChangeCredentials("mobile")}
+                  className="group inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all shadow-sm hover:shadow"
+                >
+                  Change
+                  <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
+
+              {/* Value chip (mobile indented, desktop inline) */}
+              <div className="flex items-center gap-3 pl-10 sm:pl-0 sm:flex sm:flex-row sm:items-center sm:gap-3 w-full">
+                <div className="hidden sm:flex sm:items-center sm:gap-3">
+                  <div className="p-1.5 bg-indigo-50 rounded-md">
+                    <Phone className="w-3.5 h-3.5 text-indigo-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">Mobile</span>
                 </div>
+
+                <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200">
+                  +880 1712 345678
+                </span>
+
+                {/* Desktop button */}
+                <button
+                  onClick={() => handleChangeCredentials("mobile")}
+                  className="hidden sm:inline-flex group items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all shadow-sm hover:shadow sm:w-36 ml-auto"
+                >
+                  Change Number
+                  <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                </button>
               </div>
-              <div className="flex items-center gap-2 text-white font-semibold group-hover:gap-3 transition-all">
-                <span className="text-sm sm:text-base">Update credentials</span>
-                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </div>
+
+            {/* ─── 2. EMAIL ────────────────── */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg hover:bg-gray-50/80 transition-colors">
+              {/* Mobile row 1: label + button */}
+              <div className="flex items-center justify-between w-full sm:hidden">
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 bg-indigo-50 rounded-md">
+                    <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">Email</span>
+                </div>
+                <button
+                  onClick={() => handleChangeCredentials("email")}
+                  className="group inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all shadow-sm hover:shadow"
+                >
+                  Change
+                  <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                </button>
               </div>
+
+              {/* Value chip (mobile indented, desktop inline) */}
+              <div className="flex items-center gap-3 pl-10 sm:pl-0 sm:flex sm:flex-row sm:items-center sm:gap-3 w-full">
+                <div className="hidden sm:flex sm:items-center sm:gap-3">
+                  <div className="p-1.5 bg-indigo-50 rounded-md">
+                    <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">Email</span>
+                </div>
+
+                <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200">
+                  admin@diagnostics.com
+                </span>
+
+                {/* Desktop button */}
+                <button
+                  onClick={() => handleChangeCredentials("email")}
+                  className="hidden sm:inline-flex group items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all shadow-sm hover:shadow sm:w-36 ml-auto"
+                >
+                  Change Email
+                  <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
+            </div>
+
+            {/* ─── 3. PASSWORD – HALF WIDTH, CENTERED ────────────────── */}
+            <div className="flex justify-center p-3 rounded-lg hover:bg-gray-50/80 transition-colors">
+              <button
+                onClick={() => handleChangeCredentials("password")}
+                className="group inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all shadow-sm hover:shadow w-1/2"
+              >
+                Change Password
+                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </button>
             </div>
           </div>
         </div>
