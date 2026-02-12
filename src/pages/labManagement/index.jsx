@@ -190,7 +190,7 @@ const LabManagement = () => {
                   <span className="text-sm font-medium text-gray-700">Email</span>
                 </div>
 
-                <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200">
+                <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2.5 py-1 my-1 rounded-md border border-gray-200">
                   admieerwerhn@diagnostics.com
                 </span>
 
