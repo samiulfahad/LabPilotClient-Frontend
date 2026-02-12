@@ -69,28 +69,13 @@ const Modal = ({
         style={{ margin: 0 }}
       >
         <div
-          className={`${sizeClasses[size]} bg-white rounded-xl shadow-2xl transform transition-all duration-200 flex flex-col max-h-[90vh] border border-gray-100 pointer-events-auto ${
+          className={`${sizeClasses[size]} bg-white rounded-xl shadow-2xl transform transition-all duration-200 flex flex-col max-h-[90vh] border border-gray-100 pointer-events-auto overflow-hidden ${
             isClosing ? "opacity-0 scale-95 -translate-y-4" : "opacity-100 scale-100 translate-y-0"
           }`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Close Button */}
-          {onClose && (
-            <button
-              onClick={handleClose}
-              className={`absolute top-5 right-5 z-10 text-gray-400 hover:text-gray-600 transition-all duration-200 p-2.5 hover:bg-gray-100 rounded-xl hover:rotate-90 group ${
-                isClosing ? "opacity-0 scale-75" : "opacity-100 scale-100"
-              }`}
-              aria-label="Close"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-8 modal-scrollbar">{children}</div>
+          <div className="flex-1 overflow-y-auto modal-scrollbar">{children}</div>
         </div>
       </div>
 

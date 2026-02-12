@@ -1,4 +1,18 @@
 import { useEffect, useState, useMemo } from "react";
+import {
+  Plus,
+  Search,
+  X,
+  Users,
+  Filter,
+  RotateCcw,
+  UserPlus,
+  Activity,
+  UserCheck,
+  UserX,
+  Stethoscope,
+  Briefcase,
+} from "lucide-react";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
 import Referrer from "./Referrer";
@@ -47,7 +61,9 @@ const ManageReferrer = () => {
     const total = referrers.length;
     const active = referrers.filter((r) => r.isActive).length;
     const inactive = total - active;
-    return { total, active, inactive };
+    const doctors = referrers.filter((r) => r.isDoctor).length;
+    const agents = total - doctors;
+    return { total, active, inactive, doctors, agents };
   }, [referrers]);
 
   const filteredReferrers = useMemo(() => {
@@ -205,21 +221,16 @@ const ManageReferrer = () => {
       )}
 
       <div className="max-w-7xl mx-auto">
-        {/* 📱 Header – Button always top‑right, even on mobile */}
-        <div className="flex flex-row items-center justify-between gap-2 mb-4">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent truncate">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
+              <Users className="w-7 h-7 sm:w-8 sm:h-8 text-blue-600" />
               Referrer Management
             </h1>
-            <p className="text-xs sm:text-sm text-gray-600 flex items-center gap-1 mt-0.5 truncate">
-              <svg className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span className="truncate">Manage referrers & commissions</span>
+            <p className="text-sm text-gray-600 mt-1 flex items-center gap-1.5">
+              <Activity className="w-4 h-4 text-blue-500" />
+              Manage referrers & commissions
             </p>
           </div>
           <button
@@ -227,49 +238,81 @@ const ManageReferrer = () => {
               setFormData({ ...initialData, type: "addReferrer" });
               setIsModalOpen(true);
             }}
-            className="group bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2 px-3 sm:py-2.5 sm:px-5 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 flex items-center gap-1 sm:gap-2 text-xs sm:text-base whitespace-nowrap flex-shrink-0"
+            className="group bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base"
           >
-            <svg
-              className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-90 transition-transform duration-300"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-            </svg>
-            <span className="hidden sm:inline">Add Referrer</span>
-            <span className="inline p-2 sm:hidden">Add New</span>
+            <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+            <span>Add Referrer</span>
           </button>
         </div>
 
-        {/* 🚀 STATS + FILTERS – side by side on lg, stacked on mobile */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between lg:gap-4 mb-4">
-          {/* Ultra‑compact stats – fixed width on large screens */}
-          <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm rounded-lg border border-gray-100 px-4 py-2 text-sm shadow-sm lg:flex-shrink-0">
-            <span className="font-medium text-gray-700">
-              Total: <span className="font-bold text-gray-900 ml-1">{stats.total}</span>
-            </span>
-            <span className="text-gray-300">|</span>
-            <span className="font-medium text-gray-700">
-              Active: <span className="font-bold text-green-600 ml-1">{stats.active}</span>
-            </span>
-            <span className="text-gray-300">|</span>
-            <span className="font-medium text-gray-700">
-              Inactive: <span className="font-bold text-red-600 ml-1">{stats.inactive}</span>
-            </span>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <Users className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 font-medium">Total</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+              </div>
+            </div>
           </div>
 
-          {/* Filter bar – takes remaining width, internal layout unchanged */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 flex-1 flex flex-wrap items-center gap-4">
+          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-green-50 rounded-lg">
+                <UserCheck className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 font-medium">Active</p>
+                <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-purple-50 rounded-lg">
+                <Stethoscope className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 font-medium">Doctors</p>
+                <p className="text-2xl font-bold text-purple-600">{stats.doctors}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-orange-50 rounded-lg">
+                <Briefcase className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 font-medium">Agents</p>
+                <p className="text-2xl font-bold text-orange-600">{stats.agents}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-semibold text-gray-700">Filters:</span>
+            </div>
+
             {/* Type Filter */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Type</span>
-              <div className="flex rounded-md bg-gray-100 p-0.5">
+              <span className="text-xs font-medium text-gray-500">Type</span>
+              <div className="flex rounded-lg bg-gray-100 p-1">
                 {["all", "doctor", "agent"].map((type) => (
                   <button
                     key={type}
                     onClick={() => setTypeFilter(type)}
-                    className={`px-3 py-1 text-xs font-medium rounded transition-all capitalize ${
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
                       typeFilter === type ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
                     }`}
                   >
@@ -281,13 +324,13 @@ const ManageReferrer = () => {
 
             {/* Status Filter */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</span>
-              <div className="flex rounded-md bg-gray-100 p-0.5">
+              <span className="text-xs font-medium text-gray-500">Status</span>
+              <div className="flex rounded-lg bg-gray-100 p-1">
                 {["all", "active", "inactive"].map((status) => (
                   <button
                     key={status}
                     onClick={() => setStatusFilter(status)}
-                    className={`px-3 py-1 text-xs font-medium rounded transition-all capitalize ${
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
                       statusFilter === status ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
                     }`}
                   >
@@ -297,62 +340,46 @@ const ManageReferrer = () => {
               </div>
             </div>
 
-            {/* Reset – auto margin pushes it to the right */}
+            {/* Reset */}
             {(typeFilter !== "all" || statusFilter !== "all") && (
               <button
                 onClick={() => {
                   setTypeFilter("all");
                   setStatusFilter("all");
                 }}
-                className="ml-auto text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1 transition-colors"
+                className="ml-auto text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1.5 transition-colors font-medium px-3 py-1.5 hover:bg-blue-50 rounded-lg"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Reset
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset Filters
               </button>
             )}
           </div>
         </div>
 
         {/* Search Bar */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
           <div className="relative">
-            <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               placeholder="Search by name, contact, or degree..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-9 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder-gray-400"
+              className="w-full pl-11 pr-11 py-2.5 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder-gray-400"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
         </div>
 
         {/* Modal */}
-        <Modal isOpen={isModalOpen} size="md">
+        <Modal isOpen={isModalOpen} size="md" onClose={handleClose}>
           <ReferrerForm
             formData={formData}
             onChange={handleFormChange}
@@ -364,26 +391,19 @@ const ManageReferrer = () => {
 
         {/* Referrers List */}
         {filteredReferrers.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 text-center">
-            <div className="bg-gray-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Users className="w-8 h-8 text-blue-600" />
             </div>
-            <h3 className="text-md font-semibold text-gray-800 mb-1">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">
               {searchQuery || typeFilter !== "all" || statusFilter !== "all"
                 ? "No referrers found"
                 : "No referrers yet"}
             </h3>
-            <p className="text-gray-500 text-xs mb-3">
+            <p className="text-gray-500 text-sm mb-4 max-w-md mx-auto">
               {searchQuery || typeFilter !== "all" || statusFilter !== "all"
-                ? "Try adjusting your filters or search criteria"
-                : "Get started by adding your first referrer"}
+                ? "Try adjusting your filters or search criteria to find what you're looking for"
+                : "Get started by adding your first referrer to begin tracking commissions"}
             </p>
             {!searchQuery && typeFilter === "all" && statusFilter === "all" && (
               <button
@@ -391,14 +411,15 @@ const ManageReferrer = () => {
                   setFormData({ ...initialData, type: "addReferrer" });
                   setIsModalOpen(true);
                 }}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md shadow-sm hover:shadow text-xs"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm hover:shadow transition-all"
               >
+                <UserPlus className="w-4 h-4" />
                 Add Your First Referrer
               </button>
             )}
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {filteredReferrers.map((item, index) => (
               <Referrer
                 key={item._id}
