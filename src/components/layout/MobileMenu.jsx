@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { NavLink, Link } from "react-router-dom";
 import menu from "./menu";
+import { LogOut, Menu, X } from "lucide-react";
 
 const MobileMenu = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -66,40 +67,25 @@ const MobileMenu = () => {
       {/* Modern Mobile Navbar */}
       <div className="lg:hidden">
         <nav
-          className={`fixed top-0 left-0 right-0 z-50 flex justify-between items-center py-4 px-5 bg-sky-100 backdrop-blur-sm border-b border-gray-100 transition-all duration-300 ${
+          className={`fixed top-0 left-0 right-0 z-50 flex justify-between items-center py-3.5 px-4 bg-white/95 backdrop-blur-md border-b border-gray-200 transition-all duration-300 ${
             scrollDirection === "down" ? "-translate-y-full" : "translate-y-0 shadow-sm"
           }`}
         >
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-sm">LP</span>
+          <Link to="/" className="flex items-center space-x-2.5">
+            <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">
+              <span className="text-white font-bold text-base">LP</span>
             </div>
-            <span className="text-gray-900 font-bold text-lg">LabPilotPro</span>
+            <span className="text-gray-900 font-bold text-lg">LabPilot</span>
           </Link>
 
           {/* Modern Hamburger Button */}
           <button
             onClick={toggleMenu}
-            className="w-10 h-10 flex items-center justify-center rounded-xl bg-sky-200 hover:bg-sky-300 transition-all duration-200 border border-gray-200"
+            className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-200"
+            aria-label="Toggle menu"
           >
-            <div className="flex flex-col items-center justify-center w-5 h-5">
-              <span
-                className={`w-5 h-0.5 bg-gray-700 rounded-full transition-all duration-300 ${
-                  isMenuOpen ? "rotate-45 translate-y-1.5" : "mb-1.5"
-                }`}
-              ></span>
-              <span
-                className={`w-5 h-0.5 bg-gray-700 rounded-full transition-all duration-300 ${
-                  isMenuOpen ? "opacity-0" : "mb-1.5"
-                }`}
-              ></span>
-              <span
-                className={`w-5 h-0.5 bg-gray-700 rounded-full transition-all duration-300 ${
-                  isMenuOpen ? "-rotate-45 -translate-y-1.5" : ""
-                }`}
-              ></span>
-            </div>
+            {isMenuOpen ? <X className="w-6 h-6 text-gray-700" /> : <Menu className="w-6 h-6 text-gray-700" />}
           </button>
         </nav>
 
@@ -110,55 +96,56 @@ const MobileMenu = () => {
       {/* Modern Overlay */}
       {isMenuOpen && (
         <div
-          className="lg:hidden fixed inset-0 z-40 bg-black/25 backdrop-blur-[1px] transition-all duration-300"
+          className="lg:hidden fixed inset-0 z-40 bg-black/30 backdrop-blur-sm transition-all duration-300"
           onClick={toggleMenu}
         />
       )}
 
       {/* Modern Mobile Sidebar */}
       <div
-        className={`lg:hidden fixed top-0 right-0 h-full w-80 bg-white/98 backdrop-blur-md border-l border-gray-100 z-50 transform transition-all duration-300 ease-out ${
+        className={`lg:hidden fixed top-0 right-0 h-full w-80 bg-white z-50 shadow-2xl transform transition-all duration-300 ease-out ${
           isMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Flex container for proper scrolling */}
         <div className="flex flex-col h-full">
           {/* Header - Fixed */}
-          <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-blue-500 to-sky-200">
-            <div className="flex flex-col items-center space-x-3">
-               <div className="w-20 h-10 flex items-center justify-center shadow-sm">
-                <span className="text-white font-bold text-sm">Lab Pilot</span>
-              </div> 
-              { /* <div>
-                <p className="text-gray-800 text-xs font-semibold">Azizul Haque Diagnostic Center and Hospital</p>
-                <p className="text-gray-800 text-xs">@sfahad</p>
-              </div> */}
-            </div>
+          <div className="flex-shrink-0 p-5 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">LP</span>
+                </div>
+                <div>
+                  <p className="text-white font-bold text-base">LabPilot Pro</p>
+                  <p className="text-blue-100 text-xs">Professional Edition</p>
+                </div>
+              </div>
 
-            <button
-              onClick={toggleMenu}
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-blue-500 hover:bg-blue-700 transition-all duration-200 border border-gray-200 shadow-sm"
-            >
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+              <button
+                onClick={toggleMenu}
+                className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-200"
+                aria-label="Close menu"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
           </div>
 
           {/* Scrollable Menu Items */}
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto">
-              <div className="space-y-2 p-4">
+              <div className="p-4 space-y-1">
                 {menu.map((item, index) => (
                   <NavLink
                     key={index}
                     to={item.path}
                     end={item.path === "/"}
                     className={({ isActive }) =>
-                      `flex items-center space-x-3 p-2 rounded-2xl transition-all duration-200 group ${
+                      `flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
                         isActive
-                          ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                          ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200"
+                          : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                       }`
                     }
                     onClick={handleMenuClick}
@@ -166,13 +153,16 @@ const MobileMenu = () => {
                     {({ isActive }) => (
                       <>
                         <div
-                          className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200 ${
-                            isActive ? "bg-white/20" : "bg-gray-100 group-hover:bg-blue-100 group-hover:text-blue-600"
+                          className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${
+                            isActive
+                              ? "bg-blue-100 text-blue-600"
+                              : "bg-gray-100 text-gray-600 group-hover:bg-blue-50 group-hover:text-blue-600"
                           }`}
                         >
-                          <span className="text-base">{item.icon}</span>
+                          <span className="text-lg">{item.icon}</span>
                         </div>
-                        <span className="font-medium text-sm">{item.label}</span>
+                        <span className="font-medium text-sm flex-1">{item.label}</span>
+                        {isActive && <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>}
                       </>
                     )}
                   </NavLink>
@@ -182,13 +172,13 @@ const MobileMenu = () => {
           </div>
 
           {/* Fixed Logout Section */}
-          <div className="flex-shrink-0 p-5 border-t border-gray-100 bg-white/95 backdrop-blur-sm">
+          <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-gray-50">
             <button
-              className="w-full flex items-center justify-center space-x-2 p-4 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl font-medium hover:from-red-500 hover:to-red-600 transition-all duration-200 shadow-sm hover:shadow-md"
+              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-sm hover:shadow-md"
               onClick={handleMenuClick}
             >
-              <span className="text-lg">🚪</span>
-              <span className="text-sm font-medium">Logout</span>
+              <LogOut className="w-4 h-4" />
+              <span className="text-sm font-semibold">Logout</span>
             </button>
           </div>
         </div>

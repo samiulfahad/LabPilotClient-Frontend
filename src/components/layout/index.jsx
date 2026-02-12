@@ -7,10 +7,27 @@ const Layout = ({ children }) => {
       <MobileMenu />
       <DesktopMenu />
 
-      {/* Main content - Adjusted for simpler sidebar */}
-      <main className="lg:ml-64 flex-1 min-h-screen bg-white">
-        <div className="space-y-8 pt-20 lg:pt-3 bg-white w-full max-w-[100vw] mx-auto p-4">{children}</div>
-      </main>
+      {/* Main content wrapper */}
+      <div className="lg:ml-64 flex-1 flex flex-col min-h-screen">
+        {/* Main content area */}
+        <main className="flex-1 bg-white">
+          <div className="pt-20 lg:pt-6 px-4 sm:px-6 lg:px-8 pb-8">
+            <div className="max-w-7xl mx-auto">{children}</div>
+          </div>
+        </main>
+
+        {/* Global Footer */}
+        <footer className="bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            {/* Bottom copyright */}
+            <div className=" pt-4 border-t border-gray-200">
+              <p className="text-center text-xs text-gray-500">
+                © {new Date().getFullYear()} LabPilot Pro. All rights reserved.
+              </p>
+            </div>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 };

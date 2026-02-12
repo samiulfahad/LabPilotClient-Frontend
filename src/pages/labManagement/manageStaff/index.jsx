@@ -299,16 +299,16 @@ const ManageStaff = () => {
 
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-start gap-4">
+            <div className="flex items-center gap-2 mt-1">
               <Filter className="w-4 h-4 text-gray-500" />
               <span className="text-sm font-semibold text-gray-700">Filters:</span>
             </div>
 
-            {/* Permission Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-500">Permission</span>
-              <div className="flex rounded-lg bg-gray-100 p-1">
+            {/* Permission Filter — FIX: flex-wrap so buttons wrap on mobile */}
+            <div className="flex items-start gap-2 w-full sm:w-auto">
+              <span className="text-xs font-medium text-gray-500 mt-2 shrink-0">Permission</span>
+              <div className="flex flex-wrap gap-1 rounded-lg bg-gray-100 p-1">
                 {[
                   { value: "all", label: "All" },
                   { value: "createInvoice", label: "Create" },
