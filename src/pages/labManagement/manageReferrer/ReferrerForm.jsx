@@ -230,7 +230,7 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
                   <span
                     className={`font-medium text-sm ${formData.commissionType === "fixed" ? "text-green-700" : "text-gray-700"}`}
                   >
-                    Fixed Amount
+                    Fixed
                   </span>
                 </div>
               </label>
@@ -239,7 +239,7 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
             {/* Commission Value */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {formData.commissionType === "percentage" ? "Percentage Value" : "Fixed Amount"}
+                {formData.commissionType === "percentage" ? "Percentage Value" : "Amount"}
                 <span className="text-red-500 ml-1">*</span>
               </label>
               <div className="relative">
@@ -258,11 +258,6 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
                   {formData.commissionType === "percentage" ? "%" : "৳"}
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mt-1.5">
-                {formData.commissionType === "percentage"
-                  ? "Enter a value between 0 and 100"
-                  : "Enter the fixed commission amount in BDT"}
-              </p>
             </div>
           </div>
         </form>
