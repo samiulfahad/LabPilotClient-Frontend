@@ -4,7 +4,7 @@ const InputField = ({ label, name, value, onChange, type = "text", disabled = fa
   return (
     <div className="flex border border-gray-300 rounded-lg overflow-hidden">
       <label
-        className={`w-32 px-3 py-2 text-sm font-medium border-r border-gray-300 flex items-center ${
+        className={`p-2 text-sm font-medium border-r border-gray-300 flex items-center ${
           disabled ? "bg-gray-100 text-gray-400" : "bg-gray-50 text-gray-700"
         }`}
       >
