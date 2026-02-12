@@ -191,7 +191,7 @@ const LabManagement = () => {
                 </div>
 
                 <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200">
-                  admin@diagnostics.com
+                  admieerwerhn@diagnostics.com
                 </span>
 
                 {/* Desktop button */}
