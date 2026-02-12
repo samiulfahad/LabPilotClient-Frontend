@@ -9,6 +9,7 @@ import {
   Stethoscope,
   Briefcase,
   Info,
+  Users,
 } from "lucide-react";
 
 const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
@@ -27,12 +28,23 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-cyan-50">
+        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <Users className="w-6 h-6 text-blue-600" />
+          {label.formTitle}
+        </h2>
+      </div>
+
       {/* Scrollable Form Content */}
       <div className="flex-1 overflow-y-auto px-6 py-6 bg-gray-50" style={{ paddingBottom: "88px" }}>
         <form onSubmit={onSubmit} className="space-y-5 max-w-2xl mx-auto">
-          {/* Is Doctor Toggle */}
+          {/* Referrer Type */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-            <label className="block text-sm font-medium text-gray-700 mb-3">Referrer Type</label>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <Briefcase className="w-4 h-4 text-gray-500" />
+              Referrer Type
+            </h3>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -45,7 +57,7 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
               >
                 <div className="flex flex-col items-center gap-1.5">
                   <Stethoscope className={`w-5 h-5 ${formData.isDoctor ? "text-blue-600" : "text-gray-400"}`} />
-                  <span className="text-xs">Doctor</span>
+                  <span className="text-xs font-semibold">Doctor</span>
                 </div>
                 {formData.isDoctor && (
                   <div className="absolute top-1.5 right-1.5">
@@ -64,7 +76,7 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
               >
                 <div className="flex flex-col items-center gap-1.5">
                   <Briefcase className={`w-5 h-5 ${!formData.isDoctor ? "text-purple-600" : "text-gray-400"}`} />
-                  <span className="text-xs">Agent</span>
+                  <span className="text-xs font-semibold">Agent</span>
                 </div>
                 {!formData.isDoctor && (
                   <div className="absolute top-1.5 right-1.5">
@@ -77,6 +89,10 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
 
           {/* Basic Information */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <User className="w-4 h-4 text-gray-500" />
+              Basic Information
+            </h3>
             <div className="space-y-3">
               {/* Name and Contact Number - Same Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -152,7 +168,7 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
 
               {/* Status */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Account Status</label>
                 <select
                   value={formData.isActive ? "true" : "false"}
                   onChange={(e) => handleFieldChange("isActive", e.target.value === "true")}
@@ -175,78 +191,109 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
               <DollarSign className="w-4 h-4 text-gray-500" />
               Commission Details
             </h3>
-
-            {/* Commission Type Radio Buttons */}
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <label
-                className={`relative flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                  formData.commissionType === "percentage"
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="commissionType"
-                  value="percentage"
-                  checked={formData.commissionType === "percentage"}
-                  onChange={(e) => handleFieldChange("commissionType", e.target.value)}
-                  className="w-4 h-4 text-blue-600"
-                />
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`font-medium text-sm ${formData.commissionType === "percentage" ? "text-blue-700" : "text-gray-700"}`}
+            <div className="space-y-3">
+              {/* Commission Type Radio Buttons */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Commission Type</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label
+                    className={`relative flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      formData.commissionType === "percentage"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
                   >
-                    Percentage
+                    <input
+                      type="radio"
+                      name="commissionType"
+                      value="percentage"
+                      checked={formData.commissionType === "percentage"}
+                      onChange={(e) => handleFieldChange("commissionType", e.target.value)}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Percent
+                        className={`w-4 h-4 ${formData.commissionType === "percentage" ? "text-blue-600" : "text-gray-400"}`}
+                      />
+                      <span
+                        className={`font-medium text-sm ${formData.commissionType === "percentage" ? "text-blue-700" : "text-gray-700"}`}
+                      >
+                        Percentage
+                      </span>
+                    </div>
+                    {formData.commissionType === "percentage" && (
+                      <div className="absolute top-2 right-2">
+                        <Check className="w-4 h-4 text-blue-600" />
+                      </div>
+                    )}
+                  </label>
+                  <label
+                    className={`relative flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      formData.commissionType === "fixed"
+                        ? "border-green-500 bg-green-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="commissionType"
+                      value="fixed"
+                      checked={formData.commissionType === "fixed"}
+                      onChange={(e) => handleFieldChange("commissionType", e.target.value)}
+                      className="w-4 h-4 text-green-600"
+                    />
+                    <div className="flex items-center gap-2">
+                      <DollarSign
+                        className={`w-4 h-4 ${formData.commissionType === "fixed" ? "text-green-600" : "text-gray-400"}`}
+                      />
+                      <span
+                        className={`font-medium text-sm ${formData.commissionType === "fixed" ? "text-green-700" : "text-gray-700"}`}
+                      >
+                        Fixed Amount
+                      </span>
+                    </div>
+                    {formData.commissionType === "fixed" && (
+                      <div className="absolute top-2 right-2">
+                        <Check className="w-4 h-4 text-green-600" />
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
+
+              {/* Commission Value */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {formData.commissionType === "percentage" ? "Percentage Value" : "Amount"}
+                  <span className="text-red-500 ml-1">*</span>
+                </label>
+                <div className="relative">
+                  {formData.commissionType === "percentage" ? (
+                    <Percent className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  ) : (
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  )}
+                  <input
+                    type="number"
+                    value={formData.commissionValue || ""}
+                    onChange={(e) => handleFieldChange("commissionValue", parseFloat(e.target.value) || 0)}
+                    className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
+                    placeholder={formData.commissionType === "percentage" ? "0-100" : "Amount in BDT"}
+                    min="0"
+                    max={formData.commissionType === "percentage" ? "100" : undefined}
+                    step={formData.commissionType === "percentage" ? "0.1" : "1"}
+                    required
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-500">
+                    {formData.commissionType === "percentage" ? "%" : "৳"}
                   </span>
                 </div>
-              </label>
-              <label
-                className={`relative flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                  formData.commissionType === "fixed"
-                    ? "border-green-500 bg-green-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="commissionType"
-                  value="fixed"
-                  checked={formData.commissionType === "fixed"}
-                  onChange={(e) => handleFieldChange("commissionType", e.target.value)}
-                  className="w-4 h-4 text-green-600"
-                />
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`font-medium text-sm ${formData.commissionType === "fixed" ? "text-green-700" : "text-gray-700"}`}
-                  >
-                    Fixed
-                  </span>
-                </div>
-              </label>
-            </div>
-
-            {/* Commission Value */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {formData.commissionType === "percentage" ? "Percentage Value" : "Amount"}
-                <span className="text-red-500 ml-1">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  value={formData.commissionValue || ""}
-                  onChange={(e) => handleFieldChange("commissionValue", parseFloat(e.target.value) || 0)}
-                  className="w-full px-4 py-2 pr-12 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
-                  placeholder={formData.commissionType === "percentage" ? "0-100" : "Amount in BDT"}
-                  min="0"
-                  max={formData.commissionType === "percentage" ? "100" : undefined}
-                  step={formData.commissionType === "percentage" ? "0.1" : "1"}
-                  required
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-500">
-                  {formData.commissionType === "percentage" ? "%" : "৳"}
-                </span>
+                {formData.commissionType === "percentage" && (
+                  <p className="mt-1.5 text-xs text-gray-500 flex items-center gap-1">
+                    <Info className="w-3 h-3" />
+                    Enter a value between 0 and 100
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -266,7 +313,7 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
           <button
             type="submit"
             onClick={onSubmit}
-            className="flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow"
+            className="flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-sm bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-sm hover:shadow"
           >
             {label.button}
           </button>

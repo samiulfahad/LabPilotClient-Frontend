@@ -44,24 +44,26 @@ const LabManagement = () => {
         </div>
 
         {/* Manage Staffs Card */}
-        <div className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer border border-gray-100 overflow-hidden">
-          <div className="p-6">
-            <div className="flex items-center mb-4">
-              <div className="p-3 bg-emerald-100 rounded-xl mr-4 group-hover:bg-emerald-200 transition-colors">
-                <Icons.Staff className="w-8 h-8 text-emerald-600" />
+        <Link to="/manage-staffs" className="group bg-white rounded-2xl shadow-lg hover:shadow-xl...">
+          <div className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer border border-gray-100 overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="p-3 bg-emerald-100 rounded-xl mr-4 group-hover:bg-emerald-200 transition-colors">
+                  <Icons.Staff className="w-8 h-8 text-emerald-600" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-800">Manage Staff</h2>
               </div>
-              <h2 className="text-xl font-semibold text-gray-800">Manage Staff</h2>
-            </div>
-            <p className="text-gray-600 mb-4">
-              আপনার প্রতিষ্ঠানে কর্মরত ব্যক্তিদের Account, তাদের Access Management ইত্যাদি
-            </p>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-emerald-600 font-medium group-hover:text-emerald-800">
-                Click to manage →
-              </span>
+              <p className="text-gray-600 mb-4">
+                আপনার প্রতিষ্ঠানে কর্মরত ব্যক্তিদের Account, তাদের Access Management ইত্যাদি
+              </p>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-emerald-600 font-medium group-hover:text-emerald-800">
+                  Click to manage →
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* Manage Referrers Card */}
         <Link to="/manage-referrers" className="group bg-white rounded-2xl shadow-lg hover:shadow-xl...">
