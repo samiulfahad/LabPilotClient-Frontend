@@ -11,7 +11,7 @@ const LabManagement = () => {
     {
       title: "Manage Test List",
       icon: Icons.TestList,
-      link: "/manage-testList",
+      link: "/manage-tests",
       bgIcon: "bg-gradient-to-br from-blue-50 to-indigo-50",
       iconColor: "text-blue-600",
       accentBorder: "bg-gradient-to-r from-blue-500 to-indigo-600",

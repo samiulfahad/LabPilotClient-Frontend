@@ -242,7 +242,7 @@ const ManageReferrer = () => {
           <div className="flex items-center gap-3 shrink-0">
             {/* Back button – always visible */}
             <Link
-              to="/labManagement" // change this to your desired back destination
+              to="/lab-management" // change this to your desired back destination
               className="px-2 md:px-4 py-2.5 rounded-xl border border-gray-200 bg-white/50 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow"
             >
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />

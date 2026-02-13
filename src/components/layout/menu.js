@@ -13,14 +13,14 @@ import {
 
 const menu = [
   { label: "Home", path: "/", icon: Home },
-  { label: "Cash Memo", path: "/cashMemo", icon: Receipt },
+  { label: "Cash Memo", path: "/cashmemo", icon: Receipt },
   { label: "New Invoice", path: "/createInvoice", icon: FilePlus },
   { label: "Report Upload", path: "/reportUpload", icon: Upload },
   { label: "Invoice List", path: "/invoiceList", icon: List },
   { label: "Delete Invoice", path: "/deleteInvoice", icon: Trash2 },
   { label: "Commission", path: "/commission", icon: DollarSign },
   { label: "Billing", path: "/billing", icon: CreditCard },
-  { label: "Lab Management", path: "/labManagement", icon: FlaskConical },
+  { label: "Lab Management", path: "/lab-management", icon: FlaskConical },
   { label: "Support", path: "/support", icon: HelpCircle },
 ];
 

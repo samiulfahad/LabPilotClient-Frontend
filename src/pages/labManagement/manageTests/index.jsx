@@ -18,7 +18,6 @@ import Popup from "../../../components/popup";
 import Test from "./Test";
 import TestConfigModal from "./TestConfigModal";
 import testService from "../../../api/test";
-import LoadingScreen from "../../../components/loadingPage";
 
 // Helper: extract plain string ID from either a string or { $oid } object
 const resolveId = (id) => {
@@ -29,7 +28,23 @@ const resolveId = (id) => {
 
 const UNCATEGORIZED_ID = "uncategorized";
 
-const ManageTest = () => {
+// Skeleton component for loading state
+const SkeletonTest = () => (
+  <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 animate-pulse">
+    <div className="flex items-center justify-between">
+      <div className="flex-1">
+        <div className="h-5 bg-gray-200 rounded w-1/3 mb-2"></div>
+        <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+      </div>
+      <div className="flex gap-2">
+        <div className="h-9 w-20 bg-gray-200 rounded-lg"></div>
+        <div className="h-9 w-20 bg-gray-200 rounded-lg"></div>
+      </div>
+    </div>
+  </div>
+);
+
+const ManageTests = () => {
   const [tests, setTests] = useState([]);
   const [categories, setCategories] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -130,7 +145,7 @@ const ManageTest = () => {
 
     try {
       setLoading(true);
-      setPopup(null); // remove warning popup immediately
+      setPopup(null);
 
       await testService.deleteTest(testId);
       setTests((prev) => prev.filter((t) => t._id !== _id));
@@ -191,11 +206,13 @@ const ManageTest = () => {
     }
   };
 
-  if (initialLoading) return <LoadingScreen />;
-
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50 to-cyan-50 px-4 py-6">
-      {loading && <LoadingScreen />}
+      {loading && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
+        </div>
+      )}
 
       {popup && (
         <Popup
@@ -214,32 +231,27 @@ const ManageTest = () => {
 
       <div className="max-w-7xl mx-auto">
         {/* ===== RESPONSIVE HEADER ===== */}
-        {/* Desktop + mobile row 1: Heading + Back (always) + Add Test (desktop only) */}
         <div className="flex items-center justify-between mb-2 sm:mb-4">
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
               <FlaskConical className="w-7 h-7 sm:w-8 sm:h-8 text-teal-600" />
               Lab Test Management
             </h1>
-            {/* Subtitle - visible only on desktop */}
             <p className="text-sm text-gray-600 mt-1 hidden sm:flex items-center gap-1.5">
               <Activity className="w-4 h-4 text-teal-500" />
               Manage lab tests, pricing & formats
             </p>
           </div>
 
-          {/* Button group: Back + Add Test (desktop only) */}
           <div className="flex items-center gap-3 shrink-0">
-            {/* Back button - always visible */}
             <Link
-              to="/labManagement"
+              to="/lab-management"
               className="px-2 md:px-4 py-2.5 rounded-xl border border-gray-200 bg-white/50 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow"
             >
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
               <span>Back</span>
             </Link>
 
-            {/* Add Test button - desktop only */}
             <Link
               to="/test/add"
               className="hidden sm:flex bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 items-center justify-center gap-2 text-sm sm:text-base"
@@ -250,7 +262,7 @@ const ManageTest = () => {
           </div>
         </div>
 
-        {/* Mobile-only row: Subtitle + full-width Add Test button */}
+        {/* Mobile-only row */}
         <div className="flex flex-col gap-3 sm:hidden mb-6">
           <p className="text-sm text-gray-600 flex items-center gap-1.5">
             <Activity className="w-4 h-4 text-teal-500" />
@@ -265,7 +277,7 @@ const ManageTest = () => {
           </Link>
         </div>
 
-        {/* Stats Cards – unchanged */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-2">
@@ -274,7 +286,11 @@ const ManageTest = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">Total Tests</p>
-                <p className="text-2xl font-bold text-gray-900">{total}</p>
+                {initialLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900">{total}</p>
+                )}
               </div>
             </div>
           </div>
@@ -285,7 +301,11 @@ const ManageTest = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">Online</p>
-                <p className="text-2xl font-bold text-blue-600">{online}</p>
+                {initialLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-blue-600">{online}</p>
+                )}
               </div>
             </div>
           </div>
@@ -296,7 +316,11 @@ const ManageTest = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">Offline</p>
-                <p className="text-2xl font-bold text-orange-600">{offline}</p>
+                {initialLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-orange-600">{offline}</p>
+                )}
               </div>
             </div>
           </div>
@@ -307,13 +331,17 @@ const ManageTest = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">Categories</p>
-                <p className="text-2xl font-bold text-purple-600">{categoryCount}</p>
+                {initialLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-purple-600">{categoryCount}</p>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Filters – unchanged */}
+        {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
@@ -327,9 +355,10 @@ const ManageTest = () => {
                   <button
                     key={s}
                     onClick={() => setStatusFilter(s)}
+                    disabled={initialLoading}
                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
                       statusFilter === s ? "bg-white text-teal-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
-                    }`}
+                    } ${initialLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     {s}
                   </button>
@@ -339,7 +368,8 @@ const ManageTest = () => {
             {statusFilter !== "all" && (
               <button
                 onClick={() => setStatusFilter("all")}
-                className="ml-auto text-xs text-gray-500 hover:text-teal-600 flex items-center gap-1.5 transition-colors font-medium px-3 py-1.5 hover:bg-teal-50 rounded-lg"
+                disabled={initialLoading}
+                className="ml-auto text-xs text-gray-500 hover:text-teal-600 flex items-center gap-1.5 transition-colors font-medium px-3 py-1.5 hover:bg-teal-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 Reset
@@ -348,7 +378,7 @@ const ManageTest = () => {
           </div>
         </div>
 
-        {/* Search Bar – unchanged */}
+        {/* Search Bar */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -357,12 +387,14 @@ const ManageTest = () => {
               placeholder="Search tests by name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-11 py-2.5 text-sm border border-gray-200 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-100 outline-none transition-all placeholder-gray-400"
+              disabled={initialLoading}
+              className="w-full pl-11 pr-11 py-2.5 text-sm border border-gray-200 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-100 outline-none transition-all placeholder-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors"
+                disabled={initialLoading}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -370,8 +402,24 @@ const ManageTest = () => {
           </div>
         </div>
 
-        {/* Category-wise Test List – unchanged */}
-        {groups.length === 0 ? (
+        {/* Category-wise Test List */}
+        {initialLoading ? (
+          <div className="space-y-6">
+            {/* Skeleton loading state */}
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-7 w-32 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full animate-pulse"></div>
+                <div className="flex-1 h-px bg-gray-200" />
+                <div className="h-4 w-16 bg-gray-200 rounded animate-pulse"></div>
+              </div>
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <SkeletonTest key={i} />
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : groups.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
             <div className="bg-gradient-to-br from-teal-50 to-cyan-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <FlaskConical className="w-8 h-8 text-teal-600" />
@@ -438,4 +486,4 @@ const ManageTest = () => {
   );
 };
 
-export default ManageTest;
+export default ManageTests;

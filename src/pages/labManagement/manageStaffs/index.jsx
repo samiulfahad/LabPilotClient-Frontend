@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom"; // ✅ added
+import { Link } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -12,14 +12,13 @@ import {
   Shield,
   ShieldCheck,
   ShieldOff,
-  ArrowLeft, // ✅ added
+  ArrowLeft,
 } from "lucide-react";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
 import Staff from "./Staff";
 import StaffForm from "./StaffForm";
 import staffService from "../../../api/staff";
-import LoadingScreen from "../../../components/loadingPage";
 
 const initialData = {
   name: "",
@@ -36,8 +35,28 @@ const initialData = {
   isActive: true,
 };
 
+// Skeleton component for loading state
+const SkeletonStaff = () => (
+  <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 animate-pulse">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4 flex-1">
+        <div className="w-12 h-12 rounded-full bg-gray-200"></div>
+        <div className="flex-1">
+          <div className="h-5 bg-gray-200 rounded w-1/3 mb-2"></div>
+          <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <div className="h-9 w-20 bg-gray-200 rounded-lg"></div>
+        <div className="h-9 w-20 bg-gray-200 rounded-lg"></div>
+      </div>
+    </div>
+  </div>
+);
+
 const ManageStaff = () => {
   const [staff, setStaff] = useState([]);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [popup, setPopup] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -48,13 +67,12 @@ const ManageStaff = () => {
 
   const loadStaff = async () => {
     try {
-      setLoading(true);
       const response = await staffService.getStaffs();
       setStaff(response.data);
     } catch (e) {
       setPopup({ type: "error", message: "Could not load staff" });
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
     }
   };
 
@@ -204,7 +222,11 @@ const ManageStaff = () => {
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
-      {loading && <LoadingScreen />}
+      {loading && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        </div>
+      )}
 
       {popup && (
         <Popup
@@ -225,32 +247,27 @@ const ManageStaff = () => {
 
       <div className="max-w-7xl mx-auto">
         {/* ===== RESPONSIVE HEADER ===== */}
-        {/* Row 1: Heading + Back button (desktop: also includes Add Staff) */}
         <div className="flex items-center justify-between mb-2 sm:mb-4">
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
               <Shield className="w-7 h-7 sm:w-8 sm:h-8 text-indigo-600" />
               Staff Management
             </h1>
-            {/* Subtitle – hidden on desktop (shown below on mobile) */}
             <p className="text-sm text-gray-600 mt-1 hidden sm:flex items-center gap-1.5">
               <Activity className="w-4 h-4 text-indigo-500" />
               Manage staff accounts & permissions
             </p>
           </div>
 
-          {/* Right side: Back button + Add Staff button (desktop) */}
           <div className="flex items-center gap-3 shrink-0">
-            {/* Back button – always visible */}
             <Link
-              to="/labManagement" // change this to your desired back destination
+              to="/lab-management"
               className="px-2 md:px-4 py-2.5 rounded-xl border border-gray-200 bg-white/50 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow"
             >
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
               <span>Back</span>
             </Link>
 
-            {/* Add Staff button – desktop only */}
             <button
               onClick={() => {
                 setFormData({ ...initialData, type: "addStaff" });
@@ -264,7 +281,7 @@ const ManageStaff = () => {
           </div>
         </div>
 
-        {/* Row 2: Mobile-only subtitle + full-width Add Staff button */}
+        {/* Mobile-only row */}
         <div className="flex flex-col gap-3 sm:hidden mb-6">
           <p className="text-sm text-gray-600 flex items-center gap-1.5">
             <Activity className="w-4 h-4 text-indigo-500" />
@@ -282,7 +299,7 @@ const ManageStaff = () => {
           </button>
         </div>
 
-        {/* Stats Cards – unchanged */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-2">
@@ -291,7 +308,11 @@ const ManageStaff = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">Total Staff</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                {initialLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                )}
               </div>
             </div>
           </div>
@@ -303,7 +324,11 @@ const ManageStaff = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">Active</p>
-                <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+                {initialLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+                )}
               </div>
             </div>
           </div>
@@ -315,7 +340,11 @@ const ManageStaff = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">Inactive</p>
-                <p className="text-2xl font-bold text-red-600">{stats.inactive}</p>
+                {initialLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-red-600">{stats.inactive}</p>
+                )}
               </div>
             </div>
           </div>
@@ -327,13 +356,17 @@ const ManageStaff = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">Full Access</p>
-                <p className="text-2xl font-bold text-purple-600">{stats.withFullAccess}</p>
+                {initialLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-purple-600">{stats.withFullAccess}</p>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Filters – unchanged */}
+        {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
           <div className="flex flex-wrap items-start gap-4">
             <div className="flex items-center gap-2 mt-1">
@@ -355,11 +388,12 @@ const ManageStaff = () => {
                   <button
                     key={perm.value}
                     onClick={() => setPermissionFilter(perm.value)}
+                    disabled={initialLoading}
                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
                       permissionFilter === perm.value
                         ? "bg-white text-indigo-600 shadow-sm"
                         : "text-gray-600 hover:text-gray-900"
-                    }`}
+                    } ${initialLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     {perm.label}
                   </button>
@@ -374,11 +408,12 @@ const ManageStaff = () => {
                   <button
                     key={status}
                     onClick={() => setStatusFilter(status)}
+                    disabled={initialLoading}
                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
                       statusFilter === status
                         ? "bg-white text-indigo-600 shadow-sm"
                         : "text-gray-600 hover:text-gray-900"
-                    }`}
+                    } ${initialLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     {status}
                   </button>
@@ -392,7 +427,8 @@ const ManageStaff = () => {
                   setPermissionFilter("all");
                   setStatusFilter("all");
                 }}
-                className="ml-auto text-xs text-gray-500 hover:text-indigo-600 flex items-center gap-1.5 transition-colors font-medium px-3 py-1.5 hover:bg-indigo-50 rounded-lg"
+                disabled={initialLoading}
+                className="ml-auto text-xs text-gray-500 hover:text-indigo-600 flex items-center gap-1.5 transition-colors font-medium px-3 py-1.5 hover:bg-indigo-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 Reset Filters
@@ -401,7 +437,7 @@ const ManageStaff = () => {
           </div>
         </div>
 
-        {/* Search Bar – unchanged */}
+        {/* Search Bar */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -410,12 +446,14 @@ const ManageStaff = () => {
               placeholder="Search by name, username, email, or mobile number..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-11 py-2.5 text-sm border border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder-gray-400"
+              disabled={initialLoading}
+              className="w-full pl-11 pr-11 py-2.5 text-sm border border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors"
+                disabled={initialLoading}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -423,7 +461,7 @@ const ManageStaff = () => {
           </div>
         </div>
 
-        {/* Modal – unchanged */}
+        {/* Modal */}
         <Modal isOpen={isModalOpen} size="lg" onClose={handleClose}>
           <StaffForm
             formData={formData}
@@ -434,8 +472,14 @@ const ManageStaff = () => {
           />
         </Modal>
 
-        {/* Staff List – unchanged */}
-        {filteredStaff.length === 0 ? (
+        {/* Staff List */}
+        {initialLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <SkeletonStaff key={i} />
+            ))}
+          </div>
+        ) : filteredStaff.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
             <div className="bg-gradient-to-br from-indigo-50 to-purple-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <Users className="w-8 h-8 text-indigo-600" />

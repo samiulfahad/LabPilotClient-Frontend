@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Search, X, FlaskConical, Check, Plus, ChevronDown, ChevronRight, CheckCircle2 } from "lucide-react";
 import testService from "../../../api/test";
-import LoadingScreen from "../../../components/loadingPage";
 import Popup from "../../../components/popup";
 import InputField from "../../../components/html/InputField";
 
@@ -12,6 +11,39 @@ const resolveId = (id) => {
   if (typeof id === "object" && id.$oid) return id.$oid;
   return String(id);
 };
+
+// Skeleton components for loading state
+const SkeletonTestItem = () => (
+  <div className="p-4 bg-white animate-pulse">
+    <div className="flex items-center gap-3">
+      <div className="w-5 h-5 rounded bg-gray-200"></div>
+      <div className="flex-1">
+        <div className="h-4 bg-gray-200 rounded w-2/3 mb-2"></div>
+        <div className="h-3 bg-gray-100 rounded w-1/2"></div>
+      </div>
+    </div>
+  </div>
+);
+
+const SkeletonCategory = () => (
+  <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-pulse">
+    <div className="px-4 py-3 bg-gradient-to-r from-gray-100 to-gray-50 border-b border-gray-100">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-gray-300 rounded"></div>
+          <div className="h-4 bg-gray-300 rounded w-32"></div>
+          <div className="h-5 w-8 bg-gray-200 rounded-full"></div>
+        </div>
+        <div className="w-4 h-4 bg-gray-300 rounded"></div>
+      </div>
+    </div>
+    <div className="divide-y divide-gray-50">
+      {[1, 2, 3].map((i) => (
+        <SkeletonTestItem key={i} />
+      ))}
+    </div>
+  </div>
+);
 
 const AddTest = ({ existingTests = [], onBack, onSave }) => {
   const navigate = useNavigate();
@@ -153,11 +185,13 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
     else navigate(-1);
   };
 
-  if (initialLoading) return <LoadingScreen />;
-
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50 to-cyan-50 px-4 py-6">
-      {loading && <LoadingScreen />}
+      {loading && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
+        </div>
+      )}
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       <div className="max-w-4xl mx-auto" style={{ paddingBottom: selectedCount > 0 ? "88px" : "0" }}>
@@ -186,7 +220,7 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
         {/* Row 2: Subtitle – visible only on mobile */}
         <p className="text-sm text-gray-500 mb-4 sm:hidden">Select tests, set price, then save</p>
 
-        {/* Search – unchanged */}
+        {/* Search */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -195,12 +229,14 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
               placeholder="Search available tests..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-11 py-2.5 text-sm border border-gray-200 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-100 outline-none transition-all placeholder-gray-400"
+              disabled={initialLoading}
+              className="w-full pl-11 pr-11 py-2.5 text-sm border border-gray-200 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-100 outline-none transition-all placeholder-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors"
+                disabled={initialLoading}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -208,9 +244,16 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
           </div>
         </div>
 
-        {/* Category-wise Test List – unchanged */}
+        {/* Category-wise Test List */}
         <div className="space-y-4">
-          {Object.keys(groupedTests).length === 0 ? (
+          {initialLoading ? (
+            // Skeleton loading state
+            <>
+              {[1, 2, 3].map((i) => (
+                <SkeletonCategory key={i} />
+              ))}
+            </>
+          ) : Object.keys(groupedTests).length === 0 ? (
             <div className="bg-white rounded-xl p-8 text-center border border-gray-100">
               <FlaskConical className="w-10 h-10 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500 text-sm">No tests found</p>
@@ -324,7 +367,7 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
         </div>
       </div>
 
-      {/* Sticky Bottom Save Bar – unchanged */}
+      {/* Sticky Bottom Save Bar */}
       {selectedCount > 0 && (
         <div className="fixed bottom-0 left-0 lg:left-64 right-0 z-20 border-t border-gray-200 px-4 sm:px-6 lg:px-8 py-4 bg-white shadow-lg">
           <div className="flex gap-3 max-w-4xl mx-auto">
