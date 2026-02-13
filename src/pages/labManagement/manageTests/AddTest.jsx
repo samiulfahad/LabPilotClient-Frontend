@@ -370,22 +370,27 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
 
       {/* Sticky Bottom Save Bar */}
       {selectedCount > 0 && (
-        <div className="fixed bottom-0 left-0 lg:left-64 right-0 z-20 border-t border-gray-200 px-4 sm:px-6 lg:px-8 py-4 bg-white shadow-lg">
-          <div className="flex gap-3 max-w-4xl mx-auto">
-            <button
-              type="button"
-              onClick={handleBack}
-              className="flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-sm bg-white hover:bg-gray-50 text-gray-700 border border-gray-300"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              className="flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-sm bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-sm hover:shadow"
-            >
-              Save {selectedCount} Test{selectedCount !== 1 ? "s" : ""}
-            </button>
+        <div
+          className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white shadow-lg"
+          style={{ position: "fixed" }}
+        >
+          <div className="px-4 sm:px-6 py-4 max-w-4xl mx-auto">
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleBack}
+                className="flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-sm bg-white hover:bg-gray-50 text-gray-700 border border-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                className="flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-sm bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-sm hover:shadow"
+              >
+                Save {selectedCount} Test{selectedCount !== 1 ? "s" : ""}
+              </button>
+            </div>
           </div>
         </div>
       )}

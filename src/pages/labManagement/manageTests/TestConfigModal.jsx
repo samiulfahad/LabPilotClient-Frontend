@@ -90,7 +90,7 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 {selectedSchemaId
-                  ? "This test is currently online. Select a different format or make it offline."
+                  ? "This test is currently online. You can select a different format or make it offline."
                   : "Select a format to make this test available online"}
               </p>
             </div>
@@ -126,8 +126,7 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
             ) : schemas.length === 0 ? (
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
                 <FlaskConical className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 font-medium">No schemas available</p>
-                <p className="text-xs text-gray-500 mt-1">Create a schema to enable online testing</p>
+                <p className="text-sm text-gray-600 font-medium">No formats available</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -167,13 +166,6 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
                           {schema.description && (
                             <p className="text-xs text-gray-500 truncate mt-0.5">{schema.description}</p>
                           )}
-                          <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400">
-                            <span>
-                              {schema.sections?.length || 0} section{schema.sections?.length !== 1 ? "s" : ""}
-                            </span>
-                            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                            <span>Created: {schema.createdAt}</span>
-                          </div>
                         </div>
                       </div>
 
