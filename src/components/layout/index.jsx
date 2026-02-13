@@ -10,14 +10,14 @@ const Layout = ({ children }) => {
       {/* Main Content Wrapper */}
       <div className="flex-1 flex flex-col min-h-screen lg:ml-64">
         {/* Page Content */}
-        <main className="flex-1 bg-white/80 backdrop-blur-sm">
+        <main className="flex-1 bg-white/80 backdrop-blur-sm relative">
           <div className="pt-20 lg:pt-8 px-4 sm:px-6 lg:px-8 pb-8">
             <div className="max-w-7xl mx-auto">{children}</div>
           </div>
         </main>
 
         {/* Global Footer – Minimal Enterprise */}
-        <footer className="border-t border-gray-200/80 bg-white/50 backdrop-blur-sm">
+        <footer className="border-t border-gray-200/80 bg-white/50 backdrop-blur-sm relative z-10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
               <p className="text-xs text-gray-500 order-2 sm:order-1">
