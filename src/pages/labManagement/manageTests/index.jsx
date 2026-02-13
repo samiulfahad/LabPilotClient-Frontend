@@ -18,6 +18,7 @@ import Popup from "../../../components/popup";
 import Test from "./Test";
 import TestConfigModal from "./TestConfigModal";
 import testService from "../../../api/test";
+import LoadingScreen from "../../../components/loadingPage";
 
 // Helper: extract plain string ID from either a string or { $oid } object
 const resolveId = (id) => {
@@ -208,7 +209,7 @@ const ManageTests = () => {
         setIsConfigOpen(false);
         setTimeout(() => {
           setPopup({
-            type: "info",
+            type: "warning",
             message: "This test no longer exists. It has been removed from the list.",
           });
         }, 250);
@@ -224,11 +225,7 @@ const ManageTests = () => {
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50 to-cyan-50 px-4 py-6">
-      {loading && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
-        </div>
-      )}
+      {loading && <LoadingScreen />}
 
       {popup && (
         <Popup
