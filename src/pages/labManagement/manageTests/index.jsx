@@ -63,8 +63,12 @@ const ManageTests = () => {
     const loadAll = async () => {
       try {
         const [testsRes, catsRes] = await Promise.all([testService.getTestList(), testService.getCategoryList()]);
-        setTests(testsRes.data);
-        setCategories(catsRes.data);
+
+        // Ensure we always have arrays, even if the API returns something unexpected
+        setTests(Array.isArray(testsRes?.data) ? testsRes.data : []);
+        setCategories(Array.isArray(catsRes?.data) ? catsRes.data : []);
+
+        console.log(testsRes);
       } catch (e) {
         const status = getErrorStatus(e);
         if (status === 404) {
@@ -76,6 +80,9 @@ const ManageTests = () => {
           setCategories([]);
         } else {
           setPopup({ type: "error", message: "Could not load lab tests. Please try again." });
+          // Set empty arrays on error to prevent forEach errors
+          setTests([]);
+          setCategories([]);
         }
       } finally {
         setInitialLoading(false);
@@ -86,23 +93,29 @@ const ManageTests = () => {
 
   // --- Build category map ---
   const categoryMap = {};
-  categories.forEach((c) => {
-    const id = resolveId(c._id);
-    if (id) categoryMap[id] = c.name;
-  });
+  // Ensure categories is an array before using forEach
+  if (Array.isArray(categories)) {
+    categories.forEach((c) => {
+      const id = resolveId(c._id);
+      if (id) categoryMap[id] = c.name;
+    });
+  }
 
   // --- Enrich tests with categoryId, categoryName, isOnline ---
-  const enrichedTests = tests.map((t) => {
-    const rawId = resolveId(t.categoryId);
-    const categoryId = rawId || UNCATEGORIZED_ID;
-    const categoryName = rawId && categoryMap[rawId] ? categoryMap[rawId] : "Uncategorized";
-    return {
-      ...t,
-      categoryId,
-      categoryName,
-      isOnline: !!t.schemaId,
-    };
-  });
+  // Ensure tests is an array before using map
+  const enrichedTests = Array.isArray(tests)
+    ? tests.map((t) => {
+        const rawId = resolveId(t.categoryId);
+        const categoryId = rawId || UNCATEGORIZED_ID;
+        const categoryName = rawId && categoryMap[rawId] ? categoryMap[rawId] : "Uncategorized";
+        return {
+          ...t,
+          categoryId,
+          categoryName,
+          isOnline: !!t.schemaId,
+        };
+      })
+    : [];
 
   // --- Stats ---
   const total = enrichedTests.length;

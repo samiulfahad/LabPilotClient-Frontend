@@ -8,9 +8,7 @@ const testService = {
   addTest: (data) => api.post("/test/add", data),
   editTest: (data) => api.put("/test/edit/" + data._id, data),
   deleteTest: (_id) => api.delete(`/test/${_id}`),
+  getSchemasByTestId: (testId) => externalAPI.get("/schema/active/" + testId),
 };
 
 export default testService;
-
-
-
