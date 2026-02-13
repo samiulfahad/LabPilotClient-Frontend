@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom"; // ✅ added
+import { Link } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -13,7 +13,7 @@ import {
   UserX,
   Stethoscope,
   Briefcase,
-  ArrowLeft, // ✅ added
+  ArrowLeft,
 } from "lucide-react";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
@@ -33,9 +33,30 @@ const initialData = {
   isActive: true,
 };
 
+// Skeleton component for loading state
+const SkeletonReferrer = () => (
+  <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 animate-pulse">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4 flex-1">
+        <div className="w-12 h-12 rounded-full bg-gray-200"></div>
+        <div className="flex-1">
+          <div className="h-5 bg-gray-200 rounded w-1/3 mb-2"></div>
+          <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <div className="h-9 w-20 bg-gray-200 rounded-lg"></div>
+        <div className="h-9 w-20 bg-gray-200 rounded-lg"></div>
+      </div>
+    </div>
+  </div>
+);
+
 const ManageReferrer = () => {
   const [referrers, setReferrers] = useState([]);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("Processing request");
   const [popup, setPopup] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState(initialData);
@@ -45,13 +66,12 @@ const ManageReferrer = () => {
 
   const loadReferrers = async () => {
     try {
-      setLoading(true);
       const response = await referrerService.getReferrers();
       setReferrers(response.data);
     } catch (e) {
       setPopup({ type: "error", message: "Could not load referrers" });
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
     }
   };
 
@@ -102,56 +122,62 @@ const ManageReferrer = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validation checks
+    if (!formData.name?.trim()) {
+      setPopup({ type: "error", message: "Name is required" });
+      return;
+    }
+
+    if (!formData.contactNumber?.trim()) {
+      setPopup({ type: "error", message: "Contact number is required" });
+      return;
+    }
+
+    if (formData.commissionType === "percentage" && (formData.commissionValue < 0 || formData.commissionValue > 100)) {
+      setPopup({ type: "error", message: "Percentage must be between 0 and 100" });
+      return;
+    }
+
+    if (formData.commissionValue < 0) {
+      setPopup({ type: "error", message: "Commission value cannot be negative" });
+      return;
+    }
+
     try {
       setLoading(true);
 
-      if (!formData.name.trim()) {
-        setPopup({ type: "error", message: "Name is required" });
-        setLoading(false);
-        return;
-      }
-
-      if (!formData.contactNumber.trim()) {
-        setPopup({ type: "error", message: "Contact number is required" });
-        setLoading(false);
-        return;
-      }
-
-      if (
-        formData.commissionType === "percentage" &&
-        (formData.commissionValue < 0 || formData.commissionValue > 100)
-      ) {
-        setPopup({ type: "error", message: "Percentage must be between 0 and 100" });
-        setLoading(false);
-        return;
-      }
-
-      if (formData.commissionValue < 0) {
-        setPopup({ type: "error", message: "Commission value cannot be negative" });
-        setLoading(false);
-        return;
-      }
-
       if (formData.type === "addReferrer") {
-        const response = await referrerService.addReferrer(formData);
-        setReferrers((prev) => [...prev, { _id: response.data._id, ...formData }]);
+        setLoadingMessage("Creating referrer");
+        await referrerService.addReferrer(formData);
+        // Reload the list to get fresh data from the server
+        await loadReferrers();
         setPopup({ type: "success", message: "Referrer created successfully" });
       }
 
       if (formData.type === "editReferrer") {
+        setLoadingMessage("Updating referrer");
         await referrerService.editReferrer(formData);
-        setReferrers((prev) => prev.map((item) => (item._id === formData._id ? { ...item, ...formData } : item)));
+        // Reload the list to get fresh data from the server
+        await loadReferrers();
         setPopup({ type: "success", message: "Referrer updated successfully" });
       }
 
       setIsModalOpen(false);
       setFormData(initialData);
     } catch (e) {
+      // console.log(e.response.data);
       console.error("Error:", e);
-      let message = formData.type === "editReferrer" ? "Could not edit referrer" : "Could not add referrer";
-      setPopup({ type: "error", message });
+
+      // Extract error message from response
+      const errorMessage =
+        e?.response?.data?.error ||
+        (formData.type === "editReferrer" ? "Could not edit referrer" : "Could not add referrer");
+
+      setPopup({ type: "error", message: errorMessage });
     } finally {
       setLoading(false);
+      setLoadingMessage("Processing request");
     }
   };
 
@@ -163,20 +189,24 @@ const ManageReferrer = () => {
   const handleDelete = async () => {
     try {
       setLoading(true);
+      setLoadingMessage("Deleting referrer");
       await referrerService.deleteReferrer(popup._id);
       setReferrers((prev) => prev.filter((referrer) => referrer._id !== popup._id));
       setPopup({ type: "success", message: "Referrer deleted successfully" });
     } catch (e) {
       console.error("Error deleting:", e);
-      setPopup({ type: "error", message: "Could not delete referrer" });
+      const errorMessage = e?.response?.data?.error || "Could not delete referrer";
+      setPopup({ type: "error", message: errorMessage });
     } finally {
       setLoading(false);
+      setLoadingMessage("Processing request");
     }
   };
 
   const handleToggleStatus = async (isActivating) => {
     try {
       setLoading(true);
+      setLoadingMessage(isActivating ? "Activating referrer" : "Deactivating referrer");
       const serviceCall = isActivating
         ? referrerService.activateReferrer(popup._id)
         : referrerService.deactivateReferrer(popup._id);
@@ -192,18 +222,20 @@ const ManageReferrer = () => {
       });
     } catch (e) {
       console.error(`Error ${isActivating ? "activating" : "deactivating"}:`, e);
+      const errorMessage = e?.response?.data?.error || `Could not ${isActivating ? "activate" : "deactivate"} referrer`;
       setPopup({
         type: "error",
-        message: `Could not ${isActivating ? "activate" : "deactivate"} referrer`,
+        message: errorMessage,
       });
     } finally {
       setLoading(false);
+      setLoadingMessage("Processing request");
     }
   };
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 px-4 py-6">
-      {loading && <LoadingScreen />}
+      {loading && <LoadingScreen message={loadingMessage} />}
 
       {popup && (
         <Popup
@@ -224,32 +256,27 @@ const ManageReferrer = () => {
 
       <div className="max-w-7xl mx-auto">
         {/* ===== RESPONSIVE HEADER ===== */}
-        {/* Row 1: Heading + Back button (desktop: also includes Add Referrer) */}
         <div className="flex items-center justify-between mb-2 sm:mb-4">
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
               <Users className="w-7 h-7 sm:w-8 sm:h-8 text-blue-600" />
               Referrer Management
             </h1>
-            {/* Subtitle – hidden on desktop (shown below on mobile) */}
             <p className="text-sm text-gray-600 mt-1 hidden sm:flex items-center gap-1.5">
               <Activity className="w-4 h-4 text-blue-500" />
               Manage referrers & commissions
             </p>
           </div>
 
-          {/* Right side: Back button + Add Referrer button (desktop) */}
           <div className="flex items-center gap-3 shrink-0">
-            {/* Back button – always visible */}
             <Link
-              to="/lab-management" // change this to your desired back destination
+              to="/lab-management"
               className="px-2 md:px-4 py-2.5 rounded-xl border border-gray-200 bg-white/50 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow"
             >
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
               <span>Back</span>
             </Link>
 
-            {/* Add Referrer button – desktop only */}
             <button
               onClick={() => {
                 setFormData({ ...initialData, type: "addReferrer" });
@@ -263,7 +290,7 @@ const ManageReferrer = () => {
           </div>
         </div>
 
-        {/* Row 2: Mobile-only subtitle + full-width Add Referrer button */}
+        {/* Mobile-only row */}
         <div className="flex flex-col gap-3 sm:hidden mb-6">
           <p className="text-sm text-gray-600 flex items-center gap-1.5">
             <Activity className="w-4 h-4 text-blue-500" />
@@ -281,7 +308,7 @@ const ManageReferrer = () => {
           </button>
         </div>
 
-        {/* Stats Cards – unchanged */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-2">
@@ -290,7 +317,11 @@ const ManageReferrer = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">Total</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                {initialLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                )}
               </div>
             </div>
           </div>
@@ -302,7 +333,11 @@ const ManageReferrer = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">Active</p>
-                <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+                {initialLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+                )}
               </div>
             </div>
           </div>
@@ -314,7 +349,11 @@ const ManageReferrer = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">Doctors</p>
-                <p className="text-2xl font-bold text-purple-600">{stats.doctors}</p>
+                {initialLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-purple-600">{stats.doctors}</p>
+                )}
               </div>
             </div>
           </div>
@@ -326,13 +365,17 @@ const ManageReferrer = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">Agents</p>
-                <p className="text-2xl font-bold text-orange-600">{stats.agents}</p>
+                {initialLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-orange-600">{stats.agents}</p>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Filters – unchanged */}
+        {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
@@ -348,9 +391,10 @@ const ManageReferrer = () => {
                   <button
                     key={type}
                     onClick={() => setTypeFilter(type)}
+                    disabled={initialLoading}
                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
                       typeFilter === type ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
-                    }`}
+                    } ${initialLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     {type}
                   </button>
@@ -366,9 +410,10 @@ const ManageReferrer = () => {
                   <button
                     key={status}
                     onClick={() => setStatusFilter(status)}
+                    disabled={initialLoading}
                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
                       statusFilter === status ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
-                    }`}
+                    } ${initialLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     {status}
                   </button>
@@ -383,7 +428,8 @@ const ManageReferrer = () => {
                   setTypeFilter("all");
                   setStatusFilter("all");
                 }}
-                className="ml-auto text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1.5 transition-colors font-medium px-3 py-1.5 hover:bg-blue-50 rounded-lg"
+                disabled={initialLoading}
+                className="ml-auto text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1.5 transition-colors font-medium px-3 py-1.5 hover:bg-blue-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 Reset Filters
@@ -392,7 +438,7 @@ const ManageReferrer = () => {
           </div>
         </div>
 
-        {/* Search Bar – unchanged */}
+        {/* Search Bar */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -401,12 +447,14 @@ const ManageReferrer = () => {
               placeholder="Search by name, contact, or degree..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-11 py-2.5 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder-gray-400"
+              disabled={initialLoading}
+              className="w-full pl-11 pr-11 py-2.5 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors"
+                disabled={initialLoading}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -414,7 +462,7 @@ const ManageReferrer = () => {
           </div>
         </div>
 
-        {/* Modal – unchanged */}
+        {/* Modal */}
         <Modal isOpen={isModalOpen} size="md" onClose={handleClose}>
           <ReferrerForm
             formData={formData}
@@ -425,8 +473,14 @@ const ManageReferrer = () => {
           />
         </Modal>
 
-        {/* Referrers List – unchanged */}
-        {filteredReferrers.length === 0 ? (
+        {/* Referrers List */}
+        {initialLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <SkeletonReferrer key={i} />
+            ))}
+          </div>
+        ) : filteredReferrers.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <Users className="w-8 h-8 text-blue-600" />
@@ -462,7 +516,19 @@ const ManageReferrer = () => {
                 input={item}
                 index={index}
                 onEdit={() => {
-                  setFormData({ ...item, type: "editReferrer", _id: item._id });
+                  // Normalize data to ensure all fields have valid values
+                  setFormData({
+                    name: item.name || "",
+                    contactNumber: item.contactNumber || "",
+                    degree: item.degree || "",
+                    details: item.details || "",
+                    isDoctor: item.isDoctor ?? true,
+                    commissionType: item.commissionType || "percentage",
+                    commissionValue: item.commissionValue || 0,
+                    isActive: item.isActive ?? true,
+                    type: "editReferrer",
+                    _id: item._id,
+                  });
                   setIsModalOpen(true);
                 }}
                 onDelete={() =>

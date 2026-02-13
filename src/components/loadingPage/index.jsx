@@ -3,7 +3,7 @@ import Portal from "../Portal";
 const LoadingScreen = ({ message = "Processing request" }) => {
   return (
     <Portal>
-      <div className="fixed inset-0 flex flex-col items-center justify-center backdrop-blur-[3px] z-[99]">
+      <div className="fixed inset-0 flex flex-col items-center justify-center backdrop-blur-[3px] z-9999">
         {/* Animated medical pulse + ring */}
         <div className="relative mb-6">
           <div className="h-20 w-20 rounded-full bg-blue-500/20 animate-ping"></div>

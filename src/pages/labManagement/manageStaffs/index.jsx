@@ -19,6 +19,7 @@ import Popup from "../../../components/popup";
 import Staff from "./Staff";
 import StaffForm from "./StaffForm";
 import staffService from "../../../api/staff";
+import LoadingScreen from "../../../components/loadingPage";
 
 const initialData = {
   name: "",
@@ -58,6 +59,7 @@ const ManageStaff = () => {
   const [staff, setStaff] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("Processing request");
   const [popup, setPopup] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState(initialData);
@@ -124,40 +126,40 @@ const ManageStaff = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Defensive checks with optional chaining
+    if (!formData.name?.trim()) {
+      setPopup({ type: "error", message: "Name is required" });
+      return;
+    }
+
+    if (!formData.username?.trim()) {
+      setPopup({ type: "error", message: "Username is required" });
+      return;
+    }
+
+    if (!formData.email?.trim()) {
+      setPopup({ type: "error", message: "Email is required" });
+      return;
+    }
+
+    if (!formData.mobileNumber?.trim()) {
+      setPopup({ type: "error", message: "Mobile number is required" });
+      return;
+    }
+
     try {
       setLoading(true);
 
-      if (!formData.name.trim()) {
-        setPopup({ type: "error", message: "Name is required" });
-        setLoading(false);
-        return;
-      }
-
-      if (!formData.username.trim()) {
-        setPopup({ type: "error", message: "Username is required" });
-        setLoading(false);
-        return;
-      }
-
-      if (!formData.email.trim()) {
-        setPopup({ type: "error", message: "Email is required" });
-        setLoading(false);
-        return;
-      }
-
-      if (!formData.mobileNumber.trim()) {
-        setPopup({ type: "error", message: "Mobile number is required" });
-        setLoading(false);
-        return;
-      }
-
       if (formData.type === "addStaff") {
+        setLoadingMessage("Creating staff member");
         const response = await staffService.addStaff(formData);
         setStaff((prev) => [...prev, { _id: response.data._id, ...formData }]);
         setPopup({ type: "success", message: "Staff created successfully" });
       }
 
       if (formData.type === "editStaff") {
+        setLoadingMessage("Updating staff member");
         await staffService.editStaff(formData);
         setStaff((prev) => prev.map((item) => (item._id === formData._id ? { ...item, ...formData } : item)));
         setPopup({ type: "success", message: "Staff updated successfully" });
@@ -166,11 +168,16 @@ const ManageStaff = () => {
       setIsModalOpen(false);
       setFormData(initialData);
     } catch (e) {
+      const hasErrorMessage = e?.response?.data?.error;
       console.error("Error:", e);
       let message = formData.type === "editStaff" ? "Could not edit staff" : "Could not add staff";
+      if (hasErrorMessage) {
+        message = e?.response?.data?.error;
+      }
       setPopup({ type: "error", message });
     } finally {
       setLoading(false);
+      setLoadingMessage("Processing request");
     }
   };
 
@@ -182,6 +189,7 @@ const ManageStaff = () => {
   const handleDelete = async () => {
     try {
       setLoading(true);
+      setLoadingMessage("Deleting staff member");
       await staffService.deleteStaff(popup._id);
       setStaff((prev) => prev.filter((member) => member._id !== popup._id));
       setPopup({ type: "success", message: "Staff deleted successfully" });
@@ -190,12 +198,14 @@ const ManageStaff = () => {
       setPopup({ type: "error", message: "Could not delete staff" });
     } finally {
       setLoading(false);
+      setLoadingMessage("Processing request");
     }
   };
 
   const handleToggleStatus = async (isActivating) => {
     try {
       setLoading(true);
+      setLoadingMessage(isActivating ? "Activating staff member" : "Deactivating staff member");
       const serviceCall = isActivating
         ? staffService.activateStaff(popup._id)
         : staffService.deactivateStaff(popup._id);
@@ -217,16 +227,13 @@ const ManageStaff = () => {
       });
     } finally {
       setLoading(false);
+      setLoadingMessage("Processing request");
     }
   };
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
-      {loading && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-        </div>
-      )}
+      {loading && <LoadingScreen message={loadingMessage} />}
 
       {popup && (
         <Popup
@@ -513,7 +520,17 @@ const ManageStaff = () => {
                 input={item}
                 index={index}
                 onEdit={() => {
-                  setFormData({ ...item, type: "editStaff", _id: item._id });
+                  // Normalize data to ensure all fields have valid values
+                  setFormData({
+                    name: item.name || "",
+                    username: item.username || "",
+                    email: item.email || "",
+                    mobileNumber: item.mobileNumber || "",
+                    permissions: item.permissions || initialData.permissions,
+                    isActive: item.isActive ?? true,
+                    type: "editStaff",
+                    _id: item._id,
+                  });
                   setIsModalOpen(true);
                 }}
                 onDelete={() =>
