@@ -62,14 +62,15 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
     const loadAll = async () => {
       try {
         const [testsRes, catsRes, ownTestsRes] = await Promise.all([
-          testService.getGlobalTestList(),
-          testService.getCategoryList(),
+          testService.getTestCatalog(),
+          testService.getCategories(),
           existingTests.length === 0 ? testService.getTestList() : Promise.resolve({ data: existingTests }),
         ]);
 
         setAvailableTests(testsRes.data);
         setCategories(catsRes.data);
         setRegisteredTests(ownTestsRes.data);
+        console.log(testsRes.data);
 
         const expanded = {};
         catsRes.data.forEach((c) => {

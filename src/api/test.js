@@ -2,13 +2,13 @@ import api from "./baseAPI";
 import externalAPI from "./externalAPI";
 
 const testService = {
-  getGlobalTestList: () => externalAPI.get("/lab/test/all"),
-  getCategoryList: () => externalAPI.get("/lab/testCategory/all/"),
-  getTestList: () => api.get("/tests"),
-  addTest: (data) => api.post("/test/add", data),
-  editTest: (data) => api.put("/test/edit/" + data._id, data),
+  getTestCatalog: () => api.get("test/catalog"),
+  getCategories: () => api.get("/test/categories"),
+  getTestList: () => api.get("/test/all"),
+  addTest: (data) => api.post("/test", data),
+  editTest: (data) => api.patch("/test/" + data.testId, data),
   deleteTest: (_id) => api.delete(`/test/${_id}`),
-  getSchemasByTestId: (testId) => externalAPI.get("/schema/active/" + testId),
+  getSchemasByTestId: (testId) => api.get("/test/schema/" + testId),
 };
 
 export default testService;

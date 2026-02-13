@@ -18,8 +18,8 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
         const response = await testService.getSchemasByTestId(test.testId);
         setSchemas(response.data || []);
       } catch (error) {
-        console.error("Failed to load schemas:", error);
-        setSchemaError("Could not load schemas");
+        console.error("Failed to load formats:", error);
+        setSchemaError("Could not load formats");
         setSchemas([]);
       } finally {
         setLoadingSchemas(false);

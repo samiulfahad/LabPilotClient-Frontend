@@ -62,13 +62,13 @@ const ManageTests = () => {
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const [testsRes, catsRes] = await Promise.all([testService.getTestList(), testService.getCategoryList()]);
+        const [testsRes, catsRes] = await Promise.all([testService.getTestList(), testService.getCategories()]);
 
         // Ensure we always have arrays, even if the API returns something unexpected
         setTests(Array.isArray(testsRes?.data) ? testsRes.data : []);
         setCategories(Array.isArray(catsRes?.data) ? catsRes.data : []);
 
-        console.log(testsRes);
+        // console.log(testsRes);
       } catch (e) {
         const status = getErrorStatus(e);
         if (status === 404) {
@@ -192,13 +192,16 @@ const ManageTests = () => {
   const handleConfigSave = async (updatedTest) => {
     try {
       setLoading(true);
-      await testService.editTest(updatedTest);
+      console.log(updatedTest);
+      const data = { testId: updatedTest.testId, price: updatedTest.price, schemaId: updatedTest.schemaId };
+      await testService.editTest(data);
       setTests((prev) => prev.map((t) => (t._id === updatedTest._id ? { ...t, ...updatedTest } : t)));
       setIsConfigOpen(false);
       setTimeout(() => {
         setPopup({ type: "success", message: "Test configuration saved" });
       }, 250);
     } catch (e) {
+      console.log(e.response.data);
       const status = getErrorStatus(e);
       if (status === 404) {
         setTests((prev) => prev.filter((t) => t._id !== updatedTest._id));
