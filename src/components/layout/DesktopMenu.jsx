@@ -4,16 +4,24 @@ import menu from "./menu";
 
 const DesktopMenu = () => {
   return (
-    <nav className="hidden lg:flex w-64 fixed left-0 top-0 h-screen flex-col bg-white/90 backdrop-blur-md border-r border-gray-200/80 shadow-lg z-40">
-      {/* Fixed Header – Premium Gradient */}
-      <div className="flex-shrink-0 p-5 bg-gradient-to-br from-blue-600 to-indigo-600 border-b border-white/10">
+    <nav className="hidden lg:flex w-64 fixed left-0 top-0 h-screen flex-col bg-sky-200/10 backdrop-blur-md border-r border-gray-200/80 shadow-lg z-40">
+      {/* Fixed Header – Modern Enterprise Design */}
+      <div className="flex-shrink-0 px-5 py-4 bg-gradient-to-br from-sky-200 to-white border-b border-slate-200">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg ring-1 ring-white/30">
-            <span className="text-white font-bold text-xl tracking-tight">LP</span>
+          {/* Modern Icon Badge */}
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-500/20">
+            <span className="text-white font-bold text-sm">LP</span>
           </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-white font-semibold text-sm leading-tight truncate">Azizul Haque Diagnostic</h2>
-            <p className="text-blue-100/90 text-xs font-medium">Center & Hospital</p>
+
+          {/* Brand Text */}
+          <div className="flex flex-col">
+            <span
+              className="text-slate-900 font-bold text-base leading-none"
+              style={{ fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif", letterSpacing: "-0.02em" }}
+            >
+              LabPilot<span className="font-light">Pro</span>
+            </span>
+            <span className="text-[10px] text-slate-500 font-medium leading-tight mt-1">Modern Health Management</span>
           </div>
         </div>
       </div>

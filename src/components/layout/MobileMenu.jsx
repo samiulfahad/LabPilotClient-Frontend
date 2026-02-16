@@ -59,11 +59,14 @@ const MobileMenu = () => {
             ${scrollDirection === "down" ? "-translate-y-full" : "translate-y-0"}
           `}
         >
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">
-              <span className="text-white font-bold text-base">LP</span>
-            </div>
-            <span className="text-gray-900 font-semibold text-lg tracking-tight">LabPilot</span>
+          <Link to="/" className="flex flex-col">
+            <span
+              className="text-gray-900 font-bold text-base leading-none"
+              style={{ fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif", letterSpacing: "-0.02em" }}
+            >
+              LabPilot<span className="font-light">Pro</span>
+            </span>
+            <span className="text-[10px] text-gray-500 font-medium leading-tight">Modern Health Management System</span>
           </Link>
 
           <button
