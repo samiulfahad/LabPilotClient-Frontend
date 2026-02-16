@@ -116,22 +116,6 @@ const PrintInvoice = () => {
   };
 
   const handleWhatsAppShare = () => {
-    // Get patient's contact number
-    let phoneNumber = invoiceData.contactNumber || "";
-    
-    // Clean the phone number - remove spaces, dashes, and ensure it starts with country code
-    phoneNumber = phoneNumber.replace(/[\s-]/g, "");
-    
-    // If number doesn't start with country code, add Bangladesh code (880)
-    if (phoneNumber.startsWith("0")) {
-      phoneNumber = "880" + phoneNumber.substring(1);
-    } else if (!phoneNumber.startsWith("880") && !phoneNumber.startsWith("+")) {
-      phoneNumber = "880" + phoneNumber;
-    }
-    
-    // Remove + if present
-    phoneNumber = phoneNumber.replace("+", "");
-
     // Create a message with invoice details
     const message = `
 🏥 *LabPilot Pro - Invoice*
@@ -148,20 +132,20 @@ Thank you for choosing LabPilot Pro! 🙏
 
     // Encode the message for URL
     const encodedMessage = encodeURIComponent(message);
-    
-    // Open WhatsApp with specific phone number and pre-filled message
+
+    // Open WhatsApp without specific number - user can choose recipient
     // For mobile, this will open WhatsApp app
     // For desktop, this will open WhatsApp Web
-    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
-    
-    window.open(whatsappUrl, '_blank');
+    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+
+    window.open(whatsappUrl, "_blank");
   };
 
   const formatCurrency = (amount) => {
     // Safely handle undefined/null/NaN values
     const numAmount = Number(amount);
     if (isNaN(numAmount)) return "BDT 0";
-    
+
     return new Intl.NumberFormat("en-BD", {
       style: "currency",
       currency: "BDT",
@@ -170,11 +154,12 @@ Thank you for choosing LabPilot Pro! 🙏
   };
 
   const formatDate = (date) => {
-    if (!date) return new Date().toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    if (!date)
+      return new Date().toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
     return new Date(date).toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "short",
@@ -183,11 +168,12 @@ Thank you for choosing LabPilot Pro! 🙏
   };
 
   const formatTime = (date) => {
-    if (!date) return new Date().toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
+    if (!date)
+      return new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
     return new Date(date).toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
@@ -284,10 +270,10 @@ Thank you for choosing LabPilot Pro! 🙏
                 </div>
                 <div className="text-right">
                   <div className="inline-block bg-white/20 backdrop-blur-sm px-4 print:px-2 py-2 print:py-1 rounded-lg print:bg-white/30">
-                    <p className="text-blue-100 text-xs print:text-[10px] uppercase tracking-wide font-medium">Invoice</p>
-                    <p className="text-white text-xl print:text-sm font-bold">
-                      #{"123"}
+                    <p className="text-blue-100 text-xs print:text-[10px] uppercase tracking-wide font-medium">
+                      Invoice
                     </p>
+                    <p className="text-white text-xl print:text-sm font-bold">#{"1234"}</p>
                   </div>
                   <div className="mt-3 print:mt-1 text-blue-50 text-sm print:text-xs">
                     <p>Date: {formatDate(invoiceData.createdAt || new Date())}</p>
@@ -297,42 +283,78 @@ Thank you for choosing LabPilot Pro! 🙏
               </div>
             </div>
 
-            {/* Patient Information - Compact */}
+            {/* Patient Information with QR Code */}
             <div className="px-8 print:px-4 py-6 print:py-3 border-b border-gray-200">
-              <div className="flex items-center gap-2 print:gap-1 mb-4 print:mb-2">
-                <div className="p-2 print:p-1 bg-blue-50 rounded-lg print:bg-gray-100">
-                  <User className="w-4 h-4 print:w-3 print:h-3 text-blue-600 print:text-gray-700" />
-                </div>
-                <h2 className="text-lg print:text-sm font-semibold text-gray-900">Patient Information</h2>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:gap-2">
-                <div>
-                  <p className="text-xs print:text-[10px] text-gray-500 uppercase tracking-wide mb-1 print:mb-0">Full Name</p>
-                  <p className="text-sm print:text-xs font-medium text-gray-900">{invoiceData.patientName}</p>
-                </div>
-                <div>
-                  <p className="text-xs print:text-[10px] text-gray-500 uppercase tracking-wide mb-1 print:mb-0">Gender</p>
-                  <p className="text-sm print:text-xs font-medium text-gray-900 capitalize">{invoiceData.gender}</p>
-                </div>
-                <div>
-                  <p className="text-xs print:text-[10px] text-gray-500 uppercase tracking-wide mb-1 print:mb-0">Age</p>
-                  <p className="text-sm print:text-xs font-medium text-gray-900">{invoiceData.age} years</p>
-                </div>
-                <div>
-                  <p className="text-xs print:text-[10px] text-gray-500 uppercase tracking-wide mb-1 print:mb-0">Contact</p>
-                  <p className="text-sm print:text-xs font-medium text-gray-900">{invoiceData.contactNumber}</p>
-                </div>
-                {invoiceData.referredBy && (
-                  <div className="col-span-2 md:col-span-4">
-                    <p className="text-xs print:text-[10px] text-gray-500 uppercase tracking-wide mb-1 print:mb-0">Referred By</p>
-                    <p className="text-sm print:text-xs font-medium text-gray-900">
-                      {invoiceData.referredBy.name}
-                      {invoiceData.referredBy.degree && (
-                        <span className="text-gray-600 font-normal ml-2">({invoiceData.referredBy.degree})</span>
-                      )}
-                    </p>
+              <div className="flex flex-col md:flex-row print:flex-row gap-6 print:gap-4">
+                {/* Patient Information - Left Side */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 print:gap-1 mb-4 print:mb-2">
+                    <div className="p-2 print:p-1 bg-blue-50 rounded-lg print:bg-gray-100">
+                      <User className="w-4 h-4 print:w-3 print:h-3 text-blue-600 print:text-gray-700" />
+                    </div>
+                    <h2 className="text-lg print:text-sm font-semibold text-gray-900">Patient Information</h2>
                   </div>
-                )}
+                  <div className="grid grid-cols-2 gap-4 print:gap-2">
+                    <div>
+                      <p className="text-xs print:text-[10px] text-gray-500 uppercase tracking-wide mb-1 print:mb-0">
+                        Full Name
+                      </p>
+                      <p className="text-sm print:text-xs font-medium text-gray-900">{invoiceData.patientName}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs print:text-[10px] text-gray-500 uppercase tracking-wide mb-1 print:mb-0">
+                        Gender
+                      </p>
+                      <p className="text-sm print:text-xs font-medium text-gray-900 capitalize">{invoiceData.gender}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs print:text-[10px] text-gray-500 uppercase tracking-wide mb-1 print:mb-0">
+                        Age
+                      </p>
+                      <p className="text-sm print:text-xs font-medium text-gray-900">{invoiceData.age} years</p>
+                    </div>
+                    <div>
+                      <p className="text-xs print:text-[10px] text-gray-500 uppercase tracking-wide mb-1 print:mb-0">
+                        Contact
+                      </p>
+                      <p className="text-sm print:text-xs font-medium text-gray-900">{invoiceData.contactNumber}</p>
+                    </div>
+                    {invoiceData.referredBy && (
+                      <div className="col-span-2">
+                        <p className="text-xs print:text-[10px] text-gray-500 uppercase tracking-wide mb-1 print:mb-0">
+                          Referred By
+                        </p>
+                        <p className="text-sm print:text-xs font-medium text-gray-900">
+                          {invoiceData.referredBy.name}
+                          {invoiceData.referredBy.degree && (
+                            <span className="text-gray-600 font-normal ml-2">({invoiceData.referredBy.degree})</span>
+                          )}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* QR Code - Right Side - Always beside patient info even on print */}
+                <div className="flex-shrink-0 print:flex-shrink-0">
+                  <div className="flex flex-col items-center justify-center text-center bg-gradient-to-br from-blue-50 to-indigo-50 print:bg-white p-5 print:p-3 rounded-xl border-2 border-blue-200 print:border-gray-300">
+                    {qrCodeUrl && (
+                      <>
+                        <div className="mb-3 print:mb-2">
+                          <img
+                            src={qrCodeUrl}
+                            alt="QR Code for Report Download"
+                            className="w-32 h-32 print:w-24 print:h-24 mx-auto rounded-lg shadow-sm"
+                          />
+                        </div>
+                        <div>
+                          <p className="text-sm print:text-xs font-bold text-gray-900 mb-1">Scan to Download</p>
+                          <p className="text-xs print:text-[10px] text-gray-600">Your Test Report</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -364,8 +386,12 @@ Thank you for choosing LabPilot Pro! 🙏
                   <tbody className="divide-y divide-gray-200">
                     {invoiceData.tests?.map((test, index) => (
                       <tr key={test._id || index} className="hover:bg-gray-50 print:hover:bg-white">
-                        <td className="px-4 print:px-2 py-3 print:py-1 text-sm print:text-xs text-gray-600">{index + 1}</td>
-                        <td className="px-4 print:px-2 py-3 print:py-1 text-sm print:text-xs text-gray-900">{test.name}</td>
+                        <td className="px-4 print:px-2 py-3 print:py-1 text-sm print:text-xs text-gray-600">
+                          {index + 1}
+                        </td>
+                        <td className="px-4 print:px-2 py-3 print:py-1 text-sm print:text-xs text-gray-900">
+                          {test.name}
+                        </td>
                         <td className="px-4 print:px-2 py-3 print:py-1 text-sm print:text-xs text-gray-900 text-right font-medium">
                           {formatCurrency(test.price)}
                         </td>
@@ -375,40 +401,12 @@ Thank you for choosing LabPilot Pro! 🙏
                 </table>
               </div>
 
-              {/* Pricing Summary with QR Code */}
-              <div className="mt-6 print:mt-3 flex flex-col md:flex-row gap-6 print:gap-4 items-start justify-between">
-                {/* QR Code Section - Left Side */}
-                <div className="flex-shrink-0">
-                  <div className="flex flex-col items-center justify-center text-center bg-gray-50 print:bg-white p-4 print:p-2 rounded-lg border border-gray-200">
-                    {qrCodeUrl && (
-                      <>
-                        <div className="mb-2 print:mb-1">
-                          <img
-                            src={qrCodeUrl}
-                            alt="QR Code for Report Download"
-                            className="w-28 h-28 print:w-20 print:h-20 mx-auto border-2 border-blue-200 rounded-lg"
-                          />
-                        </div>
-                        <div>
-                          <p className="text-xs print:text-[10px] font-semibold text-gray-900 mb-0.5">
-                            Scan to Download
-                          </p>
-                          <p className="text-[10px] print:text-[8px] text-gray-500">
-                            Your Test Report
-                          </p>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Pricing Details - Right Side */}
-                <div className="flex-1 w-full md:w-auto space-y-2 print:space-y-1">
+              {/* Pricing Summary */}
+              <div className="mt-6 print:mt-3 flex justify-end">
+                <div className="w-full md:w-80 space-y-2 print:space-y-1">
                   <div className="flex justify-between text-sm print:text-xs">
                     <span className="text-gray-600">Subtotal</span>
-                    <span className="font-medium text-gray-900">
-                      {formatCurrency(invoiceData.totalAmount || 0)}
-                    </span>
+                    <span className="font-medium text-gray-900">{formatCurrency(invoiceData.totalAmount || 0)}</span>
                   </div>
 
                   {invoiceData.hasDiscount && invoiceData.discountPercentage > 0 && (
@@ -441,46 +439,6 @@ Thank you for choosing LabPilot Pro! 🙏
                       {formatCurrency(invoiceData.finalPrice || 0)}
                     </span>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer / Terms - Compact */}
-            <div className="px-8 print:px-4 py-6 print:py-2 bg-gray-50 print:bg-white border-t border-gray-200">
-              <div className="space-y-3 print:space-y-1">
-                <div>
-                  <h3 className="text-sm print:text-xs font-semibold text-gray-900 mb-2 print:mb-1">Payment Instructions</h3>
-                  <p className="text-xs print:text-[10px] text-gray-600">
-                    Please make payment at the reception desk or through our online payment portal. Keep this invoice
-                    for your records.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-sm print:text-xs font-semibold text-gray-900 mb-2 print:mb-1">Terms & Conditions</h3>
-                  <ul className="text-xs print:text-[10px] text-gray-600 space-y-1 print:space-y-0">
-                    <li>• Test results will be available within the specified time frame</li>
-                    <li>• Please bring a valid ID for test collection</li>
-                    <li>• Refunds are subject to lab policy</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Watermark / Branding - Compact */}
-            <div className="px-8 print:px-4 py-4 print:py-2 bg-gradient-to-r from-blue-50 to-indigo-50 print:bg-white border-t border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 print:gap-1">
-                  <div className="w-8 h-8 print:w-6 print:h-6 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-xs print:text-[10px]">LP</span>
-                  </div>
-                  <div>
-                    <p className="text-xs print:text-[10px] font-semibold text-gray-900">Powered by LabPilot Pro</p>
-                    <p className="text-[10px] print:text-[8px] text-gray-500">Modern Health Management System</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs print:text-[10px] text-gray-500">Thank you for choosing our services</p>
-                  <p className="text-xs print:text-[10px] text-blue-600 font-medium">{labInfo.website}</p>
                 </div>
               </div>
             </div>

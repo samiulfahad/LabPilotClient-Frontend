@@ -817,7 +817,7 @@ const CreateInvoice = () => {
       navigate(`/invoice/print/${response.data._id}`, {
         state: {
           invoiceData: {
-            ...response.data,
+            ...invoiceData,
             tests: formData.selectedTests,
             referredBy: formData.referredBy,
           },
