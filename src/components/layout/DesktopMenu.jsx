@@ -6,7 +6,7 @@ const DesktopMenu = () => {
   return (
     <nav className="hidden lg:flex w-64 fixed left-0 top-0 h-screen flex-col bg-sky-200/10 backdrop-blur-md border-r border-gray-200/80 shadow-lg z-40">
       {/* Fixed Header – Modern Enterprise Design */}
-      <div className="flex-shrink-0 px-5 py-4 bg-gradient-to-br from-sky-200 to-white border-b border-slate-200">
+      <div className="flex-shrink-0 px-5 py-4 bg-gradient-to-br from-blue-200 to-slate-200 border-b border-slate-200">
         <div className="flex items-center gap-3">
           {/* Modern Icon Badge */}
           <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-500/20">
