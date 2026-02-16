@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FileText,
   Search,
@@ -672,6 +673,7 @@ const initialFormData = {
 };
 
 const CreateInvoice = () => {
+  const navigate = useNavigate();
   const [availableReferrers, setAvailableReferrers] = useState([]);
   const [availableTests, setAvailableTests] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -807,15 +809,22 @@ const CreateInvoice = () => {
         finalPrice: formData.finalPrice,
       };
 
-      console.log("Invoice Data:", invoiceData);
-
-      // Uncomment when API is ready
+      // API Call
       // const response = await invoiceService.createInvoice(invoiceData);
+      let response = { data: { _id: 123 } };
 
-      setPopup({
-        type: "success",
-        message: "Invoice created successfully",
+      // Navigate to print page with the created invoice data
+      navigate(`/invoice/print/${response.data._id}`, {
+        state: {
+          invoiceData: {
+            ...response.data,
+            tests: formData.selectedTests,
+            referredBy: formData.referredBy,
+          },
+        },
       });
+
+      // Reset form
       setFormData(initialFormData);
       setIsSummaryModalOpen(false);
     } catch (error) {
