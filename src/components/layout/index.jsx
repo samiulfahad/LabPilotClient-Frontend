@@ -9,11 +9,9 @@ const Layout = ({ children }) => {
 
       {/* Main Content Wrapper */}
       <div className="flex-1 flex flex-col min-h-screen lg:ml-64">
-        {/* Page Content */}
-        <main className="flex-1 bg-white/80 backdrop-blur-sm relative">
-          <div className="pt-20 lg:pt-8 px-4 sm:px-6 lg:px-8 pb-8">
-            <div className="max-w-7xl mx-auto">{children}</div>
-          </div>
+        {/* Page Content - Add top padding on mobile to account for fixed navbar */}
+        <main className="flex-1 bg-white/80 backdrop-blur-sm relative pt-12 lg:pt-0">
+          <div className="max-w-7xl mx-auto">{children}</div>
         </main>
 
         {/* Global Footer – Minimal Enterprise */}
