@@ -128,24 +128,26 @@ const InvoiceSummary = ({ formData, onConfirm, onClose }) => {
               <span className="text-gray-600">Subtotal</span>
               <span className="font-medium text-gray-900">{formatCurrency(formData.totalAmount)}</span>
             </div>
-            {formData.hasDiscount && formData.discountPercentage > 0 && (
+            {formData.hasReferrerDiscount && formData.referrerDiscountPercentage > 0 && (
               <>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Discount ({formData.discountPercentage}%)</span>
+                  <span className="text-gray-600">Referrer Discount ({formData.referrerDiscountPercentage}%)</span>
                   <span className="text-red-600">
-                    - {formatCurrency(formData.totalAmount - formData.priceAfterDiscount)}
+                    - {formatCurrency(formData.totalAmount - formData.priceAfterReferrerDiscount)}
                   </span>
                 </div>
                 <div className="flex justify-between pt-2 border-t border-gray-200">
-                  <span className="text-gray-600">After Discount</span>
-                  <span className="font-medium text-gray-900">{formatCurrency(formData.priceAfterDiscount)}</span>
+                  <span className="text-gray-600">After Referrer Discount</span>
+                  <span className="font-medium text-gray-900">
+                    {formatCurrency(formData.priceAfterReferrerDiscount)}
+                  </span>
                 </div>
               </>
             )}
-            {formData.hasAdjustment && formData.adjustmentAmount > 0 && (
+            {formData.hasLabAdjustment && formData.labAdjustmentAmount > 0 && (
               <div className="flex justify-between pt-2 border-t border-gray-200">
-                <span className="text-gray-600">Adjustment</span>
-                <span className="text-red-600">- {formatCurrency(formData.adjustmentAmount)}</span>
+                <span className="text-gray-600">Lab Adjustment</span>
+                <span className="text-red-600">- {formatCurrency(formData.labAdjustmentAmount)}</span>
               </div>
             )}
             <div className="flex justify-between pt-3 border-t-2 border-gray-200 text-base">
@@ -540,15 +542,15 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
             </div>
           </div>
 
-          {/* Discount Section */}
+          {/* Referrer Discount Section */}
           <div className="space-y-3">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={formData.hasDiscount}
+                checked={formData.hasReferrerDiscount}
                 onChange={(e) => {
-                  onChange("hasDiscount", e.target.checked);
-                  if (!e.target.checked) onChange("discountPercentage", 0);
+                  onChange("hasReferrerDiscount", e.target.checked);
+                  if (!e.target.checked) onChange("referrerDiscountPercentage", 0);
                 }}
                 className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
               />
@@ -556,21 +558,21 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                 <div className="p-1.5 bg-white rounded">
                   <Percent className="w-3.5 h-3.5 text-blue-600" />
                 </div>
-                <span className="text-sm font-medium text-gray-700">Apply Discount</span>
+                <span className="text-sm font-medium text-gray-700">Apply Referrer Discount</span>
               </div>
             </label>
 
-            {formData.hasDiscount && (
+            {formData.hasReferrerDiscount && (
               <div className="ml-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Discount Percentage</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Referrer Discount Percentage</label>
                 <div className="relative">
                   <Percent className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="number"
-                    value={formData.discountPercentage}
-                    onChange={(e) => onChange("discountPercentage", parseFloat(e.target.value) || 0)}
+                    value={formData.referrerDiscountPercentage}
+                    onChange={(e) => onChange("referrerDiscountPercentage", parseFloat(e.target.value) || 0)}
                     className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
-                    placeholder="Enter discount percentage"
+                    placeholder="Enter referrer discount percentage"
                     min="0"
                     max="100"
                     step="0.01"
@@ -578,23 +580,25 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                 </div>
                 <div className="mt-3 p-3 bg-white rounded-lg border border-blue-200">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">After Discount</span>
-                    <span className="font-medium text-blue-600">{formatCurrency(formData.priceAfterDiscount)}</span>
+                    <span className="text-gray-600">After Referrer Discount</span>
+                    <span className="font-medium text-blue-600">
+                      {formatCurrency(formData.priceAfterReferrerDiscount)}
+                    </span>
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Adjustment Section */}
+          {/* Lab Adjustment Section */}
           <div className="space-y-3">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={formData.hasAdjustment}
+                checked={formData.hasLabAdjustment}
                 onChange={(e) => {
-                  onChange("hasAdjustment", e.target.checked);
-                  if (!e.target.checked) onChange("adjustmentAmount", 0);
+                  onChange("hasLabAdjustment", e.target.checked);
+                  if (!e.target.checked) onChange("labAdjustmentAmount", 0);
                 }}
                 className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
               />
@@ -602,21 +606,21 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                 <div className="p-1.5 bg-white rounded">
                   <DollarSign className="w-3.5 h-3.5 text-blue-600" />
                 </div>
-                <span className="text-sm font-medium text-gray-700">Apply Manual Adjustment</span>
+                <span className="text-sm font-medium text-gray-700">Apply Lab Adjustment</span>
               </div>
             </label>
 
-            {formData.hasAdjustment && (
+            {formData.hasLabAdjustment && (
               <div className="ml-6 p-4 bg-yellow-50 rounded-lg border border-yellow-100">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Adjustment Amount</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Lab Adjustment Amount</label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="number"
-                    value={formData.adjustmentAmount}
-                    onChange={(e) => onChange("adjustmentAmount", parseFloat(e.target.value) || 0)}
+                    value={formData.labAdjustmentAmount}
+                    onChange={(e) => onChange("labAdjustmentAmount", parseFloat(e.target.value) || 0)}
                     className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
-                    placeholder="Enter adjustment amount"
+                    placeholder="Enter lab adjustment amount"
                     min="0"
                     step="0.01"
                   />
@@ -664,11 +668,11 @@ const initialFormData = {
   referredBy: null,
   selectedTests: [],
   totalAmount: 0,
-  hasDiscount: false,
-  discountPercentage: 0,
-  priceAfterDiscount: 0,
-  hasAdjustment: false,
-  adjustmentAmount: 0,
+  hasReferrerDiscount: false,
+  referrerDiscountPercentage: 0,
+  priceAfterReferrerDiscount: 0,
+  hasLabAdjustment: false,
+  labAdjustmentAmount: 0,
   finalPrice: 0,
 };
 
@@ -707,30 +711,30 @@ const CreateInvoice = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     formData.selectedTests,
-    formData.hasDiscount,
-    formData.discountPercentage,
-    formData.hasAdjustment,
-    formData.adjustmentAmount,
+    formData.hasReferrerDiscount,
+    formData.referrerDiscountPercentage,
+    formData.hasLabAdjustment,
+    formData.labAdjustmentAmount,
   ]);
 
   const calculatePrices = () => {
     const totalAmount = formData.selectedTests.reduce((sum, test) => sum + (test.price || 0), 0);
 
-    let priceAfterDiscount = totalAmount;
-    if (formData.hasDiscount && formData.discountPercentage > 0) {
-      const discountAmount = (totalAmount * formData.discountPercentage) / 100;
-      priceAfterDiscount = totalAmount - discountAmount;
+    let priceAfterReferrerDiscount = totalAmount;
+    if (formData.hasReferrerDiscount && formData.referrerDiscountPercentage > 0) {
+      const referrerDiscountAmount = (totalAmount * formData.referrerDiscountPercentage) / 100;
+      priceAfterReferrerDiscount = totalAmount - referrerDiscountAmount;
     }
 
-    let finalPrice = priceAfterDiscount;
-    if (formData.hasAdjustment && formData.adjustmentAmount) {
-      finalPrice = priceAfterDiscount - formData.adjustmentAmount;
+    let finalPrice = priceAfterReferrerDiscount;
+    if (formData.hasLabAdjustment && formData.labAdjustmentAmount) {
+      finalPrice = priceAfterReferrerDiscount - formData.labAdjustmentAmount;
     }
 
     setFormData((prev) => ({
       ...prev,
       totalAmount,
-      priceAfterDiscount,
+      priceAfterReferrerDiscount,
       finalPrice: Math.max(0, finalPrice),
     }));
   };
@@ -801,11 +805,11 @@ const CreateInvoice = () => {
           price: test.price,
         })),
         totalAmount: formData.totalAmount,
-        hasDiscount: formData.hasDiscount,
-        discountPercentage: formData.discountPercentage,
-        priceAfterDiscount: formData.priceAfterDiscount,
-        hasAdjustment: formData.hasAdjustment,
-        adjustmentAmount: formData.adjustmentAmount,
+        hasReferrerDiscount: formData.hasReferrerDiscount,
+        referrerDiscountPercentage: formData.referrerDiscountPercentage,
+        priceAfterReferrerDiscount: formData.priceAfterReferrerDiscount,
+        hasLabAdjustment: formData.hasLabAdjustment,
+        labAdjustmentAmount: formData.labAdjustmentAmount,
         finalPrice: formData.finalPrice,
       };
 

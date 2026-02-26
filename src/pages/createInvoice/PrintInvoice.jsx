@@ -1,21 +1,236 @@
 import { useEffect, useState } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
-import { Printer, Download, ArrowLeft, Phone, Mail, MapPin, Calendar, User, FileText, Share2 } from "lucide-react";
+import { Printer, Download, ArrowLeft, Phone, Mail, MapPin, User, FileText, Share2 } from "lucide-react";
 import QRCode from "qrcode";
+import { pdf, Document, Page, View, Text, Image, StyleSheet, Font } from "@react-pdf/renderer";
 import invoiceService from "../../api/invoice";
 import LoadingScreen from "../../components/loadingPage";
 import Popup from "../../components/popup";
 
+// ============================================================================
+// PDF DOCUMENT DEFINITION
+// ============================================================================
+const pdfStyles = StyleSheet.create({
+  page: { backgroundColor: "#ffffff", fontFamily: "Helvetica", fontSize: 9, color: "#111827" },
+  // Header
+  header: {
+    backgroundColor: "#2563eb",
+    padding: "16 20",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  headerLeft: { flex: 1 },
+  logoRow: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
+  logoBox: {
+    width: 28,
+    height: 28,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+  logoText: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 11 },
+  labName: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 13 },
+  labSub: { color: "#bfdbfe", fontSize: 8 },
+  headerMeta: { color: "#dbeafe", fontSize: 7.5, marginTop: 2 },
+  headerRight: { alignItems: "flex-end" },
+  invoiceBadge: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 6,
+    padding: "4 10",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  invoiceLabel: { color: "#bfdbfe", fontSize: 7, textTransform: "uppercase", letterSpacing: 0.5 },
+  invoiceNumber: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 13 },
+  dateText: { color: "#dbeafe", fontSize: 7.5 },
+  // Section
+  section: { padding: "12 20", borderBottom: "1 solid #e5e7eb" },
+  sectionLast: { padding: "12 20" },
+  sectionTitle: { fontFamily: "Helvetica-Bold", fontSize: 9, color: "#111827", marginBottom: 8 },
+  // Patient
+  patientRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  patientGrid: { flex: 1, flexDirection: "row", flexWrap: "wrap" },
+  patientField: { width: "50%", marginBottom: 6 },
+  patientFieldFull: { width: "100%", marginBottom: 6 },
+  fieldLabel: { fontSize: 7, color: "#6b7280", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 1.5 },
+  fieldValue: { fontFamily: "Helvetica-Bold", fontSize: 8.5, color: "#111827" },
+  // QR
+  qrContainer: { alignItems: "center", marginLeft: 16 },
+  qrImage: { width: 60, height: 60 },
+  qrLabel: { fontSize: 6.5, color: "#6b7280", textAlign: "center", marginTop: 3 },
+  // Table
+  tableHeader: { flexDirection: "row", backgroundColor: "#f3f4f6", padding: "5 8", borderBottom: "1 solid #e5e7eb" },
+  tableRow: { flexDirection: "row", padding: "5 8", borderBottom: "1 solid #f3f4f6" },
+  tableRowEven: { flexDirection: "row", padding: "5 8", borderBottom: "1 solid #f3f4f6", backgroundColor: "#fafafa" },
+  colNum: { width: "8%", fontSize: 8, color: "#6b7280" },
+  colName: { flex: 1, fontSize: 8 },
+  colPrice: { width: "25%", fontSize: 8, textAlign: "right", fontFamily: "Helvetica-Bold" },
+  colHeader: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 7.5,
+    color: "#374151",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  // Pricing
+  pricingBox: { marginTop: 10, alignItems: "flex-end" },
+  pricingInner: { width: 220 },
+  pricingRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
+  pricingLabel: { fontSize: 8, color: "#6b7280" },
+  pricingValue: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#111827" },
+  pricingDiscount: { fontSize: 8, color: "#dc2626" },
+  divider: { borderTop: "1.5 solid #d1d5db", marginVertical: 5 },
+  totalRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
+  totalLabel: { fontSize: 10, fontFamily: "Helvetica-Bold", color: "#111827" },
+  totalValue: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#2563eb" },
+});
+
+const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, formatDate, formatTime }) => {
+  const referrerDiscountAmount =
+    invoiceData.hasReferrerDiscount && invoiceData.referrerDiscountPercentage > 0
+      ? invoiceData.totalAmount - invoiceData.priceAfterReferrerDiscount
+      : 0;
+  const showReferrerDiscount = invoiceData.hasReferrerDiscount && referrerDiscountAmount > 0;
+  const showLabAdjustment = invoiceData.hasLabAdjustment && invoiceData.labAdjustmentAmount > 0;
+
+  return (
+    <Document>
+      <Page size="A5" style={pdfStyles.page}>
+        {/* Header */}
+        <View style={pdfStyles.header}>
+          <View style={pdfStyles.headerLeft}>
+            <View style={pdfStyles.logoRow}>
+              <View style={pdfStyles.logoBox}>
+                <Text style={pdfStyles.logoText}>LP</Text>
+              </View>
+              <View>
+                <Text style={pdfStyles.labName}>{labInfo.name}</Text>
+                <Text style={pdfStyles.labSub}>Professional Diagnostic Services</Text>
+              </View>
+            </View>
+            <Text style={pdfStyles.headerMeta}>{labInfo.address}</Text>
+            <Text style={pdfStyles.headerMeta}>
+              {labInfo.phone} • {labInfo.email}
+            </Text>
+          </View>
+          <View style={pdfStyles.headerRight}>
+            <View style={pdfStyles.invoiceBadge}>
+              <Text style={pdfStyles.invoiceLabel}>Invoice</Text>
+              <Text style={pdfStyles.invoiceNumber}>#1234</Text>
+            </View>
+            <Text style={pdfStyles.dateText}>Date: {formatDate(invoiceData.createdAt)}</Text>
+            <Text style={pdfStyles.dateText}>Time: {formatTime(invoiceData.createdAt)}</Text>
+          </View>
+        </View>
+
+        {/* Patient Info */}
+        <View style={pdfStyles.section}>
+          <Text style={pdfStyles.sectionTitle}>Patient Information</Text>
+          <View style={pdfStyles.patientRow}>
+            <View style={pdfStyles.patientGrid}>
+              <View style={pdfStyles.patientField}>
+                <Text style={pdfStyles.fieldLabel}>Full Name</Text>
+                <Text style={pdfStyles.fieldValue}>{invoiceData.patientName}</Text>
+              </View>
+              <View style={pdfStyles.patientField}>
+                <Text style={pdfStyles.fieldLabel}>Gender</Text>
+                <Text style={pdfStyles.fieldValue}>{invoiceData.gender}</Text>
+              </View>
+              <View style={pdfStyles.patientField}>
+                <Text style={pdfStyles.fieldLabel}>Age</Text>
+                <Text style={pdfStyles.fieldValue}>{invoiceData.age} years</Text>
+              </View>
+              <View style={pdfStyles.patientField}>
+                <Text style={pdfStyles.fieldLabel}>Contact</Text>
+                <Text style={pdfStyles.fieldValue}>{invoiceData.contactNumber}</Text>
+              </View>
+              {invoiceData.referredBy && (
+                <View style={pdfStyles.patientFieldFull}>
+                  <Text style={pdfStyles.fieldLabel}>Referred By</Text>
+                  <Text style={pdfStyles.fieldValue}>
+                    {invoiceData.referredBy.name}
+                    {invoiceData.referredBy.degree ? ` (${invoiceData.referredBy.degree})` : ""}
+                  </Text>
+                </View>
+              )}
+            </View>
+            {qrCodeUrl && (
+              <View style={pdfStyles.qrContainer}>
+                <Image style={pdfStyles.qrImage} src={qrCodeUrl} />
+                <Text style={pdfStyles.qrLabel}>Scan to download{"\n"}your reports</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Tests */}
+        <View style={pdfStyles.sectionLast}>
+          <Text style={pdfStyles.sectionTitle}>Diagnostic Tests</Text>
+          {/* Table Header */}
+          <View style={pdfStyles.tableHeader}>
+            <Text style={[pdfStyles.colNum, pdfStyles.colHeader]}>#</Text>
+            <Text style={[pdfStyles.colName, pdfStyles.colHeader]}>Test Name</Text>
+            <Text style={[pdfStyles.colPrice, pdfStyles.colHeader]}>Price</Text>
+          </View>
+          {/* Table Rows */}
+          {invoiceData.tests?.map((test, index) => (
+            <View key={index} style={index % 2 === 0 ? pdfStyles.tableRow : pdfStyles.tableRowEven}>
+              <Text style={pdfStyles.colNum}>{index + 1}</Text>
+              <Text style={pdfStyles.colName}>{test.name}</Text>
+              <Text style={pdfStyles.colPrice}>{formatCurrency(test.price)}</Text>
+            </View>
+          ))}
+
+          {/* Pricing Summary */}
+          <View style={pdfStyles.pricingBox}>
+            <View style={pdfStyles.pricingInner}>
+              <View style={pdfStyles.pricingRow}>
+                <Text style={pdfStyles.pricingLabel}>Subtotal</Text>
+                <Text style={pdfStyles.pricingValue}>{formatCurrency(invoiceData.totalAmount)}</Text>
+              </View>
+              {showReferrerDiscount && (
+                <View style={pdfStyles.pricingRow}>
+                  <Text style={pdfStyles.pricingLabel}>
+                    Referrer Discount ({invoiceData.referrerDiscountPercentage}%)
+                  </Text>
+                  <Text style={pdfStyles.pricingDiscount}>- {formatCurrency(referrerDiscountAmount)}</Text>
+                </View>
+              )}
+              {showLabAdjustment && (
+                <View style={pdfStyles.pricingRow}>
+                  <Text style={pdfStyles.pricingLabel}>Lab Adjustment</Text>
+                  <Text style={pdfStyles.pricingDiscount}>- {formatCurrency(invoiceData.labAdjustmentAmount)}</Text>
+                </View>
+              )}
+              <View style={pdfStyles.divider} />
+              <View style={pdfStyles.totalRow}>
+                <Text style={pdfStyles.totalLabel}>Total Amount</Text>
+                <Text style={pdfStyles.totalValue}>{formatCurrency(invoiceData.finalPrice)}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Page>
+    </Document>
+  );
+};
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 const PrintInvoice = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { invoiceId } = useParams();
   const [invoiceData, setInvoiceData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sharing, setSharing] = useState(false);
   const [popup, setPopup] = useState(null);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
 
-  // Lab/Organization Details - Replace with your actual data or fetch from API
   const labInfo = {
     name: "LabPilot Pro Diagnostics",
     address: "123 Medical Center Road, Dhaka 1207, Bangladesh",
@@ -24,16 +239,12 @@ const PrintInvoice = () => {
     website: "www.labpilotpro.com",
   };
 
-  // Generate QR Code
   const generateQRCode = async (url) => {
     try {
       const qrDataUrl = await QRCode.toDataURL(url, {
         width: 200,
         margin: 1,
-        color: {
-          dark: "#2563eb", // Blue color
-          light: "#ffffff", // White background
-        },
+        color: { dark: "#2563eb", light: "#ffffff" },
       });
       setQrCodeUrl(qrDataUrl);
     } catch (error) {
@@ -49,26 +260,18 @@ const PrintInvoice = () => {
   const loadInvoiceData = async () => {
     try {
       let data = null;
-
-      // First, check if data was passed via navigation state
       if (location.state?.invoiceData) {
         data = location.state.invoiceData;
-      }
-      // If no state data, fetch from API using invoiceId
-      else if (invoiceId) {
+      } else if (invoiceId) {
         const response = await invoiceService.getInvoiceById(invoiceId);
         data = response.data;
       } else {
-        setPopup({
-          type: "error",
-          message: "No invoice data available",
-        });
+        setPopup({ type: "error", message: "No invoice data available" });
         setTimeout(() => navigate("/invoice/new"), 2000);
         setLoading(false);
         return;
       }
 
-      // Ensure data has required structure with safe defaults
       const processedData = {
         _id: data._id || "",
         invoiceNumber: data.invoiceNumber || "",
@@ -79,115 +282,105 @@ const PrintInvoice = () => {
         referredBy: data.referredBy || null,
         tests: Array.isArray(data.tests) ? data.tests : [],
         totalAmount: Number(data.totalAmount) || 0,
-        hasDiscount: data.hasDiscount || false,
-        discountPercentage: Number(data.discountPercentage) || 0,
-        priceAfterDiscount: Number(data.priceAfterDiscount) || Number(data.totalAmount) || 0,
-        hasAdjustment: data.hasAdjustment || false,
-        adjustmentAmount: Number(data.adjustmentAmount) || 0,
+        hasReferrerDiscount: data.hasReferrerDiscount || false,
+        referrerDiscountPercentage: Number(data.referrerDiscountPercentage) || 0,
+        priceAfterReferrerDiscount: Number(data.priceAfterReferrerDiscount) || Number(data.totalAmount) || 0,
+        hasLabAdjustment: data.hasLabAdjustment || false,
+        labAdjustmentAmount: Number(data.labAdjustmentAmount) || 0,
         finalPrice: Number(data.finalPrice) || Number(data.totalAmount) || 0,
         createdAt: data.createdAt || new Date().toISOString(),
-        reportLink: data.reportLink || data.link || "https://labpilotpro.com", // Dynamic link from backend
+        reportLink: data.reportLink || data.link || "https://labpilotpro.com",
       };
 
       setInvoiceData(processedData);
-
-      // Generate QR code with the report link
       await generateQRCode(processedData.reportLink);
-
       setLoading(false);
     } catch (error) {
       console.error("Error loading invoice:", error);
-      setPopup({
-        type: "error",
-        message: "Failed to load invoice data",
-      });
+      setPopup({ type: "error", message: "Failed to load invoice data" });
       setTimeout(() => navigate("/invoice/new"), 2000);
       setLoading(false);
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleDownload = () => {
-    // Trigger print which allows user to save as PDF
-    window.print();
-  };
-
-  const handleWhatsAppShare = () => {
-    // Create a message with invoice details
-    const message = `
-🏥 *LabPilot Pro - Invoice*
-
-📋 Invoice #: ${"123"}
-👤 Patient: ${invoiceData.patientName}
-📅 Date: ${formatDate(invoiceData.createdAt)}
-💰 Total Amount: ${formatCurrency(invoiceData.finalPrice || 0)}
-
-🔗 View/Download Report: ${invoiceData.reportLink || "https://labpilotpro.com"}
-
-Thank you for choosing LabPilot Pro! 🙏
-    `.trim();
-
-    // Encode the message for URL
-    const encodedMessage = encodeURIComponent(message);
-
-    // Open WhatsApp without specific number - user can choose recipient
-    // For mobile, this will open WhatsApp app
-    // For desktop, this will open WhatsApp Web
-    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-
-    window.open(whatsappUrl, "_blank");
-  };
-
   const formatCurrency = (amount) => {
-    // Safely handle undefined/null/NaN values
     const numAmount = Number(amount);
     if (isNaN(numAmount)) return "BDT 0";
-
-    return new Intl.NumberFormat("en-BD", {
-      style: "currency",
-      currency: "BDT",
-      minimumFractionDigits: 0,
-    }).format(numAmount);
+    return new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", minimumFractionDigits: 0 }).format(
+      numAmount,
+    );
   };
 
   const formatDate = (date) => {
-    if (!date)
-      return new Date().toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      });
-    return new Date(date).toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    if (!date) return new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    return new Date(date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   };
 
   const formatTime = (date) => {
-    if (!date)
-      return new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
-    return new Date(date).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
+    if (!date) return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+    return new Date(date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
   };
 
-  if (loading) {
-    return <LoadingScreen message="Loading invoice..." />;
-  }
+  const handlePrint = () => window.print();
+  const handleDownload = () => window.print();
 
-  if (!invoiceData) {
-    return null;
-  }
+  // Generate PDF blob using @react-pdf/renderer
+  const generatePDFBlob = async () => {
+    const doc = (
+      <InvoicePDFDocument
+        invoiceData={invoiceData}
+        qrCodeUrl={qrCodeUrl}
+        labInfo={labInfo}
+        formatCurrency={formatCurrency}
+        formatDate={formatDate}
+        formatTime={formatTime}
+      />
+    );
+    return await pdf(doc).toBlob();
+  };
+
+  const handleShare = async () => {
+    try {
+      setSharing(true);
+      const pdfBlob = await generatePDFBlob();
+      const fileName = `Invoice-${invoiceData.patientName?.replace(/\s+/g, "_") || "patient"}.pdf`;
+      const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
+
+      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        // Native share sheet on mobile — WhatsApp, Messenger, email, etc.
+        await navigator.share({
+          title: `Invoice - ${invoiceData.patientName}`,
+          files: [pdfFile],
+        });
+      } else {
+        // Desktop fallback: download the PDF
+        const url = URL.createObjectURL(pdfBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+        setPopup({ type: "success", message: "PDF downloaded — attach it manually to share" });
+      }
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        console.error("Share error:", error);
+        setPopup({ type: "error", message: "Could not share invoice" });
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  if (loading) return <LoadingScreen message="Loading invoice..." />;
+  if (!invoiceData) return null;
+
+  const referrerDiscountAmount =
+    invoiceData.hasReferrerDiscount && invoiceData.referrerDiscountPercentage > 0
+      ? invoiceData.totalAmount - invoiceData.priceAfterReferrerDiscount
+      : 0;
+  const showReferrerDiscount = invoiceData.hasReferrerDiscount && referrerDiscountAmount > 0;
+  const showLabAdjustment = invoiceData.hasLabAdjustment && invoiceData.labAdjustmentAmount > 0;
 
   return (
     <>
@@ -207,12 +400,12 @@ Thank you for choosing LabPilot Pro! 🙏
 
             <div className="flex items-center gap-3">
               <button
-                onClick={handleWhatsAppShare}
-                className="flex items-center gap-2 px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors border border-green-700"
-                title="Share via WhatsApp"
+                onClick={handleShare}
+                disabled={sharing}
+                className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition-colors border border-gray-300"
               >
                 <Share2 className="w-4 h-4" />
-                <span className="text-sm font-medium">Share via WhatsApp</span>
+                <span className="text-sm font-medium">{sharing ? "Preparing..." : "Share"}</span>
               </button>
               <button
                 onClick={handleDownload}
@@ -236,9 +429,8 @@ Thank you for choosing LabPilot Pro! 🙏
       {/* Invoice Container */}
       <div className="min-h-screen bg-gray-100 print:bg-white py-8 print:py-0 px-4 print:px-0">
         <div className="max-w-4xl mx-auto print:max-w-full">
-          {/* Print-optimized Invoice */}
           <div className="bg-white shadow-lg print:shadow-none rounded-lg print:rounded-none overflow-hidden print:text-sm">
-            {/* Invoice Header - Compact for printing */}
+            {/* Invoice Header */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 print:bg-none print:bg-blue-600 px-8 print:px-4 py-6 print:py-3">
               <div className="flex items-start justify-between">
                 <div>
@@ -286,7 +478,6 @@ Thank you for choosing LabPilot Pro! 🙏
             {/* Patient Information with QR Code */}
             <div className="px-8 print:px-4 py-6 print:py-3 border-b border-gray-200">
               <div className="flex flex-col md:flex-row print:flex-row gap-6 print:gap-4">
-                {/* Patient Information - Left Side */}
                 <div className="flex-1">
                   <div className="flex items-center gap-2 print:gap-1 mb-4 print:mb-2">
                     <div className="p-2 print:p-1 bg-blue-50 rounded-lg print:bg-gray-100">
@@ -334,31 +525,24 @@ Thank you for choosing LabPilot Pro! 🙏
                     )}
                   </div>
                 </div>
-
-                {/* QR Code - Right Side - Always beside patient info even on print */}
-                <div className="flex-shrink-0 print:flex-shrink-0">
-                  <div className="flex flex-col items-center justify-center text-center bg-gradient-to-br from-blue-50 to-indigo-50 print:bg-white p-5 print:p-3 rounded-xl border-2 border-blue-200 print:border-gray-300">
-                    {qrCodeUrl && (
-                      <>
-                        <div className="mb-3 print:mb-2">
-                          <img
-                            src={qrCodeUrl}
-                            alt="QR Code for Report Download"
-                            className="w-32 h-32 print:w-24 print:h-24 mx-auto rounded-lg shadow-sm"
-                          />
-                        </div>
-                        <div>
-                          <p className="text-sm print:text-xs font-bold text-gray-900 mb-1">Scan to Download</p>
-                          <p className="text-xs print:text-[10px] text-gray-600">Your Test Report</p>
-                        </div>
-                      </>
-                    )}
+                {qrCodeUrl && (
+                  <div className="flex-shrink-0 print:flex-shrink-0 flex flex-col items-center gap-1">
+                    <img
+                      src={qrCodeUrl}
+                      alt="QR Code for Report Download"
+                      className="w-20 h-20 print:w-16 print:h-16"
+                    />
+                    <p className="text-xs print:text-[10px] text-gray-500 text-center">
+                      Scan to download
+                      <br />
+                      your reports
+                    </p>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
-            {/* Test Details - Compact */}
+            {/* Test Details */}
             <div className="px-8 print:px-4 py-6 print:py-3">
               <div className="flex items-center gap-2 print:gap-1 mb-4 print:mb-2">
                 <div className="p-2 print:p-1 bg-blue-50 rounded-lg print:bg-gray-100">
@@ -366,8 +550,6 @@ Thank you for choosing LabPilot Pro! 🙏
                 </div>
                 <h2 className="text-lg print:text-sm font-semibold text-gray-900">Diagnostic Tests</h2>
               </div>
-
-              {/* Tests Table - Compact */}
               <div className="border border-gray-200 rounded-lg print:rounded overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-gray-50 print:bg-gray-100">
@@ -401,38 +583,26 @@ Thank you for choosing LabPilot Pro! 🙏
                 </table>
               </div>
 
-              {/* Pricing Summary */}
               <div className="mt-6 print:mt-3 flex justify-end">
                 <div className="w-full md:w-80 space-y-2 print:space-y-1">
                   <div className="flex justify-between text-sm print:text-xs">
                     <span className="text-gray-600">Subtotal</span>
                     <span className="font-medium text-gray-900">{formatCurrency(invoiceData.totalAmount || 0)}</span>
                   </div>
-
-                  {invoiceData.hasDiscount && invoiceData.discountPercentage > 0 && (
-                    <>
-                      <div className="flex justify-between text-sm print:text-xs">
-                        <span className="text-gray-600">Discount ({invoiceData.discountPercentage}%)</span>
-                        <span className="text-red-600">
-                          - {formatCurrency((invoiceData.totalAmount || 0) - (invoiceData.priceAfterDiscount || 0))}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm print:text-xs pt-2 print:pt-1 border-t border-gray-200">
-                        <span className="text-gray-600">After Discount</span>
-                        <span className="font-medium text-gray-900">
-                          {formatCurrency(invoiceData.priceAfterDiscount || 0)}
-                        </span>
-                      </div>
-                    </>
-                  )}
-
-                  {invoiceData.hasAdjustment && invoiceData.adjustmentAmount > 0 && (
-                    <div className="flex justify-between text-sm print:text-xs pt-2 print:pt-1 border-t border-gray-200">
-                      <span className="text-gray-600">Adjustment</span>
-                      <span className="text-red-600">- {formatCurrency(invoiceData.adjustmentAmount || 0)}</span>
+                  {showReferrerDiscount && (
+                    <div className="flex justify-between text-sm print:text-xs">
+                      <span className="text-gray-600">
+                        Referrer Discount ({invoiceData.referrerDiscountPercentage}%)
+                      </span>
+                      <span className="text-red-600">- {formatCurrency(referrerDiscountAmount)}</span>
                     </div>
                   )}
-
+                  {showLabAdjustment && (
+                    <div className="flex justify-between text-sm print:text-xs">
+                      <span className="text-gray-600">Lab Adjustment</span>
+                      <span className="text-red-600">- {formatCurrency(invoiceData.labAdjustmentAmount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between pt-3 print:pt-1 border-t-2 border-gray-300">
                     <span className="text-base print:text-sm font-semibold text-gray-900">Total Amount</span>
                     <span className="text-xl print:text-base font-bold text-blue-600">
@@ -444,46 +614,19 @@ Thank you for choosing LabPilot Pro! 🙏
             </div>
           </div>
 
-          {/* Print Instructions */}
           <div className="print:hidden mt-6 text-center text-sm text-gray-500">
             <p>Click the print button above to print or save this invoice as PDF</p>
           </div>
         </div>
       </div>
 
-      {/* Print Styles */}
-      <style jsx>{`
+      <style>{`
         @media print {
-          @page {
-            size: A5 portrait;
-            margin: 0;
-          }
-
-          body {
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-          }
-
-          /* Hide all navigation elements */
-          nav,
-          .lg\\:flex.w-64,
-          .lg\\:hidden,
-          header,
-          footer {
-            display: none !important;
-          }
-
-          /* Remove margins from main content */
-          main {
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-
-          /* Ensure content fits on half A4 */
-          .max-w-4xl {
-            max-width: 100% !important;
-            margin: 0 !important;
-          }
+          @page { size: A5 portrait; margin: 0; }
+          body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+          nav, .lg\\:flex.w-64, .lg\\:hidden, header, footer { display: none !important; }
+          main { padding: 0 !important; margin: 0 !important; }
+          .max-w-4xl { max-width: 100% !important; margin: 0 !important; }
         }
       `}</style>
     </>
