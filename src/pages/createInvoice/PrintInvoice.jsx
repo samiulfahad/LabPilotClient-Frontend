@@ -12,7 +12,6 @@ import Popup from "../../components/popup";
 // ============================================================================
 const pdfStyles = StyleSheet.create({
   page: { backgroundColor: "#ffffff", fontFamily: "Helvetica", fontSize: 9, color: "#111827" },
-  // Header
   header: {
     backgroundColor: "#2563eb",
     padding: "16 20",
@@ -46,22 +45,18 @@ const pdfStyles = StyleSheet.create({
   invoiceLabel: { color: "#bfdbfe", fontSize: 7, textTransform: "uppercase", letterSpacing: 0.5 },
   invoiceNumber: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 13 },
   dateText: { color: "#dbeafe", fontSize: 7.5 },
-  // Section
   section: { padding: "12 20", borderBottom: "1 solid #e5e7eb" },
   sectionLast: { padding: "12 20" },
   sectionTitle: { fontFamily: "Helvetica-Bold", fontSize: 9, color: "#111827", marginBottom: 8 },
-  // Patient
   patientRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   patientGrid: { flex: 1, flexDirection: "row", flexWrap: "wrap" },
   patientField: { width: "50%", marginBottom: 6 },
   patientFieldFull: { width: "100%", marginBottom: 6 },
   fieldLabel: { fontSize: 7, color: "#6b7280", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 1.5 },
   fieldValue: { fontFamily: "Helvetica-Bold", fontSize: 8.5, color: "#111827" },
-  // QR
   qrContainer: { alignItems: "center", marginLeft: 16 },
   qrImage: { width: 60, height: 60 },
   qrLabel: { fontSize: 6.5, color: "#6b7280", textAlign: "center", marginTop: 3 },
-  // Table
   tableHeader: { flexDirection: "row", backgroundColor: "#f3f4f6", padding: "5 8", borderBottom: "1 solid #e5e7eb" },
   tableRow: { flexDirection: "row", padding: "5 8", borderBottom: "1 solid #f3f4f6" },
   tableRowEven: { flexDirection: "row", padding: "5 8", borderBottom: "1 solid #f3f4f6", backgroundColor: "#fafafa" },
@@ -75,7 +70,6 @@ const pdfStyles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
-  // Pricing
   pricingBox: { marginTop: 10, alignItems: "flex-end" },
   pricingInner: { width: 220 },
   pricingRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
@@ -99,7 +93,6 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
   return (
     <Document>
       <Page size="A5" style={pdfStyles.page}>
-        {/* Header */}
         <View style={pdfStyles.header}>
           <View style={pdfStyles.headerLeft}>
             <View style={pdfStyles.logoRow}>
@@ -126,7 +119,6 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
           </View>
         </View>
 
-        {/* Patient Info */}
         <View style={pdfStyles.section}>
           <Text style={pdfStyles.sectionTitle}>Patient Information</Text>
           <View style={pdfStyles.patientRow}>
@@ -166,16 +158,13 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
           </View>
         </View>
 
-        {/* Tests */}
         <View style={pdfStyles.sectionLast}>
           <Text style={pdfStyles.sectionTitle}>Diagnostic Tests</Text>
-          {/* Table Header */}
           <View style={pdfStyles.tableHeader}>
             <Text style={[pdfStyles.colNum, pdfStyles.colHeader]}>#</Text>
             <Text style={[pdfStyles.colName, pdfStyles.colHeader]}>Test Name</Text>
             <Text style={[pdfStyles.colPrice, pdfStyles.colHeader]}>Price</Text>
           </View>
-          {/* Table Rows */}
           {invoiceData.tests?.map((test, index) => (
             <View key={index} style={index % 2 === 0 ? pdfStyles.tableRow : pdfStyles.tableRowEven}>
               <Text style={pdfStyles.colNum}>{index + 1}</Text>
@@ -183,8 +172,6 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
               <Text style={pdfStyles.colPrice}>{formatCurrency(test.price)}</Text>
             </View>
           ))}
-
-          {/* Pricing Summary */}
           <View style={pdfStyles.pricingBox}>
             <View style={pdfStyles.pricingInner}>
               <View style={pdfStyles.pricingRow}>
@@ -324,7 +311,51 @@ const PrintInvoice = () => {
   const handlePrint = () => window.print();
   const handleDownload = () => window.print();
 
-  // Generate PDF blob using @react-pdf/renderer
+  // Single share: PDF file + message text with the trackable link, all in one native share call
+  const handleShare = async () => {
+    try {
+      setSharing(true);
+
+      const pdfBlob = await generatePDFBlob();
+      const fileName = `Invoice-${invoiceData.patientName?.replace(/\s+/g, "_") || "patient"}.pdf`;
+      const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
+
+      const message =
+        `Hello ${invoiceData.patientName},\n\n` +
+        `Your diagnostic reports from ${labInfo.name} are ready!\n\n` +
+        `Tests: ${invoiceData.tests?.length || 0} test(s)\n` +
+        `Total: ${formatCurrency(invoiceData.finalPrice)}\n` +
+        `Date: ${formatDate(invoiceData.createdAt)}\n\n` +
+        `Download your reports here:\n${invoiceData.reportLink}\n\n` +
+        `For queries: ${labInfo.phone}\n— ${labInfo.name}`;
+
+      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        // On mobile: one share sheet with both the PDF and the message text
+        await navigator.share({
+          title: `Invoice – ${invoiceData.patientName}`,
+          text: message,
+          files: [pdfFile],
+        });
+      } else {
+        // Desktop fallback: download PDF + open WhatsApp with pre-filled message
+        const url = URL.createObjectURL(pdfBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+        window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
+      }
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        console.error("Share error:", error);
+        setPopup({ type: "error", message: "Could not share invoice" });
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
   const generatePDFBlob = async () => {
     const doc = (
       <InvoicePDFDocument
@@ -337,39 +368,6 @@ const PrintInvoice = () => {
       />
     );
     return await pdf(doc).toBlob();
-  };
-
-  const handleShare = async () => {
-    try {
-      setSharing(true);
-      const pdfBlob = await generatePDFBlob();
-      const fileName = `Invoice-${invoiceData.patientName?.replace(/\s+/g, "_") || "patient"}.pdf`;
-      const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
-
-      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-        // Native share sheet on mobile — WhatsApp, Messenger, email, etc.
-        await navigator.share({
-          title: `Invoice - ${invoiceData.patientName}`,
-          files: [pdfFile],
-        });
-      } else {
-        // Desktop fallback: download the PDF
-        const url = URL.createObjectURL(pdfBlob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(url);
-        setPopup({ type: "success", message: "PDF downloaded — attach it manually to share" });
-      }
-    } catch (error) {
-      if (error.name !== "AbortError") {
-        console.error("Share error:", error);
-        setPopup({ type: "error", message: "Could not share invoice" });
-      }
-    } finally {
-      setSharing(false);
-    }
   };
 
   if (loading) return <LoadingScreen message="Loading invoice..." />;
@@ -412,14 +410,14 @@ const PrintInvoice = () => {
                 className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
               >
                 <Download className="w-4 h-4" />
-                <span className="text-sm font-medium">Download PDF</span>
+                <span className="text-sm font-medium">Download</span>
               </button>
               <button
                 onClick={handlePrint}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
               >
                 <Printer className="w-4 h-4" />
-                <span className="text-sm font-medium">Print Invoice</span>
+                <span className="text-sm font-medium">Print</span>
               </button>
             </div>
           </div>
