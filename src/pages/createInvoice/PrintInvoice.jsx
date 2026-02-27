@@ -382,16 +382,34 @@ const PrintInvoice = () => {
         `Download your reports here:\n${invoiceData.reportLink}\n\n` +
         `For queries: ${labInfo.phone}\n— ${labInfo.name}`;
 
+      // Step 1: Share the text message first
       if (navigator.share) {
-        // Share text + link only — sharing files alongside text silently drops
-        // the text on iOS/Android. The report link in the message is sufficient.
         await navigator.share({
           title: `Invoice – ${invoiceData.patientName}`,
           text: message,
         });
       } else {
-        // Desktop fallback: open WhatsApp with pre-filled message
         window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
+      }
+
+      // Step 2: After text is shared, share the PDF file
+      const pdfBlob = await generatePDFBlob();
+      const fileName = `Invoice-${invoiceData.patientName?.replace(/\s+/g, "_") || "patient"}.pdf`;
+      const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
+
+      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        await navigator.share({
+          title: fileName,
+          files: [pdfFile],
+        });
+      } else {
+        // Fallback: just download the PDF
+        const url = URL.createObjectURL(pdfBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
       }
     } catch (error) {
       if (error.name !== "AbortError") {
