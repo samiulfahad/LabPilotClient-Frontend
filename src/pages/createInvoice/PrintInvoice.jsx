@@ -527,48 +527,43 @@ const ScreenInvoiceCard = ({
 
     {/* Patient Info */}
     <div className="px-6 py-4 border-b border-gray-200">
-      {/* Section header row with QR on the right, aligned to the title */}
-      <div className="flex items-center gap-2 mb-3">
-        <div className="p-1.5 bg-blue-50 rounded-lg shrink-0">
-          <User className="w-4 h-4 text-blue-600" />
+      <div className="flex items-start gap-4">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3 flex-1">
+          <div>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Full Name</p>
+            <p className="text-sm font-medium text-gray-900">{invoiceData.patientName}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Gender</p>
+            <p className="text-sm font-medium text-gray-900 capitalize">{invoiceData.gender}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Age</p>
+            <p className="text-sm font-medium text-gray-900">{invoiceData.age} years</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Contact</p>
+            <p className="text-sm font-medium text-gray-900">{invoiceData.contactNumber}</p>
+          </div>
+          {invoiceData.referredBy && (
+            <div className="col-span-2">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Referred By</p>
+              <p className="text-sm font-medium text-gray-900">
+                {invoiceData.referredBy.name}
+                {invoiceData.referredBy.degree && (
+                  <span className="text-gray-600 font-normal ml-1.5">({invoiceData.referredBy.degree})</span>
+                )}
+              </p>
+            </div>
+          )}
         </div>
-        <h2 className="text-base font-semibold text-gray-900 flex-1">Patient Information</h2>
         {qrCodeUrl && (
-          <div className="shrink-0 flex flex-col items-center gap-0.5 ml-2">
+          <div className="shrink-0 flex flex-col items-center gap-0.5">
             <img src={qrCodeUrl} alt="QR Code" className="w-14 h-14" />
             <p className="text-[9px] text-gray-500 text-center leading-tight">
               Scan to download
               <br />
               your reports
-            </p>
-          </div>
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-        <div>
-          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Full Name</p>
-          <p className="text-sm font-medium text-gray-900">{invoiceData.patientName}</p>
-        </div>
-        <div>
-          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Gender</p>
-          <p className="text-sm font-medium text-gray-900 capitalize">{invoiceData.gender}</p>
-        </div>
-        <div>
-          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Age</p>
-          <p className="text-sm font-medium text-gray-900">{invoiceData.age} years</p>
-        </div>
-        <div>
-          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Contact</p>
-          <p className="text-sm font-medium text-gray-900">{invoiceData.contactNumber}</p>
-        </div>
-        {invoiceData.referredBy && (
-          <div className="col-span-2">
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Referred By</p>
-            <p className="text-sm font-medium text-gray-900">
-              {invoiceData.referredBy.name}
-              {invoiceData.referredBy.degree && (
-                <span className="text-gray-600 font-normal ml-1.5">({invoiceData.referredBy.degree})</span>
-              )}
             </p>
           </div>
         )}
@@ -605,7 +600,7 @@ const ScreenInvoiceCard = ({
           </tbody>
         </table>
       </div>
-      <div className="mt-4 flex justify-end">
+      <div className="mt-3 flex justify-end">
         <div className="w-64 space-y-1.5">
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Subtotal</span>
@@ -733,118 +728,10 @@ const PrintOnlyInvoice = ({
           flexShrink: 0,
         }}
       >
-        {/* Section header row: icon + title + QR right-aligned */}
-        <div style={{ display: "flex", alignItems: "center", marginBottom: "7px" }}>
-          <div
-            style={{
-              width: "18px",
-              height: "18px",
-              backgroundColor: "#eff6ff",
-              borderRadius: "4px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: "6px",
-              flexShrink: 0,
-            }}
-          >
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#2563eb"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-          </div>
-          <span style={{ fontWeight: "bold", fontSize: "9pt", color: "#111827", flex: 1 }}>Patient Information</span>
-          {/* QR code — aligned to the right of the section title */}
-          {qrCodeUrl && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "2px",
-                flexShrink: 0,
-                marginLeft: "8px",
-              }}
-            >
-              <img src={qrCodeUrl} alt="QR" style={{ width: "52px", height: "52px", display: "block" }} />
-              <div style={{ fontSize: "6pt", color: "#6b7280", textAlign: "center", lineHeight: 1.3 }}>
-                Scan to download
-                <br />
-                your reports
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Fields 2-column grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px" }}>
-          <div>
-            <div
-              style={{
-                fontSize: "6.5pt",
-                color: "#9ca3af",
-                textTransform: "uppercase",
-                letterSpacing: "0.3px",
-                marginBottom: "1px",
-              }}
-            >
-              Full Name
-            </div>
-            <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.patientName}</div>
-          </div>
-          <div>
-            <div
-              style={{
-                fontSize: "6.5pt",
-                color: "#9ca3af",
-                textTransform: "uppercase",
-                letterSpacing: "0.3px",
-                marginBottom: "1px",
-              }}
-            >
-              Gender
-            </div>
-            <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.gender}</div>
-          </div>
-          <div>
-            <div
-              style={{
-                fontSize: "6.5pt",
-                color: "#9ca3af",
-                textTransform: "uppercase",
-                letterSpacing: "0.3px",
-                marginBottom: "1px",
-              }}
-            >
-              Age
-            </div>
-            <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.age} years</div>
-          </div>
-          <div>
-            <div
-              style={{
-                fontSize: "6.5pt",
-                color: "#9ca3af",
-                textTransform: "uppercase",
-                letterSpacing: "0.3px",
-                marginBottom: "1px",
-              }}
-            >
-              Contact
-            </div>
-            <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.contactNumber}</div>
-          </div>
-          {invoiceData.referredBy && (
-            <div style={{ gridColumn: "1 / -1" }}>
+        {/* Fields grid + QR side by side */}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px", flex: 1 }}>
+            <div>
               <div
                 style={{
                   fontSize: "6.5pt",
@@ -854,15 +741,83 @@ const PrintOnlyInvoice = ({
                   marginBottom: "1px",
                 }}
               >
-                Referred By
+                Full Name
               </div>
-              <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>
-                {invoiceData.referredBy.name}
-                {invoiceData.referredBy.degree && (
-                  <span style={{ fontWeight: "normal", color: "#6b7280", marginLeft: "5px" }}>
-                    ({invoiceData.referredBy.degree})
-                  </span>
-                )}
+              <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.patientName}</div>
+            </div>
+            <div>
+              <div
+                style={{
+                  fontSize: "6.5pt",
+                  color: "#9ca3af",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.3px",
+                  marginBottom: "1px",
+                }}
+              >
+                Gender
+              </div>
+              <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.gender}</div>
+            </div>
+            <div>
+              <div
+                style={{
+                  fontSize: "6.5pt",
+                  color: "#9ca3af",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.3px",
+                  marginBottom: "1px",
+                }}
+              >
+                Age
+              </div>
+              <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.age} years</div>
+            </div>
+            <div>
+              <div
+                style={{
+                  fontSize: "6.5pt",
+                  color: "#9ca3af",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.3px",
+                  marginBottom: "1px",
+                }}
+              >
+                Contact
+              </div>
+              <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.contactNumber}</div>
+            </div>
+            {invoiceData.referredBy && (
+              <div style={{ gridColumn: "1 / -1" }}>
+                <div
+                  style={{
+                    fontSize: "6.5pt",
+                    color: "#9ca3af",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.3px",
+                    marginBottom: "1px",
+                  }}
+                >
+                  Referred By
+                </div>
+                <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>
+                  {invoiceData.referredBy.name}
+                  {invoiceData.referredBy.degree && (
+                    <span style={{ fontWeight: "normal", color: "#6b7280", marginLeft: "5px" }}>
+                      ({invoiceData.referredBy.degree})
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          {qrCodeUrl && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", flexShrink: 0 }}>
+              <img src={qrCodeUrl} alt="QR" style={{ width: "52px", height: "52px", display: "block" }} />
+              <div style={{ fontSize: "6pt", color: "#6b7280", textAlign: "center", lineHeight: 1.3 }}>
+                Scan to download
+                <br />
+                your reports
               </div>
             </div>
           )}
@@ -870,7 +825,7 @@ const PrintOnlyInvoice = ({
       </div>
 
       {/* ── Diagnostic Tests ── */}
-      <div style={{ padding: "8px 14px", flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "8px 14px" }}>
         <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
           <div
             style={{
@@ -993,7 +948,7 @@ const PrintOnlyInvoice = ({
         </table>
 
         {/* Pricing summary */}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "6px" }}>
           <div style={{ width: "185px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px", fontSize: "7.5pt" }}>
               <span style={{ color: "#6b7280" }}>Subtotal</span>
