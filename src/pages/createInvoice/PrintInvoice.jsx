@@ -438,6 +438,7 @@ const PrintInvoice = () => {
     showLabAdjustment,
     referrerDiscountAmount,
   };
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
   return (
     <>
@@ -463,14 +464,16 @@ const PrintInvoice = () => {
               <Download className="w-4 h-4" />
               <span className="text-sm font-medium">{downloading ? "Generating..." : "Download"}</span>
             </button>
-            <button
-              onClick={handlePrint}
-              disabled={printing}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition-colors shadow-sm"
-            >
-              <Printer className="w-4 h-4" />
-              <span className="text-sm font-medium">{printing ? "Generating..." : "Print / Save PDF"}</span>
-            </button>
+            {!isMobile && (
+              <button
+                onClick={handlePrint}
+                disabled={printing}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition-colors shadow-sm"
+              >
+                <Printer className="w-4 h-4" />
+                <span className="text-sm font-medium">{printing ? "Generating..." : "Print / Save PDF"}</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
