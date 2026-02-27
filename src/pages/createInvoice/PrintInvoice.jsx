@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { Printer, Download, Phone, Mail, MapPin, User, FileText, Share2 } from "lucide-react";
 import QRCode from "qrcode";
-import { pdf, Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
+import { pdf, Document, Page, View, Text, Image, StyleSheet, Link } from "@react-pdf/renderer";
 import invoiceService from "../../api/invoice";
 import LoadingScreen from "../../components/loadingPage";
 import Popup from "../../components/popup";
@@ -57,6 +57,22 @@ const pdfStyles = StyleSheet.create({
   qrContainer: { alignItems: "center", marginLeft: 16 },
   qrImage: { width: 60, height: 60 },
   qrLabel: { fontSize: 6.5, color: "#6b7280", textAlign: "center", marginTop: 3 },
+  downloadBtn: {
+    marginTop: 6,
+    backgroundColor: "#2563eb",
+    borderRadius: 5,
+    paddingTop: 5,
+    paddingBottom: 5,
+    paddingLeft: 10,
+    paddingRight: 10,
+    alignItems: "center",
+  },
+  downloadBtnText: {
+    color: "#ffffff",
+    fontFamily: "Helvetica-Bold",
+    fontSize: 7,
+    textDecoration: "none",
+  },
   tableHeader: { flexDirection: "row", backgroundColor: "#f3f4f6", padding: "5 8", borderBottom: "1 solid #e5e7eb" },
   tableRow: { flexDirection: "row", padding: "5 8", borderBottom: "1 solid #f3f4f6" },
   tableRowEven: { flexDirection: "row", padding: "5 8", borderBottom: "1 solid #f3f4f6", backgroundColor: "#fafafa" },
@@ -154,10 +170,15 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
                 </View>
               )}
             </View>
+
+            {/* QR Code + Download Button */}
             {qrCodeUrl && (
               <View style={pdfStyles.qrContainer}>
                 <Image style={pdfStyles.qrImage} src={qrCodeUrl} />
                 <Text style={pdfStyles.qrLabel}>Scan to download{"\n"}your reports</Text>
+                <Link src={invoiceData.reportLink} style={pdfStyles.downloadBtn}>
+                  <Text style={pdfStyles.downloadBtnText}>⬇ Download Reports</Text>
+                </Link>
               </View>
             )}
           </View>
@@ -394,23 +415,19 @@ const PrintInvoice = () => {
         `Download your reports here:\n${invoiceData.reportLink}\n\n` +
         `For queries: ${labInfo.phone}\n— ${labInfo.name}`;
 
-      // Generate PDF before any share call to stay within user gesture window
       const pdfBlob = await generatePDFBlob();
       const fileName = getFileName();
       const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
 
       if (navigator.share) {
         const canShareFile = navigator.canShare && navigator.canShare({ files: [pdfFile] });
-        // Single share call with text + file (browser only allows one per gesture)
         await navigator.share({
           title: `Invoice – ${invoiceData.patientName}`,
           text: message,
           ...(canShareFile ? { files: [pdfFile] } : {}),
         });
-        // If file couldn't be included, auto-download it
         if (!canShareFile) downloadBlob(pdfBlob, fileName);
       } else {
-        // Desktop fallback: WhatsApp + download
         window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
         downloadBlob(pdfBlob, fileName);
       }
@@ -592,6 +609,15 @@ const InvoiceCard = ({
               <br />
               your reports
             </p>
+            <a
+              href={invoiceData.reportLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1.5 flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-semibold rounded-md transition-colors"
+            >
+              <Download className="w-2.5 h-2.5" />
+              Download Reports
+            </a>
           </div>
         )}
       </div>
