@@ -139,9 +139,8 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
           </View>
         </View>
 
-        {/* Patient Info */}
+        {/* Patient Info — heading removed */}
         <View style={pdfStyles.section}>
-          <Text style={pdfStyles.sectionTitle}>Patient Information</Text>
           <View style={pdfStyles.patientRow}>
             <View style={pdfStyles.patientGrid}>
               <View style={pdfStyles.patientField}>
@@ -175,9 +174,9 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
             {qrCodeUrl && (
               <View style={pdfStyles.qrContainer}>
                 <Image style={pdfStyles.qrImage} src={qrCodeUrl} />
-                <Text style={pdfStyles.qrLabel}>Scan to download{"\n"}your reports</Text>
+                <Text style={pdfStyles.qrLabel}>Scan to download Reports{"\n"}or</Text>
                 <Link src={invoiceData.reportLink} style={pdfStyles.downloadBtn}>
-                  <Text style={pdfStyles.downloadBtnText}>⬇ Download Reports</Text>
+                  <Text style={pdfStyles.downloadBtnText}>Click to Download</Text>
                 </Link>
               </View>
             )}
@@ -605,9 +604,7 @@ const InvoiceCard = ({
           <div className="shrink-0 flex flex-col items-center gap-0.5">
             <img src={qrCodeUrl} alt="QR Code" className="w-20 h-20" />
             <p className="text-[9px] text-gray-500 text-center leading-tight">
-              Scan to download
-              <br />
-              your reports
+              Scan to download Reports
             </p>
             <a
               href={invoiceData.reportLink}
@@ -616,7 +613,7 @@ const InvoiceCard = ({
               className="mt-1.5 flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-semibold rounded-md transition-colors"
             >
               <Download className="w-2.5 h-2.5" />
-              Download Reports
+              Click to Download Reports
             </a>
           </div>
         )}
