@@ -419,7 +419,11 @@ const PrintInvoice = () => {
       {/* Invoice Container */}
       <div className="min-h-screen bg-gray-100 print:bg-white py-8 print:py-0 px-4 print:px-0">
         <div className="max-w-4xl mx-auto print:max-w-full">
-          <div className="bg-white shadow-lg print:shadow-none rounded-lg print:rounded-none overflow-hidden print:text-sm">
+          {/* printable-invoice wrapper — forced to desktop width on print */}
+          <div
+            id="printable-invoice"
+            className="bg-white shadow-lg print:shadow-none rounded-lg print:rounded-none overflow-hidden"
+          >
             {/* Invoice Header */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 print:bg-none print:bg-blue-600 px-8 print:px-4 py-6 print:py-3">
               <div className="flex items-start justify-between">
@@ -612,11 +616,66 @@ const PrintInvoice = () => {
 
       <style>{`
         @media print {
-          @page { size: A5 portrait; margin: 0; }
-          body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-          nav, .lg\\:flex.w-64, .lg\\:hidden, header, footer { display: none !important; }
-          main { padding: 0 !important; margin: 0 !important; }
-          .max-w-4xl { max-width: 100% !important; margin: 0 !important; }
+          @page {
+            size: A5 portrait;
+            margin: 0;
+          }
+
+          /* Force the entire body to render at a desktop-like width,
+             then scale it down to fit the A5 page — no splitting */
+          html, body {
+            width: 559px !important;       /* A5 width in px at 96dpi */
+            min-width: 559px !important;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+
+          /* Scale the invoice to fill the page width */
+          #printable-invoice {
+            width: 559px !important;
+            transform-origin: top left;
+          }
+
+          nav, .lg\\:flex.w-64, .lg\\:hidden, header, footer {
+            display: none !important;
+          }
+
+          main {
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+
+          .min-h-screen {
+            min-height: unset !important;
+          }
+
+          .py-8 {
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+          }
+
+          .max-w-4xl {
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          /* Prevent any element from causing a page break */
+          #printable-invoice,
+          #printable-invoice * {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          /* Force flex-row for the patient section on all screen sizes */
+          .flex-col {
+            flex-direction: row !important;
+          }
+
+          /* Ensure the totals section stays on the right */
+          .md\\:w-80 {
+            width: 20rem !important;
+          }
         }
       `}</style>
     </>
