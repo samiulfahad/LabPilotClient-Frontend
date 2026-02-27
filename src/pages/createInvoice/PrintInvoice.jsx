@@ -397,18 +397,16 @@ const PrintInvoice = () => {
       // Generate PDF before any share call to stay within user gesture window
       const pdfBlob = await generatePDFBlob();
       const fileName = getFileName();
-      const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
 
       if (navigator.share) {
-        const canShareFile = navigator.canShare && navigator.canShare({ files: [pdfFile] });
-        // Single share call with text + file (browser only allows one per gesture)
+        // Share text message only — adding files alongside text causes iOS/Android
+        // to silently drop the text field and only send the file
         await navigator.share({
           title: `Invoice – ${invoiceData.patientName}`,
           text: message,
-          ...(canShareFile ? { files: [pdfFile] } : {}),
         });
-        // If file couldn't be included, auto-download it
-        if (!canShareFile) downloadBlob(pdfBlob, fileName);
+        // After text is shared, auto-download the PDF so user has both
+        downloadBlob(pdfBlob, fileName);
       } else {
         // Desktop fallback: WhatsApp + download
         window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
