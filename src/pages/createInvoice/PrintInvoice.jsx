@@ -174,9 +174,9 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
             {qrCodeUrl && (
               <View style={pdfStyles.qrContainer}>
                 <Image style={pdfStyles.qrImage} src={qrCodeUrl} />
-                <Text style={pdfStyles.qrLabel}>Scan to download Reports{"\n"}or</Text>
+                <Text style={pdfStyles.qrLabel}>Scan to download Reports</Text>
                 <Link src={invoiceData.reportLink} style={pdfStyles.downloadBtn}>
-                  <Text style={pdfStyles.downloadBtnText}>Click to Download</Text>
+                  <Text style={pdfStyles.downloadBtnText}>Click to Download Reports</Text>
                 </Link>
               </View>
             )}
