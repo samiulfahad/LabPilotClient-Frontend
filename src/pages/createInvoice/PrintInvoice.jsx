@@ -303,56 +303,57 @@ const PrintInvoice = () => {
     return new Date(date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
   };
 
-  const triggerPrint = () => {
-    // Grab every direct sibling of #print-only-invoice inside its parent
-    const printEl = document.getElementById("print-only-invoice");
-    if (!printEl) {
-      window.print();
-      return;
+  const [downloading, setDownloading] = useState(false);
+  const [printing, setPrinting] = useState(false);
+
+  const getFileName = () => `Invoice-${invoiceData.patientName?.replace(/\s+/g, "_") || "patient"}.pdf`;
+
+  const handleDownload = async () => {
+    try {
+      setDownloading(true);
+      const blob = await generatePDFBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = getFileName();
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download error:", err);
+      setPopup({ type: "error", message: "Could not generate PDF" });
+    } finally {
+      setDownloading(false);
     }
-
-    const parent = printEl.parentElement;
-    const siblings = Array.from(parent.children).filter((el) => el !== printEl);
-
-    // Also hide any app-level wrappers above (nav, sidebars etc.)
-    // We walk up one more level to hide siblings of the parent too
-    const grandParent = parent.parentElement;
-    const uncles = grandParent ? Array.from(grandParent.children).filter((el) => !el.contains(printEl)) : [];
-
-    // Before print: hide everything except the invoice
-    const beforePrint = () => {
-      siblings.forEach((el) => {
-        el.dataset._ph = el.style.display;
-        el.style.display = "none";
-      });
-      uncles.forEach((el) => {
-        el.dataset._ph = el.style.display;
-        el.style.display = "none";
-      });
-      printEl.style.display = "block";
-    };
-
-    // After print: restore everything
-    const afterPrint = () => {
-      siblings.forEach((el) => {
-        el.style.display = el.dataset._ph || "";
-        delete el.dataset._ph;
-      });
-      uncles.forEach((el) => {
-        el.style.display = el.dataset._ph || "";
-        delete el.dataset._ph;
-      });
-      printEl.style.display = "none";
-      window.removeEventListener("afterprint", afterPrint);
-    };
-
-    beforePrint();
-    window.addEventListener("afterprint", afterPrint);
-    window.print();
   };
 
-  const handlePrint = triggerPrint;
-  const handleDownload = triggerPrint;
+  const handlePrint = async () => {
+    try {
+      setPrinting(true);
+      const blob = await generatePDFBlob();
+      const url = URL.createObjectURL(blob);
+
+      // Use a hidden iframe so no new window opens
+      const iframe = document.createElement("iframe");
+      iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0;";
+      iframe.src = url;
+      document.body.appendChild(iframe);
+
+      iframe.onload = () => {
+        setTimeout(() => {
+          iframe.contentWindow?.print();
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+            URL.revokeObjectURL(url);
+          }, 60000);
+        }, 500);
+      };
+    } catch (err) {
+      console.error("Print error:", err);
+      setPopup({ type: "error", message: "Could not generate PDF for printing" });
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   const handleShare = async () => {
     try {
@@ -430,9 +431,9 @@ const PrintInvoice = () => {
     <>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      {/* ── Toolbar (hidden on print) ── */}
-      <div className="print:hidden sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      {/* ── Toolbar ── */}
+      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+        <div className="py-4 flex justify-center">
           <div className="flex items-center gap-3">
             <button
               onClick={handleShare}
@@ -444,63 +445,33 @@ const PrintInvoice = () => {
             </button>
             <button
               onClick={handleDownload}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
+              disabled={downloading}
+              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition-colors border border-gray-300"
             >
               <Download className="w-4 h-4" />
-              <span className="text-sm font-medium">Download</span>
+              <span className="text-sm font-medium">{downloading ? "Generating..." : "Download"}</span>
             </button>
             <button
               onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+              disabled={printing}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition-colors shadow-sm"
             >
               <Printer className="w-4 h-4" />
-              <span className="text-sm font-medium">Print</span>
+              <span className="text-sm font-medium">{printing ? "Generating..." : "Print"}</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* ── Screen view (Tailwind, responsive) ── */}
-      <div className="print:hidden min-h-screen bg-gray-100 py-8 px-4">
+      <div className="min-h-screen bg-gray-100 py-8 px-4">
         <div className="max-w-2xl mx-auto">
           <ScreenInvoiceCard {...sharedProps} />
-          <p className="mt-4 text-center text-sm text-gray-500">Click Print above to print or save as PDF (A5 size)</p>
+          <p className="mt-4 text-center text-sm text-gray-500">
+            Use Download for an A5 PDF, or Print to open it ready to print.
+          </p>
         </div>
       </div>
-
-      {/* ── Print-only view — fully inline-styled, zero Tailwind ── */}
-      <div id="print-only-invoice">
-        <PrintOnlyInvoice {...sharedProps} />
-      </div>
-
-      {/* ── Print CSS ── */}
-      <style>{`
-        #print-only-invoice { display: none; }
-
-        @media print {
-          @page {
-            size: 148mm 210mm;
-            margin: 0;
-          }
-          html, body {
-            width: 148mm !important;
-            height: 210mm !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow: hidden !important;
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-          }
-          #print-only-invoice {
-            display: block !important;
-            width: 148mm !important;
-            height: 210mm !important;
-            overflow: hidden !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-        }
-      `}</style>
     </>
   );
 };
@@ -667,9 +638,9 @@ const ScreenInvoiceCard = ({
 );
 
 // ============================================================================
-// PRINT-ONLY LAYOUT — pure inline styles, no Tailwind, guaranteed A5 single page
+// (PrintOnlyInvoice removed — PDF is now generated directly via @react-pdf/renderer)
 // ============================================================================
-const PrintOnlyInvoice = ({
+const _PrintOnlyInvoice_UNUSED = ({
   invoiceData,
   qrCodeUrl,
   labInfo,
