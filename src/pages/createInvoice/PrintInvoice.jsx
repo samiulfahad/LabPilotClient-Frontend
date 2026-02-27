@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
-import { Printer, Download, ArrowLeft, Phone, Mail, MapPin, User, FileText, Share2 } from "lucide-react";
+import { Printer, Download, Phone, Mail, MapPin, User, FileText, Share2 } from "lucide-react";
 import QRCode from "qrcode";
-import { pdf, Document, Page, View, Text, Image, StyleSheet, Font } from "@react-pdf/renderer";
+import { pdf, Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import invoiceService from "../../api/invoice";
 import LoadingScreen from "../../components/loadingPage";
 import Popup from "../../components/popup";
@@ -112,13 +112,12 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
           <View style={pdfStyles.headerRight}>
             <View style={pdfStyles.invoiceBadge}>
               <Text style={pdfStyles.invoiceLabel}>Invoice</Text>
-              <Text style={pdfStyles.invoiceNumber}>#1234</Text>
+              <Text style={pdfStyles.invoiceNumber}>#{invoiceData.invoiceNumber || "1234"}</Text>
             </View>
             <Text style={pdfStyles.dateText}>Date: {formatDate(invoiceData.createdAt)}</Text>
             <Text style={pdfStyles.dateText}>Time: {formatTime(invoiceData.createdAt)}</Text>
           </View>
         </View>
-
         <View style={pdfStyles.section}>
           <Text style={pdfStyles.sectionTitle}>Patient Information</Text>
           <View style={pdfStyles.patientRow}>
@@ -157,7 +156,6 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
             )}
           </View>
         </View>
-
         <View style={pdfStyles.sectionLast}>
           <Text style={pdfStyles.sectionTitle}>Diagnostic Tests</Text>
           <View style={pdfStyles.tableHeader}>
@@ -241,8 +239,7 @@ const PrintInvoice = () => {
 
   useEffect(() => {
     loadInvoiceData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // eslint-disable-line
 
   const loadInvoiceData = async () => {
     try {
@@ -297,12 +294,10 @@ const PrintInvoice = () => {
       numAmount,
     );
   };
-
   const formatDate = (date) => {
     if (!date) return new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
     return new Date(date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   };
-
   const formatTime = (date) => {
     if (!date) return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
     return new Date(date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
@@ -311,15 +306,12 @@ const PrintInvoice = () => {
   const handlePrint = () => window.print();
   const handleDownload = () => window.print();
 
-  // Single share: PDF file + message text with the trackable link, all in one native share call
   const handleShare = async () => {
     try {
       setSharing(true);
-
       const pdfBlob = await generatePDFBlob();
       const fileName = `Invoice-${invoiceData.patientName?.replace(/\s+/g, "_") || "patient"}.pdf`;
       const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
-
       const message =
         `Hello ${invoiceData.patientName},\n\n` +
         `Your diagnostic reports from ${labInfo.name} are ready!\n\n` +
@@ -330,14 +322,8 @@ const PrintInvoice = () => {
         `For queries: ${labInfo.phone}\n— ${labInfo.name}`;
 
       if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-        // On mobile: one share sheet with both the PDF and the message text
-        await navigator.share({
-          title: `Invoice – ${invoiceData.patientName}`,
-          text: message,
-          files: [pdfFile],
-        });
+        await navigator.share({ title: `Invoice – ${invoiceData.patientName}`, text: message, files: [pdfFile] });
       } else {
-        // Desktop fallback: download PDF + open WhatsApp with pre-filled message
         const url = URL.createObjectURL(pdfBlob);
         const a = document.createElement("a");
         a.href = url;
@@ -380,305 +366,662 @@ const PrintInvoice = () => {
   const showReferrerDiscount = invoiceData.hasReferrerDiscount && referrerDiscountAmount > 0;
   const showLabAdjustment = invoiceData.hasLabAdjustment && invoiceData.labAdjustmentAmount > 0;
 
+  const sharedProps = {
+    invoiceData,
+    qrCodeUrl,
+    labInfo,
+    formatCurrency,
+    formatDate,
+    formatTime,
+    showReferrerDiscount,
+    showLabAdjustment,
+    referrerDiscountAmount,
+  };
+
   return (
     <>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      {/* Action Buttons - Hidden on Print */}
+      {/* ── Toolbar (hidden on print) ── */}
       <div className="print:hidden sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleShare}
-                disabled={sharing}
-                className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition-colors border border-gray-300"
-              >
-                <Share2 className="w-4 h-4" />
-                <span className="text-sm font-medium">{sharing ? "Preparing..." : "Share"}</span>
-              </button>
-              <button
-                onClick={handleDownload}
-                className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
-              >
-                <Download className="w-4 h-4" />
-                <span className="text-sm font-medium">Download</span>
-              </button>
-              <button
-                onClick={handlePrint}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
-              >
-                <Printer className="w-4 h-4" />
-                <span className="text-sm font-medium">Print</span>
-              </button>
-            </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleShare}
+              disabled={sharing}
+              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition-colors border border-gray-300"
+            >
+              <Share2 className="w-4 h-4" />
+              <span className="text-sm font-medium">{sharing ? "Preparing..." : "Share"}</span>
+            </button>
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
+            >
+              <Download className="w-4 h-4" />
+              <span className="text-sm font-medium">Download</span>
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+            >
+              <Printer className="w-4 h-4" />
+              <span className="text-sm font-medium">Print</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Invoice Container */}
-      <div className="min-h-screen bg-gray-100 print:bg-white py-8 print:py-0 px-4 print:px-0">
-        <div className="max-w-4xl mx-auto print:max-w-full">
-          {/* printable-invoice wrapper — forced to desktop width on print */}
-          <div
-            id="printable-invoice"
-            className="bg-white shadow-lg print:shadow-none rounded-lg print:rounded-none overflow-hidden"
-          >
-            {/* Invoice Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 print:bg-none print:bg-blue-600 px-8 print:px-4 py-6 print:py-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-3 print:gap-2 mb-2 print:mb-1">
-                    <div className="w-12 h-12 print:w-8 print:h-8 bg-white/20 backdrop-blur-sm rounded-xl print:rounded-lg flex items-center justify-center print:bg-white/30">
-                      <span className="text-white font-bold text-lg print:text-sm">LP</span>
-                    </div>
-                    <div>
-                      <h1 className="text-2xl print:text-base font-bold text-white">{labInfo.name}</h1>
-                      <p className="text-blue-100 text-sm print:text-xs">Professional Diagnostic Services</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 print:mt-2 space-y-1 print:space-y-0.5 text-blue-50 text-sm print:text-xs">
-                    <div className="flex items-center gap-2 print:gap-1">
-                      <MapPin className="w-3.5 h-3.5 print:w-3 print:h-3" />
-                      <span>{labInfo.address}</span>
-                    </div>
-                    <div className="flex items-center gap-4 print:gap-2">
-                      <div className="flex items-center gap-2 print:gap-1">
-                        <Phone className="w-3.5 h-3.5 print:w-3 print:h-3" />
-                        <span>{labInfo.phone}</span>
-                      </div>
-                      <div className="flex items-center gap-2 print:gap-1">
-                        <Mail className="w-3.5 h-3.5 print:w-3 print:h-3" />
-                        <span>{labInfo.email}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="inline-block bg-white/20 backdrop-blur-sm px-4 print:px-2 py-2 print:py-1 rounded-lg print:bg-white/30">
-                    <p className="text-blue-100 text-xs print:text-[10px] uppercase tracking-wide font-medium">
-                      Invoice
-                    </p>
-                    <p className="text-white text-xl print:text-sm font-bold">#{"1234"}</p>
-                  </div>
-                  <div className="mt-3 print:mt-1 text-blue-50 text-sm print:text-xs">
-                    <p>Date: {formatDate(invoiceData.createdAt || new Date())}</p>
-                    <p>Time: {formatTime(invoiceData.createdAt || new Date())}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Patient Information with QR Code */}
-            <div className="px-8 print:px-4 py-6 print:py-3 border-b border-gray-200">
-              <div className="flex flex-col md:flex-row print:flex-row gap-6 print:gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 print:gap-1 mb-4 print:mb-2">
-                    <div className="p-2 print:p-1 bg-blue-50 rounded-lg print:bg-gray-100">
-                      <User className="w-4 h-4 print:w-3 print:h-3 text-blue-600 print:text-gray-700" />
-                    </div>
-                    <h2 className="text-lg print:text-sm font-semibold text-gray-900">Patient Information</h2>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 print:gap-2">
-                    <div>
-                      <p className="text-xs print:text-[10px] text-gray-500 uppercase tracking-wide mb-1 print:mb-0">
-                        Full Name
-                      </p>
-                      <p className="text-sm print:text-xs font-medium text-gray-900">{invoiceData.patientName}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs print:text-[10px] text-gray-500 uppercase tracking-wide mb-1 print:mb-0">
-                        Gender
-                      </p>
-                      <p className="text-sm print:text-xs font-medium text-gray-900 capitalize">{invoiceData.gender}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs print:text-[10px] text-gray-500 uppercase tracking-wide mb-1 print:mb-0">
-                        Age
-                      </p>
-                      <p className="text-sm print:text-xs font-medium text-gray-900">{invoiceData.age} years</p>
-                    </div>
-                    <div>
-                      <p className="text-xs print:text-[10px] text-gray-500 uppercase tracking-wide mb-1 print:mb-0">
-                        Contact
-                      </p>
-                      <p className="text-sm print:text-xs font-medium text-gray-900">{invoiceData.contactNumber}</p>
-                    </div>
-                    {invoiceData.referredBy && (
-                      <div className="col-span-2">
-                        <p className="text-xs print:text-[10px] text-gray-500 uppercase tracking-wide mb-1 print:mb-0">
-                          Referred By
-                        </p>
-                        <p className="text-sm print:text-xs font-medium text-gray-900">
-                          {invoiceData.referredBy.name}
-                          {invoiceData.referredBy.degree && (
-                            <span className="text-gray-600 font-normal ml-2">({invoiceData.referredBy.degree})</span>
-                          )}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {qrCodeUrl && (
-                  <div className="flex-shrink-0 print:flex-shrink-0 flex flex-col items-center gap-1">
-                    <img
-                      src={qrCodeUrl}
-                      alt="QR Code for Report Download"
-                      className="w-20 h-20 print:w-16 print:h-16"
-                    />
-                    <p className="text-xs print:text-[10px] text-gray-500 text-center">
-                      Scan to download
-                      <br />
-                      your reports
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Test Details */}
-            <div className="px-8 print:px-4 py-6 print:py-3">
-              <div className="flex items-center gap-2 print:gap-1 mb-4 print:mb-2">
-                <div className="p-2 print:p-1 bg-blue-50 rounded-lg print:bg-gray-100">
-                  <FileText className="w-4 h-4 print:w-3 print:h-3 text-blue-600 print:text-gray-700" />
-                </div>
-                <h2 className="text-lg print:text-sm font-semibold text-gray-900">Diagnostic Tests</h2>
-              </div>
-              <div className="border border-gray-200 rounded-lg print:rounded overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-gray-50 print:bg-gray-100">
-                    <tr>
-                      <th className="px-4 print:px-2 py-3 print:py-1 text-left text-xs print:text-[10px] font-semibold text-gray-700 uppercase tracking-wide">
-                        #
-                      </th>
-                      <th className="px-4 print:px-2 py-3 print:py-1 text-left text-xs print:text-[10px] font-semibold text-gray-700 uppercase tracking-wide">
-                        Test Name
-                      </th>
-                      <th className="px-4 print:px-2 py-3 print:py-1 text-right text-xs print:text-[10px] font-semibold text-gray-700 uppercase tracking-wide">
-                        Price
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {invoiceData.tests?.map((test, index) => (
-                      <tr key={test._id || index} className="hover:bg-gray-50 print:hover:bg-white">
-                        <td className="px-4 print:px-2 py-3 print:py-1 text-sm print:text-xs text-gray-600">
-                          {index + 1}
-                        </td>
-                        <td className="px-4 print:px-2 py-3 print:py-1 text-sm print:text-xs text-gray-900">
-                          {test.name}
-                        </td>
-                        <td className="px-4 print:px-2 py-3 print:py-1 text-sm print:text-xs text-gray-900 text-right font-medium">
-                          {formatCurrency(test.price)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="mt-6 print:mt-3 flex justify-end">
-                <div className="w-full md:w-80 space-y-2 print:space-y-1">
-                  <div className="flex justify-between text-sm print:text-xs">
-                    <span className="text-gray-600">Subtotal</span>
-                    <span className="font-medium text-gray-900">{formatCurrency(invoiceData.totalAmount || 0)}</span>
-                  </div>
-                  {showReferrerDiscount && (
-                    <div className="flex justify-between text-sm print:text-xs">
-                      <span className="text-gray-600">
-                        Referrer Discount ({invoiceData.referrerDiscountPercentage}%)
-                      </span>
-                      <span className="text-red-600">- {formatCurrency(referrerDiscountAmount)}</span>
-                    </div>
-                  )}
-                  {showLabAdjustment && (
-                    <div className="flex justify-between text-sm print:text-xs">
-                      <span className="text-gray-600">Lab Adjustment</span>
-                      <span className="text-red-600">- {formatCurrency(invoiceData.labAdjustmentAmount)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between pt-3 print:pt-1 border-t-2 border-gray-300">
-                    <span className="text-base print:text-sm font-semibold text-gray-900">Total Amount</span>
-                    <span className="text-xl print:text-base font-bold text-blue-600">
-                      {formatCurrency(invoiceData.finalPrice || 0)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="print:hidden mt-6 text-center text-sm text-gray-500">
-            <p>Click the print button above to print or save this invoice as PDF</p>
-          </div>
+      {/* ── Screen view (Tailwind, responsive) ── */}
+      <div className="print:hidden min-h-screen bg-gray-100 py-8 px-4">
+        <div className="max-w-2xl mx-auto">
+          <ScreenInvoiceCard {...sharedProps} />
+          <p className="mt-4 text-center text-sm text-gray-500">Click Print above to print or save as PDF (A5 size)</p>
         </div>
       </div>
 
+      {/* ── Print-only view — fully inline-styled, zero Tailwind ── */}
+      <div id="print-only-invoice">
+        <PrintOnlyInvoice {...sharedProps} />
+      </div>
+
+      {/* ── Print CSS ── */}
       <style>{`
+        /* Screen: hide print-only div */
+        #print-only-invoice { display: none; }
+
         @media print {
           @page {
-            size: A5 portrait;
+            size: 148mm 210mm;
             margin: 0;
           }
 
-          /* Force the entire body to render at a desktop-like width,
-             then scale it down to fit the A5 page — no splitting */
-          html, body {
-            width: 559px !important;       /* A5 width in px at 96dpi */
-            min-width: 559px !important;
+          /* Hide everything on the page */
+          body * { visibility: hidden; }
+
+          /* Show only the print invoice */
+          #print-only-invoice,
+          #print-only-invoice * {
+            visibility: visible;
+          }
+
+          #print-only-invoice {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 148mm;
+            height: 210mm;
+            overflow: hidden;
+          }
+
+          body {
+            margin: 0;
+            padding: 0;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
-          }
-
-          /* Scale the invoice to fill the page width */
-          #printable-invoice {
-            width: 559px !important;
-            transform-origin: top left;
-          }
-
-          nav, .lg\\:flex.w-64, .lg\\:hidden, header, footer {
-            display: none !important;
-          }
-
-          main {
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-
-          .min-h-screen {
-            min-height: unset !important;
-          }
-
-          .py-8 {
-            padding-top: 0 !important;
-            padding-bottom: 0 !important;
-          }
-
-          .max-w-4xl {
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-
-          /* Prevent any element from causing a page break */
-          #printable-invoice,
-          #printable-invoice * {
-            page-break-inside: avoid;
-            break-inside: avoid;
-          }
-
-          /* Force flex-row for the patient section on all screen sizes */
-          .flex-col {
-            flex-direction: row !important;
-          }
-
-          /* Ensure the totals section stays on the right */
-          .md\\:w-80 {
-            width: 20rem !important;
           }
         }
       `}</style>
     </>
+  );
+};
+
+// ============================================================================
+// SCREEN CARD — Tailwind, mobile-friendly stacked layout
+// ============================================================================
+const ScreenInvoiceCard = ({
+  invoiceData,
+  qrCodeUrl,
+  labInfo,
+  formatCurrency,
+  formatDate,
+  formatTime,
+  showReferrerDiscount,
+  showLabAdjustment,
+  referrerDiscountAmount,
+}) => (
+  <div className="bg-white shadow-lg rounded-xl overflow-hidden">
+    {/* Header */}
+    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 shrink-0 bg-white/20 rounded-xl flex items-center justify-center">
+              <span className="text-white font-bold text-sm">LP</span>
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold text-white leading-tight">{labInfo.name}</h1>
+              <p className="text-blue-100 text-xs">Professional Diagnostic Services</p>
+            </div>
+          </div>
+          <div className="mt-2 space-y-1 text-blue-50 text-xs">
+            <div className="flex items-start gap-1.5">
+              <MapPin className="w-3 h-3 shrink-0 mt-0.5" />
+              <span>{labInfo.address}</span>
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <div className="flex items-center gap-1.5">
+                <Phone className="w-3 h-3 shrink-0" />
+                <span>{labInfo.phone}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Mail className="w-3 h-3 shrink-0" />
+                <span>{labInfo.email}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="inline-block bg-white/20 px-3 py-1.5 rounded-lg">
+            <p className="text-blue-100 text-[10px] uppercase tracking-wide font-medium">Invoice</p>
+            <p className="text-white text-lg font-bold">#{invoiceData.invoiceNumber || "1234"}</p>
+          </div>
+          <div className="mt-2 text-blue-50 text-xs space-y-0.5">
+            <p>Date: {formatDate(invoiceData.createdAt)}</p>
+            <p>Time: {formatTime(invoiceData.createdAt)}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Patient Info */}
+    <div className="px-6 py-4 border-b border-gray-200">
+      {/* Section header row with QR on the right, aligned to the title */}
+      <div className="flex items-center gap-2 mb-3">
+        <div className="p-1.5 bg-blue-50 rounded-lg shrink-0">
+          <User className="w-4 h-4 text-blue-600" />
+        </div>
+        <h2 className="text-base font-semibold text-gray-900 flex-1">Patient Information</h2>
+        {qrCodeUrl && (
+          <div className="shrink-0 flex flex-col items-center gap-0.5 ml-2">
+            <img src={qrCodeUrl} alt="QR Code" className="w-14 h-14" />
+            <p className="text-[9px] text-gray-500 text-center leading-tight">
+              Scan to download
+              <br />
+              your reports
+            </p>
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+        <div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Full Name</p>
+          <p className="text-sm font-medium text-gray-900">{invoiceData.patientName}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Gender</p>
+          <p className="text-sm font-medium text-gray-900 capitalize">{invoiceData.gender}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Age</p>
+          <p className="text-sm font-medium text-gray-900">{invoiceData.age} years</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Contact</p>
+          <p className="text-sm font-medium text-gray-900">{invoiceData.contactNumber}</p>
+        </div>
+        {invoiceData.referredBy && (
+          <div className="col-span-2">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Referred By</p>
+            <p className="text-sm font-medium text-gray-900">
+              {invoiceData.referredBy.name}
+              {invoiceData.referredBy.degree && (
+                <span className="text-gray-600 font-normal ml-1.5">({invoiceData.referredBy.degree})</span>
+              )}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* Tests */}
+    <div className="px-6 py-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="p-1.5 bg-blue-50 rounded-lg">
+          <FileText className="w-4 h-4 text-blue-600" />
+        </div>
+        <h2 className="text-base font-semibold text-gray-900">Diagnostic Tests</h2>
+      </div>
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase w-8">#</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Test Name</th>
+              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Price</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {invoiceData.tests?.map((test, i) => (
+              <tr key={test._id || i} className={i % 2 === 1 ? "bg-gray-50/50" : ""}>
+                <td className="px-3 py-2.5 text-xs text-gray-500">{i + 1}</td>
+                <td className="px-3 py-2.5 text-sm text-gray-900">{test.name}</td>
+                <td className="px-3 py-2.5 text-sm text-gray-900 text-right font-medium">
+                  {formatCurrency(test.price)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-4 flex justify-end">
+        <div className="w-64 space-y-1.5">
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Subtotal</span>
+            <span className="font-medium">{formatCurrency(invoiceData.totalAmount)}</span>
+          </div>
+          {showReferrerDiscount && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Referrer Discount ({invoiceData.referrerDiscountPercentage}%)</span>
+              <span className="text-red-600">- {formatCurrency(referrerDiscountAmount)}</span>
+            </div>
+          )}
+          {showLabAdjustment && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Lab Adjustment</span>
+              <span className="text-red-600">- {formatCurrency(invoiceData.labAdjustmentAmount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between pt-2 border-t-2 border-gray-200">
+            <span className="text-base font-semibold text-gray-900">Total Amount</span>
+            <span className="text-lg font-bold text-blue-600">{formatCurrency(invoiceData.finalPrice)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// ============================================================================
+// PRINT-ONLY LAYOUT — pure inline styles, no Tailwind, guaranteed A5 single page
+// ============================================================================
+const PrintOnlyInvoice = ({
+  invoiceData,
+  qrCodeUrl,
+  labInfo,
+  formatCurrency,
+  formatDate,
+  formatTime,
+  showReferrerDiscount,
+  showLabAdjustment,
+  referrerDiscountAmount,
+}) => {
+  return (
+    <div
+      style={{
+        width: "148mm",
+        height: "210mm",
+        backgroundColor: "#fff",
+        fontFamily: "Arial, Helvetica, sans-serif",
+        fontSize: "9pt",
+        color: "#111827",
+        display: "flex",
+        flexDirection: "column",
+        boxSizing: "border-box",
+        overflow: "hidden",
+      }}
+    >
+      {/* ── Header ── */}
+      <div
+        style={{
+          backgroundColor: "#2563eb",
+          padding: "10px 14px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "5px" }}>
+            <div
+              style={{
+                width: "26px",
+                height: "26px",
+                backgroundColor: "rgba(255,255,255,0.22)",
+                borderRadius: "5px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "10pt",
+                fontWeight: "bold",
+                color: "#fff",
+                flexShrink: 0,
+              }}
+            >
+              LP
+            </div>
+            <div>
+              <div style={{ color: "#fff", fontWeight: "bold", fontSize: "11pt", lineHeight: 1.2 }}>{labInfo.name}</div>
+              <div style={{ color: "#bfdbfe", fontSize: "7.5pt" }}>Professional Diagnostic Services</div>
+            </div>
+          </div>
+          <div style={{ color: "#dbeafe", fontSize: "7pt", marginTop: "2px" }}>{labInfo.address}</div>
+          <div style={{ color: "#dbeafe", fontSize: "7pt", marginTop: "2px" }}>
+            {labInfo.phone} &bull; {labInfo.email}
+          </div>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0, marginLeft: "8px" }}>
+          <div
+            style={{
+              backgroundColor: "rgba(255,255,255,0.18)",
+              borderRadius: "5px",
+              padding: "3px 10px",
+              display: "inline-block",
+              textAlign: "center",
+              marginBottom: "5px",
+            }}
+          >
+            <div style={{ color: "#bfdbfe", fontSize: "6.5pt", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Invoice
+            </div>
+            <div style={{ color: "#fff", fontWeight: "bold", fontSize: "13pt", lineHeight: 1.1 }}>
+              #{invoiceData.invoiceNumber || "1234"}
+            </div>
+          </div>
+          <div style={{ color: "#dbeafe", fontSize: "7pt" }}>Date: {formatDate(invoiceData.createdAt)}</div>
+          <div style={{ color: "#dbeafe", fontSize: "7pt" }}>Time: {formatTime(invoiceData.createdAt)}</div>
+        </div>
+      </div>
+
+      {/* ── Patient Information ── */}
+      <div
+        style={{
+          padding: "8px 14px",
+          borderBottom: "1px solid #e5e7eb",
+          flexShrink: 0,
+        }}
+      >
+        {/* Section header row: icon + title + QR right-aligned */}
+        <div style={{ display: "flex", alignItems: "center", marginBottom: "7px" }}>
+          <div
+            style={{
+              width: "18px",
+              height: "18px",
+              backgroundColor: "#eff6ff",
+              borderRadius: "4px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: "6px",
+              flexShrink: 0,
+            }}
+          >
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </div>
+          <span style={{ fontWeight: "bold", fontSize: "9pt", color: "#111827", flex: 1 }}>Patient Information</span>
+          {/* QR code — aligned to the right of the section title */}
+          {qrCodeUrl && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "2px",
+                flexShrink: 0,
+                marginLeft: "8px",
+              }}
+            >
+              <img src={qrCodeUrl} alt="QR" style={{ width: "52px", height: "52px", display: "block" }} />
+              <div style={{ fontSize: "6pt", color: "#6b7280", textAlign: "center", lineHeight: 1.3 }}>
+                Scan to download
+                <br />
+                your reports
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Fields 2-column grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px" }}>
+          <div>
+            <div
+              style={{
+                fontSize: "6.5pt",
+                color: "#9ca3af",
+                textTransform: "uppercase",
+                letterSpacing: "0.3px",
+                marginBottom: "1px",
+              }}
+            >
+              Full Name
+            </div>
+            <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.patientName}</div>
+          </div>
+          <div>
+            <div
+              style={{
+                fontSize: "6.5pt",
+                color: "#9ca3af",
+                textTransform: "uppercase",
+                letterSpacing: "0.3px",
+                marginBottom: "1px",
+              }}
+            >
+              Gender
+            </div>
+            <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.gender}</div>
+          </div>
+          <div>
+            <div
+              style={{
+                fontSize: "6.5pt",
+                color: "#9ca3af",
+                textTransform: "uppercase",
+                letterSpacing: "0.3px",
+                marginBottom: "1px",
+              }}
+            >
+              Age
+            </div>
+            <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.age} years</div>
+          </div>
+          <div>
+            <div
+              style={{
+                fontSize: "6.5pt",
+                color: "#9ca3af",
+                textTransform: "uppercase",
+                letterSpacing: "0.3px",
+                marginBottom: "1px",
+              }}
+            >
+              Contact
+            </div>
+            <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.contactNumber}</div>
+          </div>
+          {invoiceData.referredBy && (
+            <div style={{ gridColumn: "1 / -1" }}>
+              <div
+                style={{
+                  fontSize: "6.5pt",
+                  color: "#9ca3af",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.3px",
+                  marginBottom: "1px",
+                }}
+              >
+                Referred By
+              </div>
+              <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>
+                {invoiceData.referredBy.name}
+                {invoiceData.referredBy.degree && (
+                  <span style={{ fontWeight: "normal", color: "#6b7280", marginLeft: "5px" }}>
+                    ({invoiceData.referredBy.degree})
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Diagnostic Tests ── */}
+      <div style={{ padding: "8px 14px", flex: 1, display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+          <div
+            style={{
+              width: "18px",
+              height: "18px",
+              backgroundColor: "#eff6ff",
+              borderRadius: "4px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: "6px",
+              flexShrink: 0,
+            }}
+          >
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+          </div>
+          <span style={{ fontWeight: "bold", fontSize: "9pt", color: "#111827" }}>Diagnostic Tests</span>
+        </div>
+
+        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "6px" }}>
+          <thead>
+            <tr style={{ backgroundColor: "#f3f4f6" }}>
+              <th
+                style={{
+                  padding: "4px 6px",
+                  fontSize: "6.5pt",
+                  fontWeight: "bold",
+                  color: "#374151",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.3px",
+                  textAlign: "left",
+                  borderBottom: "1px solid #e5e7eb",
+                  width: "22px",
+                }}
+              >
+                #
+              </th>
+              <th
+                style={{
+                  padding: "4px 6px",
+                  fontSize: "6.5pt",
+                  fontWeight: "bold",
+                  color: "#374151",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.3px",
+                  textAlign: "left",
+                  borderBottom: "1px solid #e5e7eb",
+                }}
+              >
+                Test Name
+              </th>
+              <th
+                style={{
+                  padding: "4px 6px",
+                  fontSize: "6.5pt",
+                  fontWeight: "bold",
+                  color: "#374151",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.3px",
+                  textAlign: "right",
+                  borderBottom: "1px solid #e5e7eb",
+                }}
+              >
+                Price
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {invoiceData.tests?.map((test, i) => (
+              <tr key={test._id || i} style={i % 2 === 1 ? { backgroundColor: "#f9fafb" } : {}}>
+                <td
+                  style={{
+                    padding: "3.5px 6px",
+                    fontSize: "7.5pt",
+                    color: "#9ca3af",
+                    borderBottom: "1px solid #f3f4f6",
+                  }}
+                >
+                  {i + 1}
+                </td>
+                <td
+                  style={{
+                    padding: "3.5px 6px",
+                    fontSize: "7.5pt",
+                    color: "#111827",
+                    borderBottom: "1px solid #f3f4f6",
+                  }}
+                >
+                  {test.name}
+                </td>
+                <td
+                  style={{
+                    padding: "3.5px 6px",
+                    fontSize: "7.5pt",
+                    color: "#111827",
+                    fontWeight: "bold",
+                    textAlign: "right",
+                    borderBottom: "1px solid #f3f4f6",
+                  }}
+                >
+                  {formatCurrency(test.price)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Pricing summary */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "auto" }}>
+          <div style={{ width: "185px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px", fontSize: "7.5pt" }}>
+              <span style={{ color: "#6b7280" }}>Subtotal</span>
+              <span style={{ fontWeight: "bold", color: "#111827" }}>{formatCurrency(invoiceData.totalAmount)}</span>
+            </div>
+            {showReferrerDiscount && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px", fontSize: "7.5pt" }}>
+                <span style={{ color: "#6b7280" }}>Referrer Discount ({invoiceData.referrerDiscountPercentage}%)</span>
+                <span style={{ color: "#dc2626" }}>- {formatCurrency(referrerDiscountAmount)}</span>
+              </div>
+            )}
+            {showLabAdjustment && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px", fontSize: "7.5pt" }}>
+                <span style={{ color: "#6b7280" }}>Lab Adjustment</span>
+                <span style={{ color: "#dc2626" }}>- {formatCurrency(invoiceData.labAdjustmentAmount)}</span>
+              </div>
+            )}
+            <div style={{ borderTop: "1.5px solid #d1d5db", margin: "5px 0" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span style={{ fontWeight: "bold", fontSize: "9pt", color: "#111827" }}>Total Amount</span>
+              <span style={{ fontWeight: "bold", fontSize: "12pt", color: "#2563eb" }}>
+                {formatCurrency(invoiceData.finalPrice)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
