@@ -8,7 +8,7 @@ import LoadingScreen from "../../components/loadingPage";
 import Popup from "../../components/popup";
 
 // ============================================================================
-// PDF DOCUMENT DEFINITION
+// PDF STYLES
 // ============================================================================
 const pdfStyles = StyleSheet.create({
   page: { backgroundColor: "#ffffff", fontFamily: "Helvetica", fontSize: 9, color: "#111827" },
@@ -82,6 +82,9 @@ const pdfStyles = StyleSheet.create({
   totalValue: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#2563eb" },
 });
 
+// ============================================================================
+// PDF DOCUMENT
+// ============================================================================
 const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, formatDate, formatTime }) => {
   const referrerDiscountAmount =
     invoiceData.hasReferrerDiscount && invoiceData.referrerDiscountPercentage > 0
@@ -93,6 +96,7 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
   return (
     <Document>
       <Page size="A5" style={pdfStyles.page}>
+        {/* Header */}
         <View style={pdfStyles.header}>
           <View style={pdfStyles.headerLeft}>
             <View style={pdfStyles.logoRow}>
@@ -118,6 +122,8 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
             <Text style={pdfStyles.dateText}>Time: {formatTime(invoiceData.createdAt)}</Text>
           </View>
         </View>
+
+        {/* Patient Info */}
         <View style={pdfStyles.section}>
           <Text style={pdfStyles.sectionTitle}>Patient Information</Text>
           <View style={pdfStyles.patientRow}>
@@ -156,6 +162,8 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
             )}
           </View>
         </View>
+
+        {/* Tests */}
         <View style={pdfStyles.sectionLast}>
           <Text style={pdfStyles.sectionTitle}>Diagnostic Tests</Text>
           <View style={pdfStyles.tableHeader}>
@@ -163,9 +171,9 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
             <Text style={[pdfStyles.colName, pdfStyles.colHeader]}>Test Name</Text>
             <Text style={[pdfStyles.colPrice, pdfStyles.colHeader]}>Price</Text>
           </View>
-          {invoiceData.tests?.map((test, index) => (
-            <View key={index} style={index % 2 === 0 ? pdfStyles.tableRow : pdfStyles.tableRowEven}>
-              <Text style={pdfStyles.colNum}>{index + 1}</Text>
+          {invoiceData.tests?.map((test, i) => (
+            <View key={i} style={i % 2 === 0 ? pdfStyles.tableRow : pdfStyles.tableRowEven}>
+              <Text style={pdfStyles.colNum}>{i + 1}</Text>
               <Text style={pdfStyles.colName}>{test.name}</Text>
               <Text style={pdfStyles.colPrice}>{formatCurrency(test.price)}</Text>
             </View>
@@ -210,31 +218,22 @@ const PrintInvoice = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { invoiceId } = useParams();
+
   const [invoiceData, setInvoiceData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [popup, setPopup] = useState(null);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
+
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
   const labInfo = {
     name: "LabPilot Pro Diagnostics",
     address: "123 Medical Center Road, Dhaka 1207, Bangladesh",
     phone: "+880 1234-567890",
     email: "info@labpilotpro.com",
-    website: "www.labpilotpro.com",
-  };
-
-  const generateQRCode = async (url) => {
-    try {
-      const qrDataUrl = await QRCode.toDataURL(url, {
-        width: 200,
-        margin: 1,
-        color: { dark: "#2563eb", light: "#ffffff" },
-      });
-      setQrCodeUrl(qrDataUrl);
-    } catch (error) {
-      console.error("Error generating QR code:", error);
-    }
   };
 
   useEffect(() => {
@@ -287,37 +286,67 @@ const PrintInvoice = () => {
     }
   };
 
-  const formatCurrency = (amount) => {
-    const numAmount = Number(amount);
-    if (isNaN(numAmount)) return "BDT 0";
-    return new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", minimumFractionDigits: 0 }).format(
-      numAmount,
-    );
+  const generateQRCode = async (url) => {
+    try {
+      const qrDataUrl = await QRCode.toDataURL(url, {
+        width: 200,
+        margin: 1,
+        color: { dark: "#2563eb", light: "#ffffff" },
+      });
+      setQrCodeUrl(qrDataUrl);
+    } catch (error) {
+      console.error("Error generating QR code:", error);
+    }
   };
+
+  const formatCurrency = (amount) => {
+    const num = Number(amount);
+    if (isNaN(num)) return "BDT 0";
+    return new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", minimumFractionDigits: 0 }).format(num);
+  };
+
   const formatDate = (date) => {
     if (!date) return new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
     return new Date(date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   };
+
   const formatTime = (date) => {
     if (!date) return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
     return new Date(date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
   };
 
-  const [downloading, setDownloading] = useState(false);
-  const [printing, setPrinting] = useState(false);
-
   const getFileName = () => `Invoice-${invoiceData.patientName?.replace(/\s+/g, "_") || "patient"}.pdf`;
+
+  const generatePDFBlob = async () => {
+    const doc = (
+      <InvoicePDFDocument
+        invoiceData={invoiceData}
+        qrCodeUrl={qrCodeUrl}
+        labInfo={labInfo}
+        formatCurrency={formatCurrency}
+        formatDate={formatDate}
+        formatTime={formatTime}
+      />
+    );
+    return await pdf(doc).toBlob();
+  };
+
+  const downloadBlob = (blob, fileName) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const handleDownload = async () => {
     try {
       setDownloading(true);
       const blob = await generatePDFBlob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = getFileName();
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, getFileName());
     } catch (err) {
       console.error("Download error:", err);
       setPopup({ type: "error", message: "Could not generate PDF" });
@@ -331,36 +360,19 @@ const PrintInvoice = () => {
       setPrinting(true);
       const blob = await generatePDFBlob();
       const url = URL.createObjectURL(blob);
-
-      // Mobile browsers block iframe.print() — detect mobile and just download instead
-      // The device's PDF viewer has a native print/share button
-      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-
-      if (isMobile) {
-        // On mobile: download the PDF — user can print from their PDF viewer
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = getFileName();
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
-      } else {
-        // On desktop: hidden iframe print — no new window
-        const iframe = document.createElement("iframe");
-        iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0;";
-        iframe.src = url;
-        document.body.appendChild(iframe);
-        iframe.onload = () => {
+      const iframe = document.createElement("iframe");
+      iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0;";
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        setTimeout(() => {
+          iframe.contentWindow?.print();
           setTimeout(() => {
-            iframe.contentWindow?.print();
-            setTimeout(() => {
-              document.body.removeChild(iframe);
-              URL.revokeObjectURL(url);
-            }, 60000);
-          }, 500);
-        };
-      }
+            document.body.removeChild(iframe);
+            URL.revokeObjectURL(url);
+          }, 60000);
+        }, 500);
+      };
     } catch (err) {
       console.error("Print error:", err);
       setPopup({ type: "error", message: "Could not generate PDF for printing" });
@@ -382,34 +394,25 @@ const PrintInvoice = () => {
         `Download your reports here:\n${invoiceData.reportLink}\n\n` +
         `For queries: ${labInfo.phone}\n— ${labInfo.name}`;
 
-      // Step 1: Share the text message first
+      // Generate PDF before any share call to stay within user gesture window
+      const pdfBlob = await generatePDFBlob();
+      const fileName = getFileName();
+      const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
+
       if (navigator.share) {
+        const canShareFile = navigator.canShare && navigator.canShare({ files: [pdfFile] });
+        // Single share call with text + file (browser only allows one per gesture)
         await navigator.share({
           title: `Invoice – ${invoiceData.patientName}`,
           text: message,
+          ...(canShareFile ? { files: [pdfFile] } : {}),
         });
+        // If file couldn't be included, auto-download it
+        if (!canShareFile) downloadBlob(pdfBlob, fileName);
       } else {
+        // Desktop fallback: WhatsApp + download
         window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
-      }
-
-      // Step 2: After text is shared, share the PDF file
-      const pdfBlob = await generatePDFBlob();
-      const fileName = `Invoice-${invoiceData.patientName?.replace(/\s+/g, "_") || "patient"}.pdf`;
-      const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
-
-      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-        await navigator.share({
-          title: fileName,
-          files: [pdfFile],
-        });
-      } else {
-        // Fallback: just download the PDF
-        const url = URL.createObjectURL(pdfBlob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(url);
+        downloadBlob(pdfBlob, fileName);
       }
     } catch (error) {
       if (error.name !== "AbortError") {
@@ -419,20 +422,6 @@ const PrintInvoice = () => {
     } finally {
       setSharing(false);
     }
-  };
-
-  const generatePDFBlob = async () => {
-    const doc = (
-      <InvoicePDFDocument
-        invoiceData={invoiceData}
-        qrCodeUrl={qrCodeUrl}
-        labInfo={labInfo}
-        formatCurrency={formatCurrency}
-        formatDate={formatDate}
-        formatTime={formatTime}
-      />
-    );
-    return await pdf(doc).toBlob();
   };
 
   if (loading) return <LoadingScreen message="Loading invoice..." />;
@@ -445,7 +434,7 @@ const PrintInvoice = () => {
   const showReferrerDiscount = invoiceData.hasReferrerDiscount && referrerDiscountAmount > 0;
   const showLabAdjustment = invoiceData.hasLabAdjustment && invoiceData.labAdjustmentAmount > 0;
 
-  const sharedProps = {
+  const cardProps = {
     invoiceData,
     qrCodeUrl,
     labInfo,
@@ -456,13 +445,12 @@ const PrintInvoice = () => {
     showLabAdjustment,
     referrerDiscountAmount,
   };
-  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
   return (
     <>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      {/* ── Toolbar ── */}
+      {/* Toolbar */}
       <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div className="py-4 flex justify-center">
           <div className="flex items-center gap-3">
@@ -496,13 +484,10 @@ const PrintInvoice = () => {
         </div>
       </div>
 
-      {/* ── Screen view (Tailwind, responsive) ── */}
+      {/* Invoice screen view */}
       <div className="min-h-screen bg-gray-100 py-8 px-4">
         <div className="max-w-2xl mx-auto">
-          <ScreenInvoiceCard {...sharedProps} />
-          <p className="mt-4 text-center text-sm text-gray-500">
-            Use Download for an A5 PDF, or Print to open it ready to print.
-          </p>
+          <InvoiceCard {...cardProps} />
         </div>
       </div>
     </>
@@ -510,9 +495,9 @@ const PrintInvoice = () => {
 };
 
 // ============================================================================
-// SCREEN CARD — Tailwind, mobile-friendly stacked layout
+// INVOICE SCREEN CARD
 // ============================================================================
-const ScreenInvoiceCard = ({
+const InvoiceCard = ({
   invoiceData,
   qrCodeUrl,
   labInfo,
@@ -669,357 +654,5 @@ const ScreenInvoiceCard = ({
     </div>
   </div>
 );
-
-// ============================================================================
-// (PrintOnlyInvoice removed — PDF is now generated directly via @react-pdf/renderer)
-// ============================================================================
-const _PrintOnlyInvoice_UNUSED = ({
-  invoiceData,
-  qrCodeUrl,
-  labInfo,
-  formatCurrency,
-  formatDate,
-  formatTime,
-  showReferrerDiscount,
-  showLabAdjustment,
-  referrerDiscountAmount,
-}) => {
-  return (
-    <div
-      style={{
-        width: "148mm",
-        height: "210mm",
-        backgroundColor: "#fff",
-        fontFamily: "Arial, Helvetica, sans-serif",
-        fontSize: "9pt",
-        color: "#111827",
-        display: "flex",
-        flexDirection: "column",
-        boxSizing: "border-box",
-        overflow: "hidden",
-      }}
-    >
-      {/* ── Header ── */}
-      <div
-        style={{
-          backgroundColor: "#2563eb",
-          padding: "10px 14px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "5px" }}>
-            <div
-              style={{
-                width: "26px",
-                height: "26px",
-                backgroundColor: "rgba(255,255,255,0.22)",
-                borderRadius: "5px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "10pt",
-                fontWeight: "bold",
-                color: "#fff",
-                flexShrink: 0,
-              }}
-            >
-              LP
-            </div>
-            <div>
-              <div style={{ color: "#fff", fontWeight: "bold", fontSize: "11pt", lineHeight: 1.2 }}>{labInfo.name}</div>
-              <div style={{ color: "#bfdbfe", fontSize: "7.5pt" }}>Professional Diagnostic Services</div>
-            </div>
-          </div>
-          <div style={{ color: "#dbeafe", fontSize: "7pt", marginTop: "2px" }}>{labInfo.address}</div>
-          <div style={{ color: "#dbeafe", fontSize: "7pt", marginTop: "2px" }}>
-            {labInfo.phone} &bull; {labInfo.email}
-          </div>
-        </div>
-        <div style={{ textAlign: "right", flexShrink: 0, marginLeft: "8px" }}>
-          <div
-            style={{
-              backgroundColor: "rgba(255,255,255,0.18)",
-              borderRadius: "5px",
-              padding: "3px 10px",
-              display: "inline-block",
-              textAlign: "center",
-              marginBottom: "5px",
-            }}
-          >
-            <div style={{ color: "#bfdbfe", fontSize: "6.5pt", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Invoice
-            </div>
-            <div style={{ color: "#fff", fontWeight: "bold", fontSize: "13pt", lineHeight: 1.1 }}>
-              #{invoiceData.invoiceNumber || "1234"}
-            </div>
-          </div>
-          <div style={{ color: "#dbeafe", fontSize: "7pt" }}>Date: {formatDate(invoiceData.createdAt)}</div>
-          <div style={{ color: "#dbeafe", fontSize: "7pt" }}>Time: {formatTime(invoiceData.createdAt)}</div>
-        </div>
-      </div>
-
-      {/* ── Patient Information ── */}
-      <div
-        style={{
-          padding: "8px 14px",
-          borderBottom: "1px solid #e5e7eb",
-          flexShrink: 0,
-        }}
-      >
-        {/* Fields grid + QR side by side */}
-        <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px", flex: 1 }}>
-            <div>
-              <div
-                style={{
-                  fontSize: "6.5pt",
-                  color: "#9ca3af",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.3px",
-                  marginBottom: "1px",
-                }}
-              >
-                Full Name
-              </div>
-              <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.patientName}</div>
-            </div>
-            <div>
-              <div
-                style={{
-                  fontSize: "6.5pt",
-                  color: "#9ca3af",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.3px",
-                  marginBottom: "1px",
-                }}
-              >
-                Gender
-              </div>
-              <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.gender}</div>
-            </div>
-            <div>
-              <div
-                style={{
-                  fontSize: "6.5pt",
-                  color: "#9ca3af",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.3px",
-                  marginBottom: "1px",
-                }}
-              >
-                Age
-              </div>
-              <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.age} years</div>
-            </div>
-            <div>
-              <div
-                style={{
-                  fontSize: "6.5pt",
-                  color: "#9ca3af",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.3px",
-                  marginBottom: "1px",
-                }}
-              >
-                Contact
-              </div>
-              <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>{invoiceData.contactNumber}</div>
-            </div>
-            {invoiceData.referredBy && (
-              <div style={{ gridColumn: "1 / -1" }}>
-                <div
-                  style={{
-                    fontSize: "6.5pt",
-                    color: "#9ca3af",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.3px",
-                    marginBottom: "1px",
-                  }}
-                >
-                  Referred By
-                </div>
-                <div style={{ fontWeight: "bold", fontSize: "8pt", color: "#111827" }}>
-                  {invoiceData.referredBy.name}
-                  {invoiceData.referredBy.degree && (
-                    <span style={{ fontWeight: "normal", color: "#6b7280", marginLeft: "5px" }}>
-                      ({invoiceData.referredBy.degree})
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-          {qrCodeUrl && (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", flexShrink: 0 }}>
-              <img src={qrCodeUrl} alt="QR" style={{ width: "68px", height: "68px", display: "block" }} />
-              <div style={{ fontSize: "6pt", color: "#6b7280", textAlign: "center", lineHeight: 1.3 }}>
-                Scan to download
-                <br />
-                your reports
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Diagnostic Tests ── */}
-      <div style={{ padding: "8px 14px" }}>
-        <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
-          <div
-            style={{
-              width: "18px",
-              height: "18px",
-              backgroundColor: "#eff6ff",
-              borderRadius: "4px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: "6px",
-              flexShrink: 0,
-            }}
-          >
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#2563eb"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
-          </div>
-          <span style={{ fontWeight: "bold", fontSize: "9pt", color: "#111827" }}>Diagnostic Tests</span>
-        </div>
-
-        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "6px" }}>
-          <thead>
-            <tr style={{ backgroundColor: "#f3f4f6" }}>
-              <th
-                style={{
-                  padding: "4px 6px",
-                  fontSize: "6.5pt",
-                  fontWeight: "bold",
-                  color: "#374151",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.3px",
-                  textAlign: "left",
-                  borderBottom: "1px solid #e5e7eb",
-                  width: "22px",
-                }}
-              >
-                #
-              </th>
-              <th
-                style={{
-                  padding: "4px 6px",
-                  fontSize: "6.5pt",
-                  fontWeight: "bold",
-                  color: "#374151",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.3px",
-                  textAlign: "left",
-                  borderBottom: "1px solid #e5e7eb",
-                }}
-              >
-                Test Name
-              </th>
-              <th
-                style={{
-                  padding: "4px 6px",
-                  fontSize: "6.5pt",
-                  fontWeight: "bold",
-                  color: "#374151",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.3px",
-                  textAlign: "right",
-                  borderBottom: "1px solid #e5e7eb",
-                }}
-              >
-                Price
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {invoiceData.tests?.map((test, i) => (
-              <tr key={test._id || i} style={i % 2 === 1 ? { backgroundColor: "#f9fafb" } : {}}>
-                <td
-                  style={{
-                    padding: "3.5px 6px",
-                    fontSize: "7.5pt",
-                    color: "#9ca3af",
-                    borderBottom: "1px solid #f3f4f6",
-                  }}
-                >
-                  {i + 1}
-                </td>
-                <td
-                  style={{
-                    padding: "3.5px 6px",
-                    fontSize: "7.5pt",
-                    color: "#111827",
-                    borderBottom: "1px solid #f3f4f6",
-                  }}
-                >
-                  {test.name}
-                </td>
-                <td
-                  style={{
-                    padding: "3.5px 6px",
-                    fontSize: "7.5pt",
-                    color: "#111827",
-                    fontWeight: "bold",
-                    textAlign: "right",
-                    borderBottom: "1px solid #f3f4f6",
-                  }}
-                >
-                  {formatCurrency(test.price)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* Pricing summary */}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "6px" }}>
-          <div style={{ width: "185px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px", fontSize: "7.5pt" }}>
-              <span style={{ color: "#6b7280" }}>Subtotal</span>
-              <span style={{ fontWeight: "bold", color: "#111827" }}>{formatCurrency(invoiceData.totalAmount)}</span>
-            </div>
-            {showReferrerDiscount && (
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px", fontSize: "7.5pt" }}>
-                <span style={{ color: "#6b7280" }}>Referrer Discount ({invoiceData.referrerDiscountPercentage}%)</span>
-                <span style={{ color: "#dc2626" }}>- {formatCurrency(referrerDiscountAmount)}</span>
-              </div>
-            )}
-            {showLabAdjustment && (
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px", fontSize: "7.5pt" }}>
-                <span style={{ color: "#6b7280" }}>Lab Adjustment</span>
-                <span style={{ color: "#dc2626" }}>- {formatCurrency(invoiceData.labAdjustmentAmount)}</span>
-              </div>
-            )}
-            <div style={{ borderTop: "1.5px solid #d1d5db", margin: "5px 0" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ fontWeight: "bold", fontSize: "9pt", color: "#111827" }}>Total Amount</span>
-              <span style={{ fontWeight: "bold", fontSize: "12pt", color: "#2563eb" }}>
-                {formatCurrency(invoiceData.finalPrice)}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default PrintInvoice;
