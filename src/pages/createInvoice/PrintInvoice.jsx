@@ -332,21 +332,35 @@ const PrintInvoice = () => {
       const blob = await generatePDFBlob();
       const url = URL.createObjectURL(blob);
 
-      // Use a hidden iframe so no new window opens
-      const iframe = document.createElement("iframe");
-      iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0;";
-      iframe.src = url;
-      document.body.appendChild(iframe);
+      // Mobile browsers block iframe.print() — detect mobile and just download instead
+      // The device's PDF viewer has a native print/share button
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
-      iframe.onload = () => {
-        setTimeout(() => {
-          iframe.contentWindow?.print();
+      if (isMobile) {
+        // On mobile: download the PDF — user can print from their PDF viewer
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = getFileName();
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      } else {
+        // On desktop: hidden iframe print — no new window
+        const iframe = document.createElement("iframe");
+        iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0;";
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        iframe.onload = () => {
           setTimeout(() => {
-            document.body.removeChild(iframe);
-            URL.revokeObjectURL(url);
-          }, 60000);
-        }, 500);
-      };
+            iframe.contentWindow?.print();
+            setTimeout(() => {
+              document.body.removeChild(iframe);
+              URL.revokeObjectURL(url);
+            }, 60000);
+          }, 500);
+        };
+      }
     } catch (err) {
       console.error("Print error:", err);
       setPopup({ type: "error", message: "Could not generate PDF for printing" });
@@ -358,9 +372,7 @@ const PrintInvoice = () => {
   const handleShare = async () => {
     try {
       setSharing(true);
-      const pdfBlob = await generatePDFBlob();
-      const fileName = `Invoice-${invoiceData.patientName?.replace(/\s+/g, "_") || "patient"}.pdf`;
-      const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
+
       const message =
         `Hello ${invoiceData.patientName},\n\n` +
         `Your diagnostic reports from ${labInfo.name} are ready!\n\n` +
@@ -370,15 +382,15 @@ const PrintInvoice = () => {
         `Download your reports here:\n${invoiceData.reportLink}\n\n` +
         `For queries: ${labInfo.phone}\n— ${labInfo.name}`;
 
-      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-        await navigator.share({ title: `Invoice – ${invoiceData.patientName}`, text: message, files: [pdfFile] });
+      if (navigator.share) {
+        // Share text + link only — sharing files alongside text silently drops
+        // the text on iOS/Android. The report link in the message is sufficient.
+        await navigator.share({
+          title: `Invoice – ${invoiceData.patientName}`,
+          text: message,
+        });
       } else {
-        const url = URL.createObjectURL(pdfBlob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(url);
+        // Desktop fallback: open WhatsApp with pre-filled message
         window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
       }
     } catch (error) {
@@ -457,7 +469,7 @@ const PrintInvoice = () => {
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition-colors shadow-sm"
             >
               <Printer className="w-4 h-4" />
-              <span className="text-sm font-medium">{printing ? "Generating..." : "Print"}</span>
+              <span className="text-sm font-medium">{printing ? "Generating..." : "Print / Save PDF"}</span>
             </button>
           </div>
         </div>
