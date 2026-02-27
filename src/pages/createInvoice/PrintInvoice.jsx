@@ -436,30 +436,47 @@ const PrintInvoice = () => {
             margin: 0;
           }
 
-          /* Hide everything on the page */
-          body * { visibility: hidden; }
-
-          /* Show only the print invoice */
-          #print-only-invoice,
-          #print-only-invoice * {
-            visibility: visible;
-          }
-
-          #print-only-invoice {
-            display: block;
-            position: fixed;
-            top: 0;
-            left: 0;
+          html {
             width: 148mm;
             height: 210mm;
             overflow: hidden;
           }
 
           body {
+            width: 148mm;
+            height: 210mm;
             margin: 0;
             padding: 0;
+            overflow: hidden;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+          }
+
+          /* Hide all screen content */
+          body * {
+            visibility: hidden !important;
+          }
+
+          /* Show only the print invoice */
+          #print-only-invoice {
+            visibility: visible !important;
+            display: block !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 148mm !important;
+            height: 210mm !important;
+            overflow: hidden !important;
+            page-break-before: avoid !important;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+            break-before: avoid !important;
+            break-after: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          #print-only-invoice * {
+            visibility: visible !important;
           }
         }
       `}</style>
@@ -559,7 +576,7 @@ const ScreenInvoiceCard = ({
         </div>
         {qrCodeUrl && (
           <div className="shrink-0 flex flex-col items-center gap-0.5">
-            <img src={qrCodeUrl} alt="QR Code" className="w-14 h-14" />
+            <img src={qrCodeUrl} alt="QR Code" className="w-20 h-20" />
             <p className="text-[9px] text-gray-500 text-center leading-tight">
               Scan to download
               <br />
@@ -813,7 +830,7 @@ const PrintOnlyInvoice = ({
           </div>
           {qrCodeUrl && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", flexShrink: 0 }}>
-              <img src={qrCodeUrl} alt="QR" style={{ width: "52px", height: "52px", display: "block" }} />
+              <img src={qrCodeUrl} alt="QR" style={{ width: "68px", height: "68px", display: "block" }} />
               <div style={{ fontSize: "6pt", color: "#6b7280", textAlign: "center", lineHeight: 1.3 }}>
                 Scan to download
                 <br />
