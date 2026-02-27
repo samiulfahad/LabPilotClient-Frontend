@@ -690,6 +690,7 @@ const CreateInvoice = () => {
   const loadRequiredData = async () => {
     try {
       const response = await invoiceService.getRequiredData();
+      // console.log(response.data.tests);
       setAvailableReferrers(response.data.referrers || []);
       setAvailableTests(response.data.tests || []);
     } catch (error) {
@@ -803,6 +804,8 @@ const CreateInvoice = () => {
           testId: test._id,
           name: test.name,
           price: test.price,
+          schemaId: test?.schemaId || null,
+          
         })),
         totalAmount: formData.totalAmount,
         hasReferrerDiscount: formData.hasReferrerDiscount,
@@ -814,14 +817,16 @@ const CreateInvoice = () => {
       };
 
       // API Call
-      // const response = await invoiceService.createInvoice(invoiceData);
-      let response = { data: { _id: 123 } };
+      const response = await invoiceService.createInvoice(invoiceData);
+      console.log(response);
+      // let response = { data: { _id: 123 } };
 
       // Navigate to print page with the created invoice data
-      navigate(`/invoice/print/${response.data._id}`, {
+      navigate(`/invoice/print/${response.data.invoiceId}`, {
         state: {
           invoiceData: {
             ...invoiceData,
+            invoiceId: response?.data?.invoiceId,
             tests: formData.selectedTests,
             referredBy: formData.referredBy,
           },

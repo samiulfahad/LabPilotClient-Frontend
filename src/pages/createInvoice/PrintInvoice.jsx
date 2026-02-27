@@ -8,6 +8,41 @@ import LoadingScreen from "../../components/loadingPage";
 import Popup from "../../components/popup";
 
 // ============================================================================
+// HELPERS
+// ============================================================================
+const formatInvoiceDateTime = (invoiceId) => {
+  const id = String(invoiceId);
+  const date = new Date(
+    `20${id.slice(0, 2)}-${id.slice(2, 4)}-${id.slice(4, 6)}T${id.slice(6, 8)}:${id.slice(8, 10)}:${id.slice(10, 12)}`,
+  );
+  const day = date.getDate();
+  const suffix =
+    day % 10 === 1 && day % 100 !== 11
+      ? "st"
+      : day % 10 === 2 && day % 100 !== 12
+        ? "nd"
+        : day % 10 === 3 && day % 100 !== 13
+          ? "rd"
+          : "th";
+  const month = date.toLocaleString("default", { month: "long" });
+  const year = date.getFullYear();
+  const hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+  return {
+    date: `${day}${suffix} ${month}, ${year}`,
+    time: `${displayHour}:${minutes}${ampm}`,
+  };
+};
+
+const formatCurrency = (amount) => {
+  const num = Number(amount);
+  if (isNaN(num)) return "BDT 0";
+  return new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", minimumFractionDigits: 0 }).format(num);
+};
+
+// ============================================================================
 // PDF STYLES
 // ============================================================================
 const pdfStyles = StyleSheet.create({
@@ -43,7 +78,7 @@ const pdfStyles = StyleSheet.create({
     marginBottom: 6,
   },
   invoiceLabel: { color: "#bfdbfe", fontSize: 7, textTransform: "uppercase", letterSpacing: 0.5 },
-  invoiceNumber: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 13 },
+  invoiceId: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 13 },
   dateText: { color: "#dbeafe", fontSize: 7.5 },
   section: { padding: "12 20", borderBottom: "1 solid #e5e7eb" },
   sectionLast: { padding: "12 20" },
@@ -57,10 +92,7 @@ const pdfStyles = StyleSheet.create({
   qrContainer: { alignItems: "center", marginLeft: 16 },
   qrImage: { width: 60, height: 60 },
   qrLabel: { fontSize: 6.5, color: "#6b7280", textAlign: "center", marginTop: 3 },
-  downloadBtnWrapper: {
-    marginTop: 6,
-    position: "relative",
-  },
+  downloadBtnWrapper: { marginTop: 6, position: "relative" },
   downloadBtn: {
     backgroundColor: "#2563eb",
     borderRadius: 5,
@@ -69,28 +101,10 @@ const pdfStyles = StyleSheet.create({
     paddingLeft: 10,
     paddingRight: 10,
   },
-  downloadBtnInner: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  downloadBtnIcon: {
-    width: 8,
-    height: 8,
-    marginRight: 4,
-  },
-  downloadBtnOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0,
-  },
-  downloadBtnText: {
-    color: "#ffffff",
-    fontFamily: "Helvetica-Bold",
-    fontSize: 7,
-  },
+  downloadBtnInner: { flexDirection: "row", alignItems: "center" },
+  downloadBtnIcon: { width: 8, height: 8, marginRight: 4 },
+  downloadBtnOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0 },
+  downloadBtnText: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 7 },
   tableHeader: { flexDirection: "row", backgroundColor: "#f3f4f6", padding: "5 8", borderBottom: "1 solid #e5e7eb" },
   tableRow: { flexDirection: "row", padding: "5 8", borderBottom: "1 solid #f3f4f6" },
   tableRowEven: { flexDirection: "row", padding: "5 8", borderBottom: "1 solid #f3f4f6", backgroundColor: "#fafafa" },
@@ -119,7 +133,7 @@ const pdfStyles = StyleSheet.create({
 // ============================================================================
 // PDF DOCUMENT
 // ============================================================================
-const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, formatDate, formatTime }) => {
+const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, invoiceDate, invoiceTime }) => {
   const referrerDiscountAmount =
     invoiceData.hasReferrerDiscount && invoiceData.referrerDiscountPercentage > 0
       ? invoiceData.totalAmount - invoiceData.priceAfterReferrerDiscount
@@ -130,7 +144,6 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
   return (
     <Document>
       <Page size="A5" style={pdfStyles.page}>
-        {/* Header */}
         <View style={pdfStyles.header}>
           <View style={pdfStyles.headerLeft}>
             <View style={pdfStyles.logoRow}>
@@ -150,14 +163,13 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
           <View style={pdfStyles.headerRight}>
             <View style={pdfStyles.invoiceBadge}>
               <Text style={pdfStyles.invoiceLabel}>Invoice</Text>
-              <Text style={pdfStyles.invoiceNumber}>#{invoiceData.invoiceNumber || "1234"}</Text>
+              <Text style={pdfStyles.invoiceId}>#{invoiceData.invoiceId || "N/A"}</Text>
             </View>
-            <Text style={pdfStyles.dateText}>Date: {formatDate(invoiceData.createdAt)}</Text>
-            <Text style={pdfStyles.dateText}>Time: {formatTime(invoiceData.createdAt)}</Text>
+            <Text style={pdfStyles.dateText}>Date: {invoiceDate}</Text>
+            <Text style={pdfStyles.dateText}>Time: {invoiceTime}</Text>
           </View>
         </View>
 
-        {/* Patient Info */}
         <View style={pdfStyles.section}>
           <View style={pdfStyles.patientRow}>
             <View style={pdfStyles.patientGrid}>
@@ -187,8 +199,6 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
                 </View>
               )}
             </View>
-
-            {/* QR Code + Download Button */}
             {qrCodeUrl && (
               <View style={pdfStyles.qrContainer}>
                 <Image style={pdfStyles.qrImage} src={qrCodeUrl} />
@@ -212,7 +222,6 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
           </View>
         </View>
 
-        {/* Tests */}
         <View style={pdfStyles.sectionLast}>
           <Text style={pdfStyles.sectionTitle}>Diagnostic Tests</Text>
           <View style={pdfStyles.tableHeader}>
@@ -306,7 +315,7 @@ const PrintInvoice = () => {
 
       const processedData = {
         _id: data._id || "",
-        invoiceNumber: data.invoiceNumber || "",
+        invoiceId: data.invoiceId || "",
         patientName: data.patientName || "N/A",
         gender: data.gender || "N/A",
         age: data.age || "N/A",
@@ -320,7 +329,6 @@ const PrintInvoice = () => {
         hasLabAdjustment: data.hasLabAdjustment || false,
         labAdjustmentAmount: Number(data.labAdjustmentAmount) || 0,
         finalPrice: Number(data.finalPrice) || Number(data.totalAmount) || 0,
-        createdAt: data.createdAt || new Date().toISOString(),
         reportLink: data.reportLink || data.link || "https://labpilotpro.com",
       };
 
@@ -348,33 +356,19 @@ const PrintInvoice = () => {
     }
   };
 
-  const formatCurrency = (amount) => {
-    const num = Number(amount);
-    if (isNaN(num)) return "BDT 0";
-    return new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", minimumFractionDigits: 0 }).format(num);
+  const getFileName = () => {
+    return `Invoice-${invoiceData.patientName?.replace(/\s+/g, "_") || "patient"}.pdf`;
   };
-
-  const formatDate = (date) => {
-    if (!date) return new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-    return new Date(date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-  };
-
-  const formatTime = (date) => {
-    if (!date) return new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
-    return new Date(date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
-  };
-
-  const getFileName = () => `Invoice-${invoiceData.patientName?.replace(/\s+/g, "_") || "patient"}.pdf`;
 
   const generatePDFBlob = async () => {
+    const { date: invoiceDate, time: invoiceTime } = formatInvoiceDateTime(invoiceData.invoiceId);
     const doc = (
       <InvoicePDFDocument
         invoiceData={invoiceData}
         qrCodeUrl={qrCodeUrl}
         labInfo={labInfo}
-        formatCurrency={formatCurrency}
-        formatDate={formatDate}
-        formatTime={formatTime}
+        invoiceDate={invoiceDate}
+        invoiceTime={invoiceTime}
       />
     );
     return await pdf(doc).toBlob();
@@ -433,13 +427,14 @@ const PrintInvoice = () => {
   const handleShare = async () => {
     try {
       setSharing(true);
+      const { date: invoiceDate } = formatInvoiceDateTime(invoiceData.invoiceId);
 
       const message =
         `Hello ${invoiceData.patientName},\n\n` +
         `Your diagnostic reports from ${labInfo.name} are ready!\n\n` +
         `Tests: ${invoiceData.tests?.length || 0} test(s)\n` +
         `Total: ${formatCurrency(invoiceData.finalPrice)}\n` +
-        `Date: ${formatDate(invoiceData.createdAt)}\n\n` +
+        `Date: ${invoiceDate}\n\n` +
         `Download your reports here:\n${invoiceData.reportLink}\n\n` +
         `For queries: ${labInfo.phone}\n— ${labInfo.name}`;
 
@@ -478,14 +473,15 @@ const PrintInvoice = () => {
       : 0;
   const showReferrerDiscount = invoiceData.hasReferrerDiscount && referrerDiscountAmount > 0;
   const showLabAdjustment = invoiceData.hasLabAdjustment && invoiceData.labAdjustmentAmount > 0;
+  const { date: invoiceDate, time: invoiceTime } = formatInvoiceDateTime(invoiceData.invoiceId);
 
   const cardProps = {
     invoiceData,
     qrCodeUrl,
     labInfo,
     formatCurrency,
-    formatDate,
-    formatTime,
+    invoiceDate,
+    invoiceTime,
     showReferrerDiscount,
     showLabAdjustment,
     referrerDiscountAmount,
@@ -495,7 +491,6 @@ const PrintInvoice = () => {
     <>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      {/* Toolbar */}
       <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div className="py-4 flex justify-center">
           <div className="flex items-center gap-3">
@@ -529,7 +524,6 @@ const PrintInvoice = () => {
         </div>
       </div>
 
-      {/* Invoice screen view */}
       <div className="min-h-screen bg-gray-100 py-8 px-4">
         <div className="max-w-2xl mx-auto">
           <InvoiceCard {...cardProps} />
@@ -547,162 +541,161 @@ const InvoiceCard = ({
   qrCodeUrl,
   labInfo,
   formatCurrency,
-  formatDate,
-  formatTime,
+  invoiceDate,
+  invoiceTime,
   showReferrerDiscount,
   showLabAdjustment,
   referrerDiscountAmount,
-}) => (
-  <div className="bg-white shadow-lg rounded-xl overflow-hidden">
-    {/* Header */}
-    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 shrink-0 bg-white/20 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-sm">LP</span>
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-lg font-bold text-white leading-tight">{labInfo.name}</h1>
-              <p className="text-blue-100 text-xs">Professional Diagnostic Services</p>
-            </div>
-          </div>
-          <div className="mt-2 space-y-1 text-blue-50 text-xs">
-            <div className="flex items-start gap-1.5">
-              <MapPin className="w-3 h-3 shrink-0 mt-0.5" />
-              <span>{labInfo.address}</span>
-            </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
-              <div className="flex items-center gap-1.5">
-                <Phone className="w-3 h-3 shrink-0" />
-                <span>{labInfo.phone}</span>
+}) => {
+  return (
+    <div className="bg-white shadow-lg rounded-xl overflow-hidden">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 shrink-0 bg-white/20 rounded-xl flex items-center justify-center">
+                <span className="text-white font-bold text-sm">LP</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Mail className="w-3 h-3 shrink-0" />
-                <span>{labInfo.email}</span>
+              <div className="min-w-0">
+                <h1 className="text-lg font-bold text-white leading-tight">{labInfo.name}</h1>
+                <p className="text-blue-100 text-xs">Professional Diagnostic Services</p>
               </div>
             </div>
+            <div className="mt-2 space-y-1 text-blue-50 text-xs">
+              <div className="flex items-start gap-1.5">
+                <MapPin className="w-3 h-3 shrink-0 mt-0.5" />
+                <span>{labInfo.address}</span>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                <div className="flex items-center gap-1.5">
+                  <Phone className="w-3 h-3 shrink-0" />
+                  <span>{labInfo.phone}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Mail className="w-3 h-3 shrink-0" />
+                  <span>{labInfo.email}</span>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="text-right shrink-0">
-          <div className="inline-block bg-white/20 px-3 py-1.5 rounded-lg">
-            <p className="text-blue-100 text-[10px] uppercase tracking-wide font-medium">Invoice</p>
-            <p className="text-white text-lg font-bold">#{invoiceData.invoiceNumber || "1234"}</p>
-          </div>
-          <div className="mt-2 text-blue-50 text-xs space-y-0.5">
-            <p>Date: {formatDate(invoiceData.createdAt)}</p>
-            <p>Time: {formatTime(invoiceData.createdAt)}</p>
+          <div className="text-right shrink-0">
+            <div className="inline-block bg-white/20 px-3 py-1.5 rounded-lg">
+              <p className="text-blue-100 text-[10px] uppercase tracking-wide font-medium">Invoice</p>
+              <p className="text-white text-lg font-bold">#{invoiceData.invoiceId || "N/A"}</p>
+            </div>
+            <div className="mt-2 text-blue-50 text-xs space-y-0.5">
+              <p>Date: {invoiceDate}</p>
+              <p>Time: {invoiceTime}</p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    {/* Patient Info */}
-    <div className="px-6 py-4 border-b border-gray-200">
-      <div className="flex items-start gap-4">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 flex-1">
-          <div>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Full Name</p>
-            <p className="text-sm font-medium text-gray-900">{invoiceData.patientName}</p>
+      <div className="px-6 py-4 border-b border-gray-200">
+        <div className="flex items-start gap-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 flex-1">
+            <div>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Full Name</p>
+              <p className="text-sm font-medium text-gray-900">{invoiceData.patientName}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Gender</p>
+              <p className="text-sm font-medium text-gray-900 capitalize">{invoiceData.gender}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Age</p>
+              <p className="text-sm font-medium text-gray-900">{invoiceData.age} years</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Contact</p>
+              <p className="text-sm font-medium text-gray-900">{invoiceData.contactNumber}</p>
+            </div>
+            {invoiceData.referredBy && (
+              <div className="col-span-2">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Referred By</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {invoiceData.referredBy.name}
+                  {invoiceData.referredBy.degree && (
+                    <span className="text-gray-600 font-normal ml-1.5">({invoiceData.referredBy.degree})</span>
+                  )}
+                </p>
+              </div>
+            )}
           </div>
-          <div>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Gender</p>
-            <p className="text-sm font-medium text-gray-900 capitalize">{invoiceData.gender}</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Age</p>
-            <p className="text-sm font-medium text-gray-900">{invoiceData.age} years</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Contact</p>
-            <p className="text-sm font-medium text-gray-900">{invoiceData.contactNumber}</p>
-          </div>
-          {invoiceData.referredBy && (
-            <div className="col-span-2">
-              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Referred By</p>
-              <p className="text-sm font-medium text-gray-900">
-                {invoiceData.referredBy.name}
-                {invoiceData.referredBy.degree && (
-                  <span className="text-gray-600 font-normal ml-1.5">({invoiceData.referredBy.degree})</span>
-                )}
-              </p>
+          {qrCodeUrl && (
+            <div className="shrink-0 flex flex-col items-center gap-0.5">
+              <img src={qrCodeUrl} alt="QR Code" className="w-20 h-20" />
+              <p className="text-[9px] text-gray-500 text-center leading-tight">Scan to download Reports</p>
+              <a
+                href={invoiceData.reportLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1.5 flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-semibold rounded-md transition-colors"
+              >
+                <Download className="w-2.5 h-2.5" />
+                Click to Download Reports
+              </a>
             </div>
           )}
         </div>
-        {qrCodeUrl && (
-          <div className="shrink-0 flex flex-col items-center gap-0.5">
-            <img src={qrCodeUrl} alt="QR Code" className="w-20 h-20" />
-            <p className="text-[9px] text-gray-500 text-center leading-tight">Scan to download Reports</p>
-            <a
-              href={invoiceData.reportLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1.5 flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-semibold rounded-md transition-colors"
-            >
-              <Download className="w-2.5 h-2.5" />
-              Click to Download Reports
-            </a>
-          </div>
-        )}
       </div>
-    </div>
 
-    {/* Tests */}
-    <div className="px-6 py-4">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="p-1.5 bg-blue-50 rounded-lg">
-          <FileText className="w-4 h-4 text-blue-600" />
+      <div className="px-6 py-4">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="p-1.5 bg-blue-50 rounded-lg">
+            <FileText className="w-4 h-4 text-blue-600" />
+          </div>
+          <h2 className="text-base font-semibold text-gray-900">Diagnostic Tests</h2>
         </div>
-        <h2 className="text-base font-semibold text-gray-900">Diagnostic Tests</h2>
-      </div>
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase w-8">#</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Test Name</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Price</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {invoiceData.tests?.map((test, i) => (
-              <tr key={test._id || i} className={i % 2 === 1 ? "bg-gray-50/50" : ""}>
-                <td className="px-3 py-2.5 text-xs text-gray-500">{i + 1}</td>
-                <td className="px-3 py-2.5 text-sm text-gray-900">{test.name}</td>
-                <td className="px-3 py-2.5 text-sm text-gray-900 text-right font-medium">
-                  {formatCurrency(test.price)}
-                </td>
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase w-8">#</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Test Name</th>
+                <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Price</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="mt-3 flex justify-end">
-        <div className="w-64 space-y-1.5">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Subtotal</span>
-            <span className="font-medium">{formatCurrency(invoiceData.totalAmount)}</span>
-          </div>
-          {showReferrerDiscount && (
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {invoiceData.tests?.map((test, i) => (
+                <tr key={test._id || i} className={i % 2 === 1 ? "bg-gray-50/50" : ""}>
+                  <td className="px-3 py-2.5 text-xs text-gray-500">{i + 1}</td>
+                  <td className="px-3 py-2.5 text-sm text-gray-900">{test.name}</td>
+                  <td className="px-3 py-2.5 text-sm text-gray-900 text-right font-medium">
+                    {formatCurrency(test.price)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-3 flex justify-end">
+          <div className="w-64 space-y-1.5">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Referrer Discount ({invoiceData.referrerDiscountPercentage}%)</span>
-              <span className="text-red-600">- {formatCurrency(referrerDiscountAmount)}</span>
+              <span className="text-gray-600">Subtotal</span>
+              <span className="font-medium">{formatCurrency(invoiceData.totalAmount)}</span>
             </div>
-          )}
-          {showLabAdjustment && (
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Lab Adjustment</span>
-              <span className="text-red-600">- {formatCurrency(invoiceData.labAdjustmentAmount)}</span>
+            {showReferrerDiscount && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Referrer Discount ({invoiceData.referrerDiscountPercentage}%)</span>
+                <span className="text-red-600">- {formatCurrency(referrerDiscountAmount)}</span>
+              </div>
+            )}
+            {showLabAdjustment && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Lab Adjustment</span>
+                <span className="text-red-600">- {formatCurrency(invoiceData.labAdjustmentAmount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between pt-2 border-t-2 border-gray-200">
+              <span className="text-base font-semibold text-gray-900">Total Amount</span>
+              <span className="text-lg font-bold text-blue-600">{formatCurrency(invoiceData.finalPrice)}</span>
             </div>
-          )}
-          <div className="flex justify-between pt-2 border-t-2 border-gray-200">
-            <span className="text-base font-semibold text-gray-900">Total Amount</span>
-            <span className="text-lg font-bold text-blue-600">{formatCurrency(invoiceData.finalPrice)}</span>
           </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default PrintInvoice;
