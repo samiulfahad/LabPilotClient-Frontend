@@ -303,8 +303,56 @@ const PrintInvoice = () => {
     return new Date(date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
   };
 
-  const handlePrint = () => window.print();
-  const handleDownload = () => window.print();
+  const triggerPrint = () => {
+    // Grab every direct sibling of #print-only-invoice inside its parent
+    const printEl = document.getElementById("print-only-invoice");
+    if (!printEl) {
+      window.print();
+      return;
+    }
+
+    const parent = printEl.parentElement;
+    const siblings = Array.from(parent.children).filter((el) => el !== printEl);
+
+    // Also hide any app-level wrappers above (nav, sidebars etc.)
+    // We walk up one more level to hide siblings of the parent too
+    const grandParent = parent.parentElement;
+    const uncles = grandParent ? Array.from(grandParent.children).filter((el) => !el.contains(printEl)) : [];
+
+    // Before print: hide everything except the invoice
+    const beforePrint = () => {
+      siblings.forEach((el) => {
+        el.dataset._ph = el.style.display;
+        el.style.display = "none";
+      });
+      uncles.forEach((el) => {
+        el.dataset._ph = el.style.display;
+        el.style.display = "none";
+      });
+      printEl.style.display = "block";
+    };
+
+    // After print: restore everything
+    const afterPrint = () => {
+      siblings.forEach((el) => {
+        el.style.display = el.dataset._ph || "";
+        delete el.dataset._ph;
+      });
+      uncles.forEach((el) => {
+        el.style.display = el.dataset._ph || "";
+        delete el.dataset._ph;
+      });
+      printEl.style.display = "none";
+      window.removeEventListener("afterprint", afterPrint);
+    };
+
+    beforePrint();
+    window.addEventListener("afterprint", afterPrint);
+    window.print();
+  };
+
+  const handlePrint = triggerPrint;
+  const handleDownload = triggerPrint;
 
   const handleShare = async () => {
     try {
@@ -427,7 +475,6 @@ const PrintInvoice = () => {
 
       {/* ── Print CSS ── */}
       <style>{`
-        /* Screen: hide print-only div */
         #print-only-invoice { display: none; }
 
         @media print {
@@ -435,48 +482,22 @@ const PrintInvoice = () => {
             size: 148mm 210mm;
             margin: 0;
           }
-
-          html {
-            width: 148mm;
-            height: 210mm;
-            overflow: hidden;
-          }
-
-          body {
-            width: 148mm;
-            height: 210mm;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
+          html, body {
+            width: 148mm !important;
+            height: 210mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
           }
-
-          /* Hide all screen content */
-          body * {
-            visibility: hidden !important;
-          }
-
-          /* Show only the print invoice */
           #print-only-invoice {
-            visibility: visible !important;
             display: block !important;
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
             width: 148mm !important;
             height: 210mm !important;
             overflow: hidden !important;
-            page-break-before: avoid !important;
-            page-break-after: avoid !important;
             page-break-inside: avoid !important;
-            break-before: avoid !important;
-            break-after: avoid !important;
             break-inside: avoid !important;
-          }
-
-          #print-only-invoice * {
-            visibility: visible !important;
           }
         }
       `}</style>
