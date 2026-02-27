@@ -394,21 +394,25 @@ const PrintInvoice = () => {
         `Download your reports here:\n${invoiceData.reportLink}\n\n` +
         `For queries: ${labInfo.phone}\n— ${labInfo.name}`;
 
-      // Generate PDF first
+      // Generate PDF before any share call to stay within user gesture window
       const pdfBlob = await generatePDFBlob();
       const fileName = getFileName();
+      const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
 
-      // Step 1: Download PDF silently (no gesture needed for <a> click)
-      downloadBlob(pdfBlob, fileName);
-
-      // Step 2: Share text message via native share sheet
       if (navigator.share) {
+        const canShareFile = navigator.canShare && navigator.canShare({ files: [pdfFile] });
+        // Single share call with text + file (browser only allows one per gesture)
         await navigator.share({
           title: `Invoice – ${invoiceData.patientName}`,
           text: message,
+          ...(canShareFile ? { files: [pdfFile] } : {}),
         });
+        // If file couldn't be included, auto-download it
+        if (!canShareFile) downloadBlob(pdfBlob, fileName);
       } else {
+        // Desktop fallback: WhatsApp + download
         window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
+        downloadBlob(pdfBlob, fileName);
       }
     } catch (error) {
       if (error.name !== "AbortError") {
