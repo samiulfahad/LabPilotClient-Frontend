@@ -489,7 +489,7 @@ const PrintInvoice = () => {
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition-colors shadow-sm"
               >
                 <Printer className="w-4 h-4" />
-                <span className="text-sm font-medium">{printing ? "Generating..." : "Print / Save PDF"}</span>
+                <span className="text-sm font-medium">{printing ? "Generating..." : "Print"}</span>
               </button>
             )}
           </div>
