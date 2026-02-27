@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { Printer, Download, Phone, Mail, MapPin, User, FileText, Share2 } from "lucide-react";
 import QRCode from "qrcode";
-import { pdf, Document, Page, View, Text, Image, StyleSheet, Link } from "@react-pdf/renderer";
+import { pdf, Document, Page, View, Text, Image, StyleSheet, Link, Svg, Path } from "@react-pdf/renderer";
 import invoiceService from "../../api/invoice";
 import LoadingScreen from "../../components/loadingPage";
 import Popup from "../../components/popup";
@@ -57,6 +57,8 @@ const pdfStyles = StyleSheet.create({
   qrContainer: { alignItems: "center", marginLeft: 16 },
   qrImage: { width: 60, height: 60 },
   qrLabel: { fontSize: 6.5, color: "#6b7280", textAlign: "center", marginTop: 3 },
+  // Wrap a View inside Link — textDecoration on Link has no effect on the View child,
+  // so this is the correct pattern to get an underline-free styled button.
   downloadBtn: {
     marginTop: 6,
     backgroundColor: "#2563eb",
@@ -65,12 +67,21 @@ const pdfStyles = StyleSheet.create({
     paddingBottom: 5,
     paddingLeft: 10,
     paddingRight: 10,
+  },
+  downloadBtnInner: {
+    flexDirection: "row",
     alignItems: "center",
+  },
+  downloadBtnIcon: {
+    width: 8,
+    height: 8,
+    marginRight: 4,
   },
   downloadBtnText: {
     color: "#ffffff",
     fontFamily: "Helvetica-Bold",
     fontSize: 7,
+    // Explicitly suppress underline that @react-pdf/renderer adds to Text inside Link
     textDecoration: "none",
   },
   tableHeader: { flexDirection: "row", backgroundColor: "#f3f4f6", padding: "5 8", borderBottom: "1 solid #e5e7eb" },
@@ -139,7 +150,7 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
           </View>
         </View>
 
-        {/* Patient Info — heading removed */}
+        {/* Patient Info */}
         <View style={pdfStyles.section}>
           <View style={pdfStyles.patientRow}>
             <View style={pdfStyles.patientGrid}>
@@ -175,8 +186,22 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, formatCurrency, f
               <View style={pdfStyles.qrContainer}>
                 <Image style={pdfStyles.qrImage} src={qrCodeUrl} />
                 <Text style={pdfStyles.qrLabel}>Scan to download Reports</Text>
+                {/*
+                  Key fix: wrap a <View> + <Text> inside <Link> instead of putting
+                  text directly in <Link>. This prevents @react-pdf/renderer from
+                  applying its default blue underline to the link text. The SVG
+                  draws a download arrow icon matching the Lucide Download icon.
+                */}
                 <Link src={invoiceData.reportLink} style={pdfStyles.downloadBtn}>
-                  <Text style={pdfStyles.downloadBtnText}>Click to Download Reports</Text>
+                  <View style={pdfStyles.downloadBtnInner}>
+                    <Svg style={pdfStyles.downloadBtnIcon} viewBox="0 0 24 24">
+                      {/* Arrow body pointing down */}
+                      <Path d="M12 16l-6-6h4V4h4v6h4l-6 6z" fill="#ffffff" />
+                      {/* Bottom bar */}
+                      <Path d="M20 18H4v2h16v-2z" fill="#ffffff" />
+                    </Svg>
+                    <Text style={pdfStyles.downloadBtnText}>Click to Download Reports</Text>
+                  </View>
                 </Link>
               </View>
             )}
@@ -603,9 +628,7 @@ const InvoiceCard = ({
         {qrCodeUrl && (
           <div className="shrink-0 flex flex-col items-center gap-0.5">
             <img src={qrCodeUrl} alt="QR Code" className="w-20 h-20" />
-            <p className="text-[9px] text-gray-500 text-center leading-tight">
-              Scan to download Reports
-            </p>
+            <p className="text-[9px] text-gray-500 text-center leading-tight">Scan to download Reports</p>
             <a
               href={invoiceData.reportLink}
               target="_blank"
