@@ -394,23 +394,21 @@ const PrintInvoice = () => {
         `Download your reports here:\n${invoiceData.reportLink}\n\n` +
         `For queries: ${labInfo.phone}\n— ${labInfo.name}`;
 
-      // Generate PDF before any share call to stay within user gesture window
+      // Generate PDF first
       const pdfBlob = await generatePDFBlob();
       const fileName = getFileName();
 
+      // Step 1: Download PDF silently (no gesture needed for <a> click)
+      downloadBlob(pdfBlob, fileName);
+
+      // Step 2: Share text message via native share sheet
       if (navigator.share) {
-        // Share text message only — adding files alongside text causes iOS/Android
-        // to silently drop the text field and only send the file
         await navigator.share({
           title: `Invoice – ${invoiceData.patientName}`,
           text: message,
         });
-        // After text is shared, auto-download the PDF so user has both
-        downloadBlob(pdfBlob, fileName);
       } else {
-        // Desktop fallback: WhatsApp + download
         window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
-        downloadBlob(pdfBlob, fileName);
       }
     } catch (error) {
       if (error.name !== "AbortError") {
