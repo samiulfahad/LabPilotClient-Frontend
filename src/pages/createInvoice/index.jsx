@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Calendar,
   Building2,
+  Wallet,
 } from "lucide-react";
 import Modal from "../../components/modal";
 import Popup from "../../components/popup";
@@ -35,6 +36,9 @@ const InvoiceSummary = ({ formData, onConfirm, onClose }) => {
       minimumFractionDigits: 0,
     }).format(amount);
   };
+
+  const dueAmount = Math.max(0, formData.finalPrice - (formData.paidAmount || 0));
+  const isFullyPaid = dueAmount === 0;
 
   return (
     <div className="bg-white rounded-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-xl">
@@ -82,8 +86,8 @@ const InvoiceSummary = ({ formData, onConfirm, onClose }) => {
               <div className="col-span-2">
                 <p className="text-gray-500">Referred By</p>
                 <p className="font-medium text-gray-900">
-                  {formData.referredBy.name}
-                  {formData.referredBy.degree && (
+                  {typeof formData.referredBy === "string" ? formData.referredBy : formData.referredBy.name}
+                  {typeof formData.referredBy === "object" && formData.referredBy.degree && (
                     <span className="text-gray-600 text-sm font-normal ml-2">({formData.referredBy.degree})</span>
                   )}
                 </p>
@@ -153,6 +157,29 @@ const InvoiceSummary = ({ formData, onConfirm, onClose }) => {
             <div className="flex justify-between pt-3 border-t-2 border-gray-200 text-base">
               <span className="font-semibold text-gray-900">Total Amount</span>
               <span className="text-xl font-bold text-blue-600">{formatCurrency(formData.finalPrice)}</span>
+            </div>
+
+            {/* Paid / Due Section */}
+            <div className="mt-3 pt-3 border-t border-dashed border-gray-300 space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600 flex items-center gap-1.5">
+                  <Wallet className="w-3.5 h-3.5 text-green-600" />
+                  Paid Amount
+                </span>
+                <span className="font-medium text-green-600">{formatCurrency(formData.paidAmount || 0)}</span>
+              </div>
+              {!isFullyPaid && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Due Amount</span>
+                  <span className="font-medium text-red-600">{formatCurrency(dueAmount)}</span>
+                </div>
+              )}
+              {isFullyPaid && (
+                <div className="flex items-center justify-end gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-green-600" />
+                  <span className="text-green-600 text-xs font-medium">Fully Paid</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -247,6 +274,9 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
     }).format(amount);
   };
 
+  const dueAmount = Math.max(0, formData.finalPrice - (formData.paidAmount || 0));
+  const isFullyPaid = formData.paidAmount >= formData.finalPrice && formData.finalPrice > 0;
+
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       {/* Patient Information Section */}
@@ -283,17 +313,29 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Gender <span className="text-red-500">*</span>
             </label>
-            <select
-              value={formData.gender}
-              onChange={(e) => onChange("gender", e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
-              required
-            >
-              <option value="">Select gender</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
+            <div className="flex gap-2">
+              {["male", "female", "other"].map((g) => (
+                <label
+                  key={g}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 border rounded-lg cursor-pointer transition-all text-sm font-medium select-none ${
+                    formData.gender === g
+                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      : "border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="gender"
+                    value={g}
+                    checked={formData.gender === g}
+                    onChange={() => onChange("gender", g)}
+                    className="sr-only"
+                    required={formData.gender === ""}
+                  />
+                  <span className="capitalize">{g}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
           {/* Age */}
@@ -345,17 +387,37 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
               <input
                 type="text"
                 value={
-                  formData.referredBy
+                  formData.referredBy && typeof formData.referredBy === "object"
                     ? `${formData.referredBy.name}${formData.referredBy.degree ? ` (${formData.referredBy.degree})` : ""}`
                     : referrerSearchQuery
                 }
                 onChange={(e) => {
-                  setReferrerSearchQuery(e.target.value);
-                  if (formData.referredBy) onChange("referredBy", null);
+                  const val = e.target.value;
+                  setReferrerSearchQuery(val);
+                  // If a matched referrer object was selected before, clear it
+                  if (formData.referredBy && typeof formData.referredBy === "object") {
+                    onChange("referredBy", null);
+                  }
                   setShowReferrerDropdown(true);
                 }}
                 onFocus={() => setShowReferrerDropdown(true)}
-                className="w-full pl-9 pr-9 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
+                onBlur={() => {
+                  // On blur: if there's typed text but no matched object selected, save as plain string
+                  setTimeout(() => {
+                    if (
+                      referrerSearchQuery.trim() &&
+                      (!formData.referredBy || typeof formData.referredBy !== "object")
+                    ) {
+                      onChange("referredBy", referrerSearchQuery.trim());
+                    }
+                    setShowReferrerDropdown(false);
+                  }, 150);
+                }}
+                className={`w-full pl-9 pr-9 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm ${
+                  formData.referredBy && typeof formData.referredBy === "string"
+                    ? "border-gray-400 bg-gray-50"
+                    : "border-gray-300"
+                }`}
                 placeholder="Search by name or contact number"
               />
               {formData.referredBy && (
@@ -371,7 +433,14 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                 </button>
               )}
 
-              {showReferrerDropdown && (
+              {/* Free-text badge */}
+              {formData.referredBy && typeof formData.referredBy === "string" && (
+                <p className="mt-1 text-xs text-gray-500 pl-1">
+                  Saved as custom referrer: <span className="font-medium text-gray-700">"{formData.referredBy}"</span>
+                </p>
+              )}
+
+              {showReferrerDropdown && referrerSearchQuery && (
                 <div className="absolute top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
                   {filteredReferrers.length > 0 ? (
                     filteredReferrers.map((referrer) => (
@@ -401,9 +470,12 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                       </button>
                     ))
                   ) : (
-                    <div className="px-4 py-6 text-center text-gray-500 text-sm">
-                      <AlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                      <p>No referrers found</p>
+                    <div className="px-4 py-4 text-sm text-gray-500">
+                      <p className="text-center text-gray-400 text-xs mb-1">No matching referrers</p>
+                      <p className="text-center text-gray-600 text-xs">
+                        Press <span className="font-semibold">Tab</span> or click outside to save{" "}
+                        <span className="font-medium text-gray-800">"{referrerSearchQuery}"</span> as a custom referrer
+                      </p>
                     </div>
                   )}
                 </div>
@@ -639,6 +711,56 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
               <span className="text-2xl font-bold text-white">{formatCurrency(formData.finalPrice)}</span>
             </div>
           </div>
+
+          {/* Paid Amount Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-green-50 rounded">
+                <Wallet className="w-3.5 h-3.5 text-green-600" />
+              </div>
+              <label className="text-sm font-medium text-gray-700">Paid Amount</label>
+            </div>
+            <div className="relative">
+              <Wallet className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="number"
+                value={formData.paidAmount}
+                onChange={(e) => onChange("paidAmount", parseFloat(e.target.value) || 0)}
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 text-sm"
+                placeholder="Enter amount paid by patient"
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            {/* Paid/Due Summary */}
+            {formData.finalPrice > 0 && (
+              <div className="p-4 rounded-lg border border-gray-200 bg-gray-50 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
+                    Paid
+                  </span>
+                  <span className="font-medium text-green-600">{formatCurrency(formData.paidAmount || 0)}</span>
+                </div>
+                {!isFullyPaid && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
+                      Due
+                    </span>
+                    <span className="font-medium text-red-600">{formatCurrency(dueAmount)}</span>
+                  </div>
+                )}
+                {isFullyPaid && (
+                  <div className="flex items-center gap-1.5 text-green-600 text-sm font-medium">
+                    <Check className="w-3.5 h-3.5" />
+                    Fully Paid
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -674,6 +796,7 @@ const initialFormData = {
   hasLabAdjustment: false,
   labAdjustmentAmount: 0,
   finalPrice: 0,
+  paidAmount: 0,
 };
 
 const CreateInvoice = () => {
@@ -690,7 +813,6 @@ const CreateInvoice = () => {
   const loadRequiredData = async () => {
     try {
       const response = await invoiceService.getRequiredData();
-      // console.log(response.data.tests);
       setAvailableReferrers(response.data.referrers || []);
       setAvailableTests(response.data.tests || []);
     } catch (error) {
@@ -799,13 +921,12 @@ const CreateInvoice = () => {
         gender: formData.gender,
         age: formData.age,
         contactNumber: formData.contactNumber,
-        referredBy: formData.referredBy?._id || null,
+        referredBy: formData.referredBy?._id || formData.referredBy || null,
         tests: formData.selectedTests.map((test) => ({
           testId: test._id,
           name: test.name,
           price: test.price,
           schemaId: test?.schemaId || null,
-          
         })),
         totalAmount: formData.totalAmount,
         hasReferrerDiscount: formData.hasReferrerDiscount,
@@ -814,12 +935,12 @@ const CreateInvoice = () => {
         hasLabAdjustment: formData.hasLabAdjustment,
         labAdjustmentAmount: formData.labAdjustmentAmount,
         finalPrice: formData.finalPrice,
+        paidAmount: formData.paidAmount || 0,
       };
 
       // API Call
       const response = await invoiceService.createInvoice(invoiceData);
       console.log(response);
-      // let response = { data: { _id: 123 } };
 
       // Navigate to print page with the created invoice data
       navigate(`/invoice/print/${response.data.invoiceId}`, {
@@ -829,6 +950,7 @@ const CreateInvoice = () => {
             invoiceId: response?.data?.invoiceId,
             tests: formData.selectedTests,
             referredBy: formData.referredBy,
+            referredByName: typeof formData.referredBy === "string" ? formData.referredBy : null,
           },
         },
       });

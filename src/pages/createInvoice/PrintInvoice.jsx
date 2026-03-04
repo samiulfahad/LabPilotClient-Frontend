@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
-import { Printer, Download, Phone, Mail, MapPin, FileText, Share2 } from "lucide-react";
+import { Printer, Download, Phone, Mail, MapPin, FileText, Share2, Wallet, CheckCircle } from "lucide-react";
 import QRCode from "qrcode";
 import { pdf, Document, Page, View, Text, Image, StyleSheet, Link, Svg, Path } from "@react-pdf/renderer";
 import invoiceService from "../../api/invoice";
@@ -124,10 +124,23 @@ const pdfStyles = StyleSheet.create({
   pricingLabel: { fontSize: 8, color: "#6b7280" },
   pricingValue: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#111827" },
   pricingDiscount: { fontSize: 8, color: "#dc2626" },
+  pricingPaid: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#16a34a" },
+  pricingDue: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#dc2626" },
   divider: { borderTop: "1.5 solid #d1d5db", marginVertical: 5 },
+  dashedDivider: { borderTop: "1 dashed #d1d5db", marginVertical: 5 },
   totalRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
   totalLabel: { fontSize: 10, fontFamily: "Helvetica-Bold", color: "#111827" },
   totalValue: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#2563eb" },
+  paidBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    marginTop: 6,
+    padding: "4 8",
+    backgroundColor: "#dcfce7",
+    borderRadius: 4,
+  },
+  paidBadgeText: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#16a34a" },
 });
 
 // ============================================================================
@@ -140,6 +153,10 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, invoiceDate, invo
       : 0;
   const showReferrerDiscount = invoiceData.hasReferrerDiscount && referrerDiscountAmount > 0;
   const showLabAdjustment = invoiceData.hasLabAdjustment && invoiceData.labAdjustmentAmount > 0;
+
+  const paidAmount = Number(invoiceData.paidAmount) || 0;
+  const dueAmount = Math.max(0, invoiceData.finalPrice - paidAmount);
+  const isFullyPaid = dueAmount === 0;
 
   return (
     <Document>
@@ -193,8 +210,9 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, invoiceDate, invo
                 <View style={pdfStyles.patientFieldFull}>
                   <Text style={pdfStyles.fieldLabel}>Referred By</Text>
                   <Text style={pdfStyles.fieldValue}>
-                    {invoiceData.referredBy.name}
-                    {invoiceData.referredBy.degree ? ` (${invoiceData.referredBy.degree})` : ""}
+                    {typeof invoiceData.referredBy === "string"
+                      ? invoiceData.referredBy
+                      : `${invoiceData.referredBy.name}${invoiceData.referredBy.degree ? ` (${invoiceData.referredBy.degree})` : ""}`}
                   </Text>
                 </View>
               )}
@@ -261,6 +279,24 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, invoiceDate, invo
                 <Text style={pdfStyles.totalLabel}>Total Amount</Text>
                 <Text style={pdfStyles.totalValue}>{formatCurrency(invoiceData.finalPrice)}</Text>
               </View>
+
+              {/* Paid / Due in PDF */}
+              <View style={pdfStyles.dashedDivider} />
+              <View style={pdfStyles.pricingRow}>
+                <Text style={pdfStyles.pricingLabel}>Paid Amount</Text>
+                <Text style={pdfStyles.pricingPaid}>{formatCurrency(paidAmount)}</Text>
+              </View>
+              {!isFullyPaid && (
+                <View style={pdfStyles.pricingRow}>
+                  <Text style={pdfStyles.pricingLabel}>Due Amount</Text>
+                  <Text style={pdfStyles.pricingDue}>{formatCurrency(dueAmount)}</Text>
+                </View>
+              )}
+              {isFullyPaid && (
+                <View style={pdfStyles.paidBadge}>
+                  <Text style={pdfStyles.paidBadgeText}>✓ FULLY PAID</Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -294,9 +330,7 @@ const PrintInvoice = () => {
     email: "info@labpilotpro.com",
   };
 
-  useEffect(() => {
-    loadInvoiceData();
-  }, []); // eslint-disable-line
+
 
   const loadInvoiceData = async () => {
     try {
@@ -304,14 +338,18 @@ const PrintInvoice = () => {
       if (location.state?.invoiceData) {
         data = location.state.invoiceData;
       } else if (invoiceId) {
-        const response = await invoiceService.getInvoiceById(invoiceId);
+        setLoading(true)
+        const response = await invoiceService.getInvoiceByInvoiceId(invoiceId);
         data = response.data;
       } else {
         setPopup({ type: "error", message: "No invoice data available" });
-        setTimeout(() => navigate("/invoice/new"), 2000);
+        setTimeout(() => navigate("/invoice/new"), 20000);
         setLoading(false);
         return;
       }
+
+      const finalPrice = Number(data.finalPrice) || Number(data.totalAmount) || 0;
+      const paidAmount = Number(data.paidAmount) || 0;
 
       const processedData = {
         _id: data._id || "",
@@ -328,7 +366,8 @@ const PrintInvoice = () => {
         priceAfterReferrerDiscount: Number(data.priceAfterReferrerDiscount) || Number(data.totalAmount) || 0,
         hasLabAdjustment: data.hasLabAdjustment || false,
         labAdjustmentAmount: Number(data.labAdjustmentAmount) || 0,
-        finalPrice: Number(data.finalPrice) || Number(data.totalAmount) || 0,
+        finalPrice,
+        paidAmount,
         reportLink: data.reportLink || data.link || "https://labpilotpro.com",
       };
 
@@ -342,6 +381,9 @@ const PrintInvoice = () => {
       setLoading(false);
     }
   };
+    useEffect(() => {
+    loadInvoiceData();
+  }, []); // eslint-disable-line
 
   const generateQRCode = async (url) => {
     try {
@@ -547,6 +589,10 @@ const InvoiceCard = ({
   showLabAdjustment,
   referrerDiscountAmount,
 }) => {
+  const paidAmount = Number(invoiceData.paidAmount) || 0;
+  const dueAmount = Math.max(0, invoiceData.finalPrice - paidAmount);
+  const isFullyPaid = dueAmount === 0;
+
   return (
     <div className="bg-white shadow-lg rounded-xl overflow-hidden">
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5">
@@ -614,8 +660,8 @@ const InvoiceCard = ({
               <div className="col-span-2">
                 <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Referred By</p>
                 <p className="text-sm font-medium text-gray-900">
-                  {invoiceData.referredBy.name}
-                  {invoiceData.referredBy.degree && (
+                  {typeof invoiceData.referredBy === "string" ? invoiceData.referredBy : invoiceData.referredBy.name}
+                  {typeof invoiceData.referredBy === "object" && invoiceData.referredBy.degree && (
                     <span className="text-gray-600 font-normal ml-1.5">({invoiceData.referredBy.degree})</span>
                   )}
                 </p>
@@ -690,6 +736,29 @@ const InvoiceCard = ({
             <div className="flex justify-between pt-2 border-t-2 border-gray-200">
               <span className="text-base font-semibold text-gray-900">Total Amount</span>
               <span className="text-lg font-bold text-blue-600">{formatCurrency(invoiceData.finalPrice)}</span>
+            </div>
+
+            {/* Paid / Due Section */}
+            <div className="pt-2 border-t border-dashed border-gray-300 space-y-1.5">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600 flex items-center gap-1.5">
+                  <Wallet className="w-3.5 h-3.5 text-green-600" />
+                  Paid Amount
+                </span>
+                <span className="font-semibold text-green-600">{formatCurrency(paidAmount)}</span>
+              </div>
+              {!isFullyPaid && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Due Amount</span>
+                  <span className="font-semibold text-red-600">{formatCurrency(dueAmount)}</span>
+                </div>
+              )}
+              {isFullyPaid && (
+                <div className="flex items-center justify-end gap-1.5 py-1 px-2 bg-green-50 rounded-lg">
+                  <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+                  <span className="text-green-700 text-xs font-semibold tracking-wide uppercase">Fully Paid</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

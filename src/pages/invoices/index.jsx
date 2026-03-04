@@ -3,18 +3,17 @@ import {
   FileText,
   Search,
   X,
-  Upload,
-  Eye,
-  Edit,
-  Download,
-  ChevronDown,
-  ChevronUp,
   Activity,
   CheckCircle2,
-  Clock,
-  FlaskConical,
   ArrowLeft,
   Plus,
+  Phone,
+  Wallet,
+  AlertCircle,
+  PackageCheck,
+  FlaskConical,
+  Banknote,
+  Pencil,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Popup from "../../components/popup";
@@ -55,15 +54,16 @@ const formatInvoiceDateTime = (invoiceId) => {
 // ============================================================================
 const SkeletonInvoice = () => (
   <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 animate-pulse">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4 flex-1">
-        <div className="w-8 h-8 rounded-lg bg-gray-200" />
-        <div className="flex-1">
-          <div className="h-4 bg-gray-200 rounded w-1/3 mb-2" />
-          <div className="h-3 bg-gray-100 rounded w-1/2" />
-        </div>
+    <div className="flex items-center justify-between gap-3">
+      <div className="w-8 h-8 rounded-lg bg-gray-200 shrink-0" />
+      <div className="flex-1 space-y-2">
+        <div className="h-4 bg-gray-200 rounded w-1/3" />
+        <div className="h-3 bg-gray-100 rounded w-1/2" />
       </div>
-      <div className="h-8 w-20 bg-gray-200 rounded-lg" />
+      <div className="flex gap-2">
+        <div className="h-7 w-16 bg-gray-200 rounded-lg" />
+        <div className="h-7 w-16 bg-gray-200 rounded-lg" />
+      </div>
     </div>
   </div>
 );
@@ -71,141 +71,175 @@ const SkeletonInvoice = () => (
 // ============================================================================
 // INVOICE ROW
 // ============================================================================
-const InvoiceRow = ({ invoice, index, onAction }) => {
-  const [expanded, setExpanded] = useState(false);
+const InvoiceRow = ({ invoice, index, onDelivered, onCollected }) => {
+  const { date, time } = formatInvoiceDateTime(invoice.invoiceId);
+  const [confirming, setConfirming] = useState(false);
+  const [delivering, setDelivering] = useState(false);
+  const [collectingDue, setCollectingDue] = useState(false);
+  const [collecting, setCollecting] = useState(false);
+
+  const paidAmount = Number(invoice.paidAmount) || 0;
+  const finalPrice = Number(invoice.finalPrice) || 0;
+  const dueAmount = Math.max(0, finalPrice - paidAmount);
+  const isFullyPaid = dueAmount === 0;
 
   const onlineTests = invoice.tests.filter((t) => t.schemaId);
-  const offlineTests = invoice.tests.filter((t) => !t.schemaId);
-  const completedCount = onlineTests.filter((t) => t.isCompleted).length;
-  const { date, time } = formatInvoiceDateTime(invoice.invoiceId);
+  const hasReports = onlineTests.length > 0;
+
+  const handleConfirm = async () => {
+    try {
+      setDelivering(true);
+      await invoiceService.markDelivered(invoice.invoiceId);
+      onDelivered(invoice.invoiceId);
+    } catch {
+      // parent can handle error display if needed
+    } finally {
+      setDelivering(false);
+    }
+  };
+
+  const handleCollectDue = async () => {
+    try {
+      setCollecting(true);
+      await invoiceService.collectDue(invoice.invoiceId);
+      onCollected(invoice.invoiceId);
+    } catch {
+      // parent can handle error display if needed
+    } finally {
+      setCollecting(false);
+    }
+  };
+
+  const DeliveryBadge = () =>
+    invoice.isDelivered ? (
+      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-50 text-blue-600 border border-blue-100 text-xs font-medium">
+        <PackageCheck className="w-3 h-3" />
+        Delivered
+      </span>
+    ) : (
+      <button
+        onClick={() => setConfirming(true)}
+        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white text-gray-500 border border-gray-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 text-xs font-medium transition-all"
+      >
+        <PackageCheck className="w-3 h-3" />
+        Mark Delivered
+      </button>
+    );
+
+  const PaymentBadge = () =>
+    isFullyPaid ? (
+      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-50 text-green-700 border border-green-100 text-xs font-medium">
+        <CheckCircle2 className="w-3 h-3" />
+        Paid
+      </span>
+    ) : (
+      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-50 text-red-600 border border-red-100 text-xs font-medium">
+        <Wallet className="w-3 h-3" />
+        Due ৳{dueAmount.toLocaleString()}
+      </span>
+    );
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200">
-      {/* Main Row */}
-      <div className="flex items-center gap-3 p-4">
-        {/* Index */}
-        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
-          <span className="text-xs font-bold text-indigo-600">{index + 1}</span>
-        </div>
-
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            <span className="font-semibold text-gray-900 text-sm">{invoice.patientName}</span>
-            <span className="text-[10px] font-mono bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md">
-              #{invoice.invoiceId}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-            <span>
-              {date} · {time}
-            </span>
-            {onlineTests.length > 0 && (
-              <span className="flex items-center gap-1">
-                <FlaskConical className="w-3 h-3 text-indigo-400" />
-                <span className="text-indigo-600 font-medium">{onlineTests.length} online</span>
-              </span>
-            )}
-            {offlineTests.length > 0 && (
-              <span className="flex items-center gap-1">
-                <FileText className="w-3 h-3 text-gray-400" />
-                <span className="text-gray-500">{offlineTests.length} offline</span>
-              </span>
-            )}
-            {onlineTests.length > 0 && (
-              <span className="flex items-center gap-1">
-                {completedCount === onlineTests.length ? (
-                  <CheckCircle2 className="w-3 h-3 text-green-500" />
-                ) : (
-                  <Clock className="w-3 h-3 text-amber-400" />
-                )}
-                <span
-                  className={completedCount === onlineTests.length ? "text-green-600 font-medium" : "text-amber-600"}
-                >
-                  {completedCount}/{onlineTests.length} done
-                </span>
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Amount */}
-        <div className="text-right shrink-0 hidden sm:block">
-          <p className="text-sm font-bold text-gray-900">৳{invoice.finalPrice.toLocaleString()}</p>
-          {invoice.finalPrice < invoice.totalAmount && (
-            <p className="text-xs text-gray-400 line-through">৳{invoice.totalAmount.toLocaleString()}</p>
-          )}
-        </div>
-
-        {/* Expand toggle */}
-        {onlineTests.length > 0 && (
-          <button
-            onClick={() => setExpanded((p) => !p)}
-            className="ml-1 p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-indigo-600 transition-colors shrink-0"
-          >
-            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-        )}
-      </div>
-
-      {/* Expanded: Online Tests */}
-      {expanded && onlineTests.length > 0 && (
-        <div className="border-t border-gray-100 px-4 pb-4 pt-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Online Tests</p>
-          <div className="space-y-2">
-            {onlineTests.map((test, i) => (
-              <div
-                key={test.testId?.$oid || i}
-                className="flex items-center justify-between gap-3 bg-gray-50 rounded-lg px-3 py-2.5"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div
-                    className={`w-2 h-2 rounded-full shrink-0 ${test.isCompleted ? "bg-green-400" : "bg-amber-400"}`}
-                  />
-                  <span className="text-sm text-gray-800 font-medium truncate">{test.name}</span>
-                  <span className="text-xs text-gray-400 shrink-0">৳{test.price.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {!test.isCompleted ? (
-                    <button
-                      onClick={() => onAction("upload", invoice, test)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                    >
-                      <Upload className="w-3 h-3" />
-                      Upload
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => onAction("view", invoice, test)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        <Eye className="w-3 h-3" />
-                        View
-                      </button>
-                      <button
-                        onClick={() => onAction("edit", invoice, test)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        <Edit className="w-3 h-3" />
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => onAction("download", invoice, test)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        <Download className="w-3 h-3" />
-                        PDF
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+    <>
+      {confirming && (
+        <Popup
+          type="warning"
+          message={`Mark invoice #${invoice.invoiceId} for ${invoice.patientName} as delivered? This action cannot be undone.`}
+          confirmText={delivering ? "Saving..." : "Mark Delivered"}
+          cancelText="Cancel"
+          onConfirm={handleConfirm}
+          onClose={() => setConfirming(false)}
+        />
       )}
-    </div>
+      {collectingDue && (
+        <Popup
+          type="warning"
+          message={`Collect the full due amount of ৳${dueAmount.toLocaleString()} from ${invoice.patientName} (Invoice #${invoice.invoiceId})? This will mark the invoice as fully paid.`}
+          confirmText={collecting ? "Saving..." : "Collect ৳" + dueAmount.toLocaleString()}
+          cancelText="Cancel"
+          onConfirm={handleCollectDue}
+          onClose={() => setCollectingDue(false)}
+        />
+      )}
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 hover:border-indigo-100 hover:shadow-md transition-all duration-200">
+        <div className="flex items-center gap-3 px-4 pt-3.5 pb-2.5">
+
+          {/* Index */}
+          <div className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+            <span className="text-[11px] font-bold text-indigo-600">{index + 1}</span>
+          </div>
+
+          {/* Name + meta — grows */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-semibold text-gray-900 text-sm leading-none truncate">{invoice.patientName}</span>
+              <span className="text-[10px] font-mono bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded shrink-0">
+                #{invoice.invoiceId}
+              </span>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-gray-400">
+              <span>{date} · {time}</span>
+              <span className="flex items-center gap-1">
+                <Phone className="w-3 h-3" />
+                {invoice.contactNumber}
+              </span>
+            </div>
+          </div>
+
+          {/* Amount — fixed width, right-aligned, desktop only */}
+          <div className="hidden md:flex flex-col items-end shrink-0 w-20">
+            <p className="text-sm font-bold text-gray-900 leading-none">৳{finalPrice.toLocaleString()}</p>
+            {!isFullyPaid && (
+              <p className="text-[10px] text-red-400 font-medium mt-0.5">৳{dueAmount.toLocaleString()} due</p>
+            )}
+          </div>
+
+          {/* Action buttons — fixed, right-aligned */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Link
+              to={`/invoice/edit/${invoice.invoiceId}`}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors"
+            >
+              <Pencil className="w-3 h-3" />
+              Edit
+            </Link>
+            <Link
+              to={`/invoice/print/${invoice.invoiceId}`}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-lg transition-colors"
+            >
+              <FileText className="w-3 h-3" />
+              Invoice
+            </Link>
+            {hasReports && (
+              <Link
+                to={`/invoice/reports/${invoice.invoiceId}`}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+              >
+                <FlaskConical className="w-3 h-3" />
+                Reports
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom row — status badges, consistent height */}
+        <div className="flex items-center gap-2 px-4 pb-3 pt-0 border-t border-gray-50">
+          <PaymentBadge />
+          {!isFullyPaid && (
+            <button
+              onClick={() => setCollectingDue(true)}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white text-gray-500 border border-gray-200 hover:border-green-300 hover:text-green-600 hover:bg-green-50 text-xs font-medium transition-all"
+            >
+              <Banknote className="w-3 h-3" />
+              Collect Due
+            </button>
+          )}
+          <div className="w-px h-3.5 bg-gray-200 mx-0.5" />
+          <DeliveryBadge />
+        </div>
+      </div>
+    </>
   );
 };
 
@@ -236,20 +270,16 @@ const InvoiceList = () => {
     loadInvoices();
   }, []);
 
-  // Stats
   const total = invoices.length;
-  const pending = invoices.filter((inv) => inv.tests.some((t) => t.schemaId && !t.isCompleted)).length;
-  const completed = invoices.filter((inv) => inv.tests.filter((t) => t.schemaId).every((t) => t.isCompleted)).length;
-  const stats = { total, pending, completed };
+  const pending = invoices.filter((inv) => Math.max(0, (inv.finalPrice || 0) - (inv.paidAmount || 0)) > 0).length;
+  const completed = invoices.filter((inv) => Math.max(0, (inv.finalPrice || 0) - (inv.paidAmount || 0)) === 0).length;
 
-  // Filtered list
   let filteredInvoices = [...invoices];
-
   if (statusFilter === "pending") {
-    filteredInvoices = filteredInvoices.filter((inv) => inv.tests.some((t) => t.schemaId && !t.isCompleted));
-  } else if (statusFilter === "completed") {
-    filteredInvoices = filteredInvoices.filter((inv) =>
-      inv.tests.filter((t) => t.schemaId).every((t) => t.isCompleted),
+    filteredInvoices = filteredInvoices.filter((inv) => Math.max(0, (inv.finalPrice || 0) - (inv.paidAmount || 0)) > 0);
+  } else if (statusFilter === "paid") {
+    filteredInvoices = filteredInvoices.filter(
+      (inv) => Math.max(0, (inv.finalPrice || 0) - (inv.paidAmount || 0)) === 0,
     );
   }
 
@@ -257,19 +287,27 @@ const InvoiceList = () => {
     const q = searchQuery.toLowerCase();
     filteredInvoices = filteredInvoices.filter(
       (inv) =>
-        inv.patientName.toLowerCase().includes(q) || String(inv.invoiceId).includes(q) || inv.contactNumber.includes(q),
+        inv.patientName.toLowerCase().includes(q) ||
+        String(inv.invoiceId).includes(q) ||
+        inv.contactNumber.includes(q),
     );
   }
 
-  const handleAction = (action, invoice, test) => {
-    // Wire up: "upload" | "view" | "edit" | "download"
-    console.log(action, invoice.invoiceId, test.name);
+  const handleDelivered = (invoiceId) => {
+    setInvoices((prev) => prev.map((inv) => (inv.invoiceId === invoiceId ? { ...inv, isDelivered: true } : inv)));
+  };
+
+  const handleCollected = (invoiceId) => {
+    setInvoices((prev) =>
+      prev.map((inv) =>
+        inv.invoiceId === invoiceId ? { ...inv, paidAmount: inv.finalPrice } : inv
+      )
+    );
   };
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
       {loading && <LoadingScreen message={loadingMessage} />}
-
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       <div className="max-w-5xl mx-auto">
@@ -320,68 +358,50 @@ const InvoiceList = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-indigo-50 rounded-lg">
-                <FileText className="w-5 h-5 text-indigo-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 font-medium">Total</p>
-                {initialLoading ? (
-                  <div className="h-7 w-10 bg-gray-200 rounded animate-pulse" />
-                ) : (
-                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-amber-50 rounded-lg">
-                <Clock className="w-5 h-5 text-amber-500" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 font-medium">Pending</p>
-                {initialLoading ? (
-                  <div className="h-7 w-10 bg-gray-200 rounded animate-pulse" />
-                ) : (
-                  <p className="text-2xl font-bold text-amber-500">{stats.pending}</p>
-                )}
+          {[
+            { label: "Total", value: total, icon: FileText, color: "indigo" },
+            { label: "Due", value: pending, icon: AlertCircle, color: "red" },
+            { label: "Paid", value: completed, icon: CheckCircle2, color: "green" },
+          ].map(({ label, value, icon: Icon, color }) => (
+            <div key={label} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-2">
+                <div className={`p-2 bg-${color}-50 rounded-lg`}>
+                  <Icon className={`w-5 h-5 text-${color}-${color === "indigo" ? "600" : color === "red" ? "400" : "500"}`} />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">{label}</p>
+                  {initialLoading ? (
+                    <div className="h-7 w-10 bg-gray-200 rounded animate-pulse" />
+                  ) : (
+                    <p className={`text-2xl font-bold text-${color}-${color === "indigo" ? "900" : color === "red" ? "500" : "600"}`}>
+                      {value}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-green-50 rounded-lg">
-                <CheckCircle2 className="w-5 h-5 text-green-500" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 font-medium">Completed</p>
-                {initialLoading ? (
-                  <div className="h-7 w-10 bg-gray-200 rounded animate-pulse" />
-                ) : (
-                  <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
-                )}
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
           <div className="flex flex-wrap items-center gap-4">
-            <span className="text-sm font-semibold text-gray-700">Status:</span>
+            <span className="text-sm font-semibold text-gray-700">Filter:</span>
             <div className="flex rounded-lg bg-gray-100 p-1">
-              {["all", "pending", "completed"].map((s) => (
+              {[
+                { key: "all", label: "All" },
+                { key: "pending", label: "Due" },
+                { key: "paid", label: "Paid" },
+              ].map(({ key, label }) => (
                 <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
+                  key={key}
+                  onClick={() => setStatusFilter(key)}
                   disabled={initialLoading}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
-                    statusFilter === s ? "bg-white text-indigo-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                    statusFilter === key ? "bg-white text-indigo-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
                   } ${initialLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
-                  {s}
+                  {label}
                 </button>
               ))}
             </div>
@@ -394,7 +414,7 @@ const InvoiceList = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by name, invoice ID, or contact number..."
+              placeholder="Search by name, invoice ID, or contact..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               disabled={initialLoading}
@@ -404,7 +424,7 @@ const InvoiceList = () => {
               <button
                 onClick={() => setSearchQuery("")}
                 disabled={initialLoading}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -415,9 +435,7 @@ const InvoiceList = () => {
         {/* Invoice List */}
         {initialLoading ? (
           <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => (
-              <SkeletonInvoice key={i} />
-            ))}
+            {[1, 2, 3, 4].map((i) => <SkeletonInvoice key={i} />)}
           </div>
         ) : filteredInvoices.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
@@ -445,7 +463,7 @@ const InvoiceList = () => {
         ) : (
           <div className="space-y-3">
             {filteredInvoices.map((invoice, index) => (
-              <InvoiceRow key={invoice._id} invoice={invoice} index={index} onAction={handleAction} />
+              <InvoiceRow key={invoice._id} invoice={invoice} index={index} onDelivered={handleDelivered} onCollected={handleCollected} />
             ))}
           </div>
         )}

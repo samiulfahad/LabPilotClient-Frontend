@@ -279,7 +279,7 @@ const InvoiceDetail = ({ invoice, onUploadSuccess }) => {
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
-const UploadReport = () => {
+const SearchInvoice = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [invoice, setInvoice] = useState(null);
   const [searching, setSearching] = useState(false);
@@ -339,9 +339,8 @@ const UploadReport = () => {
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
             <Upload className="w-7 h-7 text-indigo-600" />
-            Upload Report
+            Upload and Download Reports
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Search by invoice ID to upload a patient report</p>
         </div>
 
         {/* Search Box */}
@@ -397,4 +396,4 @@ const UploadReport = () => {
   );
 };
 
-export default UploadReport;
+export default SearchInvoice;
