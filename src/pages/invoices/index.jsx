@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ArrowLeft,
   Plus,
-  Phone,
   Wallet,
   AlertCircle,
   PackageCheck,
@@ -164,7 +163,6 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected }) => {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 hover:border-indigo-100 hover:shadow-md transition-all duration-200">
         <div className="flex items-center gap-3 px-4 pt-3.5 pb-2.5">
-
           {/* Index */}
           <div className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
             <span className="text-[11px] font-bold text-indigo-600">{index + 1}</span>
@@ -172,19 +170,7 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected }) => {
 
           {/* Name + meta — grows */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-semibold text-gray-900 text-sm leading-none truncate">{invoice.patientName}</span>
-              <span className="text-[10px] font-mono bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded shrink-0">
-                #{invoice.invoiceId}
-              </span>
-            </div>
-            <div className="flex items-center gap-3 text-xs text-gray-400">
-              <span>{date} · {time}</span>
-              <span className="flex items-center gap-1">
-                <Phone className="w-3 h-3" />
-                {invoice.contactNumber}
-              </span>
-            </div>
+            <span className="font-semibold text-gray-900 text-sm leading-none truncate">{invoice.patientName}</span>
           </div>
 
           {/* Amount — fixed width, right-aligned, desktop only */}
@@ -287,9 +273,7 @@ const InvoiceList = () => {
     const q = searchQuery.toLowerCase();
     filteredInvoices = filteredInvoices.filter(
       (inv) =>
-        inv.patientName.toLowerCase().includes(q) ||
-        String(inv.invoiceId).includes(q) ||
-        inv.contactNumber.includes(q),
+        inv.patientName.toLowerCase().includes(q) || String(inv.invoiceId).includes(q) || inv.contactNumber.includes(q),
     );
   }
 
@@ -299,9 +283,7 @@ const InvoiceList = () => {
 
   const handleCollected = (invoiceId) => {
     setInvoices((prev) =>
-      prev.map((inv) =>
-        inv.invoiceId === invoiceId ? { ...inv, paidAmount: inv.finalPrice } : inv
-      )
+      prev.map((inv) => (inv.invoiceId === invoiceId ? { ...inv, paidAmount: inv.finalPrice } : inv)),
     );
   };
 
@@ -363,17 +345,24 @@ const InvoiceList = () => {
             { label: "Due", value: pending, icon: AlertCircle, color: "red" },
             { label: "Paid", value: completed, icon: CheckCircle2, color: "green" },
           ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div
+              key={label}
+              className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+            >
               <div className="flex items-center gap-2">
                 <div className={`p-2 bg-${color}-50 rounded-lg`}>
-                  <Icon className={`w-5 h-5 text-${color}-${color === "indigo" ? "600" : color === "red" ? "400" : "500"}`} />
+                  <Icon
+                    className={`w-5 h-5 text-${color}-${color === "indigo" ? "600" : color === "red" ? "400" : "500"}`}
+                  />
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">{label}</p>
                   {initialLoading ? (
                     <div className="h-7 w-10 bg-gray-200 rounded animate-pulse" />
                   ) : (
-                    <p className={`text-2xl font-bold text-${color}-${color === "indigo" ? "900" : color === "red" ? "500" : "600"}`}>
+                    <p
+                      className={`text-2xl font-bold text-${color}-${color === "indigo" ? "900" : color === "red" ? "500" : "600"}`}
+                    >
                       {value}
                     </p>
                   )}
@@ -435,7 +424,9 @@ const InvoiceList = () => {
         {/* Invoice List */}
         {initialLoading ? (
           <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => <SkeletonInvoice key={i} />)}
+            {[1, 2, 3, 4].map((i) => (
+              <SkeletonInvoice key={i} />
+            ))}
           </div>
         ) : filteredInvoices.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
@@ -463,7 +454,13 @@ const InvoiceList = () => {
         ) : (
           <div className="space-y-3">
             {filteredInvoices.map((invoice, index) => (
-              <InvoiceRow key={invoice._id} invoice={invoice} index={index} onDelivered={handleDelivered} onCollected={handleCollected} />
+              <InvoiceRow
+                key={invoice._id}
+                invoice={invoice}
+                index={index}
+                onDelivered={handleDelivered}
+                onCollected={handleCollected}
+              />
             ))}
           </div>
         )}
