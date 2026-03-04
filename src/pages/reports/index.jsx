@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Upload,
@@ -7,10 +7,11 @@ import {
   FlaskConical,
   FileText,
   CheckCircle2,
-  Clock,
+  Wallet,
   X,
   ChevronRight,
 } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import Popup from "../../components/popup";
 import LoadingScreen from "../../components/loadingPage";
 import invoiceService from "../../api/invoice";
@@ -50,9 +51,6 @@ const formatInvoiceDateTime = (invoiceId) => {
 const ReportUploadModal = ({ invoice, test, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [popup, setPopup] = useState(null);
-
-  // reportData will hold the dynamic fields from the schema
-  // For now it's a placeholder — wire this to your actual schema fields
   const [reportData, setReportData] = useState({});
 
   const handleSubmit = async () => {
@@ -92,7 +90,7 @@ const ReportUploadModal = ({ invoice, test, onClose, onSuccess }) => {
           </button>
         </div>
 
-        {/* Body — placeholder for schema-driven fields */}
+        {/* Body */}
         <div className="px-6 py-5">
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-700 mb-4">
             Schema ID: <span className="font-mono font-semibold">{test.schemaId?.$oid || test.schemaId}</span>
@@ -128,8 +126,11 @@ const ReportUploadModal = ({ invoice, test, onClose, onSuccess }) => {
 // INVOICE DETAIL CARD
 // ============================================================================
 const InvoiceDetail = ({ invoice, onUploadSuccess }) => {
-  const [uploadTarget, setUploadTarget] = useState(null); // { invoice, test }
+  const [uploadTarget, setUploadTarget] = useState(null);
   const { date, time } = formatInvoiceDateTime(invoice.invoiceId);
+  const paidAmount = Number(invoice.paidAmount) || 0;
+  const finalPrice = Number(invoice.finalPrice) || 0;
+  const dueAmount = Math.max(0, finalPrice - paidAmount);
 
   const onlineTests = invoice.tests.filter((t) => t.schemaId);
   const offlineTests = invoice.tests.filter((t) => !t.schemaId);
@@ -164,10 +165,23 @@ const InvoiceDetail = ({ invoice, onUploadSuccess }) => {
             </div>
             <div className="text-right">
               <p className="text-indigo-200 text-xs mb-1">Final Amount</p>
-              <p className="text-white text-2xl font-bold">৳{invoice.finalPrice.toLocaleString()}</p>
-              {invoice.finalPrice < invoice.totalAmount && (
+              <p className="text-white text-2xl font-bold">৳{finalPrice.toLocaleString()}</p>
+              {finalPrice < invoice.totalAmount && (
                 <p className="text-indigo-300 text-xs line-through">৳{invoice.totalAmount.toLocaleString()}</p>
               )}
+              <div className="mt-2">
+                {dueAmount === 0 ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-400/20 text-green-200 border border-green-400/30 text-xs font-semibold">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Fully Paid
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-400/20 text-red-200 border border-red-400/30 text-xs font-semibold">
+                    <Wallet className="w-3 h-3" />
+                    Due ৳{dueAmount.toLocaleString()}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -279,32 +293,43 @@ const InvoiceDetail = ({ invoice, onUploadSuccess }) => {
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
-const SearchInvoice = () => {
+const Reports = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [invoice, setInvoice] = useState(null);
   const [searching, setSearching] = useState(false);
   const [popup, setPopup] = useState(null);
   const [notFound, setNotFound] = useState(false);
 
-  const handleSearch = async () => {
-    const q = searchQuery.trim();
-    if (!q) return;
+  const location = useLocation();
 
+  const fetchInvoice = async (id) => {
     try {
       setSearching(true);
       setNotFound(false);
       setInvoice(null);
-      const response = await invoiceService.getInvoiceByInvoiceId(q);
+      const response = await invoiceService.getInvoiceByInvoiceId(String(id));
       setInvoice(response.data);
     } catch (e) {
-      if (e?.response?.status === 404) {
-        setNotFound(true);
-      } else {
-        setPopup({ type: "error", message: "Failed to search invoice" });
-      }
+      if (e?.response?.status === 404) setNotFound(true);
+      else setPopup({ type: "error", message: "Failed to load invoice" });
     } finally {
       setSearching(false);
     }
+  };
+
+  // Auto-load if navigated here with an invoiceId in router state
+  useEffect(() => {
+    const id = location.state?.invoiceId;
+    if (id) {
+      setSearchQuery(String(id));
+      fetchInvoice(id);
+    }
+  }, []);
+
+  const handleSearch = () => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    fetchInvoice(q);
   };
 
   const handleKeyDown = (e) => {
@@ -318,7 +343,6 @@ const SearchInvoice = () => {
   };
 
   const handleUploadSuccess = (test) => {
-    // Mark test as completed in local state
     setInvoice((prev) => ({
       ...prev,
       tests: prev.tests.map((t) =>
@@ -331,7 +355,6 @@ const SearchInvoice = () => {
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
       {searching && <LoadingScreen message="Searching invoice..." />}
-
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       <div className="max-w-2xl mx-auto">
@@ -396,4 +419,4 @@ const SearchInvoice = () => {
   );
 };
 
-export default SearchInvoice;
+export default Reports;

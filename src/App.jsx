@@ -10,7 +10,7 @@ import AddTest from "./pages/labManagement/manageTests/AddTest";
 import CreateInvoice from "./pages/createInvoice";
 import PrintInvoice from "./pages/createInvoice/PrintInvoice";
 import InvoiceList from "./pages/invoices";
-import Search from "./pages/search";
+import Reports from "./pages/reports";
 
 function App() {
   return (
@@ -21,7 +21,7 @@ function App() {
         <Route path="/invoice/new" element={<CreateInvoice />} />
         <Route path="/invoice/print/:invoiceId" element={<PrintInvoice />} />
         <Route path="/invoice/all" element={<InvoiceList />} />
-        <Route path="/search" element={<Search />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/lab-management" element={<LabManagement />} />
         <Route path="/manage-referrers" element={<ManageReferrers />} />
         <Route path="/manage-staffs" element={<ManageStaffs />} />

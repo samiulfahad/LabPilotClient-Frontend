@@ -13,9 +13,13 @@ import {
   FlaskConical,
   Banknote,
   Pencil,
+  User,
+  Phone,
+  Calendar,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Popup from "../../components/popup";
+import Modal from "../../components/modal";
 import LoadingScreen from "../../components/loadingPage";
 import invoiceService from "../../api/invoice";
 
@@ -49,6 +53,168 @@ const formatInvoiceDateTime = (invoiceId) => {
 };
 
 // ============================================================================
+// EDIT PATIENT MODAL
+// ============================================================================
+const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingChange, onError }) => {
+  const [form, setForm] = useState({ patientName: "", gender: "", age: "", contactNumber: "" });
+
+  useEffect(() => {
+    if (invoice) {
+      setForm({
+        patientName: invoice.patientName || "",
+        gender: invoice.gender || "",
+        age: invoice.age || "",
+        contactNumber: invoice.contactNumber || "",
+      });
+    }
+  }, [invoice]);
+
+  const isValid = form.patientName.trim() && form.gender && form.age && form.contactNumber.trim();
+
+  const handleSubmit = async () => {
+    if (!isValid) return;
+    onClose();
+    try {
+      onLoadingChange("Updating patient info...");
+      await invoiceService.updatePatientInfo(invoice.invoiceId, form);
+      onSaved(invoice.invoiceId, { ...form, age: Number(form.age) });
+    } catch {
+      onError("Failed to update patient info. Please try again.");
+    } finally {
+      onLoadingChange(null);
+    }
+  };
+
+  const inputBase =
+    "w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all placeholder-gray-400 bg-gray-50 focus:bg-white";
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+            <User className="w-4.5 h-4.5 text-indigo-600" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-gray-900 leading-tight">Edit Patient Info</h2>
+            <p className="text-[11px] text-gray-400 mt-0.5">Invoice #{invoice?.invoiceId}</p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Form */}
+      <div className="px-5 py-5 space-y-4">
+        {/* Name */}
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+            Patient Name <span className="text-red-400">*</span>
+          </label>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              value={form.patientName}
+              onChange={(e) => setForm((p) => ({ ...p, patientName: e.target.value }))}
+              className={inputBase}
+              placeholder="Full name"
+            />
+          </div>
+        </div>
+
+        {/* Gender pills */}
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+            Gender <span className="text-red-400">*</span>
+          </label>
+          <div className="flex gap-2">
+            {["male", "female", "other"].map((g) => (
+              <label
+                key={g}
+                className={`flex-1 flex items-center justify-center py-2.5 rounded-xl border cursor-pointer text-xs font-semibold transition-all select-none ${
+                  form.gender === g
+                    ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                    : "border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300 hover:bg-white"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="edit-gender"
+                  value={g}
+                  checked={form.gender === g}
+                  onChange={() => setForm((p) => ({ ...p, gender: g }))}
+                  className="sr-only"
+                />
+                <span className="capitalize">{g}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Age + Contact */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+              Age <span className="text-red-400">*</span>
+            </label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              <input
+                type="number"
+                value={form.age}
+                onChange={(e) => setForm((p) => ({ ...p, age: e.target.value }))}
+                className={inputBase}
+                placeholder="e.g. 32"
+                min="0"
+                max="150"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+              Contact <span className="text-red-400">*</span>
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              <input
+                type="tel"
+                value={form.contactNumber}
+                onChange={(e) => setForm((p) => ({ ...p, contactNumber: e.target.value }))}
+                className={inputBase}
+                placeholder="01XXXXXXXXX"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex gap-2 px-5 pb-5">
+        <button
+          onClick={onClose}
+          className="flex-1 py-2.5 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSubmit}
+          disabled={!isValid}
+          className="flex-1 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors"
+        >
+          Save Changes
+        </button>
+      </div>
+    </Modal>
+  );
+};
+
+// ============================================================================
 // SKELETON
 // ============================================================================
 const SkeletonInvoice = () => (
@@ -70,12 +236,11 @@ const SkeletonInvoice = () => (
 // ============================================================================
 // INVOICE ROW
 // ============================================================================
-const InvoiceRow = ({ invoice, index, onDelivered, onCollected }) => {
+const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated, onLoadingChange, onError }) => {
   const { date, time } = formatInvoiceDateTime(invoice.invoiceId);
   const [confirming, setConfirming] = useState(false);
-  const [delivering, setDelivering] = useState(false);
   const [collectingDue, setCollectingDue] = useState(false);
-  const [collecting, setCollecting] = useState(false);
+  const [editingPatient, setEditingPatient] = useState(false);
 
   const paidAmount = Number(invoice.paidAmount) || 0;
   const finalPrice = Number(invoice.finalPrice) || 0;
@@ -85,27 +250,29 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected }) => {
   const onlineTests = invoice.tests.filter((t) => t.schemaId);
   const hasReports = onlineTests.length > 0;
 
-  const handleConfirm = async () => {
+  const handleConfirmDelivery = async () => {
+    setConfirming(false);
     try {
-      setDelivering(true);
+      onLoadingChange("Marking as delivered...");
       await invoiceService.markDelivered(invoice.invoiceId);
       onDelivered(invoice.invoiceId);
     } catch {
-      // parent can handle error display if needed
+      onError("Failed to mark as delivered. Please try again.");
     } finally {
-      setDelivering(false);
+      onLoadingChange(null);
     }
   };
 
   const handleCollectDue = async () => {
+    setCollectingDue(false);
     try {
-      setCollecting(true);
+      onLoadingChange("Collecting due amount...");
       await invoiceService.collectDue(invoice.invoiceId);
       onCollected(invoice.invoiceId);
     } catch {
-      // parent can handle error display if needed
+      onError("Failed to collect due amount. Please try again.");
     } finally {
-      setCollecting(false);
+      onLoadingChange(null);
     }
   };
 
@@ -143,9 +310,9 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected }) => {
         <Popup
           type="warning"
           message={`Mark invoice #${invoice.invoiceId} for ${invoice.patientName} as delivered? This action cannot be undone.`}
-          confirmText={delivering ? "Saving..." : "Mark Delivered"}
+          confirmText="Mark Delivered"
           cancelText="Cancel"
-          onConfirm={handleConfirm}
+          onConfirm={handleConfirmDelivery}
           onClose={() => setConfirming(false)}
         />
       )}
@@ -153,12 +320,21 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected }) => {
         <Popup
           type="warning"
           message={`Collect the full due amount of ৳${dueAmount.toLocaleString()} from ${invoice.patientName} (Invoice #${invoice.invoiceId})? This will mark the invoice as fully paid.`}
-          confirmText={collecting ? "Saving..." : "Collect ৳" + dueAmount.toLocaleString()}
+          confirmText={`Collect ৳${dueAmount.toLocaleString()}`}
           cancelText="Cancel"
           onConfirm={handleCollectDue}
           onClose={() => setCollectingDue(false)}
         />
       )}
+
+      <EditPatientModal
+        invoice={invoice}
+        isOpen={editingPatient}
+        onClose={() => setEditingPatient(false)}
+        onSaved={onPatientUpdated}
+        onLoadingChange={onLoadingChange}
+        onError={onError}
+      />
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 hover:border-indigo-100 hover:shadow-md transition-all duration-200">
         <div className="flex items-center gap-3 px-4 pt-3.5 pb-2.5">
@@ -175,15 +351,15 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected }) => {
             </p>
           </div>
 
-          {/* Action buttons — fixed, right-aligned */}
+          {/* Action buttons */}
           <div className="flex items-center gap-1.5 shrink-0">
-            <Link
-              to={`/invoice/edit/${invoice.invoiceId}`}
+            <button
+              onClick={() => setEditingPatient(true)}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors"
             >
               <Pencil className="w-3 h-3" />
               Edit
-            </Link>
+            </button>
             <Link
               to={`/invoice/print/${invoice.invoiceId}`}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-lg transition-colors"
@@ -193,7 +369,8 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected }) => {
             </Link>
             {hasReports && (
               <Link
-                to={`/invoice/reports/${invoice.invoiceId}`}
+                to="/reports"
+                state={{ invoiceId: invoice.invoiceId }}
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
               >
                 <FlaskConical className="w-3 h-3" />
@@ -203,7 +380,7 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected }) => {
           </div>
         </div>
 
-        {/* Bottom row — status badges, consistent height */}
+        {/* Bottom row — status badges */}
         <div className="flex items-center gap-2 px-4 pb-3 pt-0 border-t border-gray-50">
           <PaymentBadge />
           {!isFullyPaid && (
@@ -229,8 +406,7 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected }) => {
 const InvoiceList = () => {
   const [invoices, setInvoices] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState("Processing request");
+  const [loadingMessage, setLoadingMessage] = useState(null);
   const [popup, setPopup] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -271,19 +447,20 @@ const InvoiceList = () => {
     );
   }
 
-  const handleDelivered = (invoiceId) => {
+  const handleDelivered = (invoiceId) =>
     setInvoices((prev) => prev.map((inv) => (inv.invoiceId === invoiceId ? { ...inv, isDelivered: true } : inv)));
-  };
 
-  const handleCollected = (invoiceId) => {
+  const handleCollected = (invoiceId) =>
     setInvoices((prev) =>
       prev.map((inv) => (inv.invoiceId === invoiceId ? { ...inv, paidAmount: inv.finalPrice } : inv)),
     );
-  };
+
+  const handlePatientUpdated = (invoiceId, updatedFields) =>
+    setInvoices((prev) => prev.map((inv) => (inv.invoiceId === invoiceId ? { ...inv, ...updatedFields } : inv)));
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
-      {loading && <LoadingScreen message={loadingMessage} />}
+      {loadingMessage && <LoadingScreen message={loadingMessage} />}
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       <div className="max-w-5xl mx-auto">
@@ -454,6 +631,9 @@ const InvoiceList = () => {
                 index={index}
                 onDelivered={handleDelivered}
                 onCollected={handleCollected}
+                onPatientUpdated={handlePatientUpdated}
+                onLoadingChange={(msg) => setLoadingMessage(msg)}
+                onError={(msg) => setPopup({ type: "error", message: msg })}
               />
             ))}
           </div>
