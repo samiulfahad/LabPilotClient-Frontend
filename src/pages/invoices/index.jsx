@@ -173,14 +173,6 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected }) => {
             <span className="font-semibold text-gray-900 text-sm leading-none truncate">{invoice.patientName}</span>
           </div>
 
-          {/* Amount — fixed width, right-aligned, desktop only */}
-          <div className="hidden md:flex flex-col items-end shrink-0 w-20">
-            <p className="text-sm font-bold text-gray-900 leading-none">৳{finalPrice.toLocaleString()}</p>
-            {!isFullyPaid && (
-              <p className="text-[10px] text-red-400 font-medium mt-0.5">৳{dueAmount.toLocaleString()} due</p>
-            )}
-          </div>
-
           {/* Action buttons — fixed, right-aligned */}
           <div className="flex items-center gap-1.5 shrink-0">
             <Link
