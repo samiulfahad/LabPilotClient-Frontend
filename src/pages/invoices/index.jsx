@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   FileText,
-  Search,
-  X,
   Activity,
   CheckCircle2,
   ArrowLeft,
@@ -16,21 +14,21 @@ import {
   User,
   Phone,
   Calendar,
+  ChevronDown,
+  X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Popup from "../../components/popup";
 import Modal from "../../components/modal";
 import LoadingScreen from "../../components/loadingPage";
 import invoiceService from "../../api/invoice";
+import TimeFrame from "../../components/timeFrame"; // adjust path as needed
 
 // ============================================================================
 // HELPERS
 // ============================================================================
-const formatInvoiceDateTime = (invoiceId) => {
-  const id = String(invoiceId);
-  const date = new Date(
-    `20${id.slice(0, 2)}-${id.slice(2, 4)}-${id.slice(4, 6)}T${id.slice(6, 8)}:${id.slice(8, 10)}:${id.slice(10, 12)}`,
-  );
+const formatDateTime = (createdAt) => {
+  const date = new Date(createdAt);
   const day = date.getDate();
   const suffix =
     day % 10 === 1 && day % 100 !== 11
@@ -111,7 +109,6 @@ const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingChange, 
 
       {/* Form */}
       <div className="px-5 py-5 space-y-4">
-        {/* Name */}
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1.5">
             Patient Name <span className="text-red-400">*</span>
@@ -128,7 +125,6 @@ const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingChange, 
           </div>
         </div>
 
-        {/* Gender pills */}
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1.5">
             Gender <span className="text-red-400">*</span>
@@ -157,7 +153,6 @@ const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingChange, 
           </div>
         </div>
 
-        {/* Age + Contact */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">
@@ -237,7 +232,7 @@ const SkeletonInvoice = () => (
 // INVOICE ROW
 // ============================================================================
 const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated, onLoadingChange, onError }) => {
-  const { date, time } = formatInvoiceDateTime(invoice.invoiceId);
+  const { date, time } = formatDateTime(invoice.createdAt);
   const [confirming, setConfirming] = useState(false);
   const [collectingDue, setCollectingDue] = useState(false);
   const [editingPatient, setEditingPatient] = useState(false);
@@ -338,20 +333,15 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 hover:border-indigo-100 hover:shadow-md transition-all duration-200">
         <div className="flex items-center gap-3 px-4 pt-3.5 pb-2.5">
-          {/* Index */}
           <div className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
             <span className="text-[11px] font-bold text-indigo-600">{index + 1}</span>
           </div>
-
-          {/* Name + date */}
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{invoice.patientName}</p>
             <p className="text-[11px] text-gray-400 mt-0.5">
-              {date} · {time}
+              #{invoice.invoiceId} · {date} · {time}
             </p>
           </div>
-
-          {/* Action buttons */}
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => setEditingPatient(true)}
@@ -379,8 +369,6 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
             )}
           </div>
         </div>
-
-        {/* Bottom row — status badges */}
         <div className="flex items-center gap-2 px-4 pb-3 pt-0 border-t border-gray-50">
           <PaymentBadge />
           {!isFullyPaid && (
@@ -406,26 +394,68 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
 const InvoiceList = () => {
   const [invoices, setInvoices] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState(null);
   const [loadingMessage, setLoadingMessage] = useState(null);
   const [popup, setPopup] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [timeRange, setTimeRange] = useState(null);
 
-  const loadInvoices = async () => {
+  // ── Fetch ──────────────────────────────────────────────────────────────────
+  const loadInvoices = async (cursor = null, replace = true, range = timeRange) => {
     try {
-      const response = await invoiceService.getInvoices();
-      setInvoices(response.data);
-    } catch (e) {
+      if (replace) setInitialLoading(true);
+      else {
+        setLoadingMore(true);
+        setLoadingMessage("Loading more invoices...");
+      }
+
+      const response = await invoiceService.getInvoices({
+        cursor,
+        limit: 20,
+        ...(range && { startDate: range.start, endDate: range.end }),
+      });
+      const { invoices: newInvoices, nextCursor: nc, hasMore: hm } = response.data;
+
+      setInvoices((prev) => (replace ? newInvoices : [...prev, ...newInvoices]));
+      setNextCursor(nc);
+      setHasMore(hm);
+    } catch {
       setPopup({ type: "error", message: "Could not load invoices" });
     } finally {
       setInitialLoading(false);
+      setLoadingMore(false);
+      setLoadingMessage(null);
     }
   };
 
+  // Initial load — today
   useEffect(() => {
-    loadInvoices();
+    const now = new Date();
+    const initial = {
+      start: new Date(now).setHours(0, 0, 0, 0),
+      end: new Date(now).setHours(23, 59, 59, 999),
+    };
+    setTimeRange(initial);
+    loadInvoices(null, true, initial);
   }, []);
 
+  // ── TimeFrame callback ─────────────────────────────────────────────────────
+  const handleFetchData = (start, end) => {
+    const range = { start, end };
+    console.log(start);
+    console.log(end);
+    setTimeRange(range);
+    setStatusFilter("all");
+    loadInvoices(null, true, range);
+  };
+
+  const handleLoadMore = () => {
+    if (hasMore && !loadingMore) loadInvoices(nextCursor, false);
+  };
+
+  // ── Derived counts ─────────────────────────────────────────────────────────
   const total = invoices.length;
   const pending = invoices.filter((inv) => Math.max(0, (inv.finalPrice || 0) - (inv.paidAmount || 0)) > 0).length;
   const completed = invoices.filter((inv) => Math.max(0, (inv.finalPrice || 0) - (inv.paidAmount || 0)) === 0).length;
@@ -439,14 +469,7 @@ const InvoiceList = () => {
     );
   }
 
-  if (searchQuery.trim()) {
-    const q = searchQuery.toLowerCase();
-    filteredInvoices = filteredInvoices.filter(
-      (inv) =>
-        inv.patientName.toLowerCase().includes(q) || String(inv.invoiceId).includes(q) || inv.contactNumber.includes(q),
-    );
-  }
-
+  // ── Optimistic updates ─────────────────────────────────────────────────────
   const handleDelivered = (invoiceId) =>
     setInvoices((prev) => prev.map((inv) => (inv.invoiceId === invoiceId ? { ...inv, isDelivered: true } : inv)));
 
@@ -457,6 +480,8 @@ const InvoiceList = () => {
 
   const handlePatientUpdated = (invoiceId, updatedFields) =>
     setInvoices((prev) => prev.map((inv) => (inv.invoiceId === invoiceId ? { ...inv, ...updatedFields } : inv)));
+
+  const showLoadMore = hasMore && statusFilter === "all";
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
@@ -494,8 +519,8 @@ const InvoiceList = () => {
           </div>
         </div>
 
-        {/* Mobile: subtitle + new invoice btn */}
-        <div className="flex flex-col gap-3 sm:hidden mb-6">
+        {/* Mobile subtitle + new invoice btn */}
+        <div className="flex flex-col gap-3 sm:hidden mb-4">
           <p className="text-sm text-gray-600 flex items-center gap-1.5">
             <Activity className="w-4 h-4 text-indigo-500" />
             Manage invoices & upload reports
@@ -509,10 +534,15 @@ const InvoiceList = () => {
           </Link>
         </div>
 
+        {/* TimeFrame */}
+        <div className="mb-4">
+          <TimeFrame onFetchData={handleFetchData} />
+        </div>
+
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-4 mb-4">
           {[
-            { label: "Total", value: total, icon: FileText, color: "indigo" },
+            { label: "Loaded", value: total, icon: FileText, color: "indigo" },
             { label: "Due", value: pending, icon: AlertCircle, color: "red" },
             { label: "Paid", value: completed, icon: CheckCircle2, color: "green" },
           ].map(({ label, value, icon: Icon, color }) => (
@@ -522,18 +552,14 @@ const InvoiceList = () => {
             >
               <div className="flex items-center gap-2">
                 <div className={`p-2 bg-${color}-50 rounded-lg`}>
-                  <Icon
-                    className={`w-5 h-5 text-${color}-${color === "indigo" ? "600" : color === "red" ? "400" : "500"}`}
-                  />
+                  <Icon className={`w-5 h-5 text-${color}-${color === "indigo" ? "600" : color === "red" ? "400" : "500"}`} />
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">{label}</p>
                   {initialLoading ? (
                     <div className="h-7 w-10 bg-gray-200 rounded animate-pulse" />
                   ) : (
-                    <p
-                      className={`text-2xl font-bold text-${color}-${color === "indigo" ? "900" : color === "red" ? "500" : "600"}`}
-                    >
+                    <p className={`text-2xl font-bold text-${color}-${color === "indigo" ? "900" : color === "red" ? "500" : "600"}`}>
                       {value}
                     </p>
                   )}
@@ -543,8 +569,8 @@ const InvoiceList = () => {
           ))}
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+        {/* Status filter */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
           <div className="flex flex-wrap items-center gap-4">
             <span className="text-sm font-semibold text-gray-700">Filter:</span>
             <div className="flex rounded-lg bg-gray-100 p-1">
@@ -565,39 +591,19 @@ const InvoiceList = () => {
                 </button>
               ))}
             </div>
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by name, invoice ID, or contact..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              disabled={initialLoading}
-              className="w-full pl-11 pr-11 py-2.5 text-sm border border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                disabled={initialLoading}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+            {statusFilter !== "all" && (
+              <p className="text-xs text-gray-400 ml-auto">
+                Filtering loaded invoices only.{" "}
+                {hasMore && <span className="text-indigo-400">Load more to filter further.</span>}
+              </p>
             )}
           </div>
         </div>
 
-        {/* Invoice List */}
+        {/* Invoice list */}
         {initialLoading ? (
           <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => (
-              <SkeletonInvoice key={i} />
-            ))}
+            {[1, 2, 3, 4].map((i) => <SkeletonInvoice key={i} />)}
           </div>
         ) : filteredInvoices.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
@@ -605,14 +611,12 @@ const InvoiceList = () => {
               <FileText className="w-8 h-8 text-indigo-400" />
             </div>
             <h3 className="text-lg font-semibold text-gray-800 mb-2">
-              {searchQuery || statusFilter !== "all" ? "No invoices found" : "No invoices yet"}
+              {statusFilter !== "all" ? "No invoices found" : "No invoices for this period"}
             </h3>
             <p className="text-gray-500 text-sm mb-4 max-w-sm mx-auto">
-              {searchQuery || statusFilter !== "all"
-                ? "Try adjusting your search or filters"
-                : "Create your first invoice to get started"}
+              {statusFilter !== "all" ? "Try changing the filter" : "No invoices were created in the selected timeframe"}
             </p>
-            {!searchQuery && statusFilter === "all" && (
+            {statusFilter === "all" && (
               <Link
                 to="/invoice/new"
                 className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm hover:shadow transition-all text-sm"
@@ -636,6 +640,24 @@ const InvoiceList = () => {
                 onError={(msg) => setPopup({ type: "error", message: msg })}
               />
             ))}
+
+            {showLoadMore && (
+              <div className="flex items-center gap-3 pt-3 pb-1">
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent to-indigo-100" />
+                <button
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="group flex items-center gap-2 px-5 py-2.5 rounded-full bg-white border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronDown className="w-3.5 h-3.5 text-indigo-500 group-hover:translate-y-0.5 transition-transform duration-200" />
+                  <span className="text-xs font-semibold text-indigo-600">Load more</span>
+                  <span className="text-[10px] font-medium text-indigo-400 bg-indigo-50 group-hover:bg-white border border-indigo-100 px-1.5 py-0.5 rounded-full transition-colors">
+                    +20
+                  </span>
+                </button>
+                <div className="flex-1 h-px bg-gradient-to-l from-transparent to-indigo-100" />
+              </div>
+            )}
           </div>
         )}
       </div>

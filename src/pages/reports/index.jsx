@@ -19,11 +19,8 @@ import invoiceService from "../../api/invoice";
 // ============================================================================
 // HELPERS
 // ============================================================================
-const formatInvoiceDateTime = (invoiceId) => {
-  const id = String(invoiceId);
-  const date = new Date(
-    `20${id.slice(0, 2)}-${id.slice(2, 4)}-${id.slice(4, 6)}T${id.slice(6, 8)}:${id.slice(8, 10)}:${id.slice(10, 12)}`,
-  );
+const formatDateTime = (createdAt) => {
+  const date = new Date(createdAt);
   const day = date.getDate();
   const suffix =
     day % 10 === 1 && day % 100 !== 11
@@ -127,7 +124,7 @@ const ReportUploadModal = ({ invoice, test, onClose, onSuccess }) => {
 // ============================================================================
 const InvoiceDetail = ({ invoice, onUploadSuccess }) => {
   const [uploadTarget, setUploadTarget] = useState(null);
-  const { date, time } = formatInvoiceDateTime(invoice.invoiceId);
+  const { date, time } = formatDateTime(invoice.createdAt);
   const paidAmount = Number(invoice.paidAmount) || 0;
   const finalPrice = Number(invoice.finalPrice) || 0;
   const dueAmount = Math.max(0, finalPrice - paidAmount);
@@ -373,7 +370,7 @@ const Reports = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Enter invoice ID..."
+                placeholder="Enter invoice ID... e.g. APX8743"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleKeyDown}

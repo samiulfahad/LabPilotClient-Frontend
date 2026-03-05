@@ -10,11 +10,8 @@ import Popup from "../../components/popup";
 // ============================================================================
 // HELPERS
 // ============================================================================
-const formatInvoiceDateTime = (invoiceId) => {
-  const id = String(invoiceId);
-  const date = new Date(
-    `20${id.slice(0, 2)}-${id.slice(2, 4)}-${id.slice(4, 6)}T${id.slice(6, 8)}:${id.slice(8, 10)}:${id.slice(10, 12)}`,
-  );
+const formatDateTime = (createdAt) => {
+  const date = new Date(createdAt);
   const day = date.getDate();
   const suffix =
     day % 10 === 1 && day % 100 !== 11
@@ -279,8 +276,6 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, invoiceDate, invo
                 <Text style={pdfStyles.totalLabel}>Total Amount</Text>
                 <Text style={pdfStyles.totalValue}>{formatCurrency(invoiceData.finalPrice)}</Text>
               </View>
-
-              {/* Paid / Due in PDF */}
               <View style={pdfStyles.dashedDivider} />
               <View style={pdfStyles.pricingRow}>
                 <Text style={pdfStyles.pricingLabel}>Paid Amount</Text>
@@ -330,15 +325,13 @@ const PrintInvoice = () => {
     email: "info@labpilotpro.com",
   };
 
-
-
   const loadInvoiceData = async () => {
     try {
       let data = null;
       if (location.state?.invoiceData) {
         data = location.state.invoiceData;
       } else if (invoiceId) {
-        setLoading(true)
+        setLoading(true);
         const response = await invoiceService.getInvoiceByInvoiceId(invoiceId);
         data = response.data;
       } else {
@@ -354,6 +347,7 @@ const PrintInvoice = () => {
       const processedData = {
         _id: data._id || "",
         invoiceId: data.invoiceId || "",
+        createdAt: data.createdAt || Date.now(),
         patientName: data.patientName || "N/A",
         gender: data.gender || "N/A",
         age: data.age || "N/A",
@@ -381,7 +375,8 @@ const PrintInvoice = () => {
       setLoading(false);
     }
   };
-    useEffect(() => {
+
+  useEffect(() => {
     loadInvoiceData();
   }, []); // eslint-disable-line
 
@@ -403,7 +398,7 @@ const PrintInvoice = () => {
   };
 
   const generatePDFBlob = async () => {
-    const { date: invoiceDate, time: invoiceTime } = formatInvoiceDateTime(invoiceData.invoiceId);
+    const { date: invoiceDate, time: invoiceTime } = formatDateTime(invoiceData.createdAt);
     const doc = (
       <InvoicePDFDocument
         invoiceData={invoiceData}
@@ -469,7 +464,7 @@ const PrintInvoice = () => {
   const handleShare = async () => {
     try {
       setSharing(true);
-      const { date: invoiceDate } = formatInvoiceDateTime(invoiceData.invoiceId);
+      const { date: invoiceDate } = formatDateTime(invoiceData.createdAt);
 
       const message =
         `Hello ${invoiceData.patientName},\n\n` +
@@ -515,7 +510,7 @@ const PrintInvoice = () => {
       : 0;
   const showReferrerDiscount = invoiceData.hasReferrerDiscount && referrerDiscountAmount > 0;
   const showLabAdjustment = invoiceData.hasLabAdjustment && invoiceData.labAdjustmentAmount > 0;
-  const { date: invoiceDate, time: invoiceTime } = formatInvoiceDateTime(invoiceData.invoiceId);
+  const { date: invoiceDate, time: invoiceTime } = formatDateTime(invoiceData.createdAt);
 
   const cardProps = {
     invoiceData,
@@ -737,8 +732,6 @@ const InvoiceCard = ({
               <span className="text-base font-semibold text-gray-900">Total Amount</span>
               <span className="text-lg font-bold text-blue-600">{formatCurrency(invoiceData.finalPrice)}</span>
             </div>
-
-            {/* Paid / Due Section */}
             <div className="pt-2 border-t border-dashed border-gray-300 space-y-1.5">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600 flex items-center gap-1.5">
