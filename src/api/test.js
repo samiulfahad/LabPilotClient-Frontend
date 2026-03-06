@@ -9,6 +9,7 @@ const testService = {
   editTest: (data) => api.patch("/test/" + data.testId, data),
   deleteTest: (_id) => api.delete(`/test/${_id}`),
   getSchemasByTestId: (testId) => api.get("/test/schema/" + testId),
+  getSchemaBySchemaId: (schemaId) => api.get("/schema/" + schemaId),
 };
 
 export default testService;

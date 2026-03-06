@@ -11,7 +11,7 @@ import {
   X,
   ChevronRight,
 } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import Popup from "../../components/popup";
 import LoadingScreen from "../../components/loadingPage";
 import invoiceService from "../../api/invoice";
@@ -247,13 +247,15 @@ const InvoiceDetail = ({ invoice, onUploadSuccess }) => {
                         Completed
                       </span>
                     ) : (
-                      <button
-                        onClick={() => setUploadTarget({ invoice, test })}
+                      <Link
+                        to="/report-upload"
+                        state={{ invoice, test }}
+
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
                       >
                         <Upload className="w-3.5 h-3.5" />
                         Upload Report
-                      </button>
+                      </Link>
                     )}
                   </div>
                 </div>

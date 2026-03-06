@@ -11,17 +11,18 @@ import CreateInvoice from "./pages/createInvoice";
 import PrintInvoice from "./pages/createInvoice/PrintInvoice";
 import InvoiceList from "./pages/invoices";
 import Reports from "./pages/reports";
+import UploadReport from "./pages/uploadReport";
 
 function App() {
   return (
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
-
         <Route path="/invoice/new" element={<CreateInvoice />} />
         <Route path="/invoice/print/:invoiceId" element={<PrintInvoice />} />
         <Route path="/invoice/all" element={<InvoiceList />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/report-upload" element={<UploadReport />} />
         <Route path="/lab-management" element={<LabManagement />} />
         <Route path="/manage-referrers" element={<ManageReferrers />} />
         <Route path="/manage-staffs" element={<ManageStaffs />} />
