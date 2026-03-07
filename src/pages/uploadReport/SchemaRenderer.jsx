@@ -13,6 +13,10 @@ import {
   Eye,
   FlaskConical,
   ShieldCheck,
+  Pencil,
+  Save,
+  Clock,
+  CheckCheck,
 } from "lucide-react";
 
 // ─── Inject global styles ─────────────────────────────────────────────────────
@@ -36,6 +40,8 @@ const STYLES = `
     --red-light: #fdf0f0;
     --orange: #d97316;
     --orange-light: #fff7ed;
+    --violet: #7c3aed;
+    --violet-light: #f5f3ff;
     --white: #ffffff;
     font-family: 'DM Sans', sans-serif;
     color: var(--ink);
@@ -45,6 +51,23 @@ const STYLES = `
   }
 
   .sr-root * { box-sizing: border-box; }
+
+  /* ── Mode Banner ── */
+  .sr-mode-banner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; border-radius: 10px; margin-bottom: 16px;
+    border: 1.5px solid; font-size: 12px; font-weight: 500;
+  }
+  .sr-mode-banner.edit-mode {
+    background: var(--violet-light); border-color: rgba(124,58,237,0.25); color: #5b21b6;
+  }
+  .sr-mode-banner.edit-mode .sr-mode-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--violet); flex-shrink: 0;
+    animation: srpulse 1.8s ease-in-out infinite;
+  }
+  .sr-mode-banner.view-mode {
+    background: var(--emerald-light); border-color: rgba(26,158,110,0.25); color: #065f46;
+  }
 
   /* ── Card ── */
   .sr-card {
@@ -111,6 +134,7 @@ const STYLES = `
   .sr-field-wrap.status-low    { border-color: var(--orange);  box-shadow: 0 0 0 3px rgba(217,115,22,0.08); }
   .sr-field-wrap.status-high   { border-color: var(--red);     box-shadow: 0 0 0 3px rgba(214,58,58,0.08); }
   .sr-field-wrap.field-error   { border-color: var(--red);     box-shadow: 0 0 0 3px rgba(214,58,58,0.08); background: var(--red-light); }
+  .sr-field-wrap.edited-highlight { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(124,58,237,0.08); }
 
   /* Floating label */
   .sr-float-label {
@@ -176,6 +200,14 @@ const STYLES = `
   .sr-status-badge.low    { background: var(--orange-light);  color: var(--orange);  border-color: rgba(217,115,22,0.2); }
   .sr-status-badge.high   { background: var(--red-light);     color: var(--red);     border-color: rgba(214,58,58,0.2); }
 
+  /* Changed badge */
+  .sr-changed-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 6px; border-radius: 4px;
+    background: var(--violet-light); color: var(--violet); border: 1px solid rgba(124,58,237,0.2);
+    font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 500;
+  }
+
   .sr-field-error {
     display: flex; align-items: center; gap: 5px;
     font-size: 11px; color: var(--red); font-weight: 500; margin-top: 5px;
@@ -191,6 +223,8 @@ const STYLES = `
   }
   .sr-toggle-btn:hover { border-color: var(--ink-2); color: var(--ink); background: var(--surface); }
   .sr-toggle-btn.active { background: var(--ink); border-color: var(--ink); color: var(--white); box-shadow: 0 2px 8px rgba(11,15,26,0.2); }
+  .sr-toggle-btn.edited { border-color: var(--violet); }
+  .sr-toggle-btn.edited.active { background: var(--violet); border-color: var(--violet); }
 
   /* ── Dropdown ── */
   .sr-dropdown-wrap { position: relative; }
@@ -243,6 +277,7 @@ const STYLES = `
   }
   .sr-textarea-wrap:focus-within { border-color: var(--ink-2); box-shadow: 0 0 0 3px rgba(30,37,53,0.08); }
   .sr-textarea-wrap.field-error  { border-color: var(--red); background: var(--red-light); }
+  .sr-textarea-wrap.edited-highlight { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(124,58,237,0.08); }
   .sr-textarea-label {
     position: absolute; left: 12px; top: 14px;
     font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600;
@@ -264,6 +299,7 @@ const STYLES = `
     font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--ink);
   }
   .sr-textarea::placeholder { color: transparent; }
+  .sr-char-count { font-family: 'DM Mono', monospace; font-size: 10px; color: #b0b7cc; text-align: right; padding: 2px 10px 6px; }
 
   /* ── Text input ── */
   .sr-text-input-wrap {
@@ -272,6 +308,7 @@ const STYLES = `
   }
   .sr-text-input-wrap:focus-within { border-color: var(--ink-2); box-shadow: 0 0 0 3px rgba(30,37,53,0.08); }
   .sr-text-input-wrap.field-error  { border-color: var(--red); background: var(--red-light); }
+  .sr-text-input-wrap.edited-highlight { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(124,58,237,0.08); }
   .sr-text-input-label {
     position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
     font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600;
@@ -339,12 +376,15 @@ const STYLES = `
   .sr-alert { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-radius: 10px; border: 1.5px solid; }
   .sr-alert.amber { background: var(--amber-light); border-color: rgba(232,160,32,0.35); }
   .sr-alert.red   { background: var(--red-light);   border-color: rgba(214,58,58,0.25); }
+  .sr-alert.violet { background: var(--violet-light); border-color: rgba(124,58,237,0.25); }
   .sr-alert-title { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
   .sr-alert.amber .sr-alert-title { color: #8a5a08; }
   .sr-alert.red   .sr-alert-title { color: #8b1a1a; }
+  .sr-alert.violet .sr-alert-title { color: #5b21b6; }
   .sr-alert-body  { font-size: 12px; margin-top: 2px; }
   .sr-alert.amber .sr-alert-body { color: #a06c0e; }
   .sr-alert.red   .sr-alert-body { color: #b02020; }
+  .sr-alert.violet .sr-alert-body { color: #6d28d9; }
 
   /* ── Buttons ── */
   .sr-btn-reset {
@@ -371,6 +411,8 @@ const STYLES = `
   .sr-btn-submit:hover  { background: #1e2535; box-shadow: 0 4px 16px rgba(11,15,26,0.28); transform: translateY(-1px); }
   .sr-btn-submit:active { transform: translateY(0); }
   .sr-btn-submit:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+  .sr-btn-submit.edit-mode { background: var(--violet); box-shadow: 0 2px 10px rgba(124,58,237,0.3); }
+  .sr-btn-submit.edit-mode:hover { background: #6d28d9; box-shadow: 0 4px 16px rgba(124,58,237,0.4); }
   .sr-btn-submit .sr-amber-dot {
     width: 6px; height: 6px; border-radius: 50%; background: var(--amber);
     animation: srpulse 1.8s ease-in-out infinite;
@@ -400,6 +442,7 @@ const STYLES = `
   .sr-stat-val   { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 500; color: var(--ink); line-height: 1; }
   .sr-stat-val.emerald { color: var(--emerald); }
   .sr-stat-val.red     { color: var(--red); }
+  .sr-stat-val.violet  { color: var(--violet); }
 
   .sr-main-progress-track { height: 3px; background: var(--surface-3); border-radius: 2px; overflow: hidden; }
   .sr-main-progress-fill  {
@@ -451,7 +494,7 @@ const STYLES = `
 
 function StyleInjector() {
   useEffect(() => {
-    const id = "sr-styles-v3";
+    const id = "sr-styles-v4";
     if (!document.getElementById(id)) {
       const el = document.createElement("style");
       el.id = id;
@@ -493,6 +536,31 @@ export function getRangeStatus(value, range) {
   if (v < range.min) return "low";
   if (v > range.max) return "high";
   return "normal";
+}
+
+// ─── Hydrate values from existing report data ─────────────────────────────────
+// existingReport shape (what reportService.addReport saves):
+// {
+//   name: "rbs",
+//   "Section A": { "Simple Number": { value: "5", unit: "mmHg", referenceRange: "1-10" }, ... , __showTitle: true },
+//   "Section B": { "Result": { value: "Positive" }, ... , __showTitle: true },
+//   invoiceId, patientName, patientAge, patientGender   (optional)
+// }
+export function hydrateValuesFromReport(schema, existingReport) {
+  if (!existingReport || !schema?.sections) return {};
+  const values = {};
+  schema.sections.forEach((section, si) => {
+    const sectionData = existingReport[section.name];
+    if (!sectionData) return;
+    section.fields.forEach((field) => {
+      const key = `${si}_${field.name}`;
+      const fieldData = sectionData[field.name];
+      if (!fieldData) return;
+      // checkbox values are stored as arrays, everything else as primitives
+      values[key] = fieldData.value ?? fieldData;
+    });
+  });
+  return values;
 }
 
 // ─── Tooltip ─────────────────────────────────────────────────────────────────
@@ -551,11 +619,12 @@ function RangeInfoTooltip({ field }) {
 }
 
 // ─── Number Field ─────────────────────────────────────────────────────────────
-function NumberField({ field, value, onChange, error, patientAge, patientGender }) {
+function NumberField({ field, value, onChange, error, patientAge, patientGender, originalValue, isEditMode }) {
   const range = getStandardRange(field, patientAge, patientGender);
   const status = getRangeStatus(value, range);
   const hasValue = value !== "" && value !== null && value !== undefined;
   const floated = hasValue;
+  const isChanged = isEditMode && originalValue !== undefined && String(value) !== String(originalValue ?? "");
 
   const needsContext =
     ((field.standardRange?.type === "age" || field.standardRange?.type === "combined") && !patientAge) ||
@@ -563,6 +632,7 @@ function NumberField({ field, value, onChange, error, patientAge, patientGender 
 
   let wrapCls = "sr-field-wrap";
   if (error) wrapCls += " field-error";
+  else if (isChanged) wrapCls += " edited-highlight";
   else if (hasValue && range && status !== "neutral") wrapCls += ` status-${status}`;
   if (floated) wrapCls += " floated";
 
@@ -612,6 +682,12 @@ function NumberField({ field, value, onChange, error, patientAge, patientGender 
               : "Select gender"}
           </span>
         )}
+        {isChanged && (
+          <span className="sr-changed-badge">
+            <Pencil style={{ width: 8, height: 8 }} />
+            edited
+          </span>
+        )}
       </div>
       {error && (
         <div className="sr-field-error">
@@ -624,7 +700,7 @@ function NumberField({ field, value, onChange, error, patientAge, patientGender 
 }
 
 // ─── Radio ────────────────────────────────────────────────────────────────────
-function RadioField({ field, options = [], value, onChange, error }) {
+function RadioField({ field, options = [], value, onChange, error, originalValue, isEditMode }) {
   return (
     <div>
       <div
@@ -636,6 +712,9 @@ function RadioField({ field, options = [], value, onChange, error }) {
           color: "#9ea5b8",
           textTransform: "uppercase",
           letterSpacing: "0.08em",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
         }}
       >
         {field.name}
@@ -653,30 +732,40 @@ function RadioField({ field, options = [], value, onChange, error }) {
             }}
           />
         )}
+        {isEditMode && originalValue !== undefined && value !== (originalValue ?? "") && (
+          <span className="sr-changed-badge">
+            <Pencil style={{ width: 8, height: 8 }} />
+            edited
+          </span>
+        )}
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-        {options.map((opt) => (
-          <button
-            key={opt}
-            type="button"
-            onClick={() => onChange(value === opt ? "" : opt)}
-            className={`sr-toggle-btn ${value === opt ? "active" : ""}`}
-          >
-            <span
-              style={{
-                display: "inline-block",
-                width: 12,
-                height: 12,
-                borderRadius: "50%",
-                border: `2px solid ${value === opt ? "rgba(255,255,255,0.5)" : "#c4c8d8"}`,
-                background: value === opt ? "#fff" : "transparent",
-                flexShrink: 0,
-                boxShadow: value === opt ? "inset 0 0 0 2.5px #0b0f1a" : "none",
-              }}
-            />
-            {opt}
-          </button>
-        ))}
+        {options.map((opt) => {
+          const isChanged =
+            isEditMode && originalValue !== undefined && opt === value && value !== (originalValue ?? "");
+          return (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => onChange(value === opt ? "" : opt)}
+              className={`sr-toggle-btn ${value === opt ? "active" : ""} ${isChanged ? "edited" : ""}`}
+            >
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 12,
+                  height: 12,
+                  borderRadius: "50%",
+                  border: `2px solid ${value === opt ? "rgba(255,255,255,0.5)" : "#c4c8d8"}`,
+                  background: value === opt ? "#fff" : "transparent",
+                  flexShrink: 0,
+                  boxShadow: value === opt ? "inset 0 0 0 2.5px #0b0f1a" : "none",
+                }}
+              />
+              {opt}
+            </button>
+          );
+        })}
       </div>
       {error && (
         <div className="sr-field-error">
@@ -689,9 +778,10 @@ function RadioField({ field, options = [], value, onChange, error }) {
 }
 
 // ─── Dropdown ─────────────────────────────────────────────────────────────────
-function DropdownField({ field, options = [], value, onChange, error }) {
+function DropdownField({ field, options = [], value, onChange, error, originalValue, isEditMode }) {
   const [open, setOpen] = useState(false);
   const floated = !!value;
+  const isChanged = isEditMode && originalValue !== undefined && value !== (originalValue ?? "");
   return (
     <div>
       <div className={`sr-dropdown-wrap ${floated ? "floated" : ""}`}>
@@ -699,6 +789,7 @@ function DropdownField({ field, options = [], value, onChange, error }) {
           type="button"
           onClick={() => setOpen(!open)}
           className={`sr-dropdown-btn ${!value ? "empty" : ""} ${open ? "open" : ""}`}
+          style={isChanged ? { borderColor: "var(--violet)", boxShadow: "0 0 0 3px rgba(124,58,237,0.08)" } : {}}
         >
           <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 14, fontWeight: 500 }}>{value || ""}</span>
           <ChevronDown
@@ -729,6 +820,14 @@ function DropdownField({ field, options = [], value, onChange, error }) {
           </div>
         )}
       </div>
+      {isChanged && (
+        <div style={{ marginTop: 5 }}>
+          <span className="sr-changed-badge">
+            <Pencil style={{ width: 8, height: 8 }} />
+            edited
+          </span>
+        </div>
+      )}
       {error && (
         <div className="sr-field-error" style={{ marginTop: 5 }}>
           <XCircle style={{ width: 11, height: 11, flexShrink: 0 }} />
@@ -740,8 +839,14 @@ function DropdownField({ field, options = [], value, onChange, error }) {
 }
 
 // ─── Checkbox ─────────────────────────────────────────────────────────────────
-function CheckboxField({ field, options = [], value = [], onChange, error }) {
+function CheckboxField({ field, options = [], value = [], onChange, error, originalValue, isEditMode }) {
   const toggle = (opt) => onChange(value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt]);
+  const origArr = Array.isArray(originalValue) ? originalValue : [];
+  const isChanged =
+    isEditMode &&
+    originalValue !== undefined &&
+    JSON.stringify([...(value || [])].sort()) !== JSON.stringify([...origArr].sort());
+
   return (
     <div>
       <div
@@ -753,6 +858,9 @@ function CheckboxField({ field, options = [], value = [], onChange, error }) {
           color: "#9ea5b8",
           textTransform: "uppercase",
           letterSpacing: "0.08em",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
         }}
       >
         {field.name}
@@ -770,16 +878,24 @@ function CheckboxField({ field, options = [], value = [], onChange, error }) {
             }}
           />
         )}
+        {isChanged && (
+          <span className="sr-changed-badge">
+            <Pencil style={{ width: 8, height: 8 }} />
+            edited
+          </span>
+        )}
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
         {options.map((opt) => {
           const checked = value.includes(opt);
+          const wasOriginal = origArr.includes(opt);
+          const optChanged = isEditMode && originalValue !== undefined && checked !== wasOriginal;
           return (
             <button
               key={opt}
               type="button"
               onClick={() => toggle(opt)}
-              className={`sr-toggle-btn ${checked ? "active" : ""}`}
+              className={`sr-toggle-btn ${checked ? "active" : ""} ${optChanged ? "edited" : ""}`}
             >
               <span
                 style={{
@@ -822,11 +938,14 @@ function CheckboxField({ field, options = [], value = [], onChange, error }) {
 }
 
 // ─── Textarea ─────────────────────────────────────────────────────────────────
-function TextareaField({ field, value, onChange, error }) {
+function TextareaField({ field, value, onChange, error, originalValue, isEditMode }) {
   const floated = !!(value && value.length > 0);
+  const isChanged = isEditMode && originalValue !== undefined && value !== (originalValue ?? "");
   return (
     <div>
-      <div className={`sr-textarea-wrap ${error ? "field-error" : ""} ${floated ? "floated" : ""}`}>
+      <div
+        className={`sr-textarea-wrap ${error ? "field-error" : ""} ${floated ? "floated" : ""} ${isChanged ? "edited-highlight" : ""}`}
+      >
         <span className="sr-textarea-label">
           {field.name}
           {field.required && <span className="sr-req" />}
@@ -843,6 +962,14 @@ function TextareaField({ field, value, onChange, error }) {
           {(value || "").length}/{field.maxLength}
         </div>
       </div>
+      {isChanged && (
+        <div style={{ marginTop: 5 }}>
+          <span className="sr-changed-badge">
+            <Pencil style={{ width: 8, height: 8 }} />
+            edited
+          </span>
+        </div>
+      )}
       {error && (
         <div className="sr-field-error" style={{ marginTop: 5 }}>
           <XCircle style={{ width: 11, height: 11, flexShrink: 0 }} />
@@ -854,11 +981,14 @@ function TextareaField({ field, value, onChange, error }) {
 }
 
 // ─── Text Input ───────────────────────────────────────────────────────────────
-function TextInputField({ field, value, onChange, error }) {
+function TextInputField({ field, value, onChange, error, originalValue, isEditMode }) {
   const floated = !!(value && value.length > 0);
+  const isChanged = isEditMode && originalValue !== undefined && value !== (originalValue ?? "");
   return (
     <div>
-      <div className={`sr-text-input-wrap ${error ? "field-error" : ""} ${floated ? "floated" : ""}`}>
+      <div
+        className={`sr-text-input-wrap ${error ? "field-error" : ""} ${floated ? "floated" : ""} ${isChanged ? "edited-highlight" : ""}`}
+      >
         <span className="sr-text-input-label">
           {field.name}
           {field.required && <span className="sr-req" />}
@@ -875,6 +1005,14 @@ function TextInputField({ field, value, onChange, error }) {
           {(value || "").length}/{field.maxLength}
         </div>
       </div>
+      {isChanged && (
+        <div style={{ marginTop: 5 }}>
+          <span className="sr-changed-badge">
+            <Pencil style={{ width: 8, height: 8 }} />
+            edited
+          </span>
+        </div>
+      )}
       {error && (
         <div className="sr-field-error" style={{ marginTop: 5 }}>
           <XCircle style={{ width: 11, height: 11, flexShrink: 0 }} />
@@ -886,7 +1024,18 @@ function TextInputField({ field, value, onChange, error }) {
 }
 
 // ─── Section Panel ────────────────────────────────────────────────────────────
-function SectionPanel({ section, sectionIndex, values, onChange, errors, patientAge, patientGender, hideTitle }) {
+function SectionPanel({
+  section,
+  sectionIndex,
+  values,
+  onChange,
+  errors,
+  patientAge,
+  patientGender,
+  hideTitle,
+  originalValues,
+  isEditMode,
+}) {
   const [collapsed, setCollapsed] = useState(false);
 
   const fieldCount = section.fields.length;
@@ -904,6 +1053,7 @@ function SectionPanel({ section, sectionIndex, values, onChange, errors, patient
         const key = `${sectionIndex}_${field.name}`;
         const val = values[key] ?? (field.type === "checkbox" ? [] : "");
         const err = errors[key];
+        const origVal = originalValues ? originalValues[key] : undefined;
         const spanFull = field.type === "textarea" || field.type === "checkbox" || field.type === "radio";
         return (
           <div key={key} style={spanFull ? { gridColumn: "1 / -1" } : {}}>
@@ -915,6 +1065,8 @@ function SectionPanel({ section, sectionIndex, values, onChange, errors, patient
                 error={err}
                 patientAge={patientAge}
                 patientGender={patientGender}
+                originalValue={origVal}
+                isEditMode={isEditMode}
               />
             )}
             {field.type === "radio" && (
@@ -924,6 +1076,8 @@ function SectionPanel({ section, sectionIndex, values, onChange, errors, patient
                 value={val}
                 onChange={(v) => onChange(key, v)}
                 error={err}
+                originalValue={origVal}
+                isEditMode={isEditMode}
               />
             )}
             {field.type === "select" && (
@@ -933,6 +1087,8 @@ function SectionPanel({ section, sectionIndex, values, onChange, errors, patient
                 value={val}
                 onChange={(v) => onChange(key, v)}
                 error={err}
+                originalValue={origVal}
+                isEditMode={isEditMode}
               />
             )}
             {field.type === "checkbox" && (
@@ -942,13 +1098,29 @@ function SectionPanel({ section, sectionIndex, values, onChange, errors, patient
                 value={val}
                 onChange={(v) => onChange(key, v)}
                 error={err}
+                originalValue={origVal}
+                isEditMode={isEditMode}
               />
             )}
             {field.type === "textarea" && (
-              <TextareaField field={field} value={val} onChange={(v) => onChange(key, v)} error={err} />
+              <TextareaField
+                field={field}
+                value={val}
+                onChange={(v) => onChange(key, v)}
+                error={err}
+                originalValue={origVal}
+                isEditMode={isEditMode}
+              />
             )}
             {field.type === "input" && (
-              <TextInputField field={field} value={val} onChange={(v) => onChange(key, v)} error={err} />
+              <TextInputField
+                field={field}
+                value={val}
+                onChange={(v) => onChange(key, v)}
+                error={err}
+                originalValue={origVal}
+                isEditMode={isEditMode}
+              />
             )}
           </div>
         );
@@ -1108,19 +1280,83 @@ function ManualPatientContext({ patientAge, setPatientAge, patientGender, setPat
   );
 }
 
+// ─── Build report payload (shared between create & update) ────────────────────
+function buildPayload(schema, values, patientAge, patientGender, invoice) {
+  const report = {};
+  schema.sections.forEach((sec, si) => {
+    const sectionData = {};
+    sec.fields.forEach((field) => {
+      const key = `${si}_${field.name}`;
+      const val = values[key];
+      if (val !== "" && val !== undefined && val !== null && !(Array.isArray(val) && val.length === 0)) {
+        sectionData[field.name] = {
+          value: val,
+          ...(field.unit ? { unit: field.unit } : {}),
+          ...(field.type === "number"
+            ? (() => {
+                const range = getStandardRange(field, patientAge, patientGender);
+                return range ? { referenceRange: `${range.min}–${range.max}` } : {};
+              })()
+            : {}),
+        };
+      }
+    });
+    if (Object.keys(sectionData).length > 0) {
+      report[sec.name] = { ...sectionData, __showTitle: sec.showTitleInReport !== false };
+    }
+  });
+
+  return {
+    ...report,
+    name: schema.name,
+    ...(invoice
+      ? {
+          invoiceId: invoice.invoiceId,
+          patientName: invoice.patientName,
+          patientAge: invoice.age,
+          patientGender: invoice.gender,
+        }
+      : { patientAge: patientAge || null, patientGender: patientGender || null }),
+  };
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
-function SchemaRenderer({ schema, invoice, onSubmit, loading = false }) {
-  const [values, setValues] = useState({});
+/**
+ * SchemaRenderer
+ *
+ * Props:
+ *  - schema        {object}   – the schema definition (sections, fields, etc.)
+ *  - invoice       {object?}  – optional patient/invoice context
+ *  - onSubmit      {fn}       – called with payload on create  (upload mode)
+ *  - onUpdate      {fn}       – called with payload on update  (edit mode)
+ *  - loading       {boolean}  – disables submit while in-flight
+ *  - existingReport {object?} – pre-filled report data → activates edit mode
+ *    Shape: the exact object previously passed to onSubmit / returned by API
+ */
+function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, existingReport = null }) {
+  const isEditMode = Boolean(existingReport);
+
+  // Hydrate initial values: if edit mode, seed from existingReport; otherwise empty
+  const computeInitialValues = () => (isEditMode ? hydrateValuesFromReport(schema, existingReport) : {});
+
+  const [values, setValues] = useState(computeInitialValues);
   const [errors, setErrors] = useState({});
-  const [patientAge, setPatientAge] = useState(invoice?.age ?? "");
-  const [patientGender, setPatientGender] = useState(invoice?.gender ?? "");
+
+  // Original values snapshot for diff/highlight — only meaningful in edit mode
+  const [originalValues] = useState(() => (isEditMode ? hydrateValuesFromReport(schema, existingReport) : {}));
+
+  const [patientAge, setPatientAge] = useState(invoice?.age ?? existingReport?.patientAge ?? "");
+  const [patientGender, setPatientGender] = useState(invoice?.gender ?? existingReport?.patientGender ?? "");
 
   if (!schema || !schema.sections) return null;
 
+  // Re-hydrate if schema or existingReport changes (e.g. navigation between reports)
   useEffect(() => {
-    setValues({});
+    setValues(computeInitialValues());
     setErrors({});
-  }, [JSON.stringify(schema?.sections)]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(schema?.sections), JSON.stringify(existingReport)]);
+
   useEffect(() => {
     if (invoice) {
       setPatientAge(invoice.age ?? "");
@@ -1150,6 +1386,29 @@ function SchemaRenderer({ schema, invoice, onSubmit, loading = false }) {
     return errs;
   };
 
+  // Count changed fields for the edit-mode stats
+  const changedCount = isEditMode
+    ? Object.keys(originalValues).filter((k) => {
+        const cur = values[k];
+        const orig = originalValues[k];
+        if (Array.isArray(orig)) return JSON.stringify([...(cur || [])].sort()) !== JSON.stringify([...orig].sort());
+        return String(cur ?? "") !== String(orig ?? "");
+      }).length
+    : 0;
+
+  // Also count newly filled fields that were empty before
+  const allSchemaKeys = schema.sections.flatMap((sec, si) => sec.fields.map((f) => `${si}_${f.name}`));
+  const newlyFilled = isEditMode
+    ? allSchemaKeys.filter((k) => {
+        const cur = values[k];
+        const orig = originalValues[k];
+        const isEmpty = (v) => v === "" || v === undefined || v === null || (Array.isArray(v) && v.length === 0);
+        return isEmpty(orig) && !isEmpty(cur);
+      }).length
+    : 0;
+
+  const totalChanges = changedCount + newlyFilled;
+
   const handleSubmit = () => {
     const errs = validate();
     if (Object.keys(errs).length > 0) {
@@ -1157,41 +1416,23 @@ function SchemaRenderer({ schema, invoice, onSubmit, loading = false }) {
       return;
     }
     setErrors({});
-    const report = {};
-    schema.sections.forEach((sec, si) => {
-      const sectionData = {};
-      sec.fields.forEach((field) => {
-        const key = `${si}_${field.name}`;
-        const val = values[key];
-        if (val !== "" && val !== undefined && val !== null && !(Array.isArray(val) && val.length === 0)) {
-          sectionData[field.name] = {
-            value: val,
-            ...(field.unit ? { unit: field.unit } : {}),
-            ...(field.type === "number"
-              ? (() => {
-                  const range = getStandardRange(field, patientAge, patientGender);
-                  return range ? { referenceRange: `${range.min}–${range.max}` } : {};
-                })()
-              : {}),
-          };
-        }
-      });
-      if (Object.keys(sectionData).length > 0) {
-        report[sec.name] = { ...sectionData, __showTitle: sec.showTitleInReport !== false };
-      }
-    });
-    onSubmit?.({
-      ...report,
-      name: schema.name,
-      ...(invoice
-        ? {
-            invoiceId: invoice.invoiceId,
-            patientName: invoice.patientName,
-            patientAge: invoice.age,
-            patientGender: invoice.gender,
-          }
-        : { patientAge: patientAge || null, patientGender: patientGender || null }),
-    });
+    const payload = buildPayload(schema, values, patientAge, patientGender, invoice);
+
+    if (isEditMode) {
+      onUpdate?.(payload);
+    } else {
+      onSubmit?.(payload);
+    }
+  };
+
+  const handleReset = () => {
+    if (isEditMode) {
+      // In edit mode: reset back to the originally loaded data
+      setValues(hydrateValuesFromReport(schema, existingReport));
+    } else {
+      setValues({});
+    }
+    setErrors({});
   };
 
   const needsContext = schema.sections.some((sec) =>
@@ -1201,9 +1442,8 @@ function SchemaRenderer({ schema, invoice, onSubmit, loading = false }) {
   );
   const hasFields = schema.sections.some((s) => s.fields.length > 0);
 
-  const allKeys = schema.sections.flatMap((sec, si) => sec.fields.map((f) => `${si}_${f.name}`));
-  const totalFields = allKeys.length;
-  const totalFilled = allKeys.filter((k) => {
+  const totalFields = allSchemaKeys.length;
+  const totalFilled = allSchemaKeys.filter((k) => {
     const v = values[k];
     return Array.isArray(v) ? v.length > 0 : v !== "" && v !== undefined && v !== null;
   }).length;
@@ -1241,6 +1481,44 @@ function SchemaRenderer({ schema, invoice, onSubmit, loading = false }) {
     <div className="sr-root">
       <StyleInjector />
       <div style={{ maxWidth: 1600, margin: "0 auto", padding: "24px 16px 48px" }}>
+        {/* ── Mode banner ── */}
+        {isEditMode && (
+          <div className="sr-mode-banner edit-mode">
+            <span className="sr-mode-dot" />
+            <Pencil style={{ width: 12, height: 12 }} />
+            <span
+              style={{
+                fontFamily: "'Syne',sans-serif",
+                fontWeight: 700,
+                fontSize: 11,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+              }}
+            >
+              Edit Mode
+            </span>
+            <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, opacity: 0.7, marginLeft: 4 }}>
+              — Modifying existing report
+            </span>
+            {totalChanges > 0 && (
+              <span
+                style={{
+                  marginLeft: "auto",
+                  fontFamily: "'DM Mono',monospace",
+                  fontSize: 10,
+                  background: "rgba(124,58,237,0.15)",
+                  color: "var(--violet)",
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                  fontWeight: 600,
+                }}
+              >
+                {totalChanges} change{totalChanges !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* ── Header ── */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
@@ -1249,15 +1527,20 @@ function SchemaRenderer({ schema, invoice, onSubmit, loading = false }) {
                 width: 36,
                 height: 36,
                 borderRadius: 10,
-                background: "var(--ink)",
+                background: isEditMode ? "var(--violet)" : "var(--ink)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
                 marginTop: 2,
+                transition: "background 0.2s",
               }}
             >
-              <FlaskConical style={{ width: 16, height: 16, color: "var(--amber)" }} />
+              {isEditMode ? (
+                <Pencil style={{ width: 16, height: 16, color: "#fff" }} />
+              ) : (
+                <FlaskConical style={{ width: 16, height: 16, color: "var(--amber)" }} />
+              )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
@@ -1270,7 +1553,7 @@ function SchemaRenderer({ schema, invoice, onSubmit, loading = false }) {
                     letterSpacing: "0.08em",
                   }}
                 >
-                  Lab Report Entry
+                  {isEditMode ? "Lab Report — Edit" : "Lab Report Entry"}
                 </span>
                 <span
                   style={{ width: 3, height: 3, borderRadius: "50%", background: "#d6d9e4", display: "inline-block" }}
@@ -1329,6 +1612,12 @@ function SchemaRenderer({ schema, invoice, onSubmit, loading = false }) {
               <div className="sr-stat-label">Abnormal</div>
               <div className={`sr-stat-val ${abnormalCount > 0 ? "red" : ""}`}>{abnormalCount}</div>
             </div>
+            {isEditMode && (
+              <div className="sr-stat-cell">
+                <div className="sr-stat-label">Changes</div>
+                <div className={`sr-stat-val ${totalChanges > 0 ? "violet" : ""}`}>{totalChanges}</div>
+              </div>
+            )}
           </div>
 
           {/* Progress bar */}
@@ -1379,6 +1668,20 @@ function SchemaRenderer({ schema, invoice, onSubmit, loading = false }) {
           </div>
         )}
 
+        {/* Edit mode changes summary */}
+        {isEditMode && totalChanges > 0 && (
+          <div className="sr-alert violet" style={{ marginBottom: 14 }}>
+            <Pencil style={{ width: 15, height: 15, color: "var(--violet)", flexShrink: 0, marginTop: 1 }} />
+            <div>
+              <div className="sr-alert-title">Unsaved Changes</div>
+              <div className="sr-alert-body">
+                You have made {totalChanges} change{totalChanges !== 1 ? "s" : ""} to this report. Fields with edits are
+                highlighted in purple. Click <strong>Update Report</strong> to save.
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Patient Banner */}
         {invoice ? (
           <div style={{ marginBottom: 16 }}>
@@ -1410,6 +1713,8 @@ function SchemaRenderer({ schema, invoice, onSubmit, loading = false }) {
               patientAge={patientAge}
               patientGender={patientGender}
               hideTitle={section.showTitleInReport === false}
+              originalValues={isEditMode ? originalValues : undefined}
+              isEditMode={isEditMode}
             />
           ))}
         </div>
@@ -1454,22 +1759,43 @@ function SchemaRenderer({ schema, invoice, onSubmit, loading = false }) {
         >
           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <ShieldCheck style={{ width: 13, height: 13, color: "#b0b7cc" }} />
-            <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: "#b0b7cc" }}>Validated entry</span>
+            <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: "#b0b7cc" }}>
+              {isEditMode ? "Editing existing report" : "Validated entry"}
+            </span>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             <button
               type="button"
               className="sr-btn-reset"
-              onClick={() => {
-                setValues({});
-                setErrors({});
-              }}
+              onClick={handleReset}
+              title={isEditMode ? "Revert all changes to original values" : "Clear all fields"}
             >
-              <RotateCcw style={{ width: 13, height: 13 }} /> Reset
+              <RotateCcw style={{ width: 13, height: 13 }} />
+              {isEditMode ? "Revert" : "Reset"}
             </button>
-            <button type="button" className="sr-btn-submit" disabled={loading} onClick={handleSubmit}>
-              {loading ? <span className="sr-amber-dot" /> : <Send style={{ width: 13, height: 13 }} />}
-              {loading ? "Submitting…" : "Submit Report"}
+            <button
+              type="button"
+              className={`sr-btn-submit ${isEditMode ? "edit-mode" : ""}`}
+              disabled={loading || (isEditMode && totalChanges === 0)}
+              onClick={handleSubmit}
+              title={isEditMode && totalChanges === 0 ? "No changes to save" : undefined}
+            >
+              {loading ? (
+                <span className="sr-amber-dot" />
+              ) : isEditMode ? (
+                <Save style={{ width: 13, height: 13 }} />
+              ) : (
+                <Send style={{ width: 13, height: 13 }} />
+              )}
+              {loading
+                ? isEditMode
+                  ? "Updating…"
+                  : "Submitting…"
+                : isEditMode
+                  ? totalChanges > 0
+                    ? `Update Report (${totalChanges})`
+                    : "No Changes"
+                  : "Submit Report"}
             </button>
           </div>
         </div>

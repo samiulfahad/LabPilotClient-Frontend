@@ -3,18 +3,28 @@ import { useParams, useLocation } from "react-router-dom";
 import { AlertCircle, RotateCcw } from "lucide-react";
 import SchemaRenderer from "./SchemaRenderer";
 import LoadingScreen from "../../components/loadingPage";
+import Popup from "../../components/popup";
 import testService from "../../api/test";
+import reportService from "../../api/report";
 
 function UploadReport() {
   const { schemaId } = useParams();
+  const location = useLocation();
+
+  // invoice   — full invoice object (patientName, age, gender, invoiceId …)
+  // test      — the specific test being reported { testId, schemaId, name … }
+  // report    — (optional) existing embedded report → activates edit mode
+  const { invoice, test, report: existingReport } = location.state ?? {};
+
+  const isEditMode = Boolean(existingReport && Object.keys(existingReport).length > 0);
+
   const [schema, setSchema] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [popup, setPopup] = useState(null);
 
-  const location = useLocation();
-  const { invoice, test } = location.state;
-  console.log(invoice);
-
+  // ── Load schema ────────────────────────────────────────────────────────────
   const fetchSchema = async () => {
     setLoading(true);
     setError(null);
@@ -32,6 +42,41 @@ function UploadReport() {
     fetchSchema();
   }, [schemaId]);
 
+  // ── Create handler ─────────────────────────────────────────────────────────
+  const handleSubmit = async (payload) => {
+    try {
+      setSubmitting(true);
+      await reportService.addReport({
+        report: payload,
+        invoiceId: invoice.invoiceId,
+        testId: test.testId,
+      });
+      setPopup({ type: "success", message: "Report submitted successfully" });
+    } catch (e) {
+      setPopup({ type: "error", message: e?.response?.data?.message || "Could not submit report" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ── Update handler ─────────────────────────────────────────────────────────
+  const handleUpdate = async (payload) => {
+    try {
+      setSubmitting(true);
+      await reportService.updateReport({
+        report: payload,
+        invoiceId: invoice.invoiceId,
+        testId: test.testId,
+      });
+      setPopup({ type: "success", message: "Report updated successfully" });
+    } catch (e) {
+      setPopup({ type: "error", message: e?.response?.data?.message || "Could not update report" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ── Render states ──────────────────────────────────────────────────────────
   if (loading) return <LoadingScreen />;
 
   if (error) {
@@ -53,7 +98,16 @@ function UploadReport() {
 
   return (
     <div>
-      <SchemaRenderer schema={schema} invoice={invoice ?? null} />
+      {submitting && <LoadingScreen />}
+      {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      <SchemaRenderer
+        schema={schema}
+        invoice={invoice ?? null}
+        onSubmit={handleSubmit}
+        onUpdate={handleUpdate}
+        loading={submitting}
+        existingReport={isEditMode ? existingReport : null}
+      />
     </div>
   );
 }
