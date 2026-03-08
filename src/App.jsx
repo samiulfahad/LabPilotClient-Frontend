@@ -12,6 +12,7 @@ import PrintInvoice from "./pages/createInvoice/PrintInvoice";
 import InvoiceList from "./pages/invoices";
 import Reports from "./pages/reports";
 import UploadReport from "./pages/uploadReport";
+import ReportViewer from "./pages/reportViewer";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="/invoice/print/:invoiceId" element={<PrintInvoice />} />
         <Route path="/invoice/all" element={<InvoiceList />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/view-report" element={<ReportViewer />} />
         <Route path="/report-upload" element={<UploadReport />} />
         <Route path="/lab-management" element={<LabManagement />} />
         <Route path="/manage-referrers" element={<ManageReferrers />} />
