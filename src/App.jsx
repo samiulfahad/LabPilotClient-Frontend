@@ -13,6 +13,7 @@ import InvoiceList from "./pages/invoices";
 import Reports from "./pages/reports";
 import UploadReport from "./pages/uploadReport";
 import ReportViewer from "./pages/reportViewer";
+import DeleteInvoices from "./pages/deleteInvoice";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="/invoice/new" element={<CreateInvoice />} />
         <Route path="/invoice/print/:invoiceId" element={<PrintInvoice />} />
         <Route path="/invoice/all" element={<InvoiceList />} />
+        <Route path="/invoice/delete" element={< DeleteInvoices/> } />
         <Route path="/reports" element={<Reports />} />
         <Route path="/view-report" element={<ReportViewer />} />
         <Route path="/report-upload" element={<UploadReport />} />
