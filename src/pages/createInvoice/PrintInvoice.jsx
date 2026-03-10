@@ -144,12 +144,16 @@ const pdfStyles = StyleSheet.create({
 // PDF DOCUMENT
 // ============================================================================
 const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, invoiceDate, invoiceTime }) => {
-  const referrerDiscountAmount =
-    invoiceData.hasReferrerDiscount && invoiceData.referrerDiscountPercentage > 0
-      ? invoiceData.totalAmount - invoiceData.priceAfterReferrerDiscount
-      : 0;
-  const showReferrerDiscount = invoiceData.hasReferrerDiscount && referrerDiscountAmount > 0;
-  const showLabAdjustment = invoiceData.hasLabAdjustment && invoiceData.labAdjustmentAmount > 0;
+  // Use the actual difference between totalAmount and priceAfterReferrerDiscount
+  // as the source of truth — no dependency on hasReferrerDiscount flag
+  const referrerDiscountAmount = Math.max(
+    0,
+    (Number(invoiceData.totalAmount) || 0) - (Number(invoiceData.priceAfterReferrerDiscount) || 0),
+  );
+  const showReferrerDiscount = referrerDiscountAmount > 0;
+  const showLabAdjustment = (Number(invoiceData.labAdjustmentAmount) || 0) > 0;
+  // Only show subtotal row when there is at least one discount/adjustment to break down
+  const showSubtotal = showReferrerDiscount || showLabAdjustment;
 
   const paidAmount = Number(invoiceData.paidAmount) || 0;
   const dueAmount = Math.max(0, invoiceData.finalPrice - paidAmount);
@@ -157,6 +161,14 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, invoiceDate, invo
 
   // Hide "Referred By" for agents
   const showReferredBy = invoiceData.referredBy && invoiceData.referrerType !== "agent";
+
+  // Build a human-readable referrer discount label
+  const referrerDiscountLabel = (() => {
+    if (invoiceData.referrerDiscountPercentage > 0)
+      return `Referrer Discount (${invoiceData.referrerDiscountPercentage}%)`;
+    if (invoiceData.referrerDiscountFixedAmount > 0) return "Referrer Discount (Fixed)";
+    return "Referrer Discount";
+  })();
 
   return (
     <Document>
@@ -256,15 +268,16 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, invoiceDate, invo
           ))}
           <View style={pdfStyles.pricingBox}>
             <View style={pdfStyles.pricingInner}>
-              <View style={pdfStyles.pricingRow}>
-                <Text style={pdfStyles.pricingLabel}>Subtotal</Text>
-                <Text style={pdfStyles.pricingValue}>{formatCurrency(invoiceData.totalAmount)}</Text>
-              </View>
+              {/* Only show subtotal when there are discounts/adjustments to break down */}
+              {showSubtotal && (
+                <View style={pdfStyles.pricingRow}>
+                  <Text style={pdfStyles.pricingLabel}>Subtotal</Text>
+                  <Text style={pdfStyles.pricingValue}>{formatCurrency(invoiceData.totalAmount)}</Text>
+                </View>
+              )}
               {showReferrerDiscount && (
                 <View style={pdfStyles.pricingRow}>
-                  <Text style={pdfStyles.pricingLabel}>
-                    Referrer Discount ({invoiceData.referrerDiscountPercentage}%)
-                  </Text>
+                  <Text style={pdfStyles.pricingLabel}>{referrerDiscountLabel}</Text>
                   <Text style={pdfStyles.pricingDiscount}>- {formatCurrency(referrerDiscountAmount)}</Text>
                 </View>
               )}
@@ -356,13 +369,13 @@ const PrintInvoice = () => {
         age: data.age || "N/A",
         contactNumber: data.contactNumber || "N/A",
         referredBy: data.referredBy || null,
-        referrerType: data.referrerType || null, // "doctor" | "agent" | "institute" | null
+        referrerType: data.referrerType || null,
         tests: Array.isArray(data.tests) ? data.tests : [],
         totalAmount: Number(data.totalAmount) || 0,
-        hasReferrerDiscount: data.hasReferrerDiscount || false,
+        // Store both discount fields — amounts are the source of truth, not flags
         referrerDiscountPercentage: Number(data.referrerDiscountPercentage) || 0,
-        priceAfterReferrerDiscount: Number(data.priceAfterReferrerDiscount) || Number(data.totalAmount) || 0,
-        hasLabAdjustment: data.hasLabAdjustment || false,
+        referrerDiscountFixedAmount: Number(data.referrerDiscountFixedAmount) || 0,
+        priceAfterReferrerDiscount: Number(data.priceAfterReferrerDiscount) ?? Number(data.totalAmount) ?? 0,
         labAdjustmentAmount: Number(data.labAdjustmentAmount) || 0,
         finalPrice,
         paidAmount,
@@ -508,12 +521,15 @@ const PrintInvoice = () => {
   if (loading) return <LoadingScreen message="Loading invoice..." />;
   if (!invoiceData) return null;
 
-  const referrerDiscountAmount =
-    invoiceData.hasReferrerDiscount && invoiceData.referrerDiscountPercentage > 0
-      ? invoiceData.totalAmount - invoiceData.priceAfterReferrerDiscount
-      : 0;
-  const showReferrerDiscount = invoiceData.hasReferrerDiscount && referrerDiscountAmount > 0;
-  const showLabAdjustment = invoiceData.hasLabAdjustment && invoiceData.labAdjustmentAmount > 0;
+  // Derive display flags from amounts — not from boolean flags that may be absent in DB docs
+  const referrerDiscountAmount = Math.max(
+    0,
+    (Number(invoiceData.totalAmount) || 0) - (Number(invoiceData.priceAfterReferrerDiscount) || 0),
+  );
+  const showReferrerDiscount = referrerDiscountAmount > 0;
+  const showLabAdjustment = (Number(invoiceData.labAdjustmentAmount) || 0) > 0;
+  const showSubtotal = showReferrerDiscount || showLabAdjustment;
+
   const { date: invoiceDate, time: invoiceTime } = formatDateTime(invoiceData.createdAt);
 
   const cardProps = {
@@ -525,6 +541,7 @@ const PrintInvoice = () => {
     invoiceTime,
     showReferrerDiscount,
     showLabAdjustment,
+    showSubtotal,
     referrerDiscountAmount,
   };
 
@@ -586,6 +603,7 @@ const InvoiceCard = ({
   invoiceTime,
   showReferrerDiscount,
   showLabAdjustment,
+  showSubtotal,
   referrerDiscountAmount,
 }) => {
   const paidAmount = Number(invoiceData.paidAmount) || 0;
@@ -595,8 +613,17 @@ const InvoiceCard = ({
   // Hide "Referred By" for agents
   const showReferredBy = invoiceData.referredBy && invoiceData.referrerType !== "agent";
 
+  // Build a human-readable referrer discount label
+  const referrerDiscountLabel = (() => {
+    if (invoiceData.referrerDiscountPercentage > 0)
+      return `Referrer Discount (${invoiceData.referrerDiscountPercentage}%)`;
+    if (invoiceData.referrerDiscountFixedAmount > 0) return "Referrer Discount";
+    return "Referrer Discount";
+  })();
+
   return (
     <div className="bg-white shadow-lg rounded-xl overflow-hidden">
+      {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -639,6 +666,7 @@ const InvoiceCard = ({
         </div>
       </div>
 
+      {/* Patient Info */}
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex items-start gap-4">
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 flex-1">
@@ -688,6 +716,7 @@ const InvoiceCard = ({
         </div>
       </div>
 
+      {/* Tests & Pricing */}
       <div className="px-6 py-4">
         <div className="flex items-center gap-2 mb-3">
           <div className="p-1.5 bg-blue-50 rounded-lg">
@@ -717,15 +746,20 @@ const InvoiceCard = ({
             </tbody>
           </table>
         </div>
+
+        {/* Pricing breakdown */}
         <div className="mt-3 flex justify-end">
           <div className="w-64 space-y-1.5">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Subtotal</span>
-              <span className="font-medium">{formatCurrency(invoiceData.totalAmount)}</span>
-            </div>
+            {/* Subtotal — only shown when there is at least one discount/adjustment */}
+            {showSubtotal && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Subtotal</span>
+                <span className="font-medium">{formatCurrency(invoiceData.totalAmount)}</span>
+              </div>
+            )}
             {showReferrerDiscount && (
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Referrer Discount ({invoiceData.referrerDiscountPercentage}%)</span>
+                <span className="text-gray-600">{referrerDiscountLabel}</span>
                 <span className="text-red-600">- {formatCurrency(referrerDiscountAmount)}</span>
               </div>
             )}
