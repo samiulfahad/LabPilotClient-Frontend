@@ -8,19 +8,40 @@ import {
   Check,
   Stethoscope,
   Briefcase,
+  Building2,
   Info,
   Users,
 } from "lucide-react";
 
+const TYPE_OPTIONS = [
+  {
+    value: "doctor",
+    label: "Doctor",
+    icon: Stethoscope,
+    activeClasses: "border-blue-500 bg-blue-50 text-blue-700",
+    checkColor: "text-blue-600",
+    iconActive: "text-blue-600",
+  },
+  {
+    value: "agent",
+    label: "Agent",
+    icon: Briefcase,
+    activeClasses: "border-purple-500 bg-purple-50 text-purple-700",
+    checkColor: "text-purple-600",
+    iconActive: "text-purple-600",
+  },
+  {
+    value: "institute",
+    label: "Institute",
+    icon: Building2,
+    activeClasses: "border-teal-500 bg-teal-50 text-teal-700",
+    checkColor: "text-teal-600",
+    iconActive: "text-teal-600",
+  },
+];
+
 const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
-  const label = {};
-  if (formData.type === "editReferrer") {
-    label.formTitle = "Edit Referrer";
-    label.button = "Update";
-  } else {
-    label.formTitle = "Add New Referrer";
-    label.button = "Create Referrer";
-  }
+  const isEdit = formData.formType === "editReferrer";
 
   const handleFieldChange = (field, value) => {
     onChange(field, value);
@@ -28,71 +49,56 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
 
   return (
     <div className="relative max-h-[80vh] sm:max-h-full">
-      {/* Header - Sticky at top */}
+      {/* Header */}
       <div className="sticky top-0 z-10 px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-cyan-50">
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <Users className="w-6 h-6 text-blue-600" />
-          {label.formTitle}
+          {isEdit ? "Edit Referrer" : "Add New Referrer"}
         </h2>
       </div>
 
-      {/* Scrollable Content - Parent modal handles overflow */}
+      {/* Scrollable Content */}
       <div className="px-6 py-6 bg-gray-50">
         <form onSubmit={onSubmit} className="space-y-5 max-w-2xl mx-auto">
-          {/* Referrer Type */}
+          {/* Referrer Type — 3 options */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
             <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <Briefcase className="w-4 h-4 text-gray-500" />
               Referrer Type
             </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => handleFieldChange("isDoctor", true)}
-                className={`relative py-3 px-3 rounded-lg font-medium transition-all duration-200 border-2 ${
-                  formData.isDoctor
-                    ? "border-blue-500 bg-blue-50 text-blue-700"
-                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                }`}
-              >
-                <div className="flex flex-col items-center gap-1.5">
-                  <Stethoscope className={`w-5 h-5 ${formData.isDoctor ? "text-blue-600" : "text-gray-400"}`} />
-                  <span className="text-xs font-semibold">Doctor</span>
-                </div>
-                {formData.isDoctor && (
-                  <div className="absolute top-1.5 right-1.5">
-                    <Check className="w-3.5 h-3.5 text-blue-600" />
-                  </div>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleFieldChange("isDoctor", false)}
-                className={`relative py-3 px-3 rounded-lg font-medium transition-all duration-200 border-2 ${
-                  !formData.isDoctor
-                    ? "border-purple-500 bg-purple-50 text-purple-700"
-                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                }`}
-              >
-                <div className="flex flex-col items-center gap-1.5">
-                  <Briefcase className={`w-5 h-5 ${!formData.isDoctor ? "text-purple-600" : "text-gray-400"}`} />
-                  <span className="text-xs font-semibold">Agent</span>
-                </div>
-                {!formData.isDoctor && (
-                  <div className="absolute top-1.5 right-1.5">
-                    <Check className="w-3.5 h-3.5 text-purple-600" />
-                  </div>
-                )}
-              </button>
+            <div className="grid grid-cols-3 gap-3">
+              {TYPE_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                const isSelected = formData.type === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => handleFieldChange("type", opt.value)}
+                    className={`relative py-3 px-3 rounded-lg font-medium transition-all duration-200 border-2 ${
+                      isSelected ? opt.activeClasses : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-1.5">
+                      <Icon className={`w-5 h-5 ${isSelected ? opt.iconActive : "text-gray-400"}`} />
+                      <span className="text-xs font-semibold">{opt.label}</span>
+                    </div>
+                    {isSelected && (
+                      <div className="absolute top-1.5 right-1.5">
+                        <Check className={`w-3.5 h-3.5 ${opt.checkColor}`} />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {/* Basic Information */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
             <div className="space-y-3">
-              {/* Name and Contact Number - Same Row */}
+              {/* Name + Contact */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Full Name <span className="text-red-500">*</span>
@@ -110,7 +116,6 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
                   </div>
                 </div>
 
-                {/* Contact Number */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Contact Number <span className="text-red-500">*</span>
@@ -130,8 +135,8 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
                 </div>
               </div>
 
-              {/* Degree - Only show if isDoctor is true */}
-              {formData.isDoctor && (
+              {/* Degree — only for doctor */}
+              {formData.type === "doctor" && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Medical Degree</label>
                   <div className="relative">
@@ -188,66 +193,56 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
               Commission Details
             </h3>
             <div className="space-y-3">
-              {/* Commission Type Radio Buttons */}
+              {/* Commission Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Commission Type</label>
                 <div className="grid grid-cols-2 gap-3">
-                  <label
-                    className={`relative flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                      formData.commissionType === "percentage"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="commissionType"
-                      value="percentage"
-                      checked={formData.commissionType === "percentage"}
-                      onChange={(e) => handleFieldChange("commissionType", e.target.value)}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <div className="flex items-center gap-2">
+                  {[
+                    {
+                      value: "percentage",
+                      label: "Percentage",
+                      activeClass: "border-blue-500 bg-blue-50",
+                      textClass: "text-blue-700",
+                      checkClass: "text-blue-600",
+                    },
+                    {
+                      value: "fixed",
+                      label: "Fixed",
+                      activeClass: "border-green-500 bg-green-50",
+                      textClass: "text-green-700",
+                      checkClass: "text-green-600",
+                    },
+                  ].map((opt) => (
+                    <label
+                      key={opt.value}
+                      className={`relative flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                        formData.commissionType === opt.value
+                          ? `${opt.activeClass}`
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="commissionType"
+                        value={opt.value}
+                        checked={formData.commissionType === opt.value}
+                        onChange={(e) => handleFieldChange("commissionType", e.target.value)}
+                        className="w-4 h-4 text-blue-600"
+                      />
                       <span
-                        className={`font-medium text-sm ${formData.commissionType === "percentage" ? "text-blue-700" : "text-gray-700"}`}
+                        className={`font-medium text-sm ${
+                          formData.commissionType === opt.value ? opt.textClass : "text-gray-700"
+                        }`}
                       >
-                        Percentage
+                        {opt.label}
                       </span>
-                    </div>
-                    {formData.commissionType === "percentage" && (
-                      <div className="absolute top-2 right-2">
-                        <Check className="w-4 h-4 text-blue-600" />
-                      </div>
-                    )}
-                  </label>
-                  <label
-                    className={`relative flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                      formData.commissionType === "fixed"
-                        ? "border-green-500 bg-green-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="commissionType"
-                      value="fixed"
-                      checked={formData.commissionType === "fixed"}
-                      onChange={(e) => handleFieldChange("commissionType", e.target.value)}
-                      className="w-4 h-4 text-green-600"
-                    />
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`font-medium text-sm ${formData.commissionType === "fixed" ? "text-green-700" : "text-gray-700"}`}
-                      >
-                        Fixed
-                      </span>
-                    </div>
-                    {formData.commissionType === "fixed" && (
-                      <div className="absolute top-2 right-2">
-                        <Check className="w-4 h-4 text-green-600" />
-                      </div>
-                    )}
-                  </label>
+                      {formData.commissionType === opt.value && (
+                        <div className="absolute top-2 right-2">
+                          <Check className={`w-4 h-4 ${opt.checkClass}`} />
+                        </div>
+                      )}
+                    </label>
+                  ))}
                 </div>
               </div>
 
@@ -268,7 +263,7 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
                     value={formData.commissionValue || ""}
                     onChange={(e) => handleFieldChange("commissionValue", parseFloat(e.target.value) || 0)}
                     className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
-                    placeholder={formData.commissionType === "percentage" ? "0-100" : "Amount in BDT"}
+                    placeholder={formData.commissionType === "percentage" ? "0–100" : "Amount in BDT"}
                     min="0"
                     max={formData.commissionType === "percentage" ? "100" : undefined}
                     step={formData.commissionType === "percentage" ? "0.1" : "1"}
@@ -290,7 +285,7 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
         </form>
       </div>
 
-      {/* Footer - Sticky at bottom */}
+      {/* Footer */}
       <div className="sticky bottom-0 z-10 border-t border-gray-200 px-6 py-4 bg-white">
         <div className="flex gap-3 max-w-2xl mx-auto">
           <button
@@ -305,7 +300,7 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
             onClick={onSubmit}
             className="flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-sm bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-sm hover:shadow"
           >
-            {label.button}
+            {isEdit ? "Update" : "Create Referrer"}
           </button>
         </div>
       </div>

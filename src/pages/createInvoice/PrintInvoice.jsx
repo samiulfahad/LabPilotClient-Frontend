@@ -155,6 +155,9 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, invoiceDate, invo
   const dueAmount = Math.max(0, invoiceData.finalPrice - paidAmount);
   const isFullyPaid = dueAmount === 0;
 
+  // Hide "Referred By" for agents
+  const showReferredBy = invoiceData.referredBy && invoiceData.referrerType !== "agent";
+
   return (
     <Document>
       <Page size="A5" style={pdfStyles.page}>
@@ -203,7 +206,7 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, labInfo, invoiceDate, invo
                 <Text style={pdfStyles.fieldLabel}>Contact</Text>
                 <Text style={pdfStyles.fieldValue}>{invoiceData.contactNumber}</Text>
               </View>
-              {invoiceData.referredBy && (
+              {showReferredBy && (
                 <View style={pdfStyles.patientFieldFull}>
                   <Text style={pdfStyles.fieldLabel}>Referred By</Text>
                   <Text style={pdfStyles.fieldValue}>
@@ -353,6 +356,7 @@ const PrintInvoice = () => {
         age: data.age || "N/A",
         contactNumber: data.contactNumber || "N/A",
         referredBy: data.referredBy || null,
+        referrerType: data.referrerType || null, // "doctor" | "agent" | "institute" | null
         tests: Array.isArray(data.tests) ? data.tests : [],
         totalAmount: Number(data.totalAmount) || 0,
         hasReferrerDiscount: data.hasReferrerDiscount || false,
@@ -588,6 +592,9 @@ const InvoiceCard = ({
   const dueAmount = Math.max(0, invoiceData.finalPrice - paidAmount);
   const isFullyPaid = dueAmount === 0;
 
+  // Hide "Referred By" for agents
+  const showReferredBy = invoiceData.referredBy && invoiceData.referrerType !== "agent";
+
   return (
     <div className="bg-white shadow-lg rounded-xl overflow-hidden">
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5">
@@ -651,7 +658,7 @@ const InvoiceCard = ({
               <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Contact</p>
               <p className="text-sm font-medium text-gray-900">{invoiceData.contactNumber}</p>
             </div>
-            {invoiceData.referredBy && (
+            {showReferredBy && (
               <div className="col-span-2">
                 <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Referred By</p>
                 <p className="text-sm font-medium text-gray-900">

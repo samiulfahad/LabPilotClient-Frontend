@@ -13,6 +13,7 @@ import {
   UserX,
   Stethoscope,
   Briefcase,
+  Building2,
   ArrowLeft,
 } from "lucide-react";
 import Modal from "../../../components/modal";
@@ -27,7 +28,7 @@ const initialData = {
   contactNumber: "",
   degree: "",
   details: "",
-  isDoctor: true,
+  type: "doctor",
   commissionType: "percentage",
   commissionValue: 0,
   isActive: true,
@@ -82,19 +83,17 @@ const ManageReferrer = () => {
   const stats = useMemo(() => {
     const total = referrers.length;
     const active = referrers.filter((r) => r.isActive).length;
-    const inactive = total - active;
-    const doctors = referrers.filter((r) => r.isDoctor).length;
-    const agents = total - doctors;
-    return { total, active, inactive, doctors, agents };
+    const doctors = referrers.filter((r) => r.type === "doctor").length;
+    const agents = referrers.filter((r) => r.type === "agent").length;
+    const institutes = referrers.filter((r) => r.type === "institute").length;
+    return { total, active, doctors, agents, institutes };
   }, [referrers]);
 
   const filteredReferrers = useMemo(() => {
     let filtered = [...referrers];
 
-    if (typeFilter === "doctor") {
-      filtered = filtered.filter((r) => r.isDoctor === true);
-    } else if (typeFilter === "agent") {
-      filtered = filtered.filter((r) => r.isDoctor === false);
+    if (typeFilter !== "all") {
+      filtered = filtered.filter((r) => r.type === typeFilter);
     }
 
     if (statusFilter === "active") {
@@ -123,22 +122,18 @@ const ManageReferrer = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation checks
     if (!formData.name?.trim()) {
       setPopup({ type: "error", message: "Name is required" });
       return;
     }
-
     if (!formData.contactNumber?.trim()) {
       setPopup({ type: "error", message: "Contact number is required" });
       return;
     }
-
     if (formData.commissionType === "percentage" && (formData.commissionValue < 0 || formData.commissionValue > 100)) {
       setPopup({ type: "error", message: "Percentage must be between 0 and 100" });
       return;
     }
-
     if (formData.commissionValue < 0) {
       setPopup({ type: "error", message: "Commission value cannot be negative" });
       return;
@@ -147,18 +142,16 @@ const ManageReferrer = () => {
     try {
       setLoading(true);
 
-      if (formData.type === "addReferrer") {
+      if (formData.formType === "addReferrer") {
         setLoadingMessage("Creating referrer");
         await referrerService.addReferrer(formData);
-        // Reload the list to get fresh data from the server
         await loadReferrers();
         setPopup({ type: "success", message: "Referrer created successfully" });
       }
 
-      if (formData.type === "editReferrer") {
+      if (formData.formType === "editReferrer") {
         setLoadingMessage("Updating referrer");
         await referrerService.editReferrer(formData);
-        // Reload the list to get fresh data from the server
         await loadReferrers();
         setPopup({ type: "success", message: "Referrer updated successfully" });
       }
@@ -166,14 +159,10 @@ const ManageReferrer = () => {
       setIsModalOpen(false);
       setFormData(initialData);
     } catch (e) {
-      // console.log(e.response.data);
       console.error("Error:", e);
-
-      // Extract error message from response
       const errorMessage =
         e?.response?.data?.error ||
-        (formData.type === "editReferrer" ? "Could not edit referrer" : "Could not add referrer");
-
+        (formData.formType === "editReferrer" ? "Could not edit referrer" : "Could not add referrer");
       setPopup({ type: "error", message: errorMessage });
     } finally {
       setLoading(false);
@@ -223,10 +212,7 @@ const ManageReferrer = () => {
     } catch (e) {
       console.error(`Error ${isActivating ? "activating" : "deactivating"}:`, e);
       const errorMessage = e?.response?.data?.error || `Could not ${isActivating ? "activate" : "deactivate"} referrer`;
-      setPopup({
-        type: "error",
-        message: errorMessage,
-      });
+      setPopup({ type: "error", message: errorMessage });
     } finally {
       setLoading(false);
       setLoadingMessage("Processing request");
@@ -255,7 +241,7 @@ const ManageReferrer = () => {
       )}
 
       <div className="max-w-7xl mx-auto">
-        {/* ===== RESPONSIVE HEADER ===== */}
+        {/* Header */}
         <div className="flex items-center justify-between mb-2 sm:mb-4">
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
@@ -273,18 +259,18 @@ const ManageReferrer = () => {
               to="/lab-management"
               className="px-2 md:px-4 py-2.5 rounded-xl border border-gray-200 bg-white/50 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow"
             >
-              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+              <ArrowLeft className="w-4 h-4" />
               <span>Back</span>
             </Link>
 
             <button
               onClick={() => {
-                setFormData({ ...initialData, type: "addReferrer" });
+                setFormData({ ...initialData, formType: "addReferrer" });
                 setIsModalOpen(true);
               }}
               className="hidden sm:flex bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 items-center justify-center gap-2 text-sm sm:text-base"
             >
-              <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+              <Plus className="w-5 h-5" />
               <span>Add Referrer</span>
             </button>
           </div>
@@ -298,18 +284,18 @@ const ManageReferrer = () => {
           </p>
           <button
             onClick={() => {
-              setFormData({ ...initialData, type: "addReferrer" });
+              setFormData({ ...initialData, formType: "addReferrer" });
               setIsModalOpen(true);
             }}
             className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm"
           >
-            <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+            <Plus className="w-5 h-5" />
             <span>Add Referrer</span>
           </button>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-blue-50 rounded-lg">
@@ -344,15 +330,15 @@ const ManageReferrer = () => {
 
           <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-purple-50 rounded-lg">
-                <Stethoscope className="w-6 h-6 text-purple-600" />
+              <div className="p-2 bg-indigo-50 rounded-lg">
+                <Stethoscope className="w-6 h-6 text-indigo-600" />
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">Doctors</p>
                 {initialLoading ? (
                   <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
                 ) : (
-                  <p className="text-2xl font-bold text-purple-600">{stats.doctors}</p>
+                  <p className="text-2xl font-bold text-indigo-600">{stats.doctors}</p>
                 )}
               </div>
             </div>
@@ -360,15 +346,31 @@ const ManageReferrer = () => {
 
           <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-orange-50 rounded-lg">
-                <Briefcase className="w-6 h-6 text-orange-600" />
+              <div className="p-2 bg-amber-50 rounded-lg">
+                <Briefcase className="w-6 h-6 text-amber-600" />
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-medium">Agents</p>
                 {initialLoading ? (
                   <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
                 ) : (
-                  <p className="text-2xl font-bold text-orange-600">{stats.agents}</p>
+                  <p className="text-2xl font-bold text-amber-600">{stats.agents}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-teal-50 rounded-lg">
+                <Building2 className="w-6 h-6 text-teal-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 font-medium">Institutes</p>
+                {initialLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-teal-600">{stats.institutes}</p>
                 )}
               </div>
             </div>
@@ -387,16 +389,16 @@ const ManageReferrer = () => {
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-gray-500">Type</span>
               <div className="flex rounded-lg bg-gray-100 p-1">
-                {["all", "doctor", "agent"].map((type) => (
+                {["all", "doctor", "agent", "institute"].map((t) => (
                   <button
-                    key={type}
-                    onClick={() => setTypeFilter(type)}
+                    key={t}
+                    onClick={() => setTypeFilter(t)}
                     disabled={initialLoading}
                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
-                      typeFilter === type ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                      typeFilter === t ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
                     } ${initialLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
-                    {type}
+                    {t}
                   </button>
                 ))}
               </div>
@@ -464,13 +466,7 @@ const ManageReferrer = () => {
 
         {/* Modal */}
         <Modal isOpen={isModalOpen} size="md" onClose={handleClose}>
-          <ReferrerForm
-            formData={formData}
-            onChange={handleFormChange}
-            onSubmit={handleSubmit}
-            onClose={handleClose}
-            type={formData.type}
-          />
+          <ReferrerForm formData={formData} onChange={handleFormChange} onSubmit={handleSubmit} onClose={handleClose} />
         </Modal>
 
         {/* Referrers List */}
@@ -498,7 +494,7 @@ const ManageReferrer = () => {
             {!searchQuery && typeFilter === "all" && statusFilter === "all" && (
               <button
                 onClick={() => {
-                  setFormData({ ...initialData, type: "addReferrer" });
+                  setFormData({ ...initialData, formType: "addReferrer" });
                   setIsModalOpen(true);
                 }}
                 className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm hover:shadow transition-all"
@@ -516,17 +512,16 @@ const ManageReferrer = () => {
                 input={item}
                 index={index}
                 onEdit={() => {
-                  // Normalize data to ensure all fields have valid values
                   setFormData({
                     name: item.name || "",
                     contactNumber: item.contactNumber || "",
                     degree: item.degree || "",
                     details: item.details || "",
-                    isDoctor: item.isDoctor ?? true,
+                    type: item.type || "doctor",
                     commissionType: item.commissionType || "percentage",
                     commissionValue: item.commissionValue || 0,
                     isActive: item.isActive ?? true,
-                    type: "editReferrer",
+                    formType: "editReferrer",
                     _id: item._id,
                   });
                   setIsModalOpen(true);

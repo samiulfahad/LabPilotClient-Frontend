@@ -23,10 +23,10 @@ function App() {
         <Route path="/invoice/new" element={<CreateInvoice />} />
         <Route path="/invoice/print/:invoiceId" element={<PrintInvoice />} />
         <Route path="/invoice/all" element={<InvoiceList />} />
-        <Route path="/invoice/delete" element={< DeleteInvoices/> } />
+        <Route path="/invoice/delete" element={<DeleteInvoices />} />
+        <Route path="/report-upload" element={<UploadReport />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/view-report" element={<ReportViewer />} />
-        <Route path="/report-upload" element={<UploadReport />} />
         <Route path="/lab-management" element={<LabManagement />} />
         <Route path="/manage-referrers" element={<ManageReferrers />} />
         <Route path="/manage-staffs" element={<ManageStaffs />} />

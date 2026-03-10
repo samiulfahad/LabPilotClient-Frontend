@@ -26,7 +26,7 @@ import invoiceService from "../../api/invoice";
 import LoadingScreen from "../../components/loadingPage";
 
 // ============================================================================
-// INVOICE SUMMARY COMPONENT (Modern & Clean)
+// INVOICE SUMMARY COMPONENT
 // ============================================================================
 const InvoiceSummary = ({ formData, onConfirm, onClose }) => {
   const formatCurrency = (amount) => {
@@ -91,6 +91,14 @@ const InvoiceSummary = ({ formData, onConfirm, onClose }) => {
                     <span className="text-gray-600 text-sm font-normal ml-2">({formData.referredBy.degree})</span>
                   )}
                 </p>
+                {typeof formData.referredBy === "object" && formData.referredBy.commissionValue > 0 && (
+                  <p className="text-xs text-blue-600 mt-0.5">
+                    Commission:{" "}
+                    {formData.referredBy.commissionType === "percentage"
+                      ? `${formData.referredBy.commissionValue}% = ${formatCurrency(formData.referrerCommission)}`
+                      : `Fixed ${formatCurrency(formData.referrerCommission)}`}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -132,10 +140,15 @@ const InvoiceSummary = ({ formData, onConfirm, onClose }) => {
               <span className="text-gray-600">Subtotal</span>
               <span className="font-medium text-gray-900">{formatCurrency(formData.totalAmount)}</span>
             </div>
-            {formData.hasReferrerDiscount && formData.referrerDiscountPercentage > 0 && (
+            {formData.hasReferrerDiscount && formData.totalAmount !== formData.priceAfterReferrerDiscount && (
               <>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Referrer Discount ({formData.referrerDiscountPercentage}%)</span>
+                  <span className="text-gray-600">
+                    Referrer Discount{" "}
+                    {formData.referredBy?.commissionType === "percentage"
+                      ? `(${formData.referrerDiscountPercentage}%)`
+                      : `(Fixed)`}
+                  </span>
                   <span className="text-red-600">
                     - {formatCurrency(formData.totalAmount - formData.priceAfterReferrerDiscount)}
                   </span>
@@ -205,7 +218,7 @@ const InvoiceSummary = ({ formData, onConfirm, onClose }) => {
 };
 
 // ============================================================================
-// INVOICE FORM COMPONENT (Modern & Clean)
+// INVOICE FORM COMPONENT
 // ============================================================================
 const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, onTestSelection, onSubmit }) => {
   const [referrerSearchQuery, setReferrerSearchQuery] = useState("");
@@ -215,17 +228,21 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
   const referrerDropdownRef = useRef(null);
   const testDropdownRef = useRef(null);
 
-  // Click outside handlers
+  // Close referrer dropdown on outside click; save as custom referrer if text typed
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (referrerDropdownRef.current && !referrerDropdownRef.current.contains(event.target)) {
+        if (referrerSearchQuery.trim() && (!formData.referredBy || typeof formData.referredBy !== "object")) {
+          onChange("referredBy", referrerSearchQuery.trim());
+        }
         setShowReferrerDropdown(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [referrerSearchQuery, formData.referredBy, onChange]);
 
+  // Close test dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (testDropdownRef.current && !testDropdownRef.current.contains(event.target)) {
@@ -251,6 +268,8 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
     return availableTests.filter((test) => test.name.toLowerCase().includes(query));
   }, [testSearchQuery, availableTests]);
 
+  // KEY FIX: use onMouseDown + e.preventDefault() so the input's blur
+  // does not fire before the selection is registered
   const handleReferrerSelect = (referrer) => {
     onChange("referredBy", referrer);
     setShowReferrerDropdown(false);
@@ -262,17 +281,10 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
     setTestSearchQuery("");
   };
 
-  const isTestSelected = (testId) => {
-    return formData.selectedTests.some((t) => t._id === testId);
-  };
+  const isTestSelected = (testId) => formData.selectedTests.some((t) => t._id === testId);
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-BD", {
-      style: "currency",
-      currency: "BDT",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  const formatCurrency = (amount) =>
+    new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", minimumFractionDigits: 0 }).format(amount);
 
   const dueAmount = Math.max(0, formData.finalPrice - (formData.paidAmount || 0));
   const isFullyPaid = formData.paidAmount >= formData.finalPrice && formData.finalPrice > 0;
@@ -290,8 +302,8 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
           </div>
         </div>
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Patient Name */}
-          <div className="md:col-span-2">
+          {/* Row 1: Name + Age */}
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Patient Name <span className="text-red-500">*</span>
             </label>
@@ -308,13 +320,50 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
             </div>
           </div>
 
-          {/* Gender */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Age <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="number"
+                value={formData.age}
+                onChange={(e) => onChange("age", e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
+                placeholder="Enter age"
+                min="0"
+                max="150"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Contact + Gender */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Contact Number <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="tel"
+                value={formData.contactNumber}
+                onChange={(e) => onChange("contactNumber", e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
+                placeholder="01XXXXXXXXX"
+                maxLength={11}
+                required
+              />
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Gender <span className="text-red-500">*</span>
             </label>
             <div className="flex gap-2">
-              {["male", "female", "other"].map((g) => (
+              {["male", "female"].map((g) => (
                 <label
                   key={g}
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 border rounded-lg cursor-pointer transition-all text-sm font-medium select-none ${
@@ -338,52 +387,13 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
             </div>
           </div>
 
-          {/* Age */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Age <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="number"
-                value={formData.age}
-                onChange={(e) => onChange("age", e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
-                placeholder="Enter age"
-                min="0"
-                max="150"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Contact Number */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Contact Number <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="tel"
-                value={formData.contactNumber}
-                onChange={(e) => onChange("contactNumber", e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
-                placeholder="01XXXXXXXXX"
-                maxLength={11}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Referred By */}
+          {/* Row 3: Referred By — full width */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Referred By <span className="text-gray-400 text-xs">(Optional)</span>
             </label>
             <div className="relative" ref={referrerDropdownRef}>
-              <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+              <Building2 className="absolute left-3 top-3.5 w-4 h-4 text-gray-400 z-10" />
               <input
                 type="text"
                 value={
@@ -394,25 +404,13 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                 onChange={(e) => {
                   const val = e.target.value;
                   setReferrerSearchQuery(val);
-                  // If a matched referrer object was selected before, clear it
+                  // Clear selected object when user starts typing again
                   if (formData.referredBy && typeof formData.referredBy === "object") {
                     onChange("referredBy", null);
                   }
                   setShowReferrerDropdown(true);
                 }}
                 onFocus={() => setShowReferrerDropdown(true)}
-                onBlur={() => {
-                  // On blur: if there's typed text but no matched object selected, save as plain string
-                  setTimeout(() => {
-                    if (
-                      referrerSearchQuery.trim() &&
-                      (!formData.referredBy || typeof formData.referredBy !== "object")
-                    ) {
-                      onChange("referredBy", referrerSearchQuery.trim());
-                    }
-                    setShowReferrerDropdown(false);
-                  }, 150);
-                }}
                 className={`w-full pl-9 pr-9 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm ${
                   formData.referredBy && typeof formData.referredBy === "string"
                     ? "border-gray-400 bg-gray-50"
@@ -420,10 +418,13 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                 }`}
                 placeholder="Search by name or contact number"
               />
+
+              {/* Clear button */}
               {formData.referredBy && (
                 <button
                   type="button"
-                  onClick={() => {
+                  onMouseDown={(e) => {
+                    e.preventDefault();
                     onChange("referredBy", null);
                     setReferrerSearchQuery("");
                   }}
@@ -440,6 +441,19 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                 </p>
               )}
 
+              {/* Commission badge for registered referrer */}
+              {formData.referredBy &&
+                typeof formData.referredBy === "object" &&
+                formData.referredBy.commissionValue > 0 && (
+                  <p className="mt-1 text-xs text-blue-600 pl-1">
+                    Commission:{" "}
+                    {formData.referredBy.commissionType === "percentage"
+                      ? `${formData.referredBy.commissionValue}% of subtotal`
+                      : `Fixed ${formatCurrency(formData.referredBy.commissionValue)}`}
+                  </p>
+                )}
+
+              {/* Dropdown list */}
               {showReferrerDropdown && referrerSearchQuery && (
                 <div className="absolute top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
                   {filteredReferrers.length > 0 ? (
@@ -447,8 +461,8 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                       <button
                         key={referrer._id}
                         type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // ← prevents blur from firing before selection
                           handleReferrerSelect(referrer);
                         }}
                         className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0"
@@ -460,10 +474,26 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                               {referrer.contactNumber}
                               {referrer.degree && ` • ${referrer.degree}`}
                             </p>
+                            {referrer.commissionValue > 0 && (
+                              <p className="text-xs text-blue-500 mt-0.5">
+                                Commission:{" "}
+                                {referrer.commissionType === "percentage"
+                                  ? `${referrer.commissionValue}%`
+                                  : `Fixed ${formatCurrency(referrer.commissionValue)}`}
+                              </p>
+                            )}
                           </div>
-                          {referrer.isDoctor && (
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
-                              Doctor
+                          {referrer.type && (
+                            <span
+                              className={`px-2 py-0.5 text-xs font-medium rounded capitalize ${
+                                referrer.type === "doctor"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : referrer.type === "agent"
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-teal-100 text-teal-700"
+                              }`}
+                            >
+                              {referrer.type}
                             </span>
                           )}
                         </div>
@@ -473,8 +503,8 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                     <div className="px-4 py-4 text-sm text-gray-500">
                       <p className="text-center text-gray-400 text-xs mb-1">No matching referrers</p>
                       <p className="text-center text-gray-600 text-xs">
-                        Press <span className="font-semibold">Tab</span> or click outside to save{" "}
-                        <span className="font-medium text-gray-800">"{referrerSearchQuery}"</span> as a custom referrer
+                        Click outside to save <span className="font-medium text-gray-800">"{referrerSearchQuery}"</span>{" "}
+                        as a custom referrer
                       </p>
                     </div>
                   )}
@@ -520,7 +550,7 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                       <button
                         key={test._id}
                         type="button"
-                        onClick={(e) => {
+                        onMouseDown={(e) => {
                           e.preventDefault();
                           handleTestSelect(test);
                         }}
@@ -614,53 +644,117 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
             </div>
           </div>
 
-          {/* Referrer Discount Section */}
-          <div className="space-y-3">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.hasReferrerDiscount}
-                onChange={(e) => {
-                  onChange("hasReferrerDiscount", e.target.checked);
-                  if (!e.target.checked) onChange("referrerDiscountPercentage", 0);
-                }}
-                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-              />
-              <div className="flex items-center gap-1.5">
-                <div className="p-1.5 bg-white rounded">
-                  <Percent className="w-3.5 h-3.5 text-blue-600" />
+          {/* Referrer Discount Section — only show for registered referrers */}
+          {formData.referredBy && typeof formData.referredBy === "object" && (
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.hasReferrerDiscount}
+                  onChange={(e) => {
+                    onChange("hasReferrerDiscount", e.target.checked);
+                    if (!e.target.checked) {
+                      onChange("referrerDiscountPercentage", 0);
+                      onChange("referrerDiscountFixedAmount", 0);
+                    } else {
+                      // Auto-fill with referrer's commission value
+                      if (formData.referredBy.commissionType === "percentage") {
+                        onChange("referrerDiscountPercentage", formData.referredBy.commissionValue || 0);
+                      } else if (formData.referredBy.commissionType === "fixed") {
+                        onChange("referrerDiscountFixedAmount", formData.referredBy.commissionValue || 0);
+                      }
+                    }
+                  }}
+                  className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                />
+                <div className="flex items-center gap-1.5">
+                  <div className="p-1.5 bg-white rounded">
+                    <Percent className="w-3.5 h-3.5 text-blue-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">Apply Referrer Discount</span>
                 </div>
-                <span className="text-sm font-medium text-gray-700">Apply Referrer Discount</span>
-              </div>
-            </label>
+              </label>
 
-            {formData.hasReferrerDiscount && (
-              <div className="ml-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Referrer Discount Percentage</label>
-                <div className="relative">
-                  <Percent className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="number"
-                    value={formData.referrerDiscountPercentage}
-                    onChange={(e) => onChange("referrerDiscountPercentage", parseFloat(e.target.value) || 0)}
-                    className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
-                    placeholder="Enter referrer discount percentage"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                  />
-                </div>
-                <div className="mt-3 p-3 bg-white rounded-lg border border-blue-200">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">After Referrer Discount</span>
-                    <span className="font-medium text-blue-600">
-                      {formatCurrency(formData.priceAfterReferrerDiscount)}
-                    </span>
+              {formData.hasReferrerDiscount && (
+                <div className="ml-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                  {/* Percentage-based referrer */}
+                  {formData.referredBy.commissionType === "percentage" && (
+                    <>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Discount Percentage
+                        <span className="ml-1.5 text-xs font-normal text-blue-600">
+                          (max {formData.referredBy?.commissionValue}%)
+                        </span>
+                      </label>
+                      <div className="relative">
+                        <Percent className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="number"
+                          value={formData.referrerDiscountPercentage}
+                          onChange={(e) => {
+                            if (e.target.value === "") {
+                              onChange("referrerDiscountPercentage", "");
+                              return;
+                            }
+                            const max = formData.referredBy?.commissionValue || 100;
+                            const val = Math.min(parseFloat(e.target.value) || 0, max);
+                            onChange("referrerDiscountPercentage", val);
+                          }}
+                          className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
+                          placeholder={`Max ${formData.referredBy?.commissionValue || 100}%`}
+                          min="0"
+                          max={formData.referredBy?.commissionValue || 100}
+                          step="0.01"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Fixed-based referrer */}
+                  {formData.referredBy.commissionType === "fixed" && (
+                    <>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Discount Amount
+                        <span className="ml-1.5 text-xs font-normal text-blue-600">
+                          (max {formatCurrency(formData.referredBy?.commissionValue)})
+                        </span>
+                      </label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="number"
+                          value={formData.referrerDiscountFixedAmount}
+                          onChange={(e) => {
+                            if (e.target.value === "") {
+                              onChange("referrerDiscountFixedAmount", "");
+                              return;
+                            }
+                            const max = formData.referredBy?.commissionValue || Infinity;
+                            const val = Math.min(parseFloat(e.target.value) || 0, max);
+                            onChange("referrerDiscountFixedAmount", val);
+                          }}
+                          className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
+                          placeholder={`Max ${formatCurrency(formData.referredBy?.commissionValue || 0)}`}
+                          min="0"
+                          max={formData.referredBy?.commissionValue}
+                          step="0.01"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="mt-3 p-3 bg-white rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">After Referrer Discount</span>
+                      <span className="font-medium text-blue-600">
+                        {formatCurrency(formData.priceAfterReferrerDiscount)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Lab Adjustment Section */}
           <div className="space-y-3">
@@ -780,7 +874,35 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
 };
 
 // ============================================================================
-// MAIN CREATE INVOICE COMPONENT (Modern & Clean)
+// HELPERS
+// ============================================================================
+
+/**
+ * Calculate referrer net commission:
+ *  - "percentage": commissionValue% of totalAmount
+ *  - "fixed":      flat commissionValue
+ *  - string / null (custom/unregistered referrer): 0
+ *
+ * If the referrer gave a discount (referrerDiscountAmount > 0),
+ * that discount is deducted from their gross commission (floored at 0).
+ * e.g. total=5000, commission=1000, referrer discount=400 → net = 600
+ */
+const calculateReferrerCommission = (referredBy, totalAmount, referrerDiscountAmount = 0) => {
+  if (!referredBy || typeof referredBy !== "object") return 0;
+  if (!referredBy.commissionType || !referredBy.commissionValue) return 0;
+
+  let grossCommission = 0;
+  if (referredBy.commissionType === "percentage") {
+    grossCommission = parseFloat(((totalAmount * referredBy.commissionValue) / 100).toFixed(2));
+  } else if (referredBy.commissionType === "fixed") {
+    grossCommission = referredBy.commissionValue;
+  }
+
+  return Math.max(0, parseFloat((grossCommission - referrerDiscountAmount).toFixed(2)));
+};
+
+// ============================================================================
+// MAIN CREATE INVOICE COMPONENT
 // ============================================================================
 const initialFormData = {
   patientName: "",
@@ -791,12 +913,14 @@ const initialFormData = {
   selectedTests: [],
   totalAmount: 0,
   hasReferrerDiscount: false,
-  referrerDiscountPercentage: 0,
+  referrerDiscountPercentage: 0, // used when commissionType === "percentage"
+  referrerDiscountFixedAmount: 0, // used when commissionType === "fixed"
   priceAfterReferrerDiscount: 0,
   hasLabAdjustment: false,
   labAdjustmentAmount: 0,
   finalPrice: 0,
   paidAmount: 0,
+  referrerCommission: 0,
 };
 
 const CreateInvoice = () => {
@@ -816,10 +940,7 @@ const CreateInvoice = () => {
       setAvailableReferrers(response.data.referrers || []);
       setAvailableTests(response.data.tests || []);
     } catch (error) {
-      setPopup({
-        type: "error",
-        message: "Could not load required data",
-      });
+      setPopup({ type: "error", message: "Could not load required data" });
     } finally {
       setInitialLoading(false);
     }
@@ -836,37 +957,56 @@ const CreateInvoice = () => {
     formData.selectedTests,
     formData.hasReferrerDiscount,
     formData.referrerDiscountPercentage,
+    formData.referrerDiscountFixedAmount,
     formData.hasLabAdjustment,
     formData.labAdjustmentAmount,
+    formData.referredBy,
   ]);
 
   const calculatePrices = () => {
     const totalAmount = formData.selectedTests.reduce((sum, test) => sum + (test.price || 0), 0);
 
-    let priceAfterReferrerDiscount = totalAmount;
-    if (formData.hasReferrerDiscount && formData.referrerDiscountPercentage > 0) {
-      const referrerDiscountAmount = (totalAmount * formData.referrerDiscountPercentage) / 100;
-      priceAfterReferrerDiscount = totalAmount - referrerDiscountAmount;
+    // Referrer discount amount — reduces both the patient's bill AND the referrer's commission
+    let referrerDiscountAmount = 0;
+    if (formData.hasReferrerDiscount && formData.referredBy && typeof formData.referredBy === "object") {
+      if (formData.referredBy.commissionType === "percentage" && formData.referrerDiscountPercentage > 0) {
+        referrerDiscountAmount = parseFloat(((totalAmount * formData.referrerDiscountPercentage) / 100).toFixed(2));
+      } else if (formData.referredBy.commissionType === "fixed") {
+        const fixedVal = parseFloat(formData.referrerDiscountFixedAmount) || 0;
+        if (fixedVal > 0) referrerDiscountAmount = fixedVal;
+      }
     }
+
+    const priceAfterReferrerDiscount = totalAmount - referrerDiscountAmount;
 
     let finalPrice = priceAfterReferrerDiscount;
     if (formData.hasLabAdjustment && formData.labAdjustmentAmount) {
       finalPrice = priceAfterReferrerDiscount - formData.labAdjustmentAmount;
     }
 
+    // Referrer commission: gross commission minus the discount they gave
+    const referrerCommission = calculateReferrerCommission(formData.referredBy, totalAmount, referrerDiscountAmount);
+
     setFormData((prev) => ({
       ...prev,
       totalAmount,
       priceAfterReferrerDiscount,
       finalPrice: Math.max(0, finalPrice),
+      referrerCommission,
     }));
   };
 
   const handleFormChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+      // Reset discount fields when referrer changes
+      if (field === "referredBy") {
+        updated.hasReferrerDiscount = false;
+        updated.referrerDiscountPercentage = 0;
+        updated.referrerDiscountFixedAmount = 0;
+      }
+      return updated;
+    });
   };
 
   const handleTestSelection = (test) => {
@@ -916,6 +1056,24 @@ const CreateInvoice = () => {
       setLoading(true);
       setLoadingMessage("Creating invoice");
 
+      // Recalculate at submission time as source of truth
+      let referrerDiscountAmount = 0;
+      if (formData.hasReferrerDiscount && formData.referredBy && typeof formData.referredBy === "object") {
+        if (formData.referredBy.commissionType === "percentage" && formData.referrerDiscountPercentage > 0) {
+          referrerDiscountAmount = parseFloat(
+            ((formData.totalAmount * formData.referrerDiscountPercentage) / 100).toFixed(2),
+          );
+        } else if (formData.referredBy.commissionType === "fixed") {
+          const fixedVal = parseFloat(formData.referrerDiscountFixedAmount) || 0;
+          if (fixedVal > 0) referrerDiscountAmount = fixedVal;
+        }
+      }
+      const referrerCommission = calculateReferrerCommission(
+        formData.referredBy,
+        formData.totalAmount,
+        referrerDiscountAmount,
+      );
+
       const invoiceData = {
         patientName: formData.patientName,
         gender: formData.gender,
@@ -929,20 +1087,19 @@ const CreateInvoice = () => {
           schemaId: test?.schemaId || null,
         })),
         totalAmount: formData.totalAmount,
-        hasReferrerDiscount: formData.hasReferrerDiscount,
         referrerDiscountPercentage: formData.referrerDiscountPercentage,
+        referrerDiscountFixedAmount: formData.referrerDiscountFixedAmount,
+        referrerCommission,
+        referrerCommissionType: formData.referredBy?.commissionType || null, // "percentage" | "fixed" | null
         priceAfterReferrerDiscount: formData.priceAfterReferrerDiscount,
-        hasLabAdjustment: formData.hasLabAdjustment,
         labAdjustmentAmount: formData.labAdjustmentAmount,
         finalPrice: formData.finalPrice,
         paidAmount: formData.paidAmount || 0,
+        // hasReferrerDiscount and hasLabAdjustment intentionally omitted
       };
 
-      // API Call
       const response = await invoiceService.createInvoice(invoiceData);
-      console.log(response);
 
-      // Navigate to print page with the created invoice data
       navigate(`/invoice/print/${response.data.invoiceId}`, {
         state: {
           invoiceData: {
@@ -951,11 +1108,11 @@ const CreateInvoice = () => {
             tests: formData.selectedTests,
             referredBy: formData.referredBy,
             referredByName: typeof formData.referredBy === "string" ? formData.referredBy : null,
+            referrerType: formData.referredBy?.type || null,
           },
         },
       });
 
-      // Reset form
       setFormData(initialFormData);
       setIsSummaryModalOpen(false);
     } catch (error) {
