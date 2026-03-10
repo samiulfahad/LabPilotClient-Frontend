@@ -1116,7 +1116,7 @@ const CreateInvoice = () => {
       setFormData(initialFormData);
       setIsSummaryModalOpen(false);
     } catch (error) {
-      console.error("Error creating invoice:", error);
+      console.log(error);
       setPopup({
         type: "error",
         message: error?.response?.data?.error || "Could not create invoice",
