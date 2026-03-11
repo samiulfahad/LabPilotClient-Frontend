@@ -15,7 +15,6 @@ import {
 import { Link } from "react-router-dom";
 import TimeFrame from "../../components/timeFrame";
 import cashmemoService from "../../api/cashmemo";
-import LoadingScreen from "../../components/loadingPage";
 import Popup from "../../components/popup";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -54,7 +53,65 @@ const buildHeadingLabel = (start, end) => {
 };
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
-const Skel = ({ w = "w-24", h = "h-7" }) => <div className={`${w} ${h} bg-gray-200 rounded-lg animate-pulse`} />;
+const SkeletonMemo = () => (
+  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-pulse">
+    {/* heading band */}
+    <div className="px-6 pt-5 pb-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-4">
+      <div className="space-y-2">
+        <div className="h-3 w-20 bg-gray-200 rounded-full" />
+        <div className="h-5 w-44 bg-gray-300 rounded-lg" />
+      </div>
+      <div className="text-right space-y-2">
+        <div className="h-3 w-24 bg-gray-200 rounded-full ml-auto" />
+        <div className="h-9 w-12 bg-gray-300 rounded-lg ml-auto" />
+      </div>
+    </div>
+
+    {/* P&L rows */}
+    <div className="px-6 py-2 space-y-0">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="flex items-center justify-between py-3.5 border-b border-gray-50">
+          <div className="space-y-1.5">
+            <div className="h-3.5 w-32 bg-gray-200 rounded" />
+            <div className="h-2.5 w-24 bg-gray-100 rounded" />
+          </div>
+          <div className="h-5 w-20 bg-gray-200 rounded-lg" />
+        </div>
+      ))}
+
+      {/* formula pill */}
+      <div className="flex items-center gap-2 my-3">
+        <div className="flex-1 h-px bg-gray-100" />
+        <div className="h-6 w-64 bg-gray-100 rounded-full" />
+        <div className="flex-1 h-px bg-gray-100" />
+      </div>
+
+      {/* net profit banner */}
+      <div className="h-16 w-full bg-gray-200 rounded-xl mb-4" />
+
+      {/* deleted warning */}
+      <div className="h-12 w-full bg-red-50 border border-red-100 rounded-xl mb-5" />
+    </div>
+
+    {/* collection */}
+    <div className="px-6 pb-5 border-t border-gray-100 pt-4">
+      <div className="h-3 w-20 bg-gray-200 rounded-full mb-3" />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="h-16 bg-gray-100 rounded-xl" />
+        <div className="h-16 bg-gray-100 rounded-xl" />
+      </div>
+    </div>
+
+    {/* delivery */}
+    <div className="px-6 pb-6 border-t border-gray-100 pt-4">
+      <div className="h-3 w-16 bg-gray-200 rounded-full mb-3" />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="h-16 bg-gray-100 rounded-xl" />
+        <div className="h-16 bg-gray-100 rounded-xl" />
+      </div>
+    </div>
+  </div>
+);
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 const CashMemo = () => {
@@ -100,7 +157,6 @@ const CashMemo = () => {
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
-      {loading && <LoadingScreen message="Loading cash memo..." />}
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       {/* ── Print styles: hide everything except the memo card ── */}
@@ -166,203 +222,168 @@ const CashMemo = () => {
         {/* ══════════════════════════════════════════════════════════════
             MEMO CARD
         ══════════════════════════════════════════════════════════════ */}
-        <div id="cashmemo-printable" className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          {/* ── Heading band ── */}
-          <div className="px-6 pt-5 pb-4 bg-gradient-to-r from-indigo-50/70 to-purple-50/40 border-b border-gray-100">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-semibold text-indigo-500 uppercase tracking-widest mb-0.5">Cash Memo</p>
-                {loading || !headingLabel ? (
-                  <Skel w="w-44" h="h-5" />
-                ) : (
+        {loading ? (
+          <SkeletonMemo />
+        ) : (
+          <div
+            id="cashmemo-printable"
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+          >
+            {/* ── Heading band ── */}
+            <div className="px-6 pt-5 pb-4 bg-gradient-to-r from-indigo-50/70 to-purple-50/40 border-b border-gray-100">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold text-indigo-500 uppercase tracking-widest mb-0.5">
+                    Cash Memo
+                  </p>
                   <h2 className="text-lg font-extrabold text-gray-900 leading-tight">{headingLabel}</h2>
-                )}
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Total Invoices</p>
-                {loading ? (
-                  <Skel w="w-12" h="h-8" />
-                ) : (
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Total Invoices</p>
                   <p className="text-3xl font-black text-gray-900">{d.totalInvoices ?? 0}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* ── P&L rows ── */}
-          <div className="px-6 py-2">
-            {/* Total Amount */}
-            <div className="flex items-center justify-between py-3.5 border-b border-gray-50">
-              <div>
-                <p className="text-sm font-semibold text-gray-800">Total Amount</p>
-                <p className="text-[11px] text-gray-400 mt-0.5">Sum of all test prices</p>
-              </div>
-              {loading ? <Skel /> : <p className="text-lg font-bold text-gray-900">৳{fmt(d.totalAmount)}</p>}
-            </div>
-
-            {/* Lab Adjustment */}
-            <div className="flex items-center justify-between py-3.5 border-b border-gray-50">
-              <div className="flex items-center gap-1.5">
-                <Minus className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
-                <div>
-                  <p className="text-sm font-semibold text-gray-700">Lab Adjustment</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">Lab concession</p>
                 </div>
               </div>
-              {loading ? (
-                <Skel />
-              ) : (
+            </div>
+
+            {/* ── P&L rows ── */}
+            <div className="px-6 py-2">
+              {/* Total Amount */}
+              <div className="flex items-center justify-between py-3.5 border-b border-gray-50">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Total Amount</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Sum of all test prices</p>
+                </div>
+                <p className="text-lg font-bold text-gray-900">৳{fmt(d.totalAmount)}</p>
+              </div>
+
+              {/* Lab Adjustment */}
+              <div className="flex items-center justify-between py-3.5 border-b border-gray-50">
+                <div className="flex items-center gap-1.5">
+                  <Minus className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700">Lab Adjustment</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">Lab concession</p>
+                  </div>
+                </div>
                 <p className="text-base font-semibold text-yellow-600">− ৳{fmt(d.labAdjustment)}</p>
-              )}
-            </div>
-
-            {/* Referrer's Discount */}
-            <div className="flex items-center justify-between py-3.5 border-b border-gray-50">
-              <div className="flex items-center gap-1.5">
-                <Minus className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                <div>
-                  <p className="text-sm font-semibold text-gray-700">Referrer's Discount</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">Discount passed to patients</p>
-                </div>
               </div>
-              {loading ? (
-                <Skel />
-              ) : (
+
+              {/* Referrer's Discount */}
+              <div className="flex items-center justify-between py-3.5 border-b border-gray-50">
+                <div className="flex items-center gap-1.5">
+                  <Minus className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700">Referrer's Discount</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">Discount passed to patients</p>
+                  </div>
+                </div>
                 <p className="text-base font-semibold text-orange-500">− ৳{fmt(d.referrerDiscount)}</p>
-              )}
-            </div>
-
-            {/* Commission */}
-            <div className="flex items-center justify-between py-3.5 border-b border-dashed border-indigo-100">
-              <div className="flex items-center gap-1.5">
-                <Minus className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                <div>
-                  <p className="text-sm font-black text-purple-700">Commission</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">Owed to referrers</p>
-                </div>
               </div>
-              {loading ? (
-                <Skel />
-              ) : (
+
+              {/* Commission */}
+              <div className="flex items-center justify-between py-3.5 border-b border-dashed border-indigo-100">
+                <div className="flex items-center gap-1.5">
+                  <Minus className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                  <div>
+                    <p className="text-sm font-black text-purple-700">Commission</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">Owed to referrers</p>
+                  </div>
+                </div>
                 <p className="text-base font-black text-purple-700">− ৳{fmt(d.referrerCommission)}</p>
-              )}
-            </div>
-
-            {/* Formula tag */}
-            <div className="flex items-center gap-2 my-3">
-              <div className="flex-1 h-px bg-gray-100" />
-              <span className="text-[10.5px] text-gray-400 font-mono bg-gray-50 border border-gray-100 rounded-full px-3 py-1 whitespace-nowrap">
-                Total − Lab Adj. − Discount − Commission
-              </span>
-              <div className="flex-1 h-px bg-gray-100" />
-            </div>
-
-            {/* NET PROFIT */}
-            <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold text-indigo-200 uppercase tracking-widest">Net Profit</p>
-                  <p className="text-[10px] text-indigo-300 mt-0.5">After all deductions</p>
-                </div>
               </div>
-              {loading ? (
-                <div className="h-9 w-32 bg-white/25 rounded-lg animate-pulse" />
-              ) : (
+
+              {/* Formula tag */}
+              <div className="flex items-center gap-2 my-3">
+                <div className="flex-1 h-px bg-gray-100" />
+                <span className="text-[10.5px] text-gray-400 font-mono bg-gray-50 border border-gray-100 rounded-full px-3 py-1 whitespace-nowrap">
+                  Total − Lab Adj. − Discount − Commission
+                </span>
+                <div className="flex-1 h-px bg-gray-100" />
+              </div>
+
+              {/* NET PROFIT */}
+              <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-indigo-200 uppercase tracking-widest">Net Profit</p>
+                    <p className="text-[10px] text-indigo-300 mt-0.5">After all deductions</p>
+                  </div>
+                </div>
                 <p className="text-3xl font-black text-white tracking-tight">৳{fmt(d.netProfit)}</p>
-              )}
-            </div>
-
-            {/* Deleted invoices warning */}
-            <div className="flex items-center justify-between px-4 py-3 bg-red-50 border border-red-200 rounded-xl mb-5">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                  <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-red-600">Deleted Invoices</p>
-                  <p className="text-[11px] text-red-400 mt-0.5">Excluded from all calculations</p>
-                </div>
               </div>
-              {loading ? (
-                <Skel w="w-8" h="h-6" />
-              ) : (
+
+              {/* Deleted invoices warning */}
+              <div className="flex items-center justify-between px-4 py-3 bg-red-50 border border-red-200 rounded-xl mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-red-600">Deleted Invoices</p>
+                    <p className="text-[11px] text-red-400 mt-0.5">Excluded from all calculations</p>
+                  </div>
+                </div>
                 <div className="flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5 text-red-400" />
                   <p className="text-lg font-black text-red-600">{d.deletedCount ?? 0}</p>
                 </div>
-              )}
+              </div>
             </div>
-          </div>
 
-          {/* ── Collection status ── */}
-          <div className="px-6 pb-5 border-t border-gray-100 pt-4">
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Collection</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-3 bg-green-50 border border-green-100 rounded-xl px-4 py-3">
-                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
-                  <Wallet className="w-4 h-4 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold text-green-700 uppercase tracking-wide">Collected</p>
-                  {loading ? (
-                    <Skel w="w-20" h="h-6" />
-                  ) : (
+            {/* ── Collection status ── */}
+            <div className="px-6 pb-5 border-t border-gray-100 pt-4">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Collection</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-3 bg-green-50 border border-green-100 rounded-xl px-4 py-3">
+                  <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+                    <Wallet className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-green-700 uppercase tracking-wide">Collected</p>
                     <p className="text-lg font-bold text-green-800">৳{fmt(d.totalPaidAmount)}</p>
-                  )}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
-                <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                  <AlertCircle className="w-4 h-4 text-red-500" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold text-red-600 uppercase tracking-wide">Due</p>
-                  {loading ? (
-                    <Skel w="w-20" h="h-6" />
-                  ) : (
+                <div className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                  <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-red-600 uppercase tracking-wide">Due</p>
                     <p className="text-lg font-bold text-red-700">৳{fmt(d.totalDue)}</p>
-                  )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* ── Delivery status ── */}
-          <div className="px-6 pb-6 border-t border-gray-100 pt-4">
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Delivery</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                  <PackageCheck className="w-4 h-4 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-wide">Delivered</p>
-                  {loading ? (
-                    <Skel w="w-10" h="h-6" />
-                  ) : (
+            {/* ── Delivery status ── */}
+            <div className="px-6 pb-6 border-t border-gray-100 pt-4">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Delivery</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                    <PackageCheck className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-wide">Delivered</p>
                     <p className="text-lg font-bold text-blue-800">{d.deliveredCount ?? 0}</p>
-                  )}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
-                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-                  <Clock className="w-4 h-4 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold text-amber-700 uppercase tracking-wide">Pending</p>
-                  {loading ? (
-                    <Skel w="w-10" h="h-6" />
-                  ) : (
+                <div className="flex items-center gap-3 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                    <Clock className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-amber-700 uppercase tracking-wide">Pending</p>
                     <p className="text-lg font-bold text-amber-800">{pendingCount}</p>
-                  )}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         <p className="text-center text-[11px] text-gray-400 mt-4 pb-6 no-print">
           Net Profit = Total Amount − Lab Adjustment − Referrer Discount − Commission
