@@ -14,12 +14,14 @@ import Reports from "./pages/reports";
 import UploadReport from "./pages/uploadReport";
 import ReportViewer from "./pages/reportViewer";
 import DeleteInvoices from "./pages/deleteInvoice";
+import CashMemo from "./pages/cashmemo";
 
 function App() {
   return (
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/cashmemo" element={<CashMemo/> } />
         <Route path="/invoice/new" element={<CreateInvoice />} />
         <Route path="/invoice/print/:invoiceId" element={<PrintInvoice />} />
         <Route path="/invoice/all" element={<InvoiceList />} />
