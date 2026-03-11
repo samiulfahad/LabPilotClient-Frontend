@@ -125,7 +125,9 @@ const Card = ({ to, icon: Icon, label, sub, grad, glow, idx }) => (
         <p className="text-sm font-bold text-gray-900 leading-tight">{label}</p>
         <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>
       </div>
-      <div className={`absolute bottom-0 left-0 h-[2px] w-0 group-hover:w-full bg-gradient-to-r ${grad} transition-all duration-500`} />
+      <div
+        className={`absolute bottom-0 left-0 h-[2px] w-0 group-hover:w-full bg-gradient-to-r ${grad} transition-all duration-500`}
+      />
     </div>
   </Link>
 );
@@ -136,17 +138,21 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-[#f0f1f7] relative overflow-hidden">
-
       {/* ── Background blobs ── */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-48 -left-48 w-[560px] h-[560px] rounded-full opacity-[0.18] blur-3xl"
-          style={{ background: "radial-gradient(circle, #818cf8, transparent 70%)" }} />
-        <div className="absolute top-1/2 -right-48 w-[420px] h-[420px] rounded-full opacity-[0.12] blur-3xl"
-          style={{ background: "radial-gradient(circle, #34d399, transparent 70%)" }} />
+        <div
+          className="absolute -top-48 -left-48 w-[560px] h-[560px] rounded-full opacity-[0.18] blur-3xl"
+          style={{ background: "radial-gradient(circle, #818cf8, transparent 70%)" }}
+        />
+        <div
+          className="absolute top-1/2 -right-48 w-[420px] h-[420px] rounded-full opacity-[0.12] blur-3xl"
+          style={{ background: "radial-gradient(circle, #34d399, transparent 70%)" }}
+        />
       </div>
 
       {/* ── Fine grid ── */}
-      <div className="pointer-events-none absolute inset-0"
+      <div
+        className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage: `linear-gradient(rgba(99,102,241,0.035) 1px, transparent 1px),
                             linear-gradient(90deg, rgba(99,102,241,0.035) 1px, transparent 1px)`,
@@ -155,13 +161,13 @@ const Home = () => {
       />
 
       <div className="relative max-w-3xl mx-auto px-4 pt-7 pb-16">
-
         {/* ══════════════════════════════════════
             TOP NAV BAR
         ══════════════════════════════════════ */}
-        <div className="flex items-center justify-between mb-5"
-          style={{ animation: "cardIn 0.4s cubic-bezier(.22,1,.36,1) both" }}>
-
+        <div
+          className="flex items-center justify-between mb-5"
+          style={{ animation: "cardIn 0.4s cubic-bezier(.22,1,.36,1) both" }}
+        >
           {/* Brand mark */}
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-200">
@@ -183,87 +189,84 @@ const Home = () => {
         {/* ══════════════════════════════════════
             LAB CARD
         ══════════════════════════════════════ */}
-        <div className="mb-4 rounded-2xl overflow-hidden relative shadow-sm"
-          style={{ animation: "cardIn 0.55s cubic-bezier(.22,1,.36,1) 0.06s both",
-                   background: "linear-gradient(135deg, #f8f7ff 0%, #ffffff 50%, #f0fdfa 100%)",
-                   border: "1px solid rgba(99,102,241,0.1)" }}>
+        <div
+          className="mb-4 bg-white border border-gray-100 rounded-3xl shadow-sm relative overflow-hidden"
+          style={{ animation: "cardIn 0.5s cubic-bezier(.22,1,.36,1) 0.05s both" }}
+        >
+          {/* decorative corner gradient */}
+          <div
+            className="absolute top-0 right-0 w-48 h-48 opacity-10 pointer-events-none"
+            style={{ background: "radial-gradient(circle at top right, #818cf8, transparent 70%)" }}
+          />
 
-          {/* top gradient line */}
-          <div className="h-[3px] w-full bg-gradient-to-r from-indigo-500 via-violet-500 to-teal-400" />
-
-          {/* corner glow */}
-          <div className="absolute top-0 right-0 w-52 h-52 pointer-events-none"
-            style={{ background: "radial-gradient(circle at top right, rgba(129,140,248,0.08), transparent 65%)" }} />
-
-          <div className="px-5 py-4">
-            <div className="flex items-start justify-between gap-3 flex-wrap">
-
-              {/* Left — logo + all text */}
-              <div className="flex items-start">
-                {/* Text block */}
-                <div>
-                  <p className="text-[9.5px] font-bold text-indigo-400 uppercase tracking-[0.14em] leading-none mb-1.5">
-                    Powered by LabPilot
-                  </p>
-                  <h2 className="text-lg font-black text-gray-900 leading-tight tracking-tight">
-                    {LAB.name}
-                  </h2>
-                  <p className="text-[11.5px] text-gray-400 font-medium mt-0.5 mb-2.5">{LAB.tagline}</p>
-
-                  {/* Address + Phone inline */}
-                  <div className="flex items-center flex-wrap gap-x-3 gap-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-4 h-4 rounded-md bg-indigo-50 flex items-center justify-center">
-                        <MapPin className="w-2.5 h-2.5 text-indigo-400" />
-                      </div>
-                      <span className="text-[11px] text-gray-500">{LAB.address}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-4 h-4 rounded-md bg-teal-50 flex items-center justify-center">
-                        <Phone className="w-2.5 h-2.5 text-teal-500" />
-                      </div>
-                      <span className="text-[11px] text-gray-500">{LAB.phone}</span>
-                    </div>
-                  </div>
+          <div className="p-6">
+            {/* ── Top: greeting + badges ── */}
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xl">
+                    {getGreeting() === "Good morning" ? "☀️" : getGreeting() === "Good afternoon" ? "🌤️" : "🌙"}
+                  </span>
+                  <span className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest">
+                    {getGreeting().charAt(0).toUpperCase() + getGreeting().slice(1)}
+                  </span>
                 </div>
+                <h1 className="text-2xl font-black text-gray-900 leading-tight tracking-tight">
+                  Welcome back<span className="text-indigo-500">.</span>
+                </h1>
               </div>
 
-              {/* Right — Lab ID + status */}
               <div className="flex flex-col items-end gap-2 shrink-0">
-                <div className="px-3 py-2 rounded-xl text-right"
-                  style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.12)" }}>
+                <div className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-xl text-right">
                   <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest leading-none">Lab ID</p>
                   <p className="text-base font-black text-indigo-700 leading-tight mt-0.5">{LAB.id}</p>
                 </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
-                  style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.15)" }}>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="text-[10px] font-bold text-emerald-600">Online</span>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* User strip */}
-          <div className="px-5 py-2.5 flex items-center justify-between gap-3 flex-wrap"
-            style={{ background: "rgba(0,0,0,0.025)", borderTop: "1px solid rgba(99,102,241,0.07)" }}>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center shrink-0">
-                <span className="text-[8px] font-black text-white">{USER.initials}</span>
+            {/* ── Lab name + contact ── */}
+            <div className="mt-4 mb-4 pl-0.5">
+              <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Your Lab</p>
+              <p className="text-base font-black text-gray-800 leading-snug">{LAB.name}</p>
+              <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-1.5">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="w-3 h-3 text-gray-300" />
+                  <span className="text-[11px] text-gray-400">{LAB.address}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Phone className="w-3 h-3 text-gray-300" />
+                  <span className="text-[11px] text-gray-400">{LAB.phone}</span>
+                </div>
               </div>
-              <span className="text-[11.5px] font-bold text-gray-700">{USER.name}</span>
-              <span className="text-gray-200 text-xs">|</span>
-              <span className="text-[11px] text-gray-400">{USER.role}</span>
             </div>
-            <span className="text-[10px] font-semibold text-indigo-400 uppercase tracking-widest">Full Admin</span>
+
+            {/* ── Stats strip ── */}
+            <div className="pt-4 border-t border-gray-50 grid grid-cols-3 gap-4">
+              {[
+                { label: "Logged in as", value: USER.name },
+                { label: "System", value: "All Systems Go" },
+                { label: "Version", value: "LabPilot v1" },
+              ].map(({ label, value }) => (
+                <div key={label}>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">{label}</p>
+                  <p className="text-xs font-bold text-gray-700 mt-0.5">{value}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* ══════════════════════════════════════
             QUICK ACCESS
         ══════════════════════════════════════ */}
-        <div className="flex items-center gap-3 mb-3"
-          style={{ animation: "cardIn 0.5s cubic-bezier(.22,1,.36,1) 0.15s both" }}>
+        <div
+          className="flex items-center gap-3 mb-3"
+          style={{ animation: "cardIn 0.5s cubic-bezier(.22,1,.36,1) 0.15s both" }}
+        >
           <p className="text-[10.5px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
             Quick Access
           </p>
