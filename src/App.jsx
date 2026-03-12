@@ -15,13 +15,15 @@ import UploadReport from "./pages/uploadReport";
 import ReportViewer from "./pages/reportViewer";
 import DeleteInvoices from "./pages/deleteInvoice";
 import CashMemo from "./pages/cashmemo";
+import Commission from "./pages/commission";
 
 function App() {
   return (
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/cashmemo" element={<CashMemo/> } />
+        <Route path="/cashmemo" element={<CashMemo />} />
+        <Route path="/commission" element={<Commission />} />
         <Route path="/invoice/new" element={<CreateInvoice />} />
         <Route path="/invoice/print/:invoiceId" element={<PrintInvoice />} />
         <Route path="/invoice/all" element={<InvoiceList />} />

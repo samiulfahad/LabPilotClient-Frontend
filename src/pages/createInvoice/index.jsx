@@ -146,7 +146,7 @@ const InvoiceSummary = ({ formData, onConfirm, onClose }) => {
                   <span className="text-gray-600">
                     Referrer Discount{" "}
                     {formData.referredBy?.commissionType === "percentage"
-                      ? `(${formData.referrerDiscountPercentage}%)`
+                      ? `(${formData.referrerDiscount}%)`
                       : `(Fixed)`}
                   </span>
                   <span className="text-red-600">
@@ -268,8 +268,6 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
     return availableTests.filter((test) => test.name.toLowerCase().includes(query));
   }, [testSearchQuery, availableTests]);
 
-  // KEY FIX: use onMouseDown + e.preventDefault() so the input's blur
-  // does not fire before the selection is registered
   const handleReferrerSelect = (referrer) => {
     onChange("referredBy", referrer);
     setShowReferrerDropdown(false);
@@ -404,7 +402,6 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                 onChange={(e) => {
                   const val = e.target.value;
                   setReferrerSearchQuery(val);
-                  // Clear selected object when user starts typing again
                   if (formData.referredBy && typeof formData.referredBy === "object") {
                     onChange("referredBy", null);
                   }
@@ -462,7 +459,7 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                         key={referrer._id}
                         type="button"
                         onMouseDown={(e) => {
-                          e.preventDefault(); // ← prevents blur from firing before selection
+                          e.preventDefault();
                           handleReferrerSelect(referrer);
                         }}
                         className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0"
@@ -654,15 +651,10 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                   onChange={(e) => {
                     onChange("hasReferrerDiscount", e.target.checked);
                     if (!e.target.checked) {
-                      onChange("referrerDiscountPercentage", 0);
-                      onChange("referrerDiscountFixedAmount", 0);
+                      onChange("referrerDiscount", 0);
                     } else {
                       // Auto-fill with referrer's commission value
-                      if (formData.referredBy.commissionType === "percentage") {
-                        onChange("referrerDiscountPercentage", formData.referredBy.commissionValue || 0);
-                      } else if (formData.referredBy.commissionType === "fixed") {
-                        onChange("referrerDiscountFixedAmount", formData.referredBy.commissionValue || 0);
-                      }
+                      onChange("referrerDiscount", formData.referredBy.commissionValue || 0);
                     }
                   }}
                   className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
@@ -690,15 +682,15 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                         <Percent className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                           type="number"
-                          value={formData.referrerDiscountPercentage}
+                          value={formData.referrerDiscount}
                           onChange={(e) => {
                             if (e.target.value === "") {
-                              onChange("referrerDiscountPercentage", "");
+                              onChange("referrerDiscount", "");
                               return;
                             }
                             const max = formData.referredBy?.commissionValue || 100;
                             const val = Math.min(parseFloat(e.target.value) || 0, max);
-                            onChange("referrerDiscountPercentage", val);
+                            onChange("referrerDiscount", val);
                           }}
                           className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
                           placeholder={`Max ${formData.referredBy?.commissionValue || 100}%`}
@@ -723,15 +715,15 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
                         <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                           type="number"
-                          value={formData.referrerDiscountFixedAmount}
+                          value={formData.referrerDiscount}
                           onChange={(e) => {
                             if (e.target.value === "") {
-                              onChange("referrerDiscountFixedAmount", "");
+                              onChange("referrerDiscount", "");
                               return;
                             }
                             const max = formData.referredBy?.commissionValue || Infinity;
                             const val = Math.min(parseFloat(e.target.value) || 0, max);
-                            onChange("referrerDiscountFixedAmount", val);
+                            onChange("referrerDiscount", val);
                           }}
                           className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
                           placeholder={`Max ${formatCurrency(formData.referredBy?.commissionValue || 0)}`}
@@ -885,7 +877,6 @@ const InvoiceForm = ({ formData, availableReferrers, availableTests, onChange, o
  *
  * If the referrer gave a discount (referrerDiscountAmount > 0),
  * that discount is deducted from their gross commission (floored at 0).
- * e.g. total=5000, commission=1000, referrer discount=400 → net = 600
  */
 const calculateReferrerCommission = (referredBy, totalAmount, referrerDiscountAmount = 0) => {
   if (!referredBy || typeof referredBy !== "object") return 0;
@@ -913,8 +904,7 @@ const initialFormData = {
   selectedTests: [],
   totalAmount: 0,
   hasReferrerDiscount: false,
-  referrerDiscountPercentage: 0, // used when commissionType === "percentage"
-  referrerDiscountFixedAmount: 0, // used when commissionType === "fixed"
+  referrerDiscount: 0, // always the % rate or fixed input — used only for UI/calculation
   priceAfterReferrerDiscount: 0,
   hasLabAdjustment: false,
   labAdjustmentAmount: 0,
@@ -956,8 +946,7 @@ const CreateInvoice = () => {
   }, [
     formData.selectedTests,
     formData.hasReferrerDiscount,
-    formData.referrerDiscountPercentage,
-    formData.referrerDiscountFixedAmount,
+    formData.referrerDiscount,
     formData.hasLabAdjustment,
     formData.labAdjustmentAmount,
     formData.referredBy,
@@ -966,13 +955,13 @@ const CreateInvoice = () => {
   const calculatePrices = () => {
     const totalAmount = formData.selectedTests.reduce((sum, test) => sum + (test.price || 0), 0);
 
-    // Referrer discount amount — reduces both the patient's bill AND the referrer's commission
+    // Compute the actual monetary discount amount from the user's input
     let referrerDiscountAmount = 0;
     if (formData.hasReferrerDiscount && formData.referredBy && typeof formData.referredBy === "object") {
-      if (formData.referredBy.commissionType === "percentage" && formData.referrerDiscountPercentage > 0) {
-        referrerDiscountAmount = parseFloat(((totalAmount * formData.referrerDiscountPercentage) / 100).toFixed(2));
+      if (formData.referredBy.commissionType === "percentage" && formData.referrerDiscount > 0) {
+        referrerDiscountAmount = parseFloat(((totalAmount * formData.referrerDiscount) / 100).toFixed(2));
       } else if (formData.referredBy.commissionType === "fixed") {
-        const fixedVal = parseFloat(formData.referrerDiscountFixedAmount) || 0;
+        const fixedVal = parseFloat(formData.referrerDiscount) || 0;
         if (fixedVal > 0) referrerDiscountAmount = fixedVal;
       }
     }
@@ -984,7 +973,6 @@ const CreateInvoice = () => {
       finalPrice = priceAfterReferrerDiscount - formData.labAdjustmentAmount;
     }
 
-    // Referrer commission: gross commission minus the discount they gave
     const referrerCommission = calculateReferrerCommission(formData.referredBy, totalAmount, referrerDiscountAmount);
 
     setFormData((prev) => ({
@@ -1002,8 +990,7 @@ const CreateInvoice = () => {
       // Reset discount fields when referrer changes
       if (field === "referredBy") {
         updated.hasReferrerDiscount = false;
-        updated.referrerDiscountPercentage = 0;
-        updated.referrerDiscountFixedAmount = 0;
+        updated.referrerDiscount = 0;
       }
       return updated;
     });
@@ -1056,18 +1043,18 @@ const CreateInvoice = () => {
       setLoading(true);
       setLoadingMessage("Creating invoice");
 
-      // Recalculate at submission time as source of truth
+      // Recalculate the actual monetary discount amount at submission time as source of truth
       let referrerDiscountAmount = 0;
       if (formData.hasReferrerDiscount && formData.referredBy && typeof formData.referredBy === "object") {
-        if (formData.referredBy.commissionType === "percentage" && formData.referrerDiscountPercentage > 0) {
-          referrerDiscountAmount = parseFloat(
-            ((formData.totalAmount * formData.referrerDiscountPercentage) / 100).toFixed(2),
-          );
+        if (formData.referredBy.commissionType === "percentage" && formData.referrerDiscount > 0) {
+          // FIX: convert percentage rate → actual monetary amount before sending to backend
+          referrerDiscountAmount = parseFloat(((formData.totalAmount * formData.referrerDiscount) / 100).toFixed(2));
         } else if (formData.referredBy.commissionType === "fixed") {
-          const fixedVal = parseFloat(formData.referrerDiscountFixedAmount) || 0;
+          const fixedVal = parseFloat(formData.referrerDiscount) || 0;
           if (fixedVal > 0) referrerDiscountAmount = fixedVal;
         }
       }
+
       const referrerCommission = calculateReferrerCommission(
         formData.referredBy,
         formData.totalAmount,
@@ -1087,15 +1074,13 @@ const CreateInvoice = () => {
           schemaId: test?.schemaId || null,
         })),
         totalAmount: formData.totalAmount,
-        referrerDiscountPercentage: formData.referrerDiscountPercentage,
-        referrerDiscountFixedAmount: formData.referrerDiscountFixedAmount,
+        referrerDiscount: referrerDiscountAmount, // FIX: always the actual monetary discount, not the % rate
         referrerCommission,
         referrerCommissionType: formData.referredBy?.commissionType || null, // "percentage" | "fixed" | null
         priceAfterReferrerDiscount: formData.priceAfterReferrerDiscount,
         labAdjustmentAmount: formData.labAdjustmentAmount,
         finalPrice: formData.finalPrice,
         paidAmount: formData.paidAmount || 0,
-        // hasReferrerDiscount and hasLabAdjustment intentionally omitted
       };
 
       const response = await invoiceService.createInvoice(invoiceData);
