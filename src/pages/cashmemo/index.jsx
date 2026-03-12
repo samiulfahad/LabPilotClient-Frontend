@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Trash2,
   Printer,
+  FlaskConical,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../components/timeFrame";
@@ -103,11 +104,21 @@ const SkeletonMemo = () => (
     </div>
 
     {/* delivery */}
-    <div className="px-6 pb-6 border-t border-gray-100 pt-4">
+    <div className="px-6 pb-5 border-t border-gray-100 pt-4">
       <div className="h-3 w-16 bg-gray-200 rounded-full mb-3" />
       <div className="grid grid-cols-2 gap-3">
         <div className="h-16 bg-gray-100 rounded-xl" />
         <div className="h-16 bg-gray-100 rounded-xl" />
+      </div>
+    </div>
+
+    {/* test counts */}
+    <div className="px-6 pb-6 border-t border-gray-100 pt-4">
+      <div className="h-3 w-24 bg-gray-200 rounded-full mb-3" />
+      <div className="flex flex-wrap gap-2">
+        {[80, 64, 96, 72, 56, 88].map((w) => (
+          <div key={w} className={`h-7 bg-gray-100 rounded-full`} style={{ width: w }} />
+        ))}
       </div>
     </div>
   </div>
@@ -315,6 +326,36 @@ const CashMemo = () => {
                 <p className="text-3xl font-black text-white tracking-tight">৳{fmt(d.netProfit)}</p>
               </div>
 
+              {/* ── Test counts ── */}
+              {d.testCounts?.length > 0 && (
+                <div className="my-4 bg-gray-50 border border-gray-100 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <FlaskConical className="w-3.5 h-3.5 text-indigo-400" />
+                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Tests Ordered</p>
+                    <div className="flex-1 h-px bg-gray-200" />
+                    <span className="text-[10px] font-semibold text-gray-400">
+                      {d.testCounts.reduce((s, t) => s + t.count, 0)} total
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {d.testCounts.map(({ name, count }, i) => (
+                      <div
+                        key={name}
+                        className="flex items-center justify-between bg-white border border-gray-100 rounded-xl px-3 py-2.5 gap-2"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-[10px] font-black text-gray-300 w-4 shrink-0">
+                            {String(i + 1).padStart(2, "0")}
+                          </span>
+                          <span className="text-sm font-bold text-gray-800 truncate">{name}</span>
+                        </div>
+                        <span className="text-sm font-black text-indigo-600 shrink-0">{count}×</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Deleted invoices warning */}
               <div className="flex items-center justify-between px-4 py-3 bg-red-50 border border-red-200 rounded-xl mb-5">
                 <div className="flex items-center gap-2.5">
@@ -359,7 +400,7 @@ const CashMemo = () => {
             </div>
 
             {/* ── Delivery status ── */}
-            <div className="px-6 pb-6 border-t border-gray-100 pt-4">
+            <div className="px-6 pb-5 border-t border-gray-100 pt-4">
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Delivery</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
