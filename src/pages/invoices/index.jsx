@@ -16,13 +16,21 @@ import {
   Calendar,
   ChevronDown,
   X,
+  Eye,
+  UserCircle,
+  Receipt,
+  BadgePercent,
+  Coins,
+  TestTube2,
+  Clock,
+  DollarSign,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Popup from "../../components/popup";
 import Modal from "../../components/modal";
 import LoadingScreen from "../../components/loadingPage";
 import invoiceService from "../../api/invoice";
-import TimeFrame from "../../components/timeFrame"; // adjust path as needed
+import TimeFrame from "../../components/timeFrame";
 
 // ============================================================================
 // HELPERS
@@ -48,6 +56,366 @@ const formatDateTime = (createdAt) => {
     date: `${day}${suffix} ${month}, ${year}`,
     time: `${displayHour}:${minutes} ${ampm}`,
   };
+};
+
+const formatCurrency = (amount) =>
+  new Intl.NumberFormat("en-BD", {
+    style: "currency",
+    currency: "BDT",
+    minimumFractionDigits: 0,
+  }).format(amount || 0);
+
+// ============================================================================
+// INVOICE DETAILS MODAL
+// ============================================================================
+const InvoiceDetailsModal = ({
+  invoiceId,
+  isOpen,
+  onClose,
+  invoice: invoiceRow,
+  onEditPatient,
+  onCollectDue,
+  onMarkDelivered,
+  onLoadingChange,
+  onError,
+  onPatientUpdated,
+}) => {
+  const [invoice, setInvoice] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen || !invoiceId) return;
+    setInvoice(null);
+    setError(null);
+    setLoading(true);
+    invoiceService
+      .getInvoiceByInvoiceId(invoiceId)
+      .then((res) => setInvoice(res.data))
+      .catch(() => setError("Failed to load invoice details."))
+      .finally(() => setLoading(false));
+  }, [isOpen, invoiceId]);
+
+  // Row-level values (from passed invoiceRow, available immediately without waiting for fetch)
+  const rowDueAmount = invoiceRow ? Math.max(0, (invoiceRow.finalPrice || 0) - (invoiceRow.paidAmount || 0)) : 0;
+  const rowIsFullyPaid = rowDueAmount === 0;
+  const rowHasReports = invoiceRow?.tests?.some((t) => t.schemaId);
+
+  const dueAmount = invoice ? Math.max(0, (invoice.finalPrice || 0) - (invoice.paidAmount || 0)) : 0;
+  const isFullyPaid = invoice ? dueAmount === 0 : false;
+  const { date, time } = invoice ? formatDateTime(invoice.createdAt) : { date: "", time: "" };
+
+  const referrer = invoice?.referrer;
+  const hasReferrer = referrer && (referrer.name || referrer.id);
+  const hasDiscount = referrer && referrer.discount > 0;
+  const hasCommission = referrer && referrer.commission > 0;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+            <Receipt className="w-4 h-4 text-indigo-600" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-gray-900 leading-tight">Invoice Details</h2>
+            <p className="text-[11px] text-gray-400 mt-0.5">#{invoiceId}</p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="px-5 py-5 space-y-4">
+        {/* Loading skeleton */}
+        {loading && (
+          <div className="space-y-4 animate-pulse">
+            {/* Patient skeleton */}
+            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+              <div className="h-3.5 bg-gray-200 rounded w-1/3" />
+              <div className="grid grid-cols-2 gap-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="space-y-1.5">
+                    <div className="h-2.5 bg-gray-200 rounded w-1/2" />
+                    <div className="h-3.5 bg-gray-200 rounded w-3/4" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Tests skeleton */}
+            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+              <div className="h-3.5 bg-gray-200 rounded w-1/4" />
+              {[1, 2].map((i) => (
+                <div key={i} className="flex justify-between items-center bg-white rounded-lg p-3">
+                  <div className="h-3 bg-gray-200 rounded w-1/2" />
+                  <div className="h-3 bg-gray-200 rounded w-1/5" />
+                </div>
+              ))}
+            </div>
+            {/* Payment skeleton */}
+            <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+              <div className="h-3.5 bg-gray-200 rounded w-1/3" />
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex justify-between">
+                  <div className="h-3 bg-gray-200 rounded w-1/3" />
+                  <div className="h-3 bg-gray-200 rounded w-1/4" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && !loading && (
+          <div className="flex flex-col items-center justify-center py-8 text-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-red-400" />
+            </div>
+            <p className="text-sm text-gray-500">{error}</p>
+            <button
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                invoiceService
+                  .getInvoiceByInvoiceId(invoiceId)
+                  .then((res) => setInvoice(res.data))
+                  .catch(() => setError("Failed to load invoice details."))
+                  .finally(() => setLoading(false));
+              }}
+              className="text-xs font-semibold text-indigo-600 hover:underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
+        {/* Content */}
+        {invoice && !loading && (
+          <>
+            {/* Patient Info */}
+            <div className="bg-gray-50 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <UserCircle className="w-3.5 h-3.5 text-indigo-500" />
+                <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Patient</span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Name</p>
+                  <p className="font-semibold text-gray-900 text-xs leading-snug">{invoice.patientName}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Gender</p>
+                  <p className="font-semibold text-gray-900 text-xs capitalize">{invoice.gender}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Age</p>
+                  <p className="font-semibold text-gray-900 text-xs">{invoice.age} yrs</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Contact</p>
+                  <p className="font-semibold text-gray-900 text-xs">{invoice.contactNumber}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Date & Time</p>
+                  <p className="font-semibold text-gray-900 text-xs">
+                    {date} · {time}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Referrer Info */}
+            {hasReferrer && (
+              <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
+                <div className="flex items-center gap-2 mb-3">
+                  <User className="w-3.5 h-3.5 text-indigo-500" />
+                  <span className="text-xs font-bold text-indigo-700 uppercase tracking-wide">Referrer</span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <div>
+                    <p className="text-[10px] text-indigo-400 uppercase tracking-wide mb-0.5">Name</p>
+                    <p className="font-semibold text-gray-900 text-xs">{referrer.name || "—"}</p>
+                  </div>
+                  {referrer.type && (
+                    <div>
+                      <p className="text-[10px] text-indigo-400 uppercase tracking-wide mb-0.5">Type</p>
+                      <span
+                        className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded capitalize ${
+                          referrer.type === "doctor"
+                            ? "bg-blue-100 text-blue-700"
+                            : referrer.type === "agent"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-teal-100 text-teal-700"
+                        }`}
+                      >
+                        {referrer.type}
+                      </span>
+                    </div>
+                  )}
+                  {hasDiscount && (
+                    <div>
+                      <p className="text-[10px] text-indigo-400 uppercase tracking-wide mb-0.5">Discount Given</p>
+                      <p className="font-semibold text-red-600 text-xs">- {formatCurrency(referrer.discount)}</p>
+                    </div>
+                  )}
+                  {hasCommission && (
+                    <div>
+                      <p className="text-[10px] text-indigo-400 uppercase tracking-wide mb-0.5">Commission</p>
+                      <p className="font-semibold text-indigo-600 text-xs">{formatCurrency(referrer.commission)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tests */}
+            <div className="bg-gray-50 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <TestTube2 className="w-3.5 h-3.5 text-indigo-500" />
+                  <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Tests</span>
+                </div>
+                <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-semibold rounded-full">
+                  {invoice.tests?.length || 0}
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {invoice.tests?.map((test, i) => (
+                  <div
+                    key={test.testId || i}
+                    className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-100"
+                  >
+                    <span className="text-xs text-gray-800 font-medium">{test.name}</span>
+                    <span className="text-xs font-semibold text-indigo-600">{formatCurrency(test.price)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Payment Summary */}
+            <div className="bg-gray-50 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <DollarSign className="w-3.5 h-3.5 text-indigo-500" />
+                <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Payment</span>
+              </div>
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span className="font-semibold text-gray-900">{formatCurrency(invoice.totalAmount)}</span>
+                </div>
+                {invoice.priceAfterReferrerDiscount !== invoice.totalAmount && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Referrer Discount</span>
+                      <span className="text-red-500 font-semibold">
+                        - {formatCurrency(invoice.totalAmount - invoice.priceAfterReferrerDiscount)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">After Discount</span>
+                      <span className="font-semibold text-gray-900">
+                        {formatCurrency(invoice.priceAfterReferrerDiscount)}
+                      </span>
+                    </div>
+                  </>
+                )}
+                {invoice.labAdjustmentAmount > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Lab Adjustment</span>
+                    <span className="text-red-500 font-semibold">- {formatCurrency(invoice.labAdjustmentAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-2 border-t border-gray-200">
+                  <span className="font-bold text-gray-800">Total</span>
+                  <span className="font-bold text-indigo-600 text-sm">{formatCurrency(invoice.finalPrice)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+                    Paid
+                  </span>
+                  <span className="font-semibold text-green-600">{formatCurrency(invoice.paidAmount)}</span>
+                </div>
+                {!isFullyPaid ? (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
+                      Due
+                    </span>
+                    <span className="font-semibold text-red-500">{formatCurrency(dueAmount)}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-end gap-1.5 text-green-600">
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span className="text-[10px] font-semibold">Fully Paid</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Status */}
+            <div className="flex items-center gap-2">
+              <span
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold border ${
+                  invoice.isDelivered
+                    ? "bg-blue-50 text-blue-600 border-blue-100"
+                    : "bg-gray-50 text-gray-500 border-gray-200"
+                }`}
+              >
+                <PackageCheck className="w-3.5 h-3.5" />
+                {invoice.isDelivered ? "Delivered" : "Not Delivered"}
+              </span>
+              <span
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold border ${
+                  isFullyPaid ? "bg-green-50 text-green-600 border-green-100" : "bg-red-50 text-red-500 border-red-100"
+                }`}
+              >
+                <Wallet className="w-3.5 h-3.5" />
+                {isFullyPaid ? "Fully Paid" : `Due ৳${dueAmount.toLocaleString()}`}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Footer — always shown once invoiceId is present */}
+      {invoiceRow && (
+        <div className="px-5 pb-5 space-y-2">
+          {/* Primary actions row */}
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="py-2.5 px-4 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+            >
+              Close
+            </button>
+            <Link
+              to={`/invoice/print/${invoiceId}`}
+              className="flex-1 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors text-center"
+            >
+              Open Invoice
+            </Link>
+            {rowHasReports && (
+              <Link
+                to="/reports"
+                state={{ invoiceId }}
+                className="flex-1 py-2.5 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition-colors text-center flex items-center justify-center gap-1.5"
+              >
+                <FlaskConical className="w-3.5 h-3.5" />
+                Reports
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
 };
 
 // ============================================================================
@@ -88,11 +456,10 @@ const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingChange, 
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="sm">
-      {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
-            <User className="w-4.5 h-4.5 text-indigo-600" />
+            <User className="w-4 h-4 text-indigo-600" />
           </div>
           <div>
             <h2 className="text-sm font-bold text-gray-900 leading-tight">Edit Patient Info</h2>
@@ -107,7 +474,6 @@ const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingChange, 
         </button>
       </div>
 
-      {/* Form */}
       <div className="px-5 py-5 space-y-4">
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1.5">
@@ -189,7 +555,6 @@ const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingChange, 
         </div>
       </div>
 
-      {/* Footer */}
       <div className="flex gap-2 px-5 pb-5">
         <button
           onClick={onClose}
@@ -236,6 +601,7 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
   const [confirming, setConfirming] = useState(false);
   const [collectingDue, setCollectingDue] = useState(false);
   const [editingPatient, setEditingPatient] = useState(false);
+  const [viewingDetails, setViewingDetails] = useState(false);
 
   const paidAmount = Number(invoice.paidAmount) || 0;
   const finalPrice = Number(invoice.finalPrice) || 0;
@@ -331,57 +697,112 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
         onError={onError}
       />
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 hover:border-indigo-100 hover:shadow-md transition-all duration-200">
-        <div className="flex items-center gap-3 px-4 pt-3.5 pb-2.5">
-          <div className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
-            <span className="text-[11px] font-bold text-indigo-600">{index + 1}</span>
+      <InvoiceDetailsModal
+        invoiceId={invoice.invoiceId}
+        isOpen={viewingDetails}
+        onClose={() => setViewingDetails(false)}
+        invoice={invoice}
+        onEditPatient={() => setEditingPatient(true)}
+        onCollectDue={() => setCollectingDue(true)}
+        onMarkDelivered={() => setConfirming(true)}
+        onLoadingChange={onLoadingChange}
+        onError={onError}
+        onPatientUpdated={onPatientUpdated}
+      />
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all duration-200 overflow-hidden">
+        {/* ── Header strip ───────────────────────────────────────────── */}
+        <div className="flex items-center gap-3 px-4 pt-3.5 pb-3">
+          {/* Index badge */}
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 shadow-sm">
+            <span className="text-[11px] font-bold text-white">{index + 1}</span>
           </div>
+
+          {/* Name + meta */}
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{invoice.patientName}</p>
-            <p className="text-[11px] text-gray-400 mt-0.5">
+            <p className="font-bold text-gray-900 text-sm leading-tight truncate">{invoice.patientName}</p>
+            <p className="text-[11px] text-gray-400 mt-0.5 truncate">
               #{invoice.invoiceId} · {date} · {time}
             </p>
           </div>
+
+          {/* Status pills — always visible */}
           <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={() => setEditingPatient(true)}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors"
-            >
-              <Pencil className="w-3 h-3" />
-              Edit
-            </button>
-            <Link
-              to={`/invoice/print/${invoice.invoiceId}`}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-lg transition-colors"
-            >
-              <FileText className="w-3 h-3" />
-              Invoice
-            </Link>
-            {hasReports && (
-              <Link
-                to="/reports"
-                state={{ invoiceId: invoice.invoiceId }}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
-              >
-                <FlaskConical className="w-3 h-3" />
-                Reports
-              </Link>
+            <PaymentBadge />
+            {invoice.isDelivered && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-semibold">
+                <PackageCheck className="w-3 h-3" />
+                <span className="hidden sm:inline">Delivered</span>
+              </span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 px-4 pb-3 pt-0 border-t border-gray-50">
-          <PaymentBadge />
+
+        {/* ── Action buttons — always visible on all screen sizes ─────── */}
+        <div className="px-3 pb-3 flex items-center gap-1.5 flex-wrap">
+          {/* Details */}
+          <button
+            onClick={() => setViewingDetails(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-100 transition-all"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            Details
+          </button>
+
+          {/* Invoice */}
+          <Link
+            to={`/invoice/print/${invoice.invoiceId}`}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 transition-all"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Invoice
+          </Link>
+
+          {/* Reports — only when available */}
+          {hasReports && (
+            <Link
+              to="/reports"
+              state={{ invoiceId: invoice.invoiceId }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-sm transition-all"
+            >
+              <FlaskConical className="w-3.5 h-3.5" />
+              Reports
+            </Link>
+          )}
+
+          {/* Spacer pushes remaining buttons right */}
+          <div className="flex-1" />
+
+          {/* Edit */}
+          <button
+            onClick={() => setEditingPatient(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 border border-gray-200 transition-all"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Edit
+          </button>
+
+          {/* Collect due */}
           {!isFullyPaid && (
             <button
               onClick={() => setCollectingDue(true)}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white text-gray-500 border border-gray-200 hover:border-green-300 hover:text-green-600 hover:bg-green-50 text-xs font-medium transition-all"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all"
             >
-              <Banknote className="w-3 h-3" />
+              <Banknote className="w-3.5 h-3.5" />
               Collect
             </button>
           )}
-          <div className="w-px h-3.5 bg-gray-200 mx-0.5" />
-          <DeliveryBadge />
+
+          {/* Mark delivered */}
+          {!invoice.isDelivered && (
+            <button
+              onClick={() => setConfirming(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-100 transition-all"
+            >
+              <PackageCheck className="w-3.5 h-3.5" />
+              Deliver
+            </button>
+          )}
         </div>
       </div>
     </>
@@ -402,7 +823,6 @@ const InvoiceList = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [timeRange, setTimeRange] = useState(null);
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
   const loadInvoices = async (cursor = null, replace = true, range = timeRange) => {
     try {
       if (replace) setInitialLoading(true);
@@ -430,7 +850,6 @@ const InvoiceList = () => {
     }
   };
 
-  // Initial load — today
   useEffect(() => {
     const now = new Date();
     const initial = {
@@ -441,11 +860,8 @@ const InvoiceList = () => {
     loadInvoices(null, true, initial);
   }, []);
 
-  // ── TimeFrame callback ─────────────────────────────────────────────────────
   const handleFetchData = (start, end) => {
     const range = { start, end };
-    console.log(start);
-    console.log(end);
     setTimeRange(range);
     setStatusFilter("all");
     loadInvoices(null, true, range);
@@ -455,7 +871,6 @@ const InvoiceList = () => {
     if (hasMore && !loadingMore) loadInvoices(nextCursor, false);
   };
 
-  // ── Derived counts ─────────────────────────────────────────────────────────
   const total = invoices.length;
   const pending = invoices.filter((inv) => Math.max(0, (inv.finalPrice || 0) - (inv.paidAmount || 0)) > 0).length;
   const completed = invoices.filter((inv) => Math.max(0, (inv.finalPrice || 0) - (inv.paidAmount || 0)) === 0).length;
@@ -469,7 +884,6 @@ const InvoiceList = () => {
     );
   }
 
-  // ── Optimistic updates ─────────────────────────────────────────────────────
   const handleDelivered = (invoiceId) =>
     setInvoices((prev) => prev.map((inv) => (inv.invoiceId === invoiceId ? { ...inv, isDelivered: true } : inv)));
 
@@ -552,14 +966,18 @@ const InvoiceList = () => {
             >
               <div className="flex items-center gap-2">
                 <div className={`p-2 bg-${color}-50 rounded-lg`}>
-                  <Icon className={`w-5 h-5 text-${color}-${color === "indigo" ? "600" : color === "red" ? "400" : "500"}`} />
+                  <Icon
+                    className={`w-5 h-5 text-${color}-${color === "indigo" ? "600" : color === "red" ? "400" : "500"}`}
+                  />
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">{label}</p>
                   {initialLoading ? (
                     <div className="h-7 w-10 bg-gray-200 rounded animate-pulse" />
                   ) : (
-                    <p className={`text-2xl font-bold text-${color}-${color === "indigo" ? "900" : color === "red" ? "500" : "600"}`}>
+                    <p
+                      className={`text-2xl font-bold text-${color}-${color === "indigo" ? "900" : color === "red" ? "500" : "600"}`}
+                    >
                       {value}
                     </p>
                   )}
@@ -603,7 +1021,9 @@ const InvoiceList = () => {
         {/* Invoice list */}
         {initialLoading ? (
           <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => <SkeletonInvoice key={i} />)}
+            {[1, 2, 3, 4].map((i) => (
+              <SkeletonInvoice key={i} />
+            ))}
           </div>
         ) : filteredInvoices.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
@@ -614,7 +1034,9 @@ const InvoiceList = () => {
               {statusFilter !== "all" ? "No invoices found" : "No invoices for this period"}
             </h3>
             <p className="text-gray-500 text-sm mb-4 max-w-sm mx-auto">
-              {statusFilter !== "all" ? "Try changing the filter" : "No invoices were created in the selected timeframe"}
+              {statusFilter !== "all"
+                ? "Try changing the filter"
+                : "No invoices were created in the selected timeframe"}
             </p>
             {statusFilter === "all" && (
               <Link

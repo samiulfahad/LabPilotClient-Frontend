@@ -18,14 +18,21 @@ import TimeFrame from "../../components/timeFrame";
 import commissionService from "../../api/commission";
 import Popup from "../../components/popup";
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
+// ============================================================================
+// HELPERS
+// ============================================================================
+
 const fmt = (n) => (typeof n === "number" ? n.toLocaleString("en-IN") : "0");
-const fmtDate = (ms) =>
-  new Date(ms).toLocaleDateString("en-US", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+
+const fmtDate = (ms) => new Date(ms).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" });
+
+const todayRange = () => {
+  const now = new Date();
+  return {
+    start: new Date(now).setHours(0, 0, 0, 0),
+    end: new Date(now).setHours(23, 59, 59, 999),
+  };
+};
 
 const TYPE_META = {
   doctor: { label: "Doctor", icon: Stethoscope, color: "bg-blue-50 text-blue-600 border-blue-100" },
@@ -34,7 +41,22 @@ const TYPE_META = {
   unknown: { label: "Unknown", icon: Users, color: "bg-gray-50 text-gray-500 border-gray-100" },
 };
 
-// ─── Skeleton ────────────────────────────────────────────────────────────────
+const CARD_ANIMATION = (idx) => ({
+  style: { animation: `cardIn 0.4s cubic-bezier(.22,1,.36,1) ${idx * 60}ms both` },
+});
+
+const SectionDivider = ({ label, count, countColor }) => (
+  <div className="flex items-center gap-3 mb-3">
+    <p className="text-[10.5px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">{label}</p>
+    <div className="flex-1 h-px bg-gray-200" />
+    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${countColor}`}>{count}</span>
+  </div>
+);
+
+// ============================================================================
+// SKELETON
+// ============================================================================
+
 const SkeletonCard = () => (
   <div className="bg-white border border-gray-100 rounded-2xl p-5 animate-pulse space-y-3">
     <div className="flex items-center justify-between">
@@ -47,15 +69,18 @@ const SkeletonCard = () => (
       </div>
       <div className="h-7 w-24 bg-gray-200 rounded-xl" />
     </div>
-    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-50">
-      {[1, 2, 3].map((i) => (
+    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-50">
+      {[1, 2].map((i) => (
         <div key={i} className="h-10 bg-gray-100 rounded-xl" />
       ))}
     </div>
   </div>
 );
 
-// ─── Invoice row ─────────────────────────────────────────────────────────────
+// ============================================================================
+// INVOICE ROW
+// ============================================================================
+
 const InvoiceRow = ({ inv, idx }) => (
   <div className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 gap-2">
     <div className="flex items-center gap-3 min-w-0">
@@ -90,91 +115,96 @@ const InvoiceRow = ({ inv, idx }) => (
   </div>
 );
 
-// ─── Registered referrer card ────────────────────────────────────────────────
-const ReferrerCard = ({ ref: r, idx }) => {
+// ============================================================================
+// INVOICE TOGGLE BUTTON
+// ============================================================================
+
+const InvoiceToggle = ({ count, open, onToggle }) => (
+  <button
+    onClick={onToggle}
+    className="w-full flex items-center justify-between px-5 py-2.5 bg-gray-50 border-t border-gray-100 hover:bg-gray-100 transition-colors text-xs font-bold text-gray-500"
+  >
+    <span className="flex items-center gap-1.5">
+      <ReceiptText className="w-3.5 h-3.5" />
+      {count} Invoice{count !== 1 ? "s" : ""}
+    </span>
+    {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+  </button>
+);
+
+// ============================================================================
+// STAT CELL  — only commission / discount / invoices used now
+// ============================================================================
+
+const StatCell = ({ label, value, bg = "bg-gray-50", labelColor = "text-gray-400", valueColor = "text-gray-800" }) => (
+  <div className={`${bg} rounded-xl px-3 py-2 text-center`}>
+    <p className={`text-[9.5px] ${labelColor} uppercase tracking-wide font-semibold`}>{label}</p>
+    <p className={`text-sm font-black ${valueColor} mt-0.5`}>{value}</p>
+  </div>
+);
+
+// ============================================================================
+// REFERRER CARD (registered)
+// ============================================================================
+
+const ReferrerCard = ({ referrer: r, idx }) => {
   const [open, setOpen] = useState(false);
   const meta = TYPE_META[r.type] ?? TYPE_META.unknown;
   const Icon = meta.icon;
+  const initials = r.name
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   return (
     <div
       className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm transition-shadow hover:shadow-md"
-      style={{ animation: `cardIn 0.4s cubic-bezier(.22,1,.36,1) ${idx * 60}ms both` }}
+      {...CARD_ANIMATION(idx)}
     >
-      {/* Card header */}
       <div className="p-5">
+        {/* Name + commission */}
         <div className="flex items-start justify-between gap-3">
-          {/* Left: avatar + name */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-100 shrink-0">
-              <span className="text-sm font-black text-white">
-                {r.name
-                  .split(" ")
-                  .map((w) => w[0])
-                  .slice(0, 2)
-                  .join("")
-                  .toUpperCase()}
-              </span>
+              <span className="text-sm font-black text-white">{initials}</span>
             </div>
             <div>
               <p className="text-sm font-black text-gray-900 leading-tight">{r.name}</p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${meta.color}`}
-                >
-                  <Icon className="w-2.5 h-2.5" />
-                  {meta.label}
-                </span>
-                {r.degree && <span className="text-[10px] text-gray-400 uppercase">{r.degree}</span>}
-              </div>
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border mt-0.5 ${meta.color}`}
+              >
+                <Icon className="w-2.5 h-2.5" />
+                {meta.label}
+              </span>
             </div>
           </div>
-
-          {/* Commission badge */}
           <div className="text-right shrink-0">
             <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest leading-none">Commission</p>
             <p className="text-xl font-black text-indigo-700 leading-tight mt-0.5">৳{fmt(r.totalCommission)}</p>
           </div>
         </div>
 
-        {/* Stats row */}
+        {/* Stats — invoices + optional discount only */}
         <div
-          className={`grid gap-2 mt-4 pt-4 border-t border-gray-50 ${r.totalDiscount > 0 ? "grid-cols-4" : "grid-cols-3"}`}
+          className={`grid gap-2 mt-4 pt-4 border-t border-gray-50 ${r.totalDiscount > 0 ? "grid-cols-2" : "grid-cols-1"}`}
         >
-          <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-            <p className="text-[9.5px] text-gray-400 uppercase tracking-wide font-semibold">Invoices</p>
-            <p className="text-base font-black text-gray-800 mt-0.5">{r.totalInvoices}</p>
-          </div>
-          <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-            <p className="text-[9.5px] text-gray-400 uppercase tracking-wide font-semibold">Gross</p>
-            <p className="text-sm font-black text-gray-800 mt-0.5">৳{fmt(r.totalAmount)}</p>
-          </div>
+          <StatCell label="Invoices" value={r.totalInvoices} />
           {r.totalDiscount > 0 && (
-            <div className="bg-orange-50 border border-orange-100 rounded-xl px-3 py-2 text-center">
-              <p className="text-[9.5px] text-orange-400 uppercase tracking-wide font-semibold">Discount</p>
-              <p className="text-sm font-black text-orange-600 mt-0.5">−৳{fmt(r.totalDiscount)}</p>
-            </div>
+            <StatCell
+              label="Discount Given"
+              value={`−৳${fmt(r.totalDiscount)}`}
+              bg="bg-orange-50 border border-orange-100"
+              labelColor="text-orange-400"
+              valueColor="text-orange-600"
+            />
           )}
-          <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-            <p className="text-[9.5px] text-gray-400 uppercase tracking-wide font-semibold">Billed</p>
-            <p className="text-sm font-black text-gray-800 mt-0.5">৳{fmt(r.totalFinalPrice)}</p>
-          </div>
         </div>
       </div>
 
-      {/* Toggle invoices */}
-      <button
-        onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center justify-between px-5 py-2.5 bg-gray-50 border-t border-gray-100 hover:bg-gray-100 transition-colors text-xs font-bold text-gray-500"
-      >
-        <span className="flex items-center gap-1.5">
-          <ReceiptText className="w-3.5 h-3.5" />
-          {r.invoices.length} Invoice{r.invoices.length !== 1 ? "s" : ""}
-        </span>
-        {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-      </button>
+      <InvoiceToggle count={r.invoices.length} open={open} onToggle={() => setOpen((p) => !p)} />
 
-      {/* Invoice list */}
       {open && (
         <div className="px-5 pb-4 pt-3">
           {r.invoices.map((inv, i) => (
@@ -186,30 +216,26 @@ const ReferrerCard = ({ ref: r, idx }) => {
   );
 };
 
-// ─── Unregistered card ───────────────────────────────────────────────────────
+// ============================================================================
+// UNREGISTERED CARD
+// ============================================================================
+
 const UnregisteredCard = ({ group, idx }) => {
   const [open, setOpen] = useState(false);
-  const isSelf = String(group.referredBy).toLowerCase() === "self";
 
   return (
-    <div
-      className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm"
-      style={{ animation: `cardIn 0.4s cubic-bezier(.22,1,.36,1) ${idx * 60}ms both` }}
-    >
+    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm" {...CARD_ANIMATION(idx)}>
       <div className="p-5">
+        {/* Name + commission (only if non-zero) */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isSelf ? "bg-gray-100" : "bg-orange-50 border border-orange-100"}`}
-            >
-              <UserX className={`w-5 h-5 ${isSelf ? "text-gray-400" : "text-orange-400"}`} />
+            <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0">
+              <UserX className="w-5 h-5 text-orange-400" />
             </div>
             <div>
               <p className="text-sm font-black text-gray-900">{group.referredBy}</p>
-              <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isSelf ? "bg-gray-50 text-gray-400 border-gray-100" : "bg-orange-50 text-orange-500 border-orange-100"}`}
-              >
-                {isSelf ? "Walk-in / Self" : "Unregistered"}
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-orange-50 text-orange-500 border-orange-100">
+                Unregistered
               </span>
             </div>
           </div>
@@ -221,28 +247,24 @@ const UnregisteredCard = ({ group, idx }) => {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-gray-50">
-          <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-            <p className="text-[9.5px] text-gray-400 uppercase tracking-wide font-semibold">Invoices</p>
-            <p className="text-base font-black text-gray-800 mt-0.5">{group.totalInvoices}</p>
-          </div>
-          <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-            <p className="text-[9.5px] text-gray-400 uppercase tracking-wide font-semibold">Gross Amount</p>
-            <p className="text-sm font-black text-gray-800 mt-0.5">৳{fmt(group.totalAmount)}</p>
-          </div>
+        {/* Stats — invoices + optional discount only */}
+        <div
+          className={`grid gap-2 mt-4 pt-4 border-t border-gray-50 ${group.totalDiscount > 0 ? "grid-cols-2" : "grid-cols-1"}`}
+        >
+          <StatCell label="Invoices" value={group.totalInvoices} />
+          {group.totalDiscount > 0 && (
+            <StatCell
+              label="Discount Given"
+              value={`−৳${fmt(group.totalDiscount)}`}
+              bg="bg-orange-50 border border-orange-100"
+              labelColor="text-orange-400"
+              valueColor="text-orange-600"
+            />
+          )}
         </div>
       </div>
 
-      <button
-        onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center justify-between px-5 py-2.5 bg-gray-50 border-t border-gray-100 hover:bg-gray-100 transition-colors text-xs font-bold text-gray-500"
-      >
-        <span className="flex items-center gap-1.5">
-          <ReceiptText className="w-3.5 h-3.5" />
-          {group.invoices.length} Invoice{group.invoices.length !== 1 ? "s" : ""}
-        </span>
-        {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-      </button>
+      <InvoiceToggle count={group.invoices.length} open={open} onToggle={() => setOpen((p) => !p)} />
 
       {open && (
         <div className="px-5 pb-4 pt-3">
@@ -255,7 +277,16 @@ const UnregisteredCard = ({ group, idx }) => {
   );
 };
 
-// ─── MAIN PAGE ───────────────────────────────────────────────────────────────
+// ============================================================================
+// MAIN
+// ============================================================================
+
+const EMPTY_DATA = {
+  registered: [],
+  unregistered: [],
+  totals: { totalCommission: 0, totalDiscount: 0, totalInvoices: 0 },
+};
+
 const Commission = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -263,11 +294,7 @@ const Commission = () => {
   const [timeRange, setTimeRange] = useState(null);
 
   useEffect(() => {
-    const now = new Date();
-    const range = {
-      start: new Date(now).setHours(0, 0, 0, 0),
-      end: new Date(now).setHours(23, 59, 59, 999),
-    };
+    const range = todayRange();
     setTimeRange(range);
     fetchData(range);
   }, []);
@@ -275,10 +302,7 @@ const Commission = () => {
   const fetchData = async (range) => {
     try {
       setLoading(true);
-      const res = await commissionService.getSummary({
-        startDate: range.start,
-        endDate: range.end,
-      });
+      const res = await commissionService.getSummary({ startDate: range.start, endDate: range.end });
       setData(res.data);
     } catch {
       setPopup({ type: "error", message: "Failed to load commission data." });
@@ -293,18 +317,21 @@ const Commission = () => {
     fetchData(range);
   };
 
-  const d = data ?? {
-    registered: [],
-    unregistered: [],
-    totals: { totalCommission: 0, totalDiscount: 0, totalInvoices: 0 },
-  };
+  const d = data ?? EMPTY_DATA;
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
+      <style>{`
+        @keyframes cardIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+
       <div className="max-w-2xl mx-auto">
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div>
             <p className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest mb-0.5">LabPilot</p>
@@ -319,18 +346,18 @@ const Commission = () => {
           </Link>
         </div>
 
-        {/* ── TimeFrame ── */}
+        {/* TimeFrame */}
         <div className="mb-5">
           <TimeFrame onFetchData={handleFetchData} />
         </div>
 
-        {/* ── Summary banner ── */}
+        {/* Summary banner */}
         {!loading && (
           <div
             className="grid grid-cols-2 gap-3 mb-5"
             style={{ animation: "cardIn 0.4s cubic-bezier(.22,1,.36,1) both" }}
           >
-            {/* Commission — full width accent */}
+            {/* Total commission — full width */}
             <div className="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl px-4 py-3.5 col-span-2 shadow-lg shadow-indigo-200/40 flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -353,6 +380,8 @@ const Commission = () => {
                 </div>
               )}
             </div>
+
+            {/* Invoices */}
             <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3.5 shadow-sm">
               <div className="flex items-center gap-2 mb-1">
                 <ReceiptText className="w-3.5 h-3.5 text-gray-400" />
@@ -360,6 +389,8 @@ const Commission = () => {
               </div>
               <p className="text-2xl font-black text-gray-900">{d.totals.totalInvoices}</p>
             </div>
+
+            {/* Referrers */}
             <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3.5 shadow-sm">
               <div className="flex items-center gap-2 mb-1">
                 <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
@@ -370,6 +401,7 @@ const Commission = () => {
           </div>
         )}
 
+        {/* Cards */}
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
@@ -378,38 +410,28 @@ const Commission = () => {
           </div>
         ) : (
           <>
-            {/* ── Registered referrers ── */}
             {d.registered.length > 0 && (
               <div className="mb-6">
-                <div className="flex items-center gap-3 mb-3">
-                  <p className="text-[10.5px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
-                    Registered Referrers
-                  </p>
-                  <div className="flex-1 h-px bg-gray-200" />
-                  <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">
-                    {d.registered.length}
-                  </span>
-                </div>
+                <SectionDivider
+                  label="Registered Referrers"
+                  count={d.registered.length}
+                  countColor="text-indigo-500 bg-indigo-50 border-indigo-100"
+                />
                 <div className="space-y-3">
                   {d.registered.map((r, i) => (
-                    <ReferrerCard key={r.referrerId} ref={r} idx={i} />
+                    <ReferrerCard key={r.referrerId} referrer={r} idx={i} />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* ── Unregistered / Self ── */}
             {d.unregistered.length > 0 && (
               <div className="mb-6">
-                <div className="flex items-center gap-3 mb-3">
-                  <p className="text-[10.5px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
-                    Unregistered / Walk-in
-                  </p>
-                  <div className="flex-1 h-px bg-gray-200" />
-                  <span className="text-[10px] font-bold text-orange-500 bg-orange-50 border border-orange-100 px-2 py-0.5 rounded-full">
-                    {d.unregistered.length}
-                  </span>
-                </div>
+                <SectionDivider
+                  label="Unregistered / Walk-in"
+                  count={d.unregistered.length}
+                  countColor="text-orange-500 bg-orange-50 border-orange-100"
+                />
                 <div className="space-y-3">
                   {d.unregistered.map((g, i) => (
                     <UnregisteredCard key={String(g.referredBy)} group={g} idx={i} />
@@ -418,7 +440,6 @@ const Commission = () => {
               </div>
             )}
 
-            {/* ── Empty state ── */}
             {d.registered.length === 0 && d.unregistered.length === 0 && (
               <div className="bg-white border border-gray-100 rounded-2xl py-16 text-center shadow-sm">
                 <Users className="w-10 h-10 text-gray-200 mx-auto mb-3" />
@@ -429,13 +450,6 @@ const Commission = () => {
           </>
         )}
       </div>
-
-      <style>{`
-        @keyframes cardIn {
-          from { opacity: 0; transform: translateY(12px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </section>
   );
 };

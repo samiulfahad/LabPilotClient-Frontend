@@ -1,0 +1,214 @@
+I am developing a lab management system where multiple labs/pathologies will open account and operate there labs.
+
+lab will create invoices for patient and upload lab test reports.
+here is the invoice structure.
+
+{
+  "_id": {
+    "$oid": "69b3455d0f46c66248954b75"
+  },
+  "labId": 123456,
+  "invoiceId": "SBH3184",
+  "createdAt": 1773356381090,
+  "patientName": "Samiul Fahad",
+  "gender": "male",
+  "age": "28",
+  "contactNumber": "01723939836",
+  "referredBy": "69b002efa94903cfac8249c9",
+  "tests": [
+    {
+      "testId": {
+        "$oid": "69a8283f28af4c26b437f60e"
+      },
+      "name": "RBS",
+      "price": 200,
+      "schemaId": {
+        "$oid": "69a4c8e1aefbe4654b003618"
+      },
+      "report": {},
+      "isCompleted": false
+    },
+    {
+      "testId": {
+        "$oid": "69a8283e28af4c26b437f60d"
+      },
+      "name": "CBC",
+      "price": 300,
+      "schemaId": {
+        "$oid": "69a70bcd2c76412ea1978d18"
+      },
+      "report": {},
+      "isCompleted": false
+    }
+  ],
+  "totalAmount": 500,
+  "referrerDiscount": 50,
+  "priceAfterReferrerDiscount": 450,
+  "referrerCommission": 50,
+  "labAdjustmentAmount": 0,
+  "finalPrice": 450,
+  "paidAmount": 50,
+  "createdBy": staffId,
+  "isDelivered": false
+}
+
+
+each lab has referrers, staffs. I store invoices (created by any lab) in a shared "invoice" collection having a compound index.
+
+Each lab may have 10-50 staffs and 30-100+ referrers. My confusion is to store the staffs and referrers to a suitable place.
+here are the staff and referrer object.
+{
+  "_id": {
+    "$oid": "69b002efa94903cfac8249c9"
+  },
+  "name": "Dr. Smith",
+  "contactNumber": "87687",
+  "degree": "mbbs",
+  "details": "",
+  "type": "doctor",
+  "commissionType": "percentage",
+  "commissionValue": 20,
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-03-10T11:39:27.525Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-10T11:39:27.525Z"
+  }
+}
+
+
+and here is the staff obj
+{
+  "_id": {
+    "$oid": "69b3ca2784870c5c96b22c09"
+  },
+  "name": "Hasan Murshed",
+  "username": "murshed",
+  "email": "hasan@gmail.com",
+  "mobileNumber": "98798890",
+  "permissions": {
+    "createInvoice": true,
+    "editInvoice": true,
+    "deleteInvoice": true,
+    "cashmemo": true,
+    "uploadReport": false
+  },
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-03-13T08:26:15.515Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-13T08:26:15.515Z"
+  }
+}
+
+I have three plans to store referrers and staffs.
+    A. Embed the staffs and referrers in labs. Like this:
+    {
+  "_id": {
+    "$oid": "69a444538789843e16ec5ee7"
+  },
+  "name": "Bubu Dudu Specialized Hospital",
+  "labId": 111222,
+  "address": "123 Medical Street, Healthcare City",
+  "contact1": "01723931111",
+  "contact2": "01723939837",
+  "email": "contact@citydiagnostic.com",
+  "isActive": true,
+  "zoneId": {
+    "$oid": "69a4439c8789843e16ec5ee1"
+  },
+  "subZoneId": {
+    "$oid": "69a443b68789843e16ec5ee4"
+  },
+  "invoicePrice": 10,
+  "commission": 4,
+  "monthlyFee": 0,
+  "hasWarning": false,
+  "warning": "",
+  "totalReceipt": 0,
+  "payableAmount": 0,
+  "billingHistory": [], // referrer array
+  "staffs": [], // staff array
+  "admins": [], 
+  "referrers": [],
+  "testList": [],
+  "createdBy": 555,
+  "createdAt": "07:51 PM, 1st March 2026",
+  "updatedAt": "07:51 PM, 1st March 2026",
+  "updatedBy": 777
+}
+
+B. Separate collection like referres and staffs. Then Indexing by labId
+    staff1: {
+        labId: 123,
+        name: ,
+        permissions: {
+
+        }
+    }
+
+    staff2: {
+        labId: 123,
+        name: ,
+        permissions: {
+            
+        }
+    },
+
+    staff3: {
+        labId: 123,
+        name: ,
+        permissions: {
+            
+        }
+    }
+
+    staff4: {
+        labId: 124,
+        name: ,
+        permissions: {
+            
+        }
+    }
+
+    staff5: {
+        labId: 124,
+        name: ,
+        permissions: {
+            
+        }
+    }
+
+    staff6: {
+        labId: 124,
+        name: ,
+        permissions: {
+            
+        }
+    }
+
+
+
+
+C. Separate collections (staffs and referrers) with array.
+
+{
+    labId: 123,
+    staffs: [staff1, staff2, staff3]
+},
+
+{
+    labId: 124,
+    staffs: [staff1, staff2, staff3]
+},
+
+{
+    labId: 125,
+    staffs: [staff1, staff2, staff3]
+}
+
+help me to take a decision to store the referrers and staffs. You can also suggest me other better approach (without these three or mixing them) if you think.
+I need to take efficient, performant and scalable solution. 
+Referrer and staff data is needed at various points like creating invoice (who created the invoice), uploading reports (who uploaded the report) etc.
