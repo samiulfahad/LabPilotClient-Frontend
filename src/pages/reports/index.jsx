@@ -19,9 +19,108 @@ import {
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 import Popup from "../../components/popup";
-import LoadingScreen from "../../components/loadingPage";
 import invoiceService from "../../api/invoice";
 import reportService from "../../api/report";
+
+// ============================================================================
+// SKELETON
+// ============================================================================
+const Skeleton = ({ className = "", style = {} }) => (
+  <div
+    className={`rounded-lg ${className}`}
+    style={{
+      background: "linear-gradient(90deg, #e4e7ed 25%, #f2f4f7 50%, #e4e7ed 75%)",
+      backgroundSize: "200% 100%",
+      animation: "rp-shimmer 1.5s infinite",
+      ...style,
+    }}
+  />
+);
+
+const InvoiceSkeleton = () => (
+  <>
+    <style>{`@keyframes rp-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-indigo-100 to-purple-100 px-6 py-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton style={{ height: 8, width: 60 }} />
+            <Skeleton style={{ height: 22, width: 120 }} />
+            <Skeleton style={{ height: 8, width: 160 }} />
+          </div>
+          <div className="space-y-2 text-right flex flex-col items-end">
+            <Skeleton style={{ height: 8, width: 70 }} />
+            <Skeleton style={{ height: 28, width: 100 }} />
+            <Skeleton style={{ height: 24, width: 80, borderRadius: 6 }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Patient info */}
+      <div className="px-6 py-4 border-b border-gray-100">
+        <Skeleton style={{ height: 8, width: 60, marginBottom: 14 }} />
+        <div className="grid grid-cols-2 gap-3">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-center gap-2">
+              {i < 2 && <Skeleton style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0 }} />}
+              <div className="space-y-1.5 flex-1">
+                <Skeleton style={{ height: 7, width: "45%" }} />
+                <Skeleton style={{ height: 13, width: "75%" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Online tests */}
+      <div className="px-6 py-4 border-b border-gray-100">
+        <Skeleton style={{ height: 8, width: 160, marginBottom: 14 }} />
+        <div className="space-y-2">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="rounded-xl border border-gray-100 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <Skeleton style={{ width: 10, height: 10, borderRadius: "50%", flexShrink: 0 }} />
+                  <div className="space-y-1.5 flex-1">
+                    <Skeleton style={{ height: 12, width: "55%" }} />
+                    <Skeleton style={{ height: 9, width: "25%" }} />
+                  </div>
+                </div>
+                <Skeleton style={{ height: 30, width: 70, borderRadius: 8, flexShrink: 0 }} />
+              </div>
+              {/* Date editor area */}
+              <div className="mt-2 pt-2 border-t border-gray-100 flex gap-3">
+                <div className="space-y-1">
+                  <Skeleton style={{ height: 8, width: 70 }} />
+                  <Skeleton style={{ height: 28, width: 130, borderRadius: 8 }} />
+                </div>
+                <div className="space-y-1">
+                  <Skeleton style={{ height: 8, width: 70 }} />
+                  <Skeleton style={{ height: 28, width: 130, borderRadius: 8 }} />
+                </div>
+                <Skeleton style={{ height: 28, width: 60, borderRadius: 8, alignSelf: "flex-end" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Offline tests */}
+      <div className="px-6 py-4">
+        <Skeleton style={{ height: 8, width: 100, marginBottom: 14 }} />
+        <div className="space-y-2">
+          {[...Array(1)].map((_, i) => (
+            <div key={i} className="flex items-center justify-between px-4 py-2.5 bg-gray-50 rounded-xl">
+              <Skeleton style={{ height: 12, width: "40%" }} />
+              <Skeleton style={{ height: 12, width: "15%" }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </>
+);
 
 // ============================================================================
 // HELPERS
@@ -269,16 +368,13 @@ const InvoiceDetail = ({ invoice, onDatesSaved }) => {
       {/* Online Tests */}
       {onlineTests.length > 0 && (
         <div className="px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
-              <FlaskConical className="w-3.5 h-3.5 text-indigo-400" />
-              Online Tests ({completedCount}/{onlineTests.length} done)
-            </p>
-          </div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5 mb-3">
+            <FlaskConical className="w-3.5 h-3.5 text-indigo-400" />
+            Online Tests ({completedCount}/{onlineTests.length} done)
+          </p>
           <div className="space-y-2">
             {onlineTests.map((test, i) => {
               const testId = test.testId?.$oid || test.testId;
-
               return (
                 <div
                   key={testId || i}
@@ -286,13 +382,10 @@ const InvoiceDetail = ({ invoice, onDatesSaved }) => {
                     test.isCompleted ? "border-emerald-100 bg-emerald-50/40" : "border-gray-100"
                   }`}
                 >
-                  {/* Top row */}
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                          test.isCompleted ? "bg-emerald-400" : "bg-amber-400"
-                        }`}
+                        className={`w-2.5 h-2.5 rounded-full shrink-0 ${test.isCompleted ? "bg-emerald-400" : "bg-amber-400"}`}
                       />
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">{test.name}</p>
@@ -303,8 +396,6 @@ const InvoiceDetail = ({ invoice, onDatesSaved }) => {
                       <TestActions invoice={invoice} test={test} />
                     </div>
                   </div>
-
-                  {/* Date editor — always visible for all online tests */}
                   <DateEditor
                     invoiceId={invoice.invoiceId}
                     testId={testId}
@@ -408,7 +499,6 @@ const Reports = () => {
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
-      {searching && <LoadingScreen message="Searching invoice..." />}
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       <div className="max-w-2xl mx-auto">
@@ -419,6 +509,7 @@ const Reports = () => {
           </h1>
         </div>
 
+        {/* Search Box */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
           <div className="flex gap-3">
             <div className="relative flex-1">
@@ -456,7 +547,11 @@ const Reports = () => {
           </div>
         </div>
 
-        {notFound && (
+        {/* Skeleton while searching */}
+        {searching && <InvoiceSkeleton />}
+
+        {/* Not Found */}
+        {!searching && notFound && (
           <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-8 text-center">
             <div className="bg-red-50 w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3">
               <Search className="w-6 h-6 text-red-400" />
@@ -468,7 +563,8 @@ const Reports = () => {
           </div>
         )}
 
-        {invoice && <InvoiceDetail invoice={invoice} onDatesSaved={handleDatesSaved} />}
+        {/* Invoice Detail */}
+        {!searching && invoice && <InvoiceDetail invoice={invoice} onDatesSaved={handleDatesSaved} />}
       </div>
     </section>
   );

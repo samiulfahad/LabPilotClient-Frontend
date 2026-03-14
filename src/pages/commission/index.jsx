@@ -35,10 +35,10 @@ const todayRange = () => {
 };
 
 const TYPE_META = {
-  doctor: { label: "Doctor", icon: Stethoscope, color: "bg-blue-50 text-blue-600 border-blue-100" },
-  agent: { label: "Agent", icon: UserCircle, color: "bg-violet-50 text-violet-600 border-violet-100" },
-  institute: { label: "Institute", icon: Building2, color: "bg-amber-50 text-amber-600 border-amber-100" },
-  unknown: { label: "Unknown", icon: Users, color: "bg-gray-50 text-gray-500 border-gray-100" },
+  doctor:    { label: "Doctor",    icon: Stethoscope, color: "bg-blue-50 text-blue-600 border-blue-100" },
+  agent:     { label: "Agent",     icon: UserCircle,  color: "bg-violet-50 text-violet-600 border-violet-100" },
+  institute: { label: "Institute", icon: Building2,   color: "bg-amber-50 text-amber-600 border-amber-100" },
+  unknown:   { label: "Unknown",   icon: Users,       color: "bg-gray-50 text-gray-500 border-gray-100" },
 };
 
 const CARD_ANIMATION = (idx) => ({
@@ -133,7 +133,7 @@ const InvoiceToggle = ({ count, open, onToggle }) => (
 );
 
 // ============================================================================
-// STAT CELL  — only commission / discount / invoices used now
+// STAT CELL
 // ============================================================================
 
 const StatCell = ({ label, value, bg = "bg-gray-50", labelColor = "text-gray-400", valueColor = "text-gray-800" }) => (
@@ -164,7 +164,7 @@ const ReferrerCard = ({ referrer: r, idx }) => {
       {...CARD_ANIMATION(idx)}
     >
       <div className="p-5">
-        {/* Name + commission */}
+        {/* Header row: name left, DISCOUNT right (swapped from commission) */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-100 shrink-0">
@@ -172,34 +172,29 @@ const ReferrerCard = ({ referrer: r, idx }) => {
             </div>
             <div>
               <p className="text-sm font-black text-gray-900 leading-tight">{r.name}</p>
-              <span
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border mt-0.5 ${meta.color}`}
-              >
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border mt-0.5 ${meta.color}`}>
                 <Icon className="w-2.5 h-2.5" />
                 {meta.label}
               </span>
             </div>
           </div>
+          {/* DISCOUNT shown in header */}
           <div className="text-right shrink-0">
-            <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest leading-none">Commission</p>
-            <p className="text-xl font-black text-indigo-700 leading-tight mt-0.5">৳{fmt(r.totalCommission)}</p>
+            <p className="text-[9px] text-orange-400 font-bold uppercase tracking-widest leading-none">Discount Given</p>
+            <p className="text-xl font-black text-orange-500 leading-tight mt-0.5">−৳{fmt(r.totalDiscount)}</p>
           </div>
         </div>
 
-        {/* Stats — invoices + optional discount only */}
-        <div
-          className={`grid gap-2 mt-4 pt-4 border-t border-gray-50 ${r.totalDiscount > 0 ? "grid-cols-2" : "grid-cols-1"}`}
-        >
+        {/* Stats grid: Invoices + COMMISSION (swapped from discount) */}
+        <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-gray-50">
           <StatCell label="Invoices" value={r.totalInvoices} />
-          {r.totalDiscount > 0 && (
-            <StatCell
-              label="Discount Given"
-              value={`−৳${fmt(r.totalDiscount)}`}
-              bg="bg-orange-50 border border-orange-100"
-              labelColor="text-orange-400"
-              valueColor="text-orange-600"
-            />
-          )}
+          <StatCell
+            label="Commission"
+            value={`৳${fmt(r.totalCommission)}`}
+            bg="bg-indigo-50 border border-indigo-100"
+            labelColor="text-indigo-400"
+            valueColor="text-indigo-700"
+          />
         </div>
       </div>
 
@@ -226,7 +221,6 @@ const UnregisteredCard = ({ group, idx }) => {
   return (
     <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm" {...CARD_ANIMATION(idx)}>
       <div className="p-5">
-        {/* Name + commission (only if non-zero) */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0">
@@ -247,10 +241,7 @@ const UnregisteredCard = ({ group, idx }) => {
           )}
         </div>
 
-        {/* Stats — invoices + optional discount only */}
-        <div
-          className={`grid gap-2 mt-4 pt-4 border-t border-gray-50 ${group.totalDiscount > 0 ? "grid-cols-2" : "grid-cols-1"}`}
-        >
+        <div className={`grid gap-2 mt-4 pt-4 border-t border-gray-50 ${group.totalDiscount > 0 ? "grid-cols-2" : "grid-cols-1"}`}>
           <StatCell label="Invoices" value={group.totalInvoices} />
           {group.totalDiscount > 0 && (
             <StatCell
@@ -357,40 +348,30 @@ const Commission = () => {
             className="grid grid-cols-2 gap-3 mb-5"
             style={{ animation: "cardIn 0.4s cubic-bezier(.22,1,.36,1) both" }}
           >
-            {/* Total commission — full width */}
-            <div className="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl px-4 py-3.5 col-span-2 shadow-lg shadow-indigo-200/40 flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <BadgeDollarSign className="w-3.5 h-3.5 text-indigo-200" />
-                  <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">
-                    Total Commission Payable
-                  </p>
-                </div>
-                <p className="text-3xl font-black text-white">৳{fmt(d.totals.totalCommission)}</p>
+            <div className="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl px-4 py-3.5 col-span-2 shadow-lg shadow-indigo-200/40">
+              <div className="flex items-center gap-2 mb-1">
+                <BadgeDollarSign className="w-3.5 h-3.5 text-indigo-200" />
+                <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">
+                  Total Commission Payable
+                </p>
               </div>
-              {d.totals.totalDiscount > 0 && (
-                <div className="text-right">
-                  <div className="flex items-center justify-end gap-1.5 mb-1">
-                    <Tag className="w-3 h-3 text-orange-300" />
-                    <p className="text-[10px] font-bold text-orange-200 uppercase tracking-widest">
-                      Total Discount Given
-                    </p>
-                  </div>
-                  <p className="text-2xl font-black text-orange-200">−৳{fmt(d.totals.totalDiscount)}</p>
-                </div>
-              )}
+              <p className="text-3xl font-black text-white">৳{fmt(d.totals.totalCommission)}</p>
             </div>
 
-            {/* Invoices */}
             <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3.5 shadow-sm">
               <div className="flex items-center gap-2 mb-1">
                 <ReceiptText className="w-3.5 h-3.5 text-gray-400" />
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Invoices</p>
               </div>
               <p className="text-2xl font-black text-gray-900">{d.totals.totalInvoices}</p>
+              {d.totals.totalDiscount > 0 && (
+                <p className="text-[10px] font-bold text-orange-400 mt-1 flex items-center gap-1">
+                  <Tag className="w-2.5 h-2.5" />
+                  −৳{fmt(d.totals.totalDiscount)} discount
+                </p>
+              )}
             </div>
 
-            {/* Referrers */}
             <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3.5 shadow-sm">
               <div className="flex items-center gap-2 mb-1">
                 <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
