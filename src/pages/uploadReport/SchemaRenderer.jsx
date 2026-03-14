@@ -15,486 +15,556 @@ import {
   ShieldCheck,
   Pencil,
   Save,
-  Clock,
+  Activity,
   CheckCheck,
 } from "lucide-react";
 
-// ─── Inject global styles ─────────────────────────────────────────────────────
+// ─── Global Styles ─────────────────────────────────────────────────────────────
 const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
 
-  .sr-root {
-    --ink: #0b0f1a;
-    --ink-2: #1e2535;
-    --ink-3: #2d3550;
-    --surface: #f4f5f8;
-    --surface-2: #ecedf2;
-    --surface-3: #e2e4eb;
-    --border: #d6d9e4;
-    --border-2: #c4c8d8;
-    --amber: #e8a020;
-    --amber-light: #fef6e4;
-    --emerald: #1a9e6e;
-    --emerald-light: #e6f7f1;
-    --red: #d63a3a;
-    --red-light: #fdf0f0;
-    --orange: #d97316;
-    --orange-light: #fff7ed;
-    --violet: #7c3aed;
-    --violet-light: #f5f3ff;
-    --white: #ffffff;
-    font-family: 'DM Sans', sans-serif;
-    color: var(--ink);
-    background: var(--surface);
-    min-height: 100vh;
-    padding: 0;
-  }
+  :root {
+    --c-bg:        #f7f8fa;
+    --c-surface:   #ffffff;
+    --c-surface-2: #f2f4f7;
+    --c-border:    #e4e7ed;
+    --c-border-2:  #d1d5de;
 
-  .sr-root * { box-sizing: border-box; }
+    --c-ink:       #0d1117;
+    --c-ink-2:     #1e2530;
+    --c-ink-3:     #4a5568;
+    --c-ink-4:     #8492a6;
 
-  /* ── Mode Banner ── */
-  .sr-mode-banner {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 16px; border-radius: 10px; margin-bottom: 16px;
-    border: 1.5px solid; font-size: 12px; font-weight: 500;
-  }
-  .sr-mode-banner.edit-mode {
-    background: var(--violet-light); border-color: rgba(124,58,237,0.25); color: #5b21b6;
-  }
-  .sr-mode-banner.edit-mode .sr-mode-dot {
-    width: 6px; height: 6px; border-radius: 50%; background: var(--violet); flex-shrink: 0;
-    animation: srpulse 1.8s ease-in-out infinite;
-  }
-  .sr-mode-banner.view-mode {
-    background: var(--emerald-light); border-color: rgba(26,158,110,0.25); color: #065f46;
+    --c-blue:      #2563eb;
+    --c-blue-dim:  #eff4ff;
+    --c-blue-glow: rgba(37,99,235,0.12);
+
+    --c-green:     #059669;
+    --c-green-dim: #ecfdf5;
+
+    --c-amber:     #d97316;
+    --c-amber-dim: #fff7ed;
+
+    --c-red:       #dc2626;
+    --c-red-dim:   #fef2f2;
+
+    --c-violet:    #7c3aed;
+    --c-violet-dim:#f5f3ff;
+
+    --c-teal:      #0891b2;
+
+    --radius-sm:   6px;
+    --radius-md:   10px;
+    --radius-lg:   14px;
+    --radius-xl:   18px;
+
+    --shadow-sm:   0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md:   0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+    --shadow-lg:   0 10px 30px rgba(0,0,0,0.1), 0 4px 10px rgba(0,0,0,0.06);
+
+    font-family: 'Outfit', sans-serif;
+    color: var(--c-ink);
+    background: var(--c-bg);
   }
 
-  /* ── Card ── */
-  .sr-card {
-    background: var(--white);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    overflow: hidden;
-    transition: box-shadow 0.2s;
-  }
-  .sr-card:hover { box-shadow: 0 4px 20px rgba(11,15,26,0.07); }
-  .sr-card.sr-card-error { border-color: #f0a0a0; }
+  .sr2 * { box-sizing: border-box; margin: 0; padding: 0; }
+  .sr2 { background: var(--c-bg); min-height: 100vh; }
 
-  /* ── Section header ── */
-  .sr-section-header {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 16px;
-    background: var(--ink);
-    cursor: pointer; user-select: none;
-    transition: background 0.15s;
-    width: 100%; border: none; text-align: left;
+  /* ── Mode ribbon ── */
+  .sr2-ribbon {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: var(--radius-md);
+    margin-bottom: 20px; font-size: 12px; font-weight: 500;
+    border: 1px solid;
   }
-  .sr-section-header:hover { background: var(--ink-2); }
-  .sr-section-header.error { background: #5c1a1a; }
-
-  .sr-section-num {
-    width: 26px; height: 26px; border-radius: 6px;
-    background: rgba(255,255,255,0.12); color: #fff;
-    font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; border: 1px solid rgba(255,255,255,0.18);
+  .sr2-ribbon.edit {
+    background: var(--c-violet-dim);
+    border-color: rgba(124,58,237,0.2);
+    color: #5b21b6;
   }
-  .sr-section-num.complete    { background: var(--amber); border-color: var(--amber); color: var(--ink); }
-  .sr-section-num.error-state { background: var(--red);   border-color: var(--red); }
-
-  .sr-section-title {
-    flex: 1; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600;
-    color: #e8eaf0; letter-spacing: 0.01em;
+  .sr2-ribbon.edit .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--c-violet); flex-shrink: 0;
+    animation: pulse2 2s ease-in-out infinite;
   }
-  .sr-section-badge {
-    font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
-    padding: 3px 8px; border-radius: 4px;
-    background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.55);
-    letter-spacing: 0.04em; border: 1px solid rgba(255,255,255,0.1);
-    white-space: nowrap;
-  }
-  .sr-section-badge.complete { background: var(--amber); color: var(--ink); border-color: var(--amber); }
-
-  .sr-progress-track { height: 2px; background: var(--ink-3); }
-  .sr-progress-fill  { height: 100%; background: var(--amber); transition: width 0.7s cubic-bezier(0.4,0,0.2,1); }
-
-  /* ── Floating label field wrapper ── */
-  .sr-field-wrap {
-    position: relative;
-    background: var(--white);
-    border: 1.5px solid var(--border);
-    border-radius: 9px;
-    transition: border-color 0.15s, box-shadow 0.15s;
-  }
-  .sr-field-wrap:focus-within {
-    border-color: var(--ink-2);
-    box-shadow: 0 0 0 3px rgba(30,37,53,0.08);
-  }
-  .sr-field-wrap.status-normal { border-color: var(--emerald); box-shadow: 0 0 0 3px rgba(26,158,110,0.08); }
-  .sr-field-wrap.status-low    { border-color: var(--orange);  box-shadow: 0 0 0 3px rgba(217,115,22,0.08); }
-  .sr-field-wrap.status-high   { border-color: var(--red);     box-shadow: 0 0 0 3px rgba(214,58,58,0.08); }
-  .sr-field-wrap.field-error   { border-color: var(--red);     box-shadow: 0 0 0 3px rgba(214,58,58,0.08); background: var(--red-light); }
-  .sr-field-wrap.edited-highlight { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(124,58,237,0.08); }
-
-  /* Floating label */
-  .sr-float-label {
-    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600;
-    color: #9ea5b8; text-transform: uppercase; letter-spacing: 0.06em;
-    pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    max-width: calc(100% - 70px); background: transparent; line-height: 1;
-    transition: all 0.15s ease;
-  }
-  .sr-field-wrap.floated .sr-float-label,
-  .sr-field-wrap:focus-within .sr-float-label {
-    top: 0; transform: translateY(-50%);
-    font-size: 9px; letter-spacing: 0.08em; color: var(--ink-3);
-    background: var(--white); padding: 0 4px; left: 9px; max-width: calc(100% - 30px);
-  }
-  .sr-field-wrap.field-error.floated .sr-float-label,
-  .sr-field-wrap.field-error:focus-within .sr-float-label {
-    background: var(--red-light); color: var(--red);
-  }
-  .sr-float-label .sr-req {
-    display: inline-block; width: 4px; height: 4px; border-radius: 50%;
-    background: var(--amber); margin-left: 3px; vertical-align: middle; margin-bottom: 1px;
+  @keyframes pulse2 {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:0.4; transform:scale(0.75); }
   }
 
-  /* Input inside float-label wrap */
-  .sr-float-input {
-    width: 100%; padding: 18px 14px 8px 12px;
-    background: transparent; border: none; outline: none;
-    font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500; color: var(--ink);
-    line-height: 1.2; min-height: 52px;
+  /* ── Header ── */
+  .sr2-header {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-xl);
+    padding: 24px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
   }
-  .sr-float-input::placeholder { color: transparent; }
-  .sr-float-input::-webkit-outer-spin-button,
-  .sr-float-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .sr2-header-top {
+    display: flex; align-items: flex-start; gap: 16px; margin-bottom: 20px;
+  }
+  .sr2-icon-box {
+    width: 44px; height: 44px; border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .sr2-icon-box.default { background: var(--c-ink); }
+  .sr2-icon-box.edit    { background: var(--c-violet); }
 
-  /* Unit tag */
-  .sr-unit-tag {
-    position: absolute; right: 0; top: 0; height: 100%;
-    padding: 0 12px; display: flex; align-items: center;
-    background: var(--surface); border-left: 1.5px solid var(--border);
-    border-radius: 0 7px 7px 0;
-    font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
-    color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em;
-    pointer-events: none; user-select: none;
+  .sr2-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-ink-4); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .sr2-meta-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--c-border-2); }
+  .sr2-meta-active { color: var(--c-green); }
+  .sr2-title {
+    font-size: clamp(20px, 4vw, 28px); font-weight: 800;
+    color: var(--c-ink); letter-spacing: -0.03em; line-height: 1.1;
   }
+  .sr2-desc { margin-top: 6px; font-size: 13.5px; color: var(--c-ink-3); line-height: 1.6; font-weight: 400; }
 
-  /* Range row */
-  .sr-range-row {
-    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-    margin-top: 5px; min-height: 16px;
+  /* ── Stat tiles ── */
+  .sr2-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 8px;
   }
-  .sr-range-label { font-family: 'DM Mono', monospace; font-size: 10px; color: #9ea5b8; }
-  .sr-range-label span { color: var(--ink-3); font-weight: 500; }
+  .sr2-stat {
+    background: var(--c-surface-2);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .sr2-stat-label {
+    font-size: 10px; font-weight: 600; color: var(--c-ink-4);
+    text-transform: uppercase; letter-spacing: 0.07em;
+  }
+  .sr2-stat-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px; font-weight: 600; color: var(--c-ink); line-height: 1;
+  }
+  .sr2-stat-val.green  { color: var(--c-green); }
+  .sr2-stat-val.red    { color: var(--c-red); }
+  .sr2-stat-val.violet { color: var(--c-violet); }
+  .sr2-stat-val.blue   { color: var(--c-blue); }
 
-  .sr-status-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 2px 7px; border-radius: 4px;
-    font-family: 'Syne', sans-serif; font-size: 9.5px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.06em; border: 1px solid;
+  /* ── Progress bar ── */
+  .sr2-progress-wrap { margin-top: 16px; }
+  .sr2-progress-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px;
   }
-  .sr-status-badge.normal { background: var(--emerald-light); color: var(--emerald); border-color: rgba(26,158,110,0.2); }
-  .sr-status-badge.low    { background: var(--orange-light);  color: var(--orange);  border-color: rgba(217,115,22,0.2); }
-  .sr-status-badge.high   { background: var(--red-light);     color: var(--red);     border-color: rgba(214,58,58,0.2); }
+  .sr2-progress-label { font-size: 11px; font-weight: 600; color: var(--c-ink-4); text-transform: uppercase; letter-spacing: 0.07em; }
+  .sr2-progress-count { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--c-ink-3); }
+  .sr2-track { height: 4px; background: var(--c-border); border-radius: 4px; overflow: hidden; }
+  .sr2-fill  {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--c-blue), var(--c-teal));
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+  }
+  .sr2-fill.complete { background: linear-gradient(90deg, var(--c-green), #10b981); }
 
-  /* Changed badge */
-  .sr-changed-badge {
-    display: inline-flex; align-items: center; gap: 3px;
-    padding: 2px 6px; border-radius: 4px;
-    background: var(--violet-light); color: var(--violet); border: 1px solid rgba(124,58,237,0.2);
-    font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 500;
+  /* ── Alert ── */
+  .sr2-alert {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 16px; border-radius: var(--radius-md);
+    border-left: 3px solid; margin-bottom: 12px;
   }
-
-  .sr-field-error {
-    display: flex; align-items: center; gap: 5px;
-    font-size: 11px; color: var(--red); font-weight: 500; margin-top: 5px;
-  }
-
-  /* ── Toggle buttons ── */
-  .sr-toggle-btn {
-    padding: 10px 14px; border-radius: 8px;
-    font-size: 13px; font-weight: 500;
-    border: 1.5px solid var(--border); background: var(--white); color: #5a6282;
-    cursor: pointer; transition: all 0.12s;
-    display: flex; align-items: center; gap: 8px; min-height: 44px;
-  }
-  .sr-toggle-btn:hover { border-color: var(--ink-2); color: var(--ink); background: var(--surface); }
-  .sr-toggle-btn.active { background: var(--ink); border-color: var(--ink); color: var(--white); box-shadow: 0 2px 8px rgba(11,15,26,0.2); }
-  .sr-toggle-btn.edited { border-color: var(--violet); }
-  .sr-toggle-btn.edited.active { background: var(--violet); border-color: var(--violet); }
-
-  /* ── Dropdown ── */
-  .sr-dropdown-wrap { position: relative; }
-  .sr-dropdown-btn {
-    width: 100%; display: flex; align-items: flex-end; justify-content: space-between;
-    padding: 18px 14px 8px 12px;
-    border: 1.5px solid var(--border); border-radius: 9px;
-    background: var(--white); cursor: pointer; transition: all 0.15s;
-    font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500; color: var(--ink);
-    min-height: 52px;
-  }
-  .sr-dropdown-btn.empty { color: transparent; }
-  .sr-dropdown-btn.open  { border-color: var(--ink-2); box-shadow: 0 0 0 3px rgba(30,37,53,0.08); }
-  .sr-dropdown-label {
-    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600;
-    color: #9ea5b8; text-transform: uppercase; letter-spacing: 0.06em;
-    pointer-events: none; transition: all 0.15s ease;
-    background: transparent; line-height: 1; white-space: nowrap;
-  }
-  .sr-dropdown-label .sr-req {
-    display: inline-block; width: 4px; height: 4px; border-radius: 50%;
-    background: var(--amber); margin-left: 3px; vertical-align: middle; margin-bottom: 1px;
-  }
-  .sr-dropdown-wrap.floated .sr-dropdown-label {
-    top: 0; transform: translateY(-50%);
-    font-size: 9px; letter-spacing: 0.08em; color: var(--ink-3);
-    background: var(--white); padding: 0 4px; left: 9px;
-  }
-  .sr-dropdown-menu {
-    position: absolute; z-index: 40;
-    top: calc(100% + 4px); left: 0; right: 0;
-    background: var(--white); border: 1.5px solid var(--border); border-radius: 10px;
-    box-shadow: 0 12px 40px rgba(11,15,26,0.14); overflow-y: auto; max-height: 200px;
-  }
-  .sr-dropdown-item {
-    width: 100%; text-align: left; padding: 12px 14px;
-    font-size: 13px; font-weight: 400; color: var(--ink-3);
-    background: none; border: none; cursor: pointer;
-    display: flex; align-items: center; justify-content: space-between;
-    transition: background 0.1s; min-height: 44px;
-  }
-  .sr-dropdown-item:hover    { background: var(--surface); }
-  .sr-dropdown-item.selected { background: var(--ink); color: #fff; font-weight: 600; }
-
-  /* ── Textarea ── */
-  .sr-textarea-wrap {
-    position: relative; border: 1.5px solid var(--border); border-radius: 9px;
-    background: var(--white); transition: all 0.15s; overflow: hidden;
-  }
-  .sr-textarea-wrap:focus-within { border-color: var(--ink-2); box-shadow: 0 0 0 3px rgba(30,37,53,0.08); }
-  .sr-textarea-wrap.field-error  { border-color: var(--red); background: var(--red-light); }
-  .sr-textarea-wrap.edited-highlight { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(124,58,237,0.08); }
-  .sr-textarea-label {
-    position: absolute; left: 12px; top: 14px;
-    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600;
-    color: #9ea5b8; text-transform: uppercase; letter-spacing: 0.06em;
-    pointer-events: none; transition: all 0.15s ease; background: transparent; line-height: 1;
-  }
-  .sr-textarea-label .sr-req {
-    display: inline-block; width: 4px; height: 4px; border-radius: 50%;
-    background: var(--amber); margin-left: 3px; vertical-align: middle; margin-bottom: 1px;
-  }
-  .sr-textarea-wrap.floated .sr-textarea-label,
-  .sr-textarea-wrap:focus-within .sr-textarea-label {
-    top: 0; transform: translateY(-50%); font-size: 9px; letter-spacing: 0.08em;
-    color: var(--ink-3); background: var(--white); padding: 0 4px; left: 9px;
-  }
-  .sr-textarea {
-    width: 100%; padding: 22px 14px 10px 12px;
-    background: transparent; border: none; outline: none; resize: none;
-    font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--ink);
-  }
-  .sr-textarea::placeholder { color: transparent; }
-  .sr-char-count { font-family: 'DM Mono', monospace; font-size: 10px; color: #b0b7cc; text-align: right; padding: 2px 10px 6px; }
-
-  /* ── Text input ── */
-  .sr-text-input-wrap {
-    position: relative; border: 1.5px solid var(--border); border-radius: 9px;
-    background: var(--white); transition: all 0.15s;
-  }
-  .sr-text-input-wrap:focus-within { border-color: var(--ink-2); box-shadow: 0 0 0 3px rgba(30,37,53,0.08); }
-  .sr-text-input-wrap.field-error  { border-color: var(--red); background: var(--red-light); }
-  .sr-text-input-wrap.edited-highlight { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(124,58,237,0.08); }
-  .sr-text-input-label {
-    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600;
-    color: #9ea5b8; text-transform: uppercase; letter-spacing: 0.06em;
-    pointer-events: none; transition: all 0.15s ease;
-    background: transparent; line-height: 1; white-space: nowrap;
-  }
-  .sr-text-input-label .sr-req {
-    display: inline-block; width: 4px; height: 4px; border-radius: 50%;
-    background: var(--amber); margin-left: 3px; vertical-align: middle; margin-bottom: 1px;
-  }
-  .sr-text-input-wrap.floated .sr-text-input-label,
-  .sr-text-input-wrap:focus-within .sr-text-input-label {
-    top: 0; transform: translateY(-50%); font-size: 9px; letter-spacing: 0.08em;
-    color: var(--ink-3); background: var(--white); padding: 0 4px; left: 9px;
-  }
-  .sr-text-input {
-    width: 100%; padding: 18px 14px 8px 12px;
-    background: transparent; border: none; outline: none;
-    font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--ink); min-height: 52px;
-  }
-  .sr-text-input::placeholder { color: transparent; }
-  .sr-char-count { font-family: 'DM Mono', monospace; font-size: 10px; color: #b0b7cc; text-align: right; padding: 2px 10px 6px; }
-
-  /* ── Tooltip ── */
-  .sr-tooltip-wrap { position: relative; display: inline-flex; }
-  .sr-tooltip-box {
-    position: absolute; z-index: 50;
-    bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
-    width: 200px; background: var(--ink); color: #e8eaf0;
-    font-size: 11px; border-radius: 8px; padding: 10px 12px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.3); border: 1px solid var(--ink-3); pointer-events: none;
-  }
-  .sr-tooltip-arrow {
-    position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
-    border: 5px solid transparent; border-top-color: var(--ink);
-  }
-  .sr-tooltip-title {
-    font-family: 'Syne', sans-serif; font-size: 9px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.1em; color: var(--amber); margin-bottom: 7px;
-  }
-  .sr-tooltip-row { color: #8d95af; line-height: 1.7; font-family: 'DM Mono', monospace; font-size: 10.5px; }
-  .sr-tooltip-row span { color: #e8eaf0; font-weight: 500; }
-  .sr-info-btn { background: none; border: none; cursor: pointer; padding: 0; display: inline-flex; line-height: 0; }
-
-  /* ── Warn context ── */
-  .sr-context-warn {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 10px; color: var(--amber); font-weight: 600; font-family: 'DM Mono', monospace;
-  }
+  .sr2-alert.amber { background: var(--c-amber-dim); border-color: var(--c-amber); }
+  .sr2-alert.red   { background: var(--c-red-dim);   border-color: var(--c-red); }
+  .sr2-alert.violet{ background: var(--c-violet-dim); border-color: var(--c-violet); }
+  .sr2-alert-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .sr2-alert.amber .sr2-alert-title { color: #92400e; }
+  .sr2-alert.red   .sr2-alert-title { color: #991b1b; }
+  .sr2-alert.violet .sr2-alert-title { color: #4c1d95; }
+  .sr2-alert-body  { font-size: 12.5px; line-height: 1.5; }
+  .sr2-alert.amber .sr2-alert-body { color: #b45309; }
+  .sr2-alert.red   .sr2-alert-body { color: #b91c1c; }
+  .sr2-alert.violet .sr2-alert-body { color: #6d28d9; }
 
   /* ── Patient banner ── */
-  .sr-patient-banner { border: 1.5px solid var(--border); border-radius: 14px; overflow: hidden; }
-  .sr-patient-banner-header { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--ink); }
-  .sr-patient-banner-body { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--white); }
-  .sr-patient-cell { padding: 14px 16px; border-right: 1px solid var(--surface-3); }
-  .sr-patient-cell:last-child { border-right: none; }
-  .sr-patient-cell-label {
-    font-family: 'Syne', sans-serif; font-size: 9.5px; font-weight: 700;
-    color: #9ea5b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;
+  .sr2-patient {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
   }
-  .sr-patient-cell-val { font-size: 14px; font-weight: 600; color: var(--ink); }
-
-  /* ── Alert boxes ── */
-  .sr-alert { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-radius: 10px; border: 1.5px solid; }
-  .sr-alert.amber { background: var(--amber-light); border-color: rgba(232,160,32,0.35); }
-  .sr-alert.red   { background: var(--red-light);   border-color: rgba(214,58,58,0.25); }
-  .sr-alert.violet { background: var(--violet-light); border-color: rgba(124,58,237,0.25); }
-  .sr-alert-title { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
-  .sr-alert.amber .sr-alert-title { color: #8a5a08; }
-  .sr-alert.red   .sr-alert-title { color: #8b1a1a; }
-  .sr-alert.violet .sr-alert-title { color: #5b21b6; }
-  .sr-alert-body  { font-size: 12px; margin-top: 2px; }
-  .sr-alert.amber .sr-alert-body { color: #a06c0e; }
-  .sr-alert.red   .sr-alert-body { color: #b02020; }
-  .sr-alert.violet .sr-alert-body { color: #6d28d9; }
-
-  /* ── Buttons ── */
-  .sr-btn-reset {
-    display: flex; align-items: center; gap: 7px;
-    padding: 11px 18px; border: 1.5px solid var(--border); border-radius: 9px;
-    background: var(--white); color: #7a82a0;
-    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.03em;
-    cursor: pointer; transition: all 0.15s; min-height: 44px;
+  .sr2-patient-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 18px; background: var(--c-ink-2);
   }
-  .sr-btn-reset:hover { border-color: var(--ink-2); color: var(--ink); background: var(--surface); }
-
-  .sr-btn-submit {
-    display: flex; align-items: center; gap: 8px;
-    padding: 11px 28px; border-radius: 9px;
-    background: var(--ink); color: var(--white);
-    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.04em;
-    border: none; cursor: pointer; transition: all 0.15s;
-    box-shadow: 0 2px 10px rgba(11,15,26,0.18); position: relative; overflow: hidden; min-height: 44px;
+  .sr2-patient-head-label {
+    font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.55);
+    text-transform: uppercase; letter-spacing: 0.1em;
   }
-  .sr-btn-submit::after {
-    content: ''; position: absolute; inset: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, transparent 60%); pointer-events: none;
+  .sr2-patient-head-id {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: rgba(255,255,255,0.3); margin-left: auto;
   }
-  .sr-btn-submit:hover  { background: #1e2535; box-shadow: 0 4px 16px rgba(11,15,26,0.28); transform: translateY(-1px); }
-  .sr-btn-submit:active { transform: translateY(0); }
-  .sr-btn-submit:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
-  .sr-btn-submit.edit-mode { background: var(--violet); box-shadow: 0 2px 10px rgba(124,58,237,0.3); }
-  .sr-btn-submit.edit-mode:hover { background: #6d28d9; box-shadow: 0 4px 16px rgba(124,58,237,0.4); }
-  .sr-btn-submit .sr-amber-dot {
-    width: 6px; height: 6px; border-radius: 50%; background: var(--amber);
-    animation: srpulse 1.8s ease-in-out infinite;
+  .sr2-patient-body { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .sr2-patient-cell { padding: 14px 18px; border-right: 1px solid var(--c-border); }
+  .sr2-patient-cell:last-child { border-right: none; }
+  .sr2-patient-cell-label { font-size: 10px; font-weight: 600; color: var(--c-ink-4); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
+  .sr2-patient-cell-val { font-size: 14px; font-weight: 600; color: var(--c-ink); }
+
+  /* ── Section card ── */
+  .sr2-section {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s, border-color 0.2s;
   }
-  @keyframes srpulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.6; transform:scale(0.8); } }
+  .sr2-section:hover { box-shadow: var(--shadow-md); }
+  .sr2-section.has-error { border-color: rgba(220,38,38,0.4); }
 
-  /* ── Gender toggle ── */
-  .sr-gender-btn {
-    flex: 1; padding: 10px; border-radius: 9px;
-    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.04em;
-    border: 1.5px solid var(--border); background: var(--white); color: #7a82a0;
-    cursor: pointer; transition: all 0.12s; min-height: 44px;
+  .sr2-section-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px;
+    background: var(--c-ink);
+    cursor: pointer; border: none; width: 100%; text-align: left;
+    transition: background 0.15s;
   }
-  .sr-gender-btn:hover  { border-color: var(--ink-2); color: var(--ink); }
-  .sr-gender-btn.active { background: var(--ink); border-color: var(--ink); color: var(--white); }
+  .sr2-section-head:hover { background: var(--c-ink-2); }
+  .sr2-section-head.error { background: #7f1d1d; }
 
-  /* ── Stats row ── */
-  .sr-stats-row { display: flex; gap: 1px; background: var(--surface-3); border-radius: 10px; overflow: hidden; }
-  .sr-stat-cell {
-    flex: 1; background: var(--white); padding: 12px 14px;
-    display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0;
+  .sr2-section-num {
+    width: 28px; height: 28px; border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.15);
   }
-  .sr-stat-cell:first-child { border-radius: 10px 0 0 10px; }
-  .sr-stat-cell:last-child  { border-radius: 0 10px 10px 0; }
-  .sr-stat-label { font-family: 'Syne', sans-serif; font-size: 9px; font-weight: 700; color: #9ea5b8; text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
-  .sr-stat-val   { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 500; color: var(--ink); line-height: 1; }
-  .sr-stat-val.emerald { color: var(--emerald); }
-  .sr-stat-val.red     { color: var(--red); }
-  .sr-stat-val.violet  { color: var(--violet); }
+  .sr2-section-num.done { background: var(--c-blue); border-color: var(--c-blue); color: #fff; }
+  .sr2-section-num.err  { background: var(--c-red);  border-color: var(--c-red); color: #fff; }
 
-  .sr-main-progress-track { height: 3px; background: var(--surface-3); border-radius: 2px; overflow: hidden; }
-  .sr-main-progress-fill  {
-    height: 100%; background: linear-gradient(90deg, var(--amber), #f87316);
-    transition: width 0.7s cubic-bezier(0.4,0,0.2,1); border-radius: 2px;
+  .sr2-section-name {
+    flex: 1; font-size: 13px; font-weight: 600;
+    color: rgba(255,255,255,0.9); letter-spacing: 0.01em;
   }
+  .sr2-section-badge {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500;
+    padding: 3px 9px; border-radius: 20px;
+    background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.45);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .sr2-section-badge.done { background: rgba(37,99,235,0.3); color: #93c5fd; border-color: rgba(37,99,235,0.4); }
 
-  .sr-chevron { transition: transform 0.2s ease; flex-shrink: 0; }
-  .sr-chevron.open { transform: rotate(180deg); }
+  .sr2-section-bar { height: 2px; background: rgba(255,255,255,0.06); }
+  .sr2-section-bar-fill { height: 100%; background: var(--c-blue); transition: width 0.5s ease; }
 
-  .sr-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 24px; text-align: center; }
-  .sr-empty-icon { width: 56px; height: 56px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+  .sr2-chevron { color: rgba(255,255,255,0.3); transition: transform 0.2s ease; flex-shrink: 0; }
+  .sr2-chevron.open { transform: rotate(180deg); }
 
   /* ── Fields grid ── */
-  .sr-fields-grid {
+  .sr2-fields {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 16px 20px;
-    padding: 20px 16px;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 14px 18px;
+    padding: 20px 18px;
   }
 
-  /* ── Responsive breakpoints ── */
+  /* ── Floating-label field ── */
+  .sr2-field-wrap {
+    position: relative;
+    background: var(--c-surface);
+    border: 1.5px solid var(--c-border);
+    border-radius: var(--radius-md);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .sr2-field-wrap:focus-within {
+    border-color: var(--c-blue);
+    box-shadow: 0 0 0 3px var(--c-blue-glow);
+  }
+  .sr2-field-wrap.ok    { border-color: var(--c-green); box-shadow: 0 0 0 3px rgba(5,150,105,0.1); }
+  .sr2-field-wrap.low   { border-color: var(--c-amber); box-shadow: 0 0 0 3px rgba(217,115,22,0.1); }
+  .sr2-field-wrap.high  { border-color: var(--c-red);   box-shadow: 0 0 0 3px rgba(220,38,38,0.1); }
+  .sr2-field-wrap.err   { border-color: var(--c-red);   box-shadow: 0 0 0 3px rgba(220,38,38,0.1); background: #fff8f8; }
+  .sr2-field-wrap.edited { border-color: var(--c-violet); box-shadow: 0 0 0 3px rgba(124,58,237,0.1); }
+
+  .sr2-float-label {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 12px; font-weight: 600; color: var(--c-ink-4);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    pointer-events: none; line-height: 1; background: transparent;
+    transition: all 0.15s ease; white-space: nowrap; max-width: calc(100% - 64px);
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .sr2-field-wrap.floated .sr2-float-label,
+  .sr2-field-wrap:focus-within .sr2-float-label {
+    top: 0; transform: translateY(-50%);
+    font-size: 9px; color: var(--c-blue);
+    background: var(--c-surface); padding: 0 4px; left: 9px;
+  }
+  .sr2-field-wrap.err.floated .sr2-float-label { background: #fff8f8; color: var(--c-red); }
+  .sr2-req { display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--c-blue); margin-left: 3px; vertical-align: middle; margin-bottom: 1px; }
+
+  .sr2-num-input {
+    width: 100%; padding: 18px 14px 8px 12px;
+    background: transparent; border: none; outline: none;
+    font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 500; color: var(--c-ink);
+    line-height: 1.2; min-height: 54px;
+  }
+  .sr2-num-input::placeholder { color: transparent; }
+  .sr2-num-input::-webkit-outer-spin-button,
+  .sr2-num-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  .sr2-unit {
+    position: absolute; right: 0; top: 0; height: 100%;
+    padding: 0 11px; display: flex; align-items: center;
+    background: var(--c-surface-2); border-left: 1.5px solid var(--c-border);
+    border-radius: 0 8px 8px 0;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500;
+    color: var(--c-ink-3); text-transform: uppercase; letter-spacing: 0.06em;
+    pointer-events: none;
+  }
+
+  /* ── Range row ── */
+  .sr2-range-row {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 5px;
+  }
+  .sr2-range-text { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-ink-4); }
+  .sr2-range-text span { color: var(--c-ink-3); font-weight: 500; }
+
+  .sr2-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 7px; border-radius: 20px; font-size: 10px; font-weight: 600;
+    letter-spacing: 0.04em; border: 1px solid;
+  }
+  .sr2-badge.ok     { background: var(--c-green-dim); color: var(--c-green); border-color: rgba(5,150,105,0.25); }
+  .sr2-badge.low    { background: var(--c-amber-dim); color: var(--c-amber); border-color: rgba(217,115,22,0.25); }
+  .sr2-badge.high   { background: var(--c-red-dim);   color: var(--c-red);   border-color: rgba(220,38,38,0.25); }
+  .sr2-badge.edited { background: var(--c-violet-dim); color: var(--c-violet); border-color: rgba(124,58,237,0.2); font-family: 'JetBrains Mono', monospace; font-size: 9px; }
+
+  .sr2-context-warn {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; color: var(--c-amber); font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .sr2-field-err {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11.5px; color: var(--c-red); font-weight: 500; margin-top: 5px;
+  }
+
+  /* ── Tooltip ── */
+  .sr2-tip-wrap { position: relative; display: inline-flex; }
+  .sr2-tip-box {
+    position: absolute; z-index: 50;
+    bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+    width: 210px; background: var(--c-ink-2); color: #e2e8f0;
+    font-size: 11px; border-radius: var(--radius-md); padding: 10px 12px;
+    box-shadow: var(--shadow-lg); border: 1px solid rgba(255,255,255,0.08);
+    pointer-events: none;
+  }
+  .sr2-tip-title {
+    font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+    color: #60a5fa; margin-bottom: 7px;
+  }
+  .sr2-tip-row { color: #94a3b8; line-height: 1.75; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; }
+  .sr2-tip-row span { color: #e2e8f0; font-weight: 500; }
+  .sr2-tip-arrow {
+    position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    border: 5px solid transparent; border-top-color: var(--c-ink-2);
+  }
+  .sr2-info-btn { background: none; border: none; cursor: pointer; padding: 0; display: inline-flex; line-height: 0; }
+
+  /* ── Toggle button (radio/checkbox) ── */
+  .sr2-toggle {
+    padding: 9px 14px; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500;
+    border: 1.5px solid var(--c-border); background: var(--c-surface); color: var(--c-ink-3);
+    cursor: pointer; transition: all 0.12s;
+    display: flex; align-items: center; gap: 8px; min-height: 42px;
+  }
+  .sr2-toggle:hover { border-color: var(--c-ink-3); color: var(--c-ink); background: var(--c-surface-2); }
+  .sr2-toggle.on {
+    background: var(--c-ink); border-color: var(--c-ink); color: #fff;
+    box-shadow: 0 2px 8px rgba(13,17,23,0.2);
+  }
+  .sr2-toggle.edited-on { background: var(--c-violet); border-color: var(--c-violet); }
+  .sr2-toggle.edited-off { border-color: var(--c-violet); }
+
+  /* ── Dropdown ── */
+  .sr2-dd-wrap { position: relative; }
+  .sr2-dd-btn {
+    width: 100%; display: flex; align-items: flex-end; justify-content: space-between;
+    padding: 18px 14px 8px 12px;
+    border: 1.5px solid var(--c-border); border-radius: var(--radius-md);
+    background: var(--c-surface); cursor: pointer; transition: all 0.15s;
+    font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 500; color: var(--c-ink);
+    min-height: 54px;
+  }
+  .sr2-dd-btn.empty { color: transparent; }
+  .sr2-dd-btn.open,
+  .sr2-dd-btn:focus { border-color: var(--c-blue); box-shadow: 0 0 0 3px var(--c-blue-glow); outline: none; }
+  .sr2-dd-label {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 12px; font-weight: 600; color: var(--c-ink-4);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    pointer-events: none; transition: all 0.15s ease;
+    background: transparent; line-height: 1; white-space: nowrap;
+  }
+  .sr2-dd-wrap.floated .sr2-dd-label {
+    top: 0; transform: translateY(-50%); font-size: 9px; color: var(--c-blue);
+    background: var(--c-surface); padding: 0 4px; left: 9px;
+  }
+  .sr2-dd-menu {
+    position: absolute; z-index: 40;
+    top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--c-surface); border: 1.5px solid var(--c-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg); overflow-y: auto; max-height: 200px;
+  }
+  .sr2-dd-item {
+    width: 100%; text-align: left; padding: 11px 14px;
+    font-size: 13.5px; font-weight: 400; color: var(--c-ink-3);
+    background: none; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+    transition: background 0.1s; min-height: 42px;
+  }
+  .sr2-dd-item:hover    { background: var(--c-surface-2); color: var(--c-ink); }
+  .sr2-dd-item.selected { background: var(--c-ink); color: #fff; font-weight: 600; }
+
+  /* ── Textarea ── */
+  .sr2-ta-wrap {
+    position: relative; border: 1.5px solid var(--c-border); border-radius: var(--radius-md);
+    background: var(--c-surface); transition: all 0.15s; overflow: hidden;
+  }
+  .sr2-ta-wrap:focus-within { border-color: var(--c-blue); box-shadow: 0 0 0 3px var(--c-blue-glow); }
+  .sr2-ta-wrap.err    { border-color: var(--c-red); background: #fff8f8; }
+  .sr2-ta-wrap.edited { border-color: var(--c-violet); box-shadow: 0 0 0 3px rgba(124,58,237,0.1); }
+  .sr2-ta-label {
+    position: absolute; left: 12px; top: 14px;
+    font-size: 12px; font-weight: 600; color: var(--c-ink-4);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    pointer-events: none; transition: all 0.15s ease; line-height: 1;
+  }
+  .sr2-ta-wrap.floated .sr2-ta-label,
+  .sr2-ta-wrap:focus-within .sr2-ta-label {
+    top: 0; transform: translateY(-50%); font-size: 9px; color: var(--c-blue);
+    background: var(--c-surface); padding: 0 4px; left: 9px;
+  }
+  .sr2-ta {
+    width: 100%; padding: 22px 14px 10px 12px;
+    background: transparent; border: none; outline: none; resize: none;
+    font-family: 'Outfit', sans-serif; font-size: 13.5px; color: var(--c-ink);
+  }
+  .sr2-ta::placeholder { color: transparent; }
+  .sr2-char { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-ink-4); text-align: right; padding: 2px 10px 6px; }
+
+  /* ── Text input ── */
+  .sr2-ti-wrap {
+    position: relative; border: 1.5px solid var(--c-border); border-radius: var(--radius-md);
+    background: var(--c-surface); transition: all 0.15s;
+  }
+  .sr2-ti-wrap:focus-within { border-color: var(--c-blue); box-shadow: 0 0 0 3px var(--c-blue-glow); }
+  .sr2-ti-wrap.err    { border-color: var(--c-red); background: #fff8f8; }
+  .sr2-ti-wrap.edited { border-color: var(--c-violet); box-shadow: 0 0 0 3px rgba(124,58,237,0.1); }
+  .sr2-ti-label {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 12px; font-weight: 600; color: var(--c-ink-4);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    pointer-events: none; transition: all 0.15s ease; line-height: 1; white-space: nowrap;
+  }
+  .sr2-ti-wrap.floated .sr2-ti-label,
+  .sr2-ti-wrap:focus-within .sr2-ti-label {
+    top: 0; transform: translateY(-50%); font-size: 9px; color: var(--c-blue);
+    background: var(--c-surface); padding: 0 4px; left: 9px;
+  }
+  .sr2-ti {
+    width: 100%; padding: 18px 14px 8px 12px;
+    background: transparent; border: none; outline: none;
+    font-family: 'Outfit', sans-serif; font-size: 13.5px; color: var(--c-ink); min-height: 54px;
+  }
+  .sr2-ti::placeholder { color: transparent; }
+
+  /* ── Gender btn ── */
+  .sr2-gender {
+    flex: 1; padding: 10px; border-radius: var(--radius-md);
+    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    border: 1.5px solid var(--c-border); background: var(--c-surface); color: var(--c-ink-3);
+    cursor: pointer; transition: all 0.12s; min-height: 42px;
+  }
+  .sr2-gender:hover  { border-color: var(--c-ink-3); color: var(--c-ink); }
+  .sr2-gender.on { background: var(--c-ink); border-color: var(--c-ink); color: #fff; }
+
+  /* ── Action bar ── */
+  .sr2-action-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    flex-wrap: wrap; gap: 12px;
+  }
+  .sr2-action-hint {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 11.5px; color: var(--c-ink-4);
+  }
+
+  .sr2-btn-ghost {
+    display: flex; align-items: center; gap: 7px;
+    padding: 10px 16px; border: 1.5px solid var(--c-border); border-radius: var(--radius-md);
+    background: var(--c-surface); color: var(--c-ink-3);
+    font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.02em;
+    cursor: pointer; transition: all 0.15s; min-height: 42px;
+  }
+  .sr2-btn-ghost:hover { border-color: var(--c-ink-2); color: var(--c-ink); background: var(--c-surface-2); }
+
+  .sr2-btn-primary {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 24px; border-radius: var(--radius-md);
+    background: var(--c-blue); color: #fff;
+    font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.02em;
+    border: none; cursor: pointer; transition: all 0.15s;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.3); min-height: 42px;
+  }
+  .sr2-btn-primary:hover  { background: #1d4ed8; box-shadow: 0 4px 14px rgba(37,99,235,0.4); transform: translateY(-1px); }
+  .sr2-btn-primary:active { transform: translateY(0); }
+  .sr2-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .sr2-btn-primary.edit { background: var(--c-violet); box-shadow: 0 2px 8px rgba(124,58,237,0.3); }
+  .sr2-btn-primary.edit:hover { background: #6d28d9; box-shadow: 0 4px 14px rgba(124,58,237,0.4); }
+  .sr2-spin-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.7);
+    animation: pulse2 1.5s ease-in-out infinite;
+  }
+
+  /* ── Empty state ── */
+  .sr2-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 80px 24px; text-align: center;
+  }
+  .sr2-empty-icon {
+    width: 56px; height: 56px; background: var(--c-surface-2);
+    border: 1.5px solid var(--c-border); border-radius: var(--radius-lg);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+  }
+
+  /* ── Responsive ── */
   @media (max-width: 640px) {
-    .sr-patient-banner-body { grid-template-columns: 1fr 1fr; }
-    .sr-patient-cell:nth-child(2) { border-right: none; }
-    .sr-patient-cell:nth-child(3) { border-top: 1px solid var(--surface-3); }
-    .sr-patient-cell:nth-child(4) { border-top: 1px solid var(--surface-3); border-right: none; }
-
-    .sr-stats-row   { flex-wrap: wrap; }
-    .sr-stat-cell   { min-width: calc(50% - 1px); flex: none; width: calc(50% - 1px); }
-    .sr-stat-cell:nth-child(1) { border-radius: 10px 0 0 0; }
-    .sr-stat-cell:nth-child(2) { border-radius: 0 10px 0 0; }
-    .sr-stat-cell:nth-child(3) { border-radius: 0 0 0 10px; }
-    .sr-stat-cell:nth-child(4) { border-radius: 0 0 10px 0; }
-    .sr-stat-val { font-size: 16px; }
-
-    .sr-fields-grid { grid-template-columns: 1fr 1fr; padding: 14px 12px; gap: 12px; }
-    .sr-btn-submit, .sr-btn-reset { padding: 11px 14px; font-size: 11px; }
+    .sr2-patient-body { grid-template-columns: 1fr 1fr; }
+    .sr2-patient-cell:nth-child(2) { border-right: none; }
+    .sr2-patient-cell:nth-child(3),
+    .sr2-patient-cell:nth-child(4) { border-top: 1px solid var(--c-border); }
+    .sr2-patient-cell:nth-child(4) { border-right: none; }
+    .sr2-stats { grid-template-columns: 1fr 1fr; }
+    .sr2-fields { grid-template-columns: 1fr 1fr; padding: 14px; gap: 10px; }
+    .sr2-btn-primary, .sr2-btn-ghost { padding: 10px 14px; font-size: 12px; }
+    .sr2-title { font-size: 20px; }
   }
-
   @media (max-width: 380px) {
-    .sr-fields-grid { grid-template-columns: 1fr; }
-    .sr-stats-row   { flex-direction: column; }
-    .sr-stat-cell   { width: 100%; min-width: 100%; border-radius: 0 !important; }
-    .sr-stat-cell:first-child { border-radius: 10px 10px 0 0 !important; }
-    .sr-stat-cell:last-child  { border-radius: 0 0 10px 10px !important; }
+    .sr2-fields { grid-template-columns: 1fr; }
+    .sr2-stats  { grid-template-columns: 1fr 1fr; }
   }
 `;
 
 function StyleInjector() {
   useEffect(() => {
-    const id = "sr-styles-v4";
+    const id = "sr2-styles-v1";
     if (!document.getElementById(id)) {
       const el = document.createElement("style");
       el.id = id;
@@ -538,14 +608,6 @@ export function getRangeStatus(value, range) {
   return "normal";
 }
 
-// ─── Hydrate values from existing report data ─────────────────────────────────
-// existingReport shape (what reportService.addReport saves):
-// {
-//   name: "rbs",
-//   "Section A": { "Simple Number": { value: "5", unit: "mmHg", referenceRange: "1-10" }, ... , __showTitle: true },
-//   "Section B": { "Result": { value: "Positive" }, ... , __showTitle: true },
-//   invoiceId, patientName, patientAge, patientGender   (optional)
-// }
 export function hydrateValuesFromReport(schema, existingReport) {
   if (!existingReport || !schema?.sections) return {};
   const values = {};
@@ -556,7 +618,6 @@ export function hydrateValuesFromReport(schema, existingReport) {
       const key = `${si}_${field.name}`;
       const fieldData = sectionData[field.name];
       if (!fieldData) return;
-      // checkbox values are stored as arrays, everything else as primitives
       values[key] = fieldData.value ?? fieldData;
     });
   });
@@ -564,27 +625,27 @@ export function hydrateValuesFromReport(schema, existingReport) {
 }
 
 // ─── Tooltip ─────────────────────────────────────────────────────────────────
-function RangeInfoTooltip({ field }) {
+function RangeTooltip({ field }) {
   const [open, setOpen] = useState(false);
   const sr = field.standardRange;
   if (!sr || sr.type === "none") return null;
   return (
-    <div className="sr-tooltip-wrap" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
-      <button className="sr-info-btn" type="button">
-        <Info style={{ width: 12, height: 12, color: "#b0b7cc" }} />
+    <div className="sr2-tip-wrap" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <button className="sr2-info-btn" type="button">
+        <Info style={{ width: 12, height: 12, color: "var(--c-ink-4)" }} />
       </button>
       {open && (
-        <div className="sr-tooltip-box">
-          <div className="sr-tooltip-title">Reference Ranges</div>
+        <div className="sr2-tip-box">
+          <div className="sr2-tip-title">Reference Ranges</div>
           {sr.type === "simple" && (
-            <div className="sr-tooltip-row">
+            <div className="sr2-tip-row">
               {sr.data.min} – {sr.data.max} {field.unit || ""}
             </div>
           )}
           {sr.type === "age" &&
             Array.isArray(sr.data) &&
             sr.data.map((r, i) => (
-              <div key={i} className="sr-tooltip-row">
+              <div key={i} className="sr2-tip-row">
                 Age {r.minAge}–{r.maxAge === 999 ? "∞" : r.maxAge}:{" "}
                 <span>
                   {r.minValue}–{r.maxValue}
@@ -594,7 +655,7 @@ function RangeInfoTooltip({ field }) {
           {sr.type === "gender" &&
             sr.data &&
             Object.entries(sr.data).map(([g, v]) => (
-              <div key={g} className="sr-tooltip-row" style={{ textTransform: "capitalize" }}>
+              <div key={g} className="sr2-tip-row" style={{ textTransform: "capitalize" }}>
                 {g}:{" "}
                 <span>
                   {v.min}–{v.max}
@@ -604,14 +665,14 @@ function RangeInfoTooltip({ field }) {
           {sr.type === "combined" &&
             Array.isArray(sr.data) &&
             sr.data.map((r, i) => (
-              <div key={i} className="sr-tooltip-row" style={{ textTransform: "capitalize" }}>
+              <div key={i} className="sr2-tip-row" style={{ textTransform: "capitalize" }}>
                 {r.gender} {r.minAge}–{r.maxAge === 999 ? "∞" : r.maxAge}yr:{" "}
                 <span>
                   {r.minValue}–{r.maxValue}
                 </span>
               </div>
             ))}
-          <div className="sr-tooltip-arrow" />
+          <div className="sr2-tip-arrow" />
         </div>
       )}
     </div>
@@ -623,59 +684,57 @@ function NumberField({ field, value, onChange, error, patientAge, patientGender,
   const range = getStandardRange(field, patientAge, patientGender);
   const status = getRangeStatus(value, range);
   const hasValue = value !== "" && value !== null && value !== undefined;
-  const floated = hasValue;
   const isChanged = isEditMode && originalValue !== undefined && String(value) !== String(originalValue ?? "");
-
   const needsContext =
     ((field.standardRange?.type === "age" || field.standardRange?.type === "combined") && !patientAge) ||
     ((field.standardRange?.type === "gender" || field.standardRange?.type === "combined") && !patientGender);
 
-  let wrapCls = "sr-field-wrap";
-  if (error) wrapCls += " field-error";
-  else if (isChanged) wrapCls += " edited-highlight";
-  else if (hasValue && range && status !== "neutral") wrapCls += ` status-${status}`;
-  if (floated) wrapCls += " floated";
+  let cls = "sr2-field-wrap";
+  if (error) cls += " err";
+  else if (isChanged) cls += " edited";
+  else if (hasValue && range && status !== "neutral") cls += ` ${status === "normal" ? "ok" : status}`;
+  if (hasValue) cls += " floated";
 
   return (
     <div>
-      <div className={wrapCls}>
-        <span className="sr-float-label">
+      <div className={cls}>
+        <span className="sr2-float-label">
           {field.name}
-          {field.required && <span className="sr-req" />}
+          {field.required && <span className="sr2-req" />}
         </span>
         <input
           type="number"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder=" "
-          className="sr-float-input"
-          style={{ paddingRight: field.unit ? "64px" : "14px" }}
+          className="sr2-num-input"
+          style={{ paddingRight: field.unit ? "62px" : "14px" }}
         />
-        {field.unit && <span className="sr-unit-tag">{field.unit}</span>}
+        {field.unit && <span className="sr2-unit">{field.unit}</span>}
       </div>
-      <div className="sr-range-row">
+      <div className="sr2-range-row">
         {range ? (
-          <span className="sr-range-label">
-            Range:{" "}
+          <span className="sr2-range-text">
+            Ref:{" "}
             <span>
               {range.min}–{range.max}
               {field.unit ? ` ${field.unit}` : ""}
             </span>
           </span>
         ) : (
-          <span className="sr-range-label">—</span>
+          <span className="sr2-range-text">—</span>
         )}
         {hasValue && range && status !== "neutral" && (
-          <span className={`sr-status-badge ${status}`}>
+          <span className={`sr2-badge ${status === "normal" ? "ok" : status}`}>
             {status === "normal" && <CheckCircle2 style={{ width: 9, height: 9 }} />}
             {status === "low" && <TrendingDown style={{ width: 9, height: 9 }} />}
             {status === "high" && <TrendingUp style={{ width: 9, height: 9 }} />}
             {status === "normal" ? "Normal" : status === "low" ? "Low" : "High"}
           </span>
         )}
-        <RangeInfoTooltip field={field} />
+        <RangeTooltip field={field} />
         {needsContext && !range && field.standardRange?.type !== "none" && (
-          <span className="sr-context-warn">
+          <span className="sr2-context-warn">
             <AlertTriangle style={{ width: 10, height: 10 }} />
             {!patientAge && (field.standardRange?.type === "age" || field.standardRange?.type === "combined")
               ? "Enter age"
@@ -683,14 +742,14 @@ function NumberField({ field, value, onChange, error, patientAge, patientGender,
           </span>
         )}
         {isChanged && (
-          <span className="sr-changed-badge">
+          <span className="sr2-badge edited">
             <Pencil style={{ width: 8, height: 8 }} />
             edited
           </span>
         )}
       </div>
       {error && (
-        <div className="sr-field-error">
+        <div className="sr2-field-err">
           <XCircle style={{ width: 11, height: 11, flexShrink: 0 }} />
           {error}
         </div>
@@ -701,54 +760,39 @@ function NumberField({ field, value, onChange, error, patientAge, patientGender,
 
 // ─── Radio ────────────────────────────────────────────────────────────────────
 function RadioField({ field, options = [], value, onChange, error, originalValue, isEditMode }) {
+  const isChanged = isEditMode && originalValue !== undefined && value !== (originalValue ?? "");
   return (
     <div>
-      <div
-        style={{
-          marginBottom: 8,
-          fontFamily: "'Syne',sans-serif",
-          fontSize: 9.5,
-          fontWeight: 700,
-          color: "#9ea5b8",
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-        }}
-      >
-        {field.name}
-        {field.required && (
-          <span
-            style={{
-              display: "inline-block",
-              width: 4,
-              height: 4,
-              borderRadius: "50%",
-              background: "var(--amber)",
-              marginLeft: 3,
-              verticalAlign: "middle",
-              marginBottom: 1,
-            }}
-          />
-        )}
-        {isEditMode && originalValue !== undefined && value !== (originalValue ?? "") && (
-          <span className="sr-changed-badge">
+      <div style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: "var(--c-ink-4)",
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
+          }}
+        >
+          {field.name}
+          {field.required && <span className="sr2-req" style={{ marginLeft: 3 }} />}
+        </span>
+        {isChanged && (
+          <span className="sr2-badge edited">
             <Pencil style={{ width: 8, height: 8 }} />
             edited
           </span>
         )}
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {options.map((opt) => {
-          const isChanged =
-            isEditMode && originalValue !== undefined && opt === value && value !== (originalValue ?? "");
+          const sel = value === opt;
+          const optChanged = isEditMode && originalValue !== undefined && sel && value !== (originalValue ?? "");
           return (
             <button
               key={opt}
               type="button"
               onClick={() => onChange(value === opt ? "" : opt)}
-              className={`sr-toggle-btn ${value === opt ? "active" : ""} ${isChanged ? "edited" : ""}`}
+              className={`sr2-toggle ${sel ? (optChanged ? "on edited-on" : "on") : optChanged ? "edited-off" : ""}`}
             >
               <span
                 style={{
@@ -756,10 +800,10 @@ function RadioField({ field, options = [], value, onChange, error, originalValue
                   width: 12,
                   height: 12,
                   borderRadius: "50%",
-                  border: `2px solid ${value === opt ? "rgba(255,255,255,0.5)" : "#c4c8d8"}`,
-                  background: value === opt ? "#fff" : "transparent",
                   flexShrink: 0,
-                  boxShadow: value === opt ? "inset 0 0 0 2.5px #0b0f1a" : "none",
+                  border: `2px solid ${sel ? "rgba(255,255,255,0.5)" : "var(--c-border-2)"}`,
+                  background: sel ? "#fff" : "transparent",
+                  boxShadow: sel ? "inset 0 0 0 2.5px var(--c-ink)" : "none",
                 }}
               />
               {opt}
@@ -768,7 +812,7 @@ function RadioField({ field, options = [], value, onChange, error, originalValue
         })}
       </div>
       {error && (
-        <div className="sr-field-error">
+        <div className="sr2-field-err" style={{ marginTop: 6 }}>
           <XCircle style={{ width: 11, height: 11, flexShrink: 0 }} />
           {error}
         </div>
@@ -784,30 +828,30 @@ function DropdownField({ field, options = [], value, onChange, error, originalVa
   const isChanged = isEditMode && originalValue !== undefined && value !== (originalValue ?? "");
   return (
     <div>
-      <div className={`sr-dropdown-wrap ${floated ? "floated" : ""}`}>
+      <div className={`sr2-dd-wrap ${floated ? "floated" : ""}`}>
         <button
           type="button"
           onClick={() => setOpen(!open)}
-          className={`sr-dropdown-btn ${!value ? "empty" : ""} ${open ? "open" : ""}`}
-          style={isChanged ? { borderColor: "var(--violet)", boxShadow: "0 0 0 3px rgba(124,58,237,0.08)" } : {}}
+          className={`sr2-dd-btn ${!value ? "empty" : ""} ${open ? "open" : ""}`}
+          style={isChanged ? { borderColor: "var(--c-violet)", boxShadow: "0 0 0 3px rgba(124,58,237,0.1)" } : {}}
         >
-          <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 14, fontWeight: 500 }}>{value || ""}</span>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 14, fontWeight: 500 }}>{value || ""}</span>
           <ChevronDown
-            className={`sr-chevron ${open ? "open" : ""}`}
-            style={{ width: 15, height: 15, color: "#9ea5b8" }}
+            className={`sr2-chevron ${open ? "open" : ""}`}
+            style={{ width: 15, height: 15, color: "var(--c-ink-4)" }}
           />
         </button>
-        <span className="sr-dropdown-label">
+        <span className="sr2-dd-label">
           {field.name}
-          {field.required && <span className="sr-req" />}
+          {field.required && <span className="sr2-req" />}
         </span>
         {open && (
-          <div className="sr-dropdown-menu">
+          <div className="sr2-dd-menu">
             {options.map((opt) => (
               <button
                 key={opt}
                 type="button"
-                className={`sr-dropdown-item ${value === opt ? "selected" : ""}`}
+                className={`sr2-dd-item ${value === opt ? "selected" : ""}`}
                 onClick={() => {
                   onChange(opt);
                   setOpen(false);
@@ -822,14 +866,14 @@ function DropdownField({ field, options = [], value, onChange, error, originalVa
       </div>
       {isChanged && (
         <div style={{ marginTop: 5 }}>
-          <span className="sr-changed-badge">
+          <span className="sr2-badge edited">
             <Pencil style={{ width: 8, height: 8 }} />
             edited
           </span>
         </div>
       )}
       {error && (
-        <div className="sr-field-error" style={{ marginTop: 5 }}>
+        <div className="sr2-field-err" style={{ marginTop: 5 }}>
           <XCircle style={{ width: 11, height: 11, flexShrink: 0 }} />
           {error}
         </div>
@@ -846,64 +890,46 @@ function CheckboxField({ field, options = [], value = [], onChange, error, origi
     isEditMode &&
     originalValue !== undefined &&
     JSON.stringify([...(value || [])].sort()) !== JSON.stringify([...origArr].sort());
-
   return (
     <div>
-      <div
-        style={{
-          marginBottom: 8,
-          fontFamily: "'Syne',sans-serif",
-          fontSize: 9.5,
-          fontWeight: 700,
-          color: "#9ea5b8",
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-        }}
-      >
-        {field.name}
-        {field.required && (
-          <span
-            style={{
-              display: "inline-block",
-              width: 4,
-              height: 4,
-              borderRadius: "50%",
-              background: "var(--amber)",
-              marginLeft: 3,
-              verticalAlign: "middle",
-              marginBottom: 1,
-            }}
-          />
-        )}
+      <div style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: "var(--c-ink-4)",
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
+          }}
+        >
+          {field.name}
+          {field.required && <span className="sr2-req" style={{ marginLeft: 3 }} />}
+        </span>
         {isChanged && (
-          <span className="sr-changed-badge">
+          <span className="sr2-badge edited">
             <Pencil style={{ width: 8, height: 8 }} />
             edited
           </span>
         )}
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {options.map((opt) => {
           const checked = value.includes(opt);
-          const wasOriginal = origArr.includes(opt);
-          const optChanged = isEditMode && originalValue !== undefined && checked !== wasOriginal;
+          const optChanged = isEditMode && originalValue !== undefined && checked !== origArr.includes(opt);
           return (
             <button
               key={opt}
               type="button"
               onClick={() => toggle(opt)}
-              className={`sr-toggle-btn ${checked ? "active" : ""} ${optChanged ? "edited" : ""}`}
+              className={`sr2-toggle ${checked ? (optChanged ? "on edited-on" : "on") : optChanged ? "edited-off" : ""}`}
             >
               <span
                 style={{
                   width: 14,
                   height: 14,
-                  borderRadius: 4,
+                  borderRadius: 3,
                   flexShrink: 0,
-                  border: `2px solid ${checked ? "rgba(255,255,255,0.5)" : "#c4c8d8"}`,
+                  border: `2px solid ${checked ? "rgba(255,255,255,0.5)" : "var(--c-border-2)"}`,
                   background: checked ? "#fff" : "transparent",
                   display: "flex",
                   alignItems: "center",
@@ -914,7 +940,7 @@ function CheckboxField({ field, options = [], value = [], onChange, error, origi
                   <svg width="8" height="7" viewBox="0 0 10 8" fill="none">
                     <path
                       d="M1 4L3.5 6.5L9 1"
-                      stroke="#0b0f1a"
+                      stroke="var(--c-ink)"
                       strokeWidth="2.5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -928,7 +954,7 @@ function CheckboxField({ field, options = [], value = [], onChange, error, origi
         })}
       </div>
       {error && (
-        <div className="sr-field-error">
+        <div className="sr2-field-err" style={{ marginTop: 6 }}>
           <XCircle style={{ width: 11, height: 11, flexShrink: 0 }} />
           {error}
         </div>
@@ -943,12 +969,10 @@ function TextareaField({ field, value, onChange, error, originalValue, isEditMod
   const isChanged = isEditMode && originalValue !== undefined && value !== (originalValue ?? "");
   return (
     <div>
-      <div
-        className={`sr-textarea-wrap ${error ? "field-error" : ""} ${floated ? "floated" : ""} ${isChanged ? "edited-highlight" : ""}`}
-      >
-        <span className="sr-textarea-label">
+      <div className={`sr2-ta-wrap ${error ? "err" : ""} ${floated ? "floated" : ""} ${isChanged ? "edited" : ""}`}>
+        <span className="sr2-ta-label">
           {field.name}
-          {field.required && <span className="sr-req" />}
+          {field.required && <span className="sr2-req" />}
         </span>
         <textarea
           value={value}
@@ -956,22 +980,22 @@ function TextareaField({ field, value, onChange, error, originalValue, isEditMod
           maxLength={field.maxLength}
           rows={3}
           placeholder=" "
-          className="sr-textarea"
+          className="sr2-ta"
         />
-        <div className="sr-char-count">
+        <div className="sr2-char">
           {(value || "").length}/{field.maxLength}
         </div>
       </div>
       {isChanged && (
         <div style={{ marginTop: 5 }}>
-          <span className="sr-changed-badge">
+          <span className="sr2-badge edited">
             <Pencil style={{ width: 8, height: 8 }} />
             edited
           </span>
         </div>
       )}
       {error && (
-        <div className="sr-field-error" style={{ marginTop: 5 }}>
+        <div className="sr2-field-err" style={{ marginTop: 5 }}>
           <XCircle style={{ width: 11, height: 11, flexShrink: 0 }} />
           {error}
         </div>
@@ -986,12 +1010,10 @@ function TextInputField({ field, value, onChange, error, originalValue, isEditMo
   const isChanged = isEditMode && originalValue !== undefined && value !== (originalValue ?? "");
   return (
     <div>
-      <div
-        className={`sr-text-input-wrap ${error ? "field-error" : ""} ${floated ? "floated" : ""} ${isChanged ? "edited-highlight" : ""}`}
-      >
-        <span className="sr-text-input-label">
+      <div className={`sr2-ti-wrap ${error ? "err" : ""} ${floated ? "floated" : ""} ${isChanged ? "edited" : ""}`}>
+        <span className="sr2-ti-label">
           {field.name}
-          {field.required && <span className="sr-req" />}
+          {field.required && <span className="sr2-req" />}
         </span>
         <input
           type="text"
@@ -999,22 +1021,22 @@ function TextInputField({ field, value, onChange, error, originalValue, isEditMo
           onChange={(e) => onChange(e.target.value)}
           maxLength={field.maxLength}
           placeholder=" "
-          className="sr-text-input"
+          className="sr2-ti"
         />
-        <div className="sr-char-count">
+        <div className="sr2-char" style={{ position: "absolute", right: 0, bottom: 0, padding: "2px 10px 4px" }}>
           {(value || "").length}/{field.maxLength}
         </div>
       </div>
       {isChanged && (
         <div style={{ marginTop: 5 }}>
-          <span className="sr-changed-badge">
+          <span className="sr2-badge edited">
             <Pencil style={{ width: 8, height: 8 }} />
             edited
           </span>
         </div>
       )}
       {error && (
-        <div className="sr-field-error" style={{ marginTop: 5 }}>
+        <div className="sr2-field-err" style={{ marginTop: 5 }}>
           <XCircle style={{ width: 11, height: 11, flexShrink: 0 }} />
           {error}
         </div>
@@ -1037,26 +1059,25 @@ function SectionPanel({
   isEditMode,
 }) {
   const [collapsed, setCollapsed] = useState(false);
-
   const fieldCount = section.fields.length;
   const filledCount = section.fields.filter((f) => {
-    const key = `${sectionIndex}_${f.name}`;
-    const v = values[key];
+    const v = values[`${sectionIndex}_${f.name}`];
     return Array.isArray(v) ? v.length > 0 : v !== "" && v !== undefined && v !== null;
   }).length;
   const hasError = section.fields.some((f) => errors[`${sectionIndex}_${f.name}`]);
   const complete = filledCount === fieldCount && fieldCount > 0;
+  const pct = fieldCount > 0 ? (filledCount / fieldCount) * 100 : 0;
 
-  const fieldsGrid = (
-    <div className="sr-fields-grid">
+  const grid = (
+    <div className="sr2-fields">
       {section.fields.map((field) => {
         const key = `${sectionIndex}_${field.name}`;
         const val = values[key] ?? (field.type === "checkbox" ? [] : "");
         const err = errors[key];
         const origVal = originalValues ? originalValues[key] : undefined;
-        const spanFull = field.type === "textarea" || field.type === "checkbox" || field.type === "radio";
+        const full = field.type === "textarea" || field.type === "checkbox" || field.type === "radio";
         return (
-          <div key={key} style={spanFull ? { gridColumn: "1 / -1" } : {}}>
+          <div key={key} style={full ? { gridColumn: "1 / -1" } : {}}>
             {field.type === "number" && (
               <NumberField
                 field={field}
@@ -1128,77 +1149,49 @@ function SectionPanel({
     </div>
   );
 
-  if (hideTitle) return <div style={{ background: "#fff", borderRadius: 14 }}>{fieldsGrid}</div>;
+  if (hideTitle) return <div style={{ background: "var(--c-surface)", borderRadius: "var(--radius-lg)" }}>{grid}</div>;
 
   return (
-    <div className={`sr-card ${hasError ? "sr-card-error" : ""}`}>
+    <div className={`sr2-section ${hasError ? "has-error" : ""}`}>
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
-        className={`sr-section-header ${hasError ? "error" : ""}`}
+        className={`sr2-section-head ${hasError ? "error" : ""}`}
       >
-        <div className={`sr-section-num ${complete ? "complete" : hasError ? "error-state" : ""}`}>
-          {sectionIndex + 1}
-        </div>
-        <span className="sr-section-title">{section.name}</span>
-        <span className={`sr-section-badge ${complete ? "complete" : ""}`}>
+        <div className={`sr2-section-num ${complete ? "done" : hasError ? "err" : ""}`}>{sectionIndex + 1}</div>
+        <span className="sr2-section-name">{section.name}</span>
+        <span className={`sr2-section-badge ${complete ? "done" : ""}`}>
           {filledCount}/{fieldCount}
         </span>
-        <ChevronDown
-          className={`sr-chevron ${!collapsed ? "open" : ""}`}
-          style={{ width: 15, height: 15, color: "rgba(255,255,255,0.4)" }}
-        />
+        <ChevronDown className={`sr2-chevron ${!collapsed ? "open" : ""}`} style={{ width: 15, height: 15 }} />
       </button>
-      <div className="sr-progress-track">
-        <div
-          className="sr-progress-fill"
-          style={{ width: fieldCount > 0 ? `${(filledCount / fieldCount) * 100}%` : "0%" }}
-        />
+      <div className="sr2-section-bar">
+        <div className="sr2-section-bar-fill" style={{ width: `${pct}%` }} />
       </div>
-      {!collapsed && fieldsGrid}
+      {!collapsed && grid}
     </div>
   );
 }
 
-// ─── Patient Context Banner ───────────────────────────────────────────────────
-function InvoicePatientBanner({ invoice }) {
+// ─── Patient Banner ───────────────────────────────────────────────────────────
+function PatientBanner({ invoice }) {
   return (
-    <div className="sr-patient-banner">
-      <div className="sr-patient-banner-header">
-        <User style={{ width: 13, height: 13, color: "var(--amber)" }} />
-        <span
-          style={{
-            fontFamily: "'Syne',sans-serif",
-            fontSize: 10,
-            fontWeight: 700,
-            color: "rgba(255,255,255,0.6)",
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-          }}
-        >
-          Patient Record
-        </span>
-        <span
-          style={{
-            fontFamily: "'DM Mono',monospace",
-            fontSize: 10,
-            color: "rgba(255,255,255,0.35)",
-            marginLeft: "auto",
-          }}
-        >
-          {invoice.invoiceId}
-        </span>
+    <div className="sr2-patient">
+      <div className="sr2-patient-head">
+        <User style={{ width: 13, height: 13, color: "#60a5fa" }} />
+        <span className="sr2-patient-head-label">Patient Record</span>
+        <span className="sr2-patient-head-id">{invoice.invoiceId}</span>
       </div>
-      <div className="sr-patient-banner-body">
+      <div className="sr2-patient-body">
         {[
           { label: "Full Name", val: invoice.patientName },
           { label: "Age", val: `${invoice.age} yrs` },
           { label: "Gender", val: invoice.gender, cap: true },
           { label: "Contact", val: invoice.contactNumber },
         ].map((c) => (
-          <div key={c.label} className="sr-patient-cell">
-            <div className="sr-patient-cell-label">{c.label}</div>
-            <div className="sr-patient-cell-val" style={{ textTransform: c.cap ? "capitalize" : undefined }}>
+          <div key={c.label} className="sr2-patient-cell">
+            <div className="sr2-patient-cell-label">{c.label}</div>
+            <div className="sr2-patient-cell-val" style={{ textTransform: c.cap ? "capitalize" : undefined }}>
               {c.val}
             </div>
           </div>
@@ -1209,42 +1202,22 @@ function InvoicePatientBanner({ invoice }) {
 }
 
 // ─── Manual Patient Context ───────────────────────────────────────────────────
-function ManualPatientContext({ patientAge, setPatientAge, patientGender, setPatientGender }) {
+function ManualPatient({ patientAge, setPatientAge, patientGender, setPatientGender }) {
   const floated = patientAge !== "" && patientAge !== null && patientAge !== undefined;
   return (
-    <div className="sr-patient-banner">
-      <div className="sr-patient-banner-header">
-        <User style={{ width: 13, height: 13, color: "var(--amber)" }} />
-        <span
-          style={{
-            fontFamily: "'Syne',sans-serif",
-            fontSize: 10,
-            fontWeight: 700,
-            color: "rgba(255,255,255,0.6)",
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-          }}
-        >
-          Patient Context
-        </span>
-        <span
-          style={{
-            fontFamily: "'DM Mono',monospace",
-            fontSize: 10,
-            color: "rgba(255,255,255,0.35)",
-            marginLeft: "auto",
-          }}
-        >
-          Required for dynamic ranges
-        </span>
+    <div className="sr2-patient">
+      <div className="sr2-patient-head">
+        <User style={{ width: 13, height: 13, color: "#60a5fa" }} />
+        <span className="sr2-patient-head-label">Patient Context</span>
+        <span className="sr2-patient-head-id">Required for dynamic ranges</span>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", background: "#fff" }}>
-        <div className="sr-patient-cell">
-          <div className="sr-patient-cell-label" style={{ marginBottom: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", background: "var(--c-surface)" }}>
+        <div className="sr2-patient-cell">
+          <div className="sr2-patient-cell-label" style={{ marginBottom: 8 }}>
             Age
           </div>
-          <div className={`sr-field-wrap ${floated ? "floated" : ""}`} style={{ background: "#fff" }}>
-            <span className="sr-float-label">Years</span>
+          <div className={`sr2-field-wrap ${floated ? "floated" : ""}`} style={{ background: "var(--c-surface)" }}>
+            <span className="sr2-float-label">Years</span>
             <input
               type="number"
               value={patientAge}
@@ -1252,14 +1225,14 @@ function ManualPatientContext({ patientAge, setPatientAge, patientGender, setPat
               placeholder=" "
               min="0"
               max="150"
-              className="sr-float-input"
-              style={{ paddingRight: "52px" }}
+              className="sr2-num-input"
+              style={{ paddingRight: "50px" }}
             />
-            <span className="sr-unit-tag">yrs</span>
+            <span className="sr2-unit">yrs</span>
           </div>
         </div>
-        <div className="sr-patient-cell" style={{ borderRight: "none" }}>
-          <div className="sr-patient-cell-label" style={{ marginBottom: 8 }}>
+        <div className="sr2-patient-cell" style={{ borderRight: "none" }}>
+          <div className="sr2-patient-cell-label" style={{ marginBottom: 8 }}>
             Gender
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -1267,7 +1240,7 @@ function ManualPatientContext({ patientAge, setPatientAge, patientGender, setPat
               <button
                 key={g}
                 type="button"
-                className={`sr-gender-btn ${patientGender === g ? "active" : ""}`}
+                className={`sr2-gender ${patientGender === g ? "on" : ""}`}
                 onClick={() => setPatientGender(patientGender === g ? "" : g)}
               >
                 {g === "male" ? "♂ Male" : "♀ Female"}
@@ -1280,16 +1253,16 @@ function ManualPatientContext({ patientAge, setPatientAge, patientGender, setPat
   );
 }
 
-// ─── Build report payload (shared between create & update) ────────────────────
+// ─── Build Payload ────────────────────────────────────────────────────────────
 function buildPayload(schema, values, patientAge, patientGender, invoice) {
   const report = {};
   schema.sections.forEach((sec, si) => {
-    const sectionData = {};
+    const sd = {};
     sec.fields.forEach((field) => {
       const key = `${si}_${field.name}`;
       const val = values[key];
       if (val !== "" && val !== undefined && val !== null && !(Array.isArray(val) && val.length === 0)) {
-        sectionData[field.name] = {
+        sd[field.name] = {
           value: val,
           ...(field.unit ? { unit: field.unit } : {}),
           ...(field.type === "number"
@@ -1301,11 +1274,10 @@ function buildPayload(schema, values, patientAge, patientGender, invoice) {
         };
       }
     });
-    if (Object.keys(sectionData).length > 0) {
-      report[sec.name] = { ...sectionData, __showTitle: sec.showTitleInReport !== false };
+    if (Object.keys(sd).length > 0) {
+      report[sec.name] = { ...sd, __showTitle: sec.showTitleInReport !== false };
     }
   });
-
   return {
     ...report,
     name: schema.name,
@@ -1321,40 +1293,126 @@ function buildPayload(schema, values, patientAge, patientGender, invoice) {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-/**
- * SchemaRenderer
- *
- * Props:
- *  - schema        {object}   – the schema definition (sections, fields, etc.)
- *  - invoice       {object?}  – optional patient/invoice context
- *  - onSubmit      {fn}       – called with payload on create  (upload mode)
- *  - onUpdate      {fn}       – called with payload on update  (edit mode)
- *  - loading       {boolean}  – disables submit while in-flight
- *  - existingReport {object?} – pre-filled report data → activates edit mode
- *    Shape: the exact object previously passed to onSubmit / returned by API
- */
 function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, existingReport = null }) {
   const isEditMode = Boolean(existingReport);
+  const computeInitial = () => (isEditMode ? hydrateValuesFromReport(schema, existingReport) : {});
 
-  // Hydrate initial values: if edit mode, seed from existingReport; otherwise empty
-  const computeInitialValues = () => (isEditMode ? hydrateValuesFromReport(schema, existingReport) : {});
-
-  const [values, setValues] = useState(computeInitialValues);
+  const [values, setValues] = useState(computeInitial);
   const [errors, setErrors] = useState({});
-
-  // Original values snapshot for diff/highlight — only meaningful in edit mode
   const [originalValues] = useState(() => (isEditMode ? hydrateValuesFromReport(schema, existingReport) : {}));
-
   const [patientAge, setPatientAge] = useState(invoice?.age ?? existingReport?.patientAge ?? "");
   const [patientGender, setPatientGender] = useState(invoice?.gender ?? existingReport?.patientGender ?? "");
 
   if (!schema || !schema.sections) return null;
+  if (schema.version !== "V1") {
+    return (
+      <div
+        className="sr2"
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: 24 }}
+      >
+        <StyleInjector />
+        <div
+          style={{
+            background: "var(--c-surface)",
+            border: "1px solid var(--c-border)",
+            borderRadius: "var(--radius-xl)",
+            padding: "40px 36px",
+            maxWidth: 420,
+            width: "100%",
+            textAlign: "center",
+            boxShadow: "var(--shadow-md)",
+          }}
+        >
+          <div
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: "var(--radius-md)",
+              background: "var(--c-surface-2)",
+              border: "1.5px solid var(--c-border)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 20px",
+            }}
+          >
+            <FlaskConical style={{ width: 22, height: 22, color: "var(--c-ink-4)" }} />
+          </div>
+          <div
+            style={{
+              fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 10,
+              fontWeight: 600,
+              color: "var(--c-ink-4)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: 8,
+            }}
+          >
+            Unsupported Schema Version
+          </div>
+          <div
+            style={{
+              fontFamily: "'Outfit',sans-serif",
+              fontSize: 18,
+              fontWeight: 700,
+              color: "var(--c-ink)",
+              letterSpacing: "-0.02em",
+              marginBottom: 10,
+            }}
+          >
+            This renderer requires V1
+          </div>
+          <div style={{ fontSize: 13.5, color: "var(--c-ink-3)", lineHeight: 1.6, marginBottom: 20 }}>
+            The schema <strong style={{ color: "var(--c-ink)", fontWeight: 600 }}>{schema.name || "Untitled"}</strong>{" "}
+            uses version{" "}
+            <code
+              style={{
+                fontFamily: "'JetBrains Mono',monospace",
+                fontSize: 12,
+                background: "var(--c-surface-2)",
+                padding: "1px 7px",
+                borderRadius: 4,
+                border: "1px solid var(--c-border)",
+              }}
+            >
+              {schema.version ?? "unknown"}
+            </code>
+            , which is not supported by this renderer. Please use the appropriate renderer for this schema version.
+          </div>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              background: "var(--c-surface-2)",
+              border: "1px solid var(--c-border)",
+              borderRadius: 20,
+              padding: "5px 14px",
+            }}
+          >
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "var(--c-ink-4)" }}>
+              Compatible:
+            </span>
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono',monospace",
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--c-blue)",
+              }}
+            >
+              V1
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  // Re-hydrate if schema or existingReport changes (e.g. navigation between reports)
   useEffect(() => {
-    setValues(computeInitialValues());
+    setValues(computeInitial());
     setErrors({});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(schema?.sections), JSON.stringify(existingReport)]);
 
   useEffect(() => {
@@ -1386,27 +1444,23 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
     return errs;
   };
 
-  // Count changed fields for the edit-mode stats
+  const allKeys = schema.sections.flatMap((sec, si) => sec.fields.map((f) => `${si}_${f.name}`));
   const changedCount = isEditMode
     ? Object.keys(originalValues).filter((k) => {
-        const cur = values[k];
-        const orig = originalValues[k];
+        const cur = values[k],
+          orig = originalValues[k];
         if (Array.isArray(orig)) return JSON.stringify([...(cur || [])].sort()) !== JSON.stringify([...orig].sort());
         return String(cur ?? "") !== String(orig ?? "");
       }).length
     : 0;
-
-  // Also count newly filled fields that were empty before
-  const allSchemaKeys = schema.sections.flatMap((sec, si) => sec.fields.map((f) => `${si}_${f.name}`));
   const newlyFilled = isEditMode
-    ? allSchemaKeys.filter((k) => {
-        const cur = values[k];
-        const orig = originalValues[k];
-        const isEmpty = (v) => v === "" || v === undefined || v === null || (Array.isArray(v) && v.length === 0);
-        return isEmpty(orig) && !isEmpty(cur);
+    ? allKeys.filter((k) => {
+        const cur = values[k],
+          orig = originalValues[k];
+        const empty = (v) => v === "" || v === undefined || v === null || (Array.isArray(v) && v.length === 0);
+        return empty(orig) && !empty(cur);
       }).length
     : 0;
-
   const totalChanges = changedCount + newlyFilled;
 
   const handleSubmit = () => {
@@ -1417,21 +1471,12 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
     }
     setErrors({});
     const payload = buildPayload(schema, values, patientAge, patientGender, invoice);
-
-    if (isEditMode) {
-      onUpdate?.(payload);
-    } else {
-      onSubmit?.(payload);
-    }
+    if (isEditMode) onUpdate?.(payload);
+    else onSubmit?.(payload);
   };
 
   const handleReset = () => {
-    if (isEditMode) {
-      // In edit mode: reset back to the originally loaded data
-      setValues(hydrateValuesFromReport(schema, existingReport));
-    } else {
-      setValues({});
-    }
+    setValues(isEditMode ? hydrateValuesFromReport(schema, existingReport) : {});
     setErrors({});
   };
 
@@ -1441,15 +1486,14 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
     ),
   );
   const hasFields = schema.sections.some((s) => s.fields.length > 0);
-
-  const totalFields = allSchemaKeys.length;
-  const totalFilled = allSchemaKeys.filter((k) => {
+  const totalFields = allKeys.length;
+  const totalFilled = allKeys.filter((k) => {
     const v = values[k];
     return Array.isArray(v) ? v.length > 0 : v !== "" && v !== undefined && v !== null;
   }).length;
   const progress = totalFields > 0 ? (totalFilled / totalFields) * 100 : null;
 
-  const allNumericFields = schema.sections.flatMap((sec, si) =>
+  const numStatuses = schema.sections.flatMap((sec, si) =>
     sec.fields
       .filter((f) => f.type === "number")
       .map((f) => {
@@ -1457,59 +1501,49 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
         return getRangeStatus(values[`${si}_${f.name}`], range);
       }),
   );
-  const abnormalCount = allNumericFields.filter((s) => s === "high" || s === "low").length;
-  const normalCount = allNumericFields.filter((s) => s === "normal").length;
+  const abnormalCount = numStatuses.filter((s) => s === "high" || s === "low").length;
+  const normalCount = numStatuses.filter((s) => s === "normal").length;
 
   if (!hasFields) {
     return (
-      <div className="sr-root">
+      <div className="sr2">
         <StyleInjector />
-        <div className="sr-empty">
-          <div className="sr-empty-icon">
-            <Eye style={{ width: 22, height: 22, color: "#c4c8d8" }} />
+        <div className="sr2-empty">
+          <div className="sr2-empty-icon">
+            <Eye style={{ width: 22, height: 22, color: "var(--c-border-2)" }} />
           </div>
-          <p style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, color: "#5a6282", fontSize: 14 }}>
-            No fields configured
-          </p>
-          <p style={{ color: "#9ea5b8", fontSize: 12, marginTop: 4 }}>Add fields in the Builder to preview</p>
+          <p style={{ fontWeight: 700, color: "var(--c-ink-3)", fontSize: 14 }}>No fields configured</p>
+          <p style={{ color: "var(--c-ink-4)", fontSize: 13, marginTop: 4 }}>Add fields in the Builder to preview</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="sr-root">
+    <div className="sr2">
       <StyleInjector />
-      <div style={{ maxWidth: 1600, margin: "0 auto", padding: "24px 16px 48px" }}>
-        {/* ── Mode banner ── */}
+      <div style={{ maxWidth: 1600, margin: "0 auto", padding: "28px 20px 56px" }}>
+        {/* Edit mode ribbon */}
         {isEditMode && (
-          <div className="sr-mode-banner edit-mode">
-            <span className="sr-mode-dot" />
+          <div className="sr2-ribbon edit">
+            <span className="dot" />
             <Pencil style={{ width: 12, height: 12 }} />
-            <span
-              style={{
-                fontFamily: "'Syne',sans-serif",
-                fontWeight: 700,
-                fontSize: 11,
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-              }}
-            >
+            <span style={{ fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Edit Mode
             </span>
-            <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, opacity: 0.7, marginLeft: 4 }}>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, opacity: 0.6, marginLeft: 2 }}>
               — Modifying existing report
             </span>
             {totalChanges > 0 && (
               <span
                 style={{
                   marginLeft: "auto",
-                  fontFamily: "'DM Mono',monospace",
+                  fontFamily: "'JetBrains Mono',monospace",
                   fontSize: 10,
                   background: "rgba(124,58,237,0.15)",
-                  color: "var(--violet)",
-                  padding: "2px 8px",
-                  borderRadius: 4,
+                  color: "var(--c-violet)",
+                  padding: "2px 9px",
+                  borderRadius: 20,
                   fontWeight: 600,
                 }}
               >
@@ -1519,136 +1553,76 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
           </div>
         )}
 
-        {/* ── Header ── */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: isEditMode ? "var(--violet)" : "var(--ink)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                marginTop: 2,
-                transition: "background 0.2s",
-              }}
-            >
+        {/* Header card */}
+        <div className="sr2-header">
+          <div className="sr2-header-top">
+            <div className={`sr2-icon-box ${isEditMode ? "edit" : "default"}`}>
               {isEditMode ? (
-                <Pencil style={{ width: 16, height: 16, color: "#fff" }} />
+                <Pencil style={{ width: 18, height: 18, color: "#fff" }} />
               ) : (
-                <FlaskConical style={{ width: 16, height: 16, color: "var(--amber)" }} />
+                <Activity style={{ width: 18, height: 18, color: "#60a5fa" }} />
               )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
-                <span
-                  style={{
-                    fontFamily: "'DM Mono',monospace",
-                    fontSize: 10,
-                    color: "#9ea5b8",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                  }}
-                >
-                  {isEditMode ? "Lab Report — Edit" : "Lab Report Entry"}
+              <div className="sr2-meta">
+                <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>
+                  {isEditMode ? "Lab Report · Edit" : "Lab Report Entry"}
                 </span>
+                <span className="sr2-meta-dot" />
                 <span
-                  style={{ width: 3, height: 3, borderRadius: "50%", background: "#d6d9e4", display: "inline-block" }}
-                />
-                <span
-                  style={{
-                    fontFamily: "'DM Mono',monospace",
-                    fontSize: 10,
-                    color: schema.isActive ? "var(--emerald)" : "#9ea5b8",
-                    fontWeight: 500,
-                    textTransform: "uppercase",
-                  }}
+                  className={`sr2-meta-active`}
+                  style={{ color: schema.isActive ? "var(--c-green)" : "var(--c-ink-4)" }}
                 >
                   {schema.isActive ? "● Active" : "○ Inactive"}
                 </span>
               </div>
-              <h1
-                style={{
-                  fontFamily: "'Syne',sans-serif",
-                  fontSize: "clamp(18px, 4vw, 26px)",
-                  fontWeight: 800,
-                  color: "var(--ink)",
-                  letterSpacing: "-0.02em",
-                  lineHeight: 1.1,
-                  margin: 0,
-                }}
-              >
-                {schema.name || "Untitled Schema"}
-              </h1>
-              {schema.description && (
-                <p style={{ marginTop: 5, fontSize: 13, color: "#7a82a0", lineHeight: 1.5 }}>{schema.description}</p>
-              )}
+              <h1 className="sr2-title">{schema.name || "Untitled Schema"}</h1>
+              {schema.description && <p className="sr2-desc">{schema.description}</p>}
             </div>
           </div>
 
-          {/* Stats Row */}
-          <div className="sr-stats-row">
+          {/* Stats */}
+          <div className="sr2-stats">
             {progress !== null && (
-              <div className="sr-stat-cell">
-                <div className="sr-stat-label">Completed</div>
-                <div className={`sr-stat-val ${progress === 100 ? "emerald" : ""}`}>{Math.round(progress)}%</div>
+              <div className="sr2-stat">
+                <span className="sr2-stat-label">Progress</span>
+                <span className={`sr2-stat-val ${progress === 100 ? "green" : "blue"}`}>{Math.round(progress)}%</span>
               </div>
             )}
-            <div className="sr-stat-cell">
-              <div className="sr-stat-label">Filled</div>
-              <div className="sr-stat-val">
+            <div className="sr2-stat">
+              <span className="sr2-stat-label">Filled</span>
+              <span className="sr2-stat-val">
                 {totalFilled}
-                <span style={{ fontSize: 12, color: "#9ea5b8", fontWeight: 400 }}>/{totalFields}</span>
-              </div>
+                <span style={{ fontSize: 13, color: "var(--c-ink-4)", fontWeight: 400 }}>/{totalFields}</span>
+              </span>
             </div>
-            <div className="sr-stat-cell">
-              <div className="sr-stat-label">In Range</div>
-              <div className={`sr-stat-val ${normalCount > 0 ? "emerald" : ""}`}>{normalCount}</div>
+            <div className="sr2-stat">
+              <span className="sr2-stat-label">In Range</span>
+              <span className={`sr2-stat-val ${normalCount > 0 ? "green" : ""}`}>{normalCount}</span>
             </div>
-            <div className="sr-stat-cell">
-              <div className="sr-stat-label">Abnormal</div>
-              <div className={`sr-stat-val ${abnormalCount > 0 ? "red" : ""}`}>{abnormalCount}</div>
+            <div className="sr2-stat">
+              <span className="sr2-stat-label">Abnormal</span>
+              <span className={`sr2-stat-val ${abnormalCount > 0 ? "red" : ""}`}>{abnormalCount}</span>
             </div>
             {isEditMode && (
-              <div className="sr-stat-cell">
-                <div className="sr-stat-label">Changes</div>
-                <div className={`sr-stat-val ${totalChanges > 0 ? "violet" : ""}`}>{totalChanges}</div>
+              <div className="sr2-stat">
+                <span className="sr2-stat-label">Changes</span>
+                <span className={`sr2-stat-val ${totalChanges > 0 ? "violet" : ""}`}>{totalChanges}</span>
               </div>
             )}
           </div>
 
           {/* Progress bar */}
           {progress !== null && (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-                <span
-                  style={{
-                    fontFamily: "'Syne',sans-serif",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: "#9ea5b8",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.07em",
-                  }}
-                >
-                  All Fields
-                </span>
-                <span
-                  style={{
-                    fontFamily: "'DM Mono',monospace",
-                    fontSize: 11,
-                    fontWeight: 500,
-                    color: progress === 100 ? "var(--emerald)" : "var(--ink-3)",
-                  }}
-                >
-                  {totalFilled} / {totalFields}
+            <div className="sr2-progress-wrap">
+              <div className="sr2-progress-row">
+                <span className="sr2-progress-label">Completion</span>
+                <span className="sr2-progress-count">
+                  {totalFilled} / {totalFields} fields
                 </span>
               </div>
-              <div className="sr-main-progress-track">
-                <div className="sr-main-progress-fill" style={{ width: `${progress}%` }} />
+              <div className="sr2-track">
+                <div className={`sr2-fill ${progress === 100 ? "complete" : ""}`} style={{ width: `${progress}%` }} />
               </div>
             </div>
           )}
@@ -1656,11 +1630,11 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
 
         {/* Alerts */}
         {abnormalCount > 0 && (
-          <div className="sr-alert amber" style={{ marginBottom: 14 }}>
-            <AlertTriangle style={{ width: 16, height: 16, color: "var(--amber)", flexShrink: 0, marginTop: 1 }} />
+          <div className="sr2-alert amber">
+            <AlertTriangle style={{ width: 16, height: 16, color: "var(--c-amber)", flexShrink: 0, marginTop: 1 }} />
             <div>
-              <div className="sr-alert-title">Abnormal Values Detected</div>
-              <div className="sr-alert-body">
+              <div className="sr2-alert-title">Abnormal Values Detected</div>
+              <div className="sr2-alert-body">
                 {abnormalCount} result{abnormalCount > 1 ? "s" : ""} outside the standard reference range — please
                 review before submitting.
               </div>
@@ -1668,40 +1642,35 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
           </div>
         )}
 
-        {/* Edit mode changes summary */}
         {isEditMode && totalChanges > 0 && (
-          <div className="sr-alert violet" style={{ marginBottom: 14 }}>
-            <Pencil style={{ width: 15, height: 15, color: "var(--violet)", flexShrink: 0, marginTop: 1 }} />
+          <div className="sr2-alert violet">
+            <Pencil style={{ width: 15, height: 15, color: "var(--c-violet)", flexShrink: 0, marginTop: 1 }} />
             <div>
-              <div className="sr-alert-title">Unsaved Changes</div>
-              <div className="sr-alert-body">
-                You have made {totalChanges} change{totalChanges !== 1 ? "s" : ""} to this report. Fields with edits are
-                highlighted in purple. Click <strong>Update Report</strong> to save.
+              <div className="sr2-alert-title">Unsaved Changes</div>
+              <div className="sr2-alert-body">
+                {totalChanges} change{totalChanges !== 1 ? "s" : ""} pending. Edited fields are highlighted in purple.
+                Click <strong>Update Report</strong> to save.
               </div>
             </div>
           </div>
         )}
 
-        {/* Patient Banner */}
+        {/* Patient banner */}
         {invoice ? (
-          <div style={{ marginBottom: 16 }}>
-            <InvoicePatientBanner invoice={invoice} />
-          </div>
+          <PatientBanner invoice={invoice} />
         ) : (
           needsContext && (
-            <div style={{ marginBottom: 16 }}>
-              <ManualPatientContext
-                patientAge={patientAge}
-                setPatientAge={setPatientAge}
-                patientGender={patientGender}
-                setPatientGender={setPatientGender}
-              />
-            </div>
+            <ManualPatient
+              patientAge={patientAge}
+              setPatientAge={setPatientAge}
+              patientGender={patientGender}
+              setPatientGender={setPatientGender}
+            />
           )
         )}
 
         {/* Sections */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
           {schema.sections.map((section, si) => (
             <SectionPanel
               key={si}
@@ -1719,24 +1688,24 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
           ))}
         </div>
 
-        {/* Static Range Note */}
+        {/* Static range note */}
         {schema.hasStaticStandardRange && schema.staticStandardRange && (
-          <div className="sr-alert amber" style={{ marginBottom: 14 }}>
-            <Info style={{ width: 15, height: 15, color: "var(--amber)", flexShrink: 0, marginTop: 1 }} />
+          <div className="sr2-alert amber" style={{ marginBottom: 12 }}>
+            <Info style={{ width: 15, height: 15, color: "var(--c-amber)", flexShrink: 0, marginTop: 1 }} />
             <div>
-              <div className="sr-alert-title">Standard Reference</div>
-              <div className="sr-alert-body">{schema.staticStandardRange}</div>
+              <div className="sr2-alert-title">Standard Reference</div>
+              <div className="sr2-alert-body">{schema.staticStandardRange}</div>
             </div>
           </div>
         )}
 
-        {/* Validation Errors */}
+        {/* Validation errors */}
         {Object.keys(errors).length > 0 && (
-          <div className="sr-alert red" style={{ marginBottom: 14 }}>
-            <XCircle style={{ width: 15, height: 15, color: "var(--red)", flexShrink: 0, marginTop: 1 }} />
+          <div className="sr2-alert red" style={{ marginBottom: 12 }}>
+            <XCircle style={{ width: 15, height: 15, color: "var(--c-red)", flexShrink: 0, marginTop: 1 }} />
             <div>
-              <div className="sr-alert-title">Validation Failed</div>
-              <div className="sr-alert-body">
+              <div className="sr2-alert-title">Validation Failed</div>
+              <div className="sr2-alert-body">
                 {Object.keys(errors).length} field{Object.keys(errors).length > 1 ? "s" : ""} require attention before
                 submitting.
               </div>
@@ -1744,48 +1713,36 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
           </div>
         )}
 
-        {/* Action Bar */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingTop: 18,
-            borderTop: "1px solid var(--border)",
-            marginTop: 4,
-            flexWrap: "wrap",
-            gap: 12,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <ShieldCheck style={{ width: 13, height: 13, color: "#b0b7cc" }} />
-            <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: "#b0b7cc" }}>
-              {isEditMode ? "Editing existing report" : "Validated entry"}
+        {/* Action bar */}
+        <div className="sr2-action-bar">
+          <div className="sr2-action-hint">
+            <ShieldCheck style={{ width: 14, height: 14 }} />
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>
+              {isEditMode ? "Editing existing report" : "Form validated on submit"}
             </span>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             <button
               type="button"
-              className="sr-btn-reset"
+              className="sr2-btn-ghost"
               onClick={handleReset}
-              title={isEditMode ? "Revert all changes to original values" : "Clear all fields"}
+              title={isEditMode ? "Revert all changes" : "Clear all fields"}
             >
               <RotateCcw style={{ width: 13, height: 13 }} />
               {isEditMode ? "Revert" : "Reset"}
             </button>
             <button
               type="button"
-              className={`sr-btn-submit ${isEditMode ? "edit-mode" : ""}`}
+              className={`sr2-btn-primary ${isEditMode ? "edit" : ""}`}
               disabled={loading || (isEditMode && totalChanges === 0)}
               onClick={handleSubmit}
-              title={isEditMode && totalChanges === 0 ? "No changes to save" : undefined}
             >
               {loading ? (
-                <span className="sr-amber-dot" />
+                <span className="sr2-spin-dot" />
               ) : isEditMode ? (
-                <Save style={{ width: 13, height: 13 }} />
+                <Save style={{ width: 14, height: 14 }} />
               ) : (
-                <Send style={{ width: 13, height: 13 }} />
+                <Send style={{ width: 14, height: 14 }} />
               )}
               {loading
                 ? isEditMode

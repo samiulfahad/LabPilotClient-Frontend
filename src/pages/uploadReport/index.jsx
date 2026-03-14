@@ -1,21 +1,115 @@
 import { useState, useEffect } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { AlertCircle, RotateCcw } from "lucide-react";
+import { AlertCircle, RotateCcw, Wifi } from "lucide-react";
 import SchemaRenderer from "./SchemaRenderer";
 import LoadingScreen from "../../components/loadingPage";
 import Popup from "../../components/popup";
 import testService from "../../api/test";
 import reportService from "../../api/report";
 
+// ─── Inline styles for the error / loading state overlays ────────────────────
+const pageStyles = `
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  .ur-error-shell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: #f7f8fa;
+    font-family: 'Outfit', sans-serif;
+    padding: 24px;
+  }
+  .ur-error-card {
+    background: #ffffff;
+    border: 1px solid #e4e7ed;
+    border-radius: 16px;
+    padding: 40px 36px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+  }
+  .ur-error-icon {
+    width: 52px; height: 52px;
+    background: #fef2f2;
+    border: 1.5px solid rgba(220,38,38,0.2);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 20px;
+  }
+  .ur-error-title {
+    font-size: 17px; font-weight: 700; color: #0d1117;
+    letter-spacing: -0.02em; margin-bottom: 8px;
+  }
+  .ur-error-msg {
+    font-size: 13.5px; color: #6b7280; line-height: 1.6;
+    margin-bottom: 24px;
+  }
+  .ur-error-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 22px;
+    background: #0d1117; color: #fff;
+    border: none; border-radius: 10px;
+    font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+    box-shadow: 0 2px 8px rgba(13,17,23,0.2);
+  }
+  .ur-error-btn:hover {
+    background: #1e2530;
+    box-shadow: 0 4px 14px rgba(13,17,23,0.3);
+    transform: translateY(-1px);
+  }
+  .ur-error-code {
+    display: inline-block; margin-top: 16px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: #9ca3af; background: #f3f4f6;
+    padding: 3px 10px; border-radius: 20px;
+  }
+`;
+
+function InjectPageStyles() {
+  useEffect(() => {
+    const id = "ur-page-styles";
+    if (!document.getElementById(id)) {
+      const el = document.createElement("style");
+      el.id = id;
+      el.textContent = pageStyles;
+      document.head.appendChild(el);
+    }
+  }, []);
+  return null;
+}
+
+// ─── Error state ──────────────────────────────────────────────────────────────
+function ErrorState({ message, onRetry }) {
+  return (
+    <div className="ur-error-shell">
+      <InjectPageStyles />
+      <div className="ur-error-card">
+        <div className="ur-error-icon">
+          <AlertCircle style={{ width: 22, height: 22, color: "#dc2626" }} />
+        </div>
+        <div className="ur-error-title">Failed to Load Schema</div>
+        <div className="ur-error-msg">
+          {message || "Something went wrong while loading the report schema. Please try again."}
+        </div>
+        <button className="ur-error-btn" onClick={onRetry}>
+          <RotateCcw style={{ width: 14, height: 14 }} />
+          Try Again
+        </button>
+        <div className="ur-error-code">ERR_SCHEMA_LOAD</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 function UploadReport() {
   const { schemaId } = useParams();
   const location = useLocation();
 
-  // invoice   — full invoice object (patientName, age, gender, invoiceId …)
-  // test      — the specific test being reported { testId, schemaId, name … }
-  // report    — (optional) existing embedded report → activates edit mode
   const { invoice, test, report: existingReport } = location.state ?? {};
-
   const isEditMode = Boolean(existingReport && Object.keys(existingReport).length > 0);
 
   const [schema, setSchema] = useState(null);
@@ -42,7 +136,7 @@ function UploadReport() {
     fetchSchema();
   }, [schemaId]);
 
-  // ── Create handler ─────────────────────────────────────────────────────────
+  // ── Create ─────────────────────────────────────────────────────────────────
   const handleSubmit = async (payload) => {
     try {
       setSubmitting(true);
@@ -59,7 +153,7 @@ function UploadReport() {
     }
   };
 
-  // ── Update handler ─────────────────────────────────────────────────────────
+  // ── Update ─────────────────────────────────────────────────────────────────
   const handleUpdate = async (payload) => {
     try {
       setSubmitting(true);
@@ -76,25 +170,9 @@ function UploadReport() {
     }
   };
 
-  // ── Render states ──────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
   if (loading) return <LoadingScreen />;
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <AlertCircle className="w-10 h-10 text-red-400" />
-          <p className="text-sm text-gray-600">{error}</p>
-          <button
-            onClick={fetchSchema}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
-            <RotateCcw className="w-4 h-4" /> Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (error) return <ErrorState message={error} onRetry={fetchSchema} />;
 
   return (
     <div>
