@@ -11,12 +11,10 @@ import {
   Send,
   AlertTriangle,
   Eye,
-  FlaskConical,
   ShieldCheck,
   Pencil,
   Save,
   Activity,
-  CheckCheck,
 } from "lucide-react";
 
 // ─── Global Styles ─────────────────────────────────────────────────────────────
@@ -114,7 +112,6 @@ const STYLES = `
 
   .sr2-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--c-ink-4); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
   .sr2-meta-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--c-border-2); }
-  .sr2-meta-active { color: var(--c-green); }
   .sr2-title {
     font-size: clamp(20px, 4vw, 28px); font-weight: 800;
     color: var(--c-ink); letter-spacing: -0.03em; line-height: 1.1;
@@ -1304,111 +1301,6 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
   const [patientGender, setPatientGender] = useState(invoice?.gender ?? existingReport?.patientGender ?? "");
 
   if (!schema || !schema.sections) return null;
-  if (schema.version !== "V1") {
-    return (
-      <div
-        className="sr2"
-        style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: 24 }}
-      >
-        <StyleInjector />
-        <div
-          style={{
-            background: "var(--c-surface)",
-            border: "1px solid var(--c-border)",
-            borderRadius: "var(--radius-xl)",
-            padding: "40px 36px",
-            maxWidth: 420,
-            width: "100%",
-            textAlign: "center",
-            boxShadow: "var(--shadow-md)",
-          }}
-        >
-          <div
-            style={{
-              width: 52,
-              height: 52,
-              borderRadius: "var(--radius-md)",
-              background: "var(--c-surface-2)",
-              border: "1.5px solid var(--c-border)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 20px",
-            }}
-          >
-            <FlaskConical style={{ width: 22, height: 22, color: "var(--c-ink-4)" }} />
-          </div>
-          <div
-            style={{
-              fontFamily: "'JetBrains Mono',monospace",
-              fontSize: 10,
-              fontWeight: 600,
-              color: "var(--c-ink-4)",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              marginBottom: 8,
-            }}
-          >
-            Unsupported Schema Version
-          </div>
-          <div
-            style={{
-              fontFamily: "'Outfit',sans-serif",
-              fontSize: 18,
-              fontWeight: 700,
-              color: "var(--c-ink)",
-              letterSpacing: "-0.02em",
-              marginBottom: 10,
-            }}
-          >
-            This renderer requires V1
-          </div>
-          <div style={{ fontSize: 13.5, color: "var(--c-ink-3)", lineHeight: 1.6, marginBottom: 20 }}>
-            The schema <strong style={{ color: "var(--c-ink)", fontWeight: 600 }}>{schema.name || "Untitled"}</strong>{" "}
-            uses version{" "}
-            <code
-              style={{
-                fontFamily: "'JetBrains Mono',monospace",
-                fontSize: 12,
-                background: "var(--c-surface-2)",
-                padding: "1px 7px",
-                borderRadius: 4,
-                border: "1px solid var(--c-border)",
-              }}
-            >
-              {schema.version ?? "unknown"}
-            </code>
-            , which is not supported by this renderer. Please use the appropriate renderer for this schema version.
-          </div>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              background: "var(--c-surface-2)",
-              border: "1px solid var(--c-border)",
-              borderRadius: 20,
-              padding: "5px 14px",
-            }}
-          >
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "var(--c-ink-4)" }}>
-              Compatible:
-            </span>
-            <span
-              style={{
-                fontFamily: "'JetBrains Mono',monospace",
-                fontSize: 11,
-                fontWeight: 600,
-                color: "var(--c-blue)",
-              }}
-            >
-              V1
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   useEffect(() => {
     setValues(computeInitial());
@@ -1569,10 +1461,7 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
                   {isEditMode ? "Lab Report · Edit" : "Lab Report Entry"}
                 </span>
                 <span className="sr2-meta-dot" />
-                <span
-                  className={`sr2-meta-active`}
-                  style={{ color: schema.isActive ? "var(--c-green)" : "var(--c-ink-4)" }}
-                >
+                <span style={{ color: schema.isActive ? "var(--c-green)" : "var(--c-ink-4)" }}>
                   {schema.isActive ? "● Active" : "○ Inactive"}
                 </span>
               </div>
