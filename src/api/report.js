@@ -14,6 +14,10 @@ const reportService = {
   // Update an existing report
   // data shape: { report: <SchemaRenderer payload>, invoiceId, testId }
   updateReport: (data) => api.put("/report/update", data),
+
+  // Set or update sample collection date and report date inside the report object
+  // data shape: { invoiceId, testId, sampleCollectionDate?, reportDate? }
+  updateDates: (data) => api.put("/report/dates", data),
 };
 
 export default reportService;

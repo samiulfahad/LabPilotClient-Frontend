@@ -12,11 +12,16 @@ import {
   ChevronRight,
   Eye,
   Pencil,
+  Calendar,
+  ClipboardList,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 import Popup from "../../components/popup";
 import LoadingScreen from "../../components/loadingPage";
 import invoiceService from "../../api/invoice";
+import reportService from "../../api/report";
 
 // ============================================================================
 // HELPERS
@@ -44,14 +49,96 @@ const formatDateTime = (createdAt) => {
   };
 };
 
+const toInputDate = (dateStr) => {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d)) return "";
+  return d.toISOString().slice(0, 10);
+};
+
+// ============================================================================
+// DATE EDITOR
+// ============================================================================
+const DateEditor = ({ invoiceId, testId, initialSampleDate, initialReportDate, onSaved }) => {
+  const [sampleDate, setSampleDate] = useState(toInputDate(initialSampleDate));
+  const [reportDate, setReportDate] = useState(toInputDate(initialReportDate));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const isDirty = toInputDate(initialSampleDate) !== sampleDate || toInputDate(initialReportDate) !== reportDate;
+
+  const handleSave = async () => {
+    if (!sampleDate && !reportDate) return;
+    try {
+      setSaving(true);
+      setError(null);
+      await reportService.updateDates({
+        invoiceId,
+        testId,
+        sampleCollectionDate: sampleDate || null,
+        reportDate: reportDate || null,
+      });
+      onSaved({ sampleCollectionDate: sampleDate || null, reportDate: reportDate || null });
+    } catch (e) {
+      setError("Failed to save dates");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-2 pt-2 border-t border-gray-100">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-0.5">
+          <label className="flex items-center gap-1 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+            <Calendar className="w-3 h-3 text-indigo-400" />
+            Sample Date
+          </label>
+          <input
+            type="date"
+            value={sampleDate}
+            onChange={(e) => setSampleDate(e.target.value)}
+            className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none
+                       focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white
+                       text-gray-700 cursor-pointer"
+          />
+        </div>
+
+        <div className="flex flex-col gap-0.5">
+          <label className="flex items-center gap-1 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+            <ClipboardList className="w-3 h-3 text-emerald-500" />
+            Report Date
+          </label>
+          <input
+            type="date"
+            value={reportDate}
+            onChange={(e) => setReportDate(e.target.value)}
+            className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none
+                       focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400 bg-white
+                       text-gray-700 cursor-pointer"
+          />
+        </div>
+
+        <button
+          onClick={handleSave}
+          disabled={saving || !isDirty || (!sampleDate && !reportDate)}
+          className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg
+                     transition-colors disabled:opacity-40 disabled:cursor-not-allowed
+                     bg-indigo-600 hover:bg-indigo-700 text-white self-end"
+        >
+          {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
+    </div>
+  );
+};
+
 // ============================================================================
 // TEST ACTION BUTTONS
-// Three states:
-//   1. Not completed  → Upload Report (indigo)
-//   2. Completed      → View Report (emerald) + Edit (violet)
 // ============================================================================
 const TestActions = ({ invoice, test }) => {
-  // Shared state to navigate to the report renderer
   const uploadState = { invoice, test };
   const editState = { invoice, test, report: test.report ?? {} };
 
@@ -71,7 +158,6 @@ const TestActions = ({ invoice, test }) => {
 
   return (
     <div className="flex items-center gap-1.5">
-      {/* View / Download */}
       <Link
         to="/view-report"
         state={{ report: test.report, invoice }}
@@ -84,7 +170,6 @@ const TestActions = ({ invoice, test }) => {
         <span className="hidden sm:inline">View</span>
       </Link>
 
-      {/* Edit */}
       <Link
         to="/report-upload"
         state={editState}
@@ -103,7 +188,7 @@ const TestActions = ({ invoice, test }) => {
 // ============================================================================
 // INVOICE DETAIL CARD
 // ============================================================================
-const InvoiceDetail = ({ invoice, onUploadSuccess }) => {
+const InvoiceDetail = ({ invoice, onDatesSaved }) => {
   const { date, time } = formatDateTime(invoice.createdAt);
   const paidAmount = Number(invoice.paidAmount) || 0;
   const finalPrice = Number(invoice.finalPrice) || 0;
@@ -191,32 +276,45 @@ const InvoiceDetail = ({ invoice, onUploadSuccess }) => {
             </p>
           </div>
           <div className="space-y-2">
-            {onlineTests.map((test, i) => (
-              <div
-                key={test.testId?.$oid || i}
-                className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors ${
-                  test.isCompleted ? "border-emerald-100 bg-emerald-50/40" : "border-gray-100"
-                }`}
-              >
-                {/* Left — status dot + name + price */}
-                <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                      test.isCompleted ? "bg-emerald-400" : "bg-amber-400"
-                    }`}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{test.name}</p>
-                    <p className="text-xs text-gray-400">৳{test.price.toLocaleString()}</p>
-                  </div>
-                </div>
+            {onlineTests.map((test, i) => {
+              const testId = test.testId?.$oid || test.testId;
 
-                {/* Right — action buttons */}
-                <div className="shrink-0">
-                  <TestActions invoice={invoice} test={test} />
+              return (
+                <div
+                  key={testId || i}
+                  className={`rounded-xl border px-4 py-3 transition-colors ${
+                    test.isCompleted ? "border-emerald-100 bg-emerald-50/40" : "border-gray-100"
+                  }`}
+                >
+                  {/* Top row */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                          test.isCompleted ? "bg-emerald-400" : "bg-amber-400"
+                        }`}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{test.name}</p>
+                        <p className="text-xs text-gray-400">৳{test.price.toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <div className="shrink-0">
+                      <TestActions invoice={invoice} test={test} />
+                    </div>
+                  </div>
+
+                  {/* Date editor — always visible for all online tests */}
+                  <DateEditor
+                    invoiceId={invoice.invoiceId}
+                    testId={testId}
+                    initialSampleDate={test.report?.sampleCollectionDate}
+                    initialReportDate={test.report?.reportDate}
+                    onSaved={(dates) => onDatesSaved(testId, dates)}
+                  />
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -272,7 +370,6 @@ const Reports = () => {
     }
   };
 
-  // Auto-load if navigated here with an invoiceId in router state
   useEffect(() => {
     const id = location.state?.invoiceId;
     if (id) {
@@ -297,15 +394,16 @@ const Reports = () => {
     setNotFound(false);
   };
 
-  // Called after a successful upload — marks test as completed in local state
-  const handleUploadSuccess = (test) => {
+  const handleDatesSaved = (testId, dates) => {
     setInvoice((prev) => ({
       ...prev,
-      tests: prev.tests.map((t) =>
-        (t.testId?.$oid || t.testId) === (test.testId?.$oid || test.testId) ? { ...t, isCompleted: true } : t,
-      ),
+      tests: prev.tests.map((t) => {
+        const id = t.testId?.$oid || t.testId;
+        if (id !== testId) return t;
+        return { ...t, report: { ...(t.report ?? {}), ...dates } };
+      }),
     }));
-    setPopup({ type: "success", message: `Report uploaded for ${test.name}` });
+    setPopup({ type: "success", message: "Dates saved" });
   };
 
   return (
@@ -314,7 +412,6 @@ const Reports = () => {
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
             <Upload className="w-7 h-7 text-indigo-600" />
@@ -322,7 +419,6 @@ const Reports = () => {
           </h1>
         </div>
 
-        {/* Search Box */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
           <div className="flex gap-3">
             <div className="relative flex-1">
@@ -360,7 +456,6 @@ const Reports = () => {
           </div>
         </div>
 
-        {/* Not Found */}
         {notFound && (
           <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-8 text-center">
             <div className="bg-red-50 w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -373,8 +468,7 @@ const Reports = () => {
           </div>
         )}
 
-        {/* Invoice Detail */}
-        {invoice && <InvoiceDetail invoice={invoice} onUploadSuccess={handleUploadSuccess} />}
+        {invoice && <InvoiceDetail invoice={invoice} onDatesSaved={handleDatesSaved} />}
       </div>
     </section>
   );
