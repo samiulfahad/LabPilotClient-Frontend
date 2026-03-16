@@ -1,3 +1,7 @@
+/**
+ * useCallback / useMemo are intentionally absent throughout this file.
+ * babel-plugin-react-compiler handles all memoization automatically.
+ */
 import { useState, useEffect } from "react";
 import {
   ReceiptText,
@@ -18,37 +22,33 @@ import TimeFrame from "../../components/timeFrame";
 import cashmemoService from "../../api/cashmemo";
 import Popup from "../../components/popup";
 
-// ============================================================================
-// HELPERS
-// ============================================================================
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (n) => (typeof n === "number" ? n.toLocaleString("en-IN") : "0");
-
-const ordinalDay = (date) => {
-  const day = date.getDate();
-  const suffix =
-    day % 10 === 1 && day % 100 !== 11
-      ? "st"
-      : day % 10 === 2 && day % 100 !== 12
-        ? "nd"
-        : day % 10 === 3 && day % 100 !== 13
-          ? "rd"
-          : "th";
-  return `${day}${suffix}`;
-};
 
 const buildHeadingLabel = (start, end) => {
   if (!start || !end) return "";
   const s = new Date(start);
   const e = new Date(end);
 
-  const sameDay = s.getDate() === e.getDate() && s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear();
+  const day = (d) => {
+    const n = d.getDate();
+    const sfx =
+      n % 10 === 1 && n % 100 !== 11
+        ? "st"
+        : n % 10 === 2 && n % 100 !== 12
+          ? "nd"
+          : n % 10 === 3 && n % 100 !== 13
+            ? "rd"
+            : "th";
+    return `${n}${sfx}`;
+  };
+  const monthYear = (d) => `${d.toLocaleString("en-US", { month: "long" })}, ${d.getFullYear()}`;
 
+  const sameDay = s.toDateString() === e.toDateString();
   const sameMonth = s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear();
 
-  const monthYear = (d) => d.toLocaleString("en-US", { month: "long" }) + `, ${d.getFullYear()}`;
-
-  if (sameDay) return `${ordinalDay(s)} ${monthYear(s)}`;
+  if (sameDay) return `${day(s)} ${monthYear(s)}`;
   if (sameMonth) return `${s.getDate()} – ${e.getDate()} ${monthYear(s)}`;
   return `${s.toLocaleString("en-US", { month: "short", day: "numeric" })} – ${e.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
 };
@@ -61,9 +61,7 @@ const todayRange = () => {
   };
 };
 
-// ============================================================================
-// SKELETON
-// ============================================================================
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 const SkeletonMemo = () => (
   <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-pulse">
@@ -120,9 +118,7 @@ const SkeletonMemo = () => (
   </div>
 );
 
-// ============================================================================
-// STAT CARD
-// ============================================================================
+// ─── Stat Card ────────────────────────────────────────────────────────────────
 
 const StatCard = ({ icon: Icon, iconBg, iconColor, label, labelColor, value, valueBg, border }) => (
   <div className={`flex items-center gap-3 ${valueBg} ${border} rounded-xl px-4 py-3`}>
@@ -136,9 +132,7 @@ const StatCard = ({ icon: Icon, iconBg, iconColor, label, labelColor, value, val
   </div>
 );
 
-// ============================================================================
-// MAIN
-// ============================================================================
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 const CashMemo = () => {
   const [summary, setSummary] = useState(null);
@@ -193,12 +187,10 @@ const CashMemo = () => {
         <div className="flex items-center justify-between mb-5 no-print">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <ReceiptText className="w-7 h-7 text-indigo-600" />
-              Cash Memo
+              <ReceiptText className="w-7 h-7 text-indigo-600" /> Cash Memo
             </h1>
             <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
-              <Activity className="w-4 h-4 text-indigo-400" />
-              Financial summary by time frame
+              <Activity className="w-4 h-4 text-indigo-400" /> Financial summary by time frame
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -207,15 +199,13 @@ const CashMemo = () => {
               disabled={loading}
               className="px-3 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-all flex items-center gap-2 text-sm font-medium shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Printer className="w-4 h-4" />
-              Print
+              <Printer className="w-4 h-4" /> Print
             </button>
             <Link
               to="/lab-management"
               className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white/60 text-gray-700 hover:bg-gray-50 transition-all flex items-center gap-2 text-sm font-medium shadow-sm"
             >
-              <ArrowLeft className="w-4 h-4" />
-              Back
+              <ArrowLeft className="w-4 h-4" /> Back
             </Link>
           </div>
         </div>
@@ -251,40 +241,36 @@ const CashMemo = () => {
 
             {/* P&L rows */}
             <div className="px-6 py-2">
-              {[
-                {
-                  label: "Total Amount",
-                  sub: "Sum of all test prices",
-                  value: `৳${fmt(d.totalAmount)}`,
-                  valueClass: "text-lg font-bold text-gray-900",
-                },
-              ].map(({ label, sub, value, valueClass }) => (
-                <div key={label} className="flex items-center justify-between py-3.5 border-b border-gray-50">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">{label}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>
-                  </div>
-                  <p className={valueClass}>{value}</p>
+              {/* Total Amount */}
+              <div className="flex items-center justify-between py-3.5 border-b border-gray-50">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Total Amount</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Sum of all test prices</p>
                 </div>
-              ))}
+                <p className="text-lg font-bold text-gray-900">৳{fmt(d.initial)}</p>
+              </div>
 
+              {/* Deduction rows */}
               {[
                 {
-                  icon: <Minus className="w-3.5 h-3.5 text-yellow-500 shrink-0" />,
+                  icon: Minus,
+                  iconColor: "text-yellow-500",
                   label: "Lab Adjustment",
                   sub: "Lab concession",
                   value: `− ৳${fmt(d.labAdjustment)}`,
                   valueClass: "text-base font-semibold text-yellow-600",
                 },
                 {
-                  icon: <Minus className="w-3.5 h-3.5 text-orange-500 shrink-0" />,
+                  icon: Minus,
+                  iconColor: "text-orange-500",
                   label: "Referrer's Discount",
                   sub: "Discount passed to patients",
                   value: `− ৳${fmt(d.referrerDiscount)}`,
                   valueClass: "text-base font-semibold text-orange-500",
                 },
                 {
-                  icon: <Minus className="w-3.5 h-3.5 text-purple-600 shrink-0" />,
+                  icon: Minus,
+                  iconColor: "text-purple-600",
                   label: "Commission",
                   sub: "Owed to referrers",
                   value: `− ৳${fmt(d.referrerCommission)}`,
@@ -292,18 +278,20 @@ const CashMemo = () => {
                   labelClass: "text-sm font-black text-purple-700",
                   border: "border-dashed border-indigo-100",
                 },
-              ].map(({ icon, label, sub, value, valueClass, labelClass, border = "border-gray-50" }) => (
-                <div key={label} className={`flex items-center justify-between py-3.5 border-b ${border}`}>
-                  <div className="flex items-center gap-1.5">
-                    {icon}
-                    <div>
-                      <p className={labelClass ?? "text-sm font-semibold text-gray-700"}>{label}</p>
-                      <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>
+              ].map(
+                ({ icon: Icon, iconColor, label, sub, value, valueClass, labelClass, border = "border-gray-50" }) => (
+                  <div key={label} className={`flex items-center justify-between py-3.5 border-b ${border}`}>
+                    <div className="flex items-center gap-1.5">
+                      <Icon className={`w-3.5 h-3.5 ${iconColor} shrink-0`} />
+                      <div>
+                        <p className={labelClass ?? "text-sm font-semibold text-gray-700"}>{label}</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>
+                      </div>
                     </div>
+                    <p className={valueClass}>{value}</p>
                   </div>
-                  <p className={valueClass}>{value}</p>
-                </div>
-              ))}
+                ),
+              )}
 
               {/* Formula tag */}
               <div className="flex items-center gap-2 my-3">
@@ -325,10 +313,10 @@ const CashMemo = () => {
                     <p className="text-[10px] text-indigo-300 mt-0.5">After all deductions</p>
                   </div>
                 </div>
-                <p className="text-3xl font-black text-white tracking-tight">৳{fmt(d.netProfit)}</p>
+                <p className="text-3xl font-black text-white tracking-tight">৳{fmt(d.totalNet)}</p>
               </div>
 
-              {/* Test counts */}
+              {/* Tests ordered */}
               {d.testCounts?.length > 0 && (
                 <div className="my-4 bg-gray-50 border border-gray-100 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-3">
@@ -386,7 +374,7 @@ const CashMemo = () => {
                   iconColor="text-green-600"
                   label="Collected"
                   labelColor="text-green-700"
-                  value={`৳${fmt(d.totalPaidAmount)}`}
+                  value={`৳${fmt(d.totalPaid)}`}
                   valueBg="bg-green-50"
                   border="border border-green-100"
                 />

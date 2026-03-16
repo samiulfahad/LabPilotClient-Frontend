@@ -1,31 +1,20 @@
+/**
+ * useCallback / useMemo are intentionally absent throughout this file.
+ * babel-plugin-react-compiler handles all memoization automatically.
+ */
 import { useState, useEffect } from "react";
 import {
-  Search,
-  Printer,
-  Upload,
-  User,
-  Phone,
-  FlaskConical,
-  FileText,
-  CheckCircle2,
-  Wallet,
-  X,
-  ChevronRight,
-  Eye,
-  Pencil,
-  Calendar,
-  ClipboardList,
-  Check,
-  Loader2,
+  Search, Printer, Upload, User, Phone, FlaskConical, FileText,
+  CheckCircle2, Wallet, X, ChevronRight, Pencil, Calendar,
+  ClipboardList, Check, Loader2,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 import Popup from "../../components/popup";
 import invoiceService from "../../api/invoice";
 import reportService from "../../api/report";
 
-// ============================================================================
-// SKELETON
-// ============================================================================
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
 const Skeleton = ({ className = "", style = {} }) => (
   <div
     className={`rounded-lg ${className}`}
@@ -42,7 +31,6 @@ const InvoiceSkeleton = () => (
   <>
     <style>{`@keyframes rp-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      {/* Header */}
       <div className="bg-gradient-to-r from-indigo-100 to-purple-100 px-6 py-5">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
@@ -57,8 +45,6 @@ const InvoiceSkeleton = () => (
           </div>
         </div>
       </div>
-
-      {/* Patient info */}
       <div className="px-6 py-4 border-b border-gray-100">
         <Skeleton style={{ height: 8, width: 60, marginBottom: 14 }} />
         <div className="grid grid-cols-2 gap-3">
@@ -73,8 +59,6 @@ const InvoiceSkeleton = () => (
           ))}
         </div>
       </div>
-
-      {/* Online tests */}
       <div className="px-6 py-4 border-b border-gray-100">
         <Skeleton style={{ height: 8, width: 160, marginBottom: 14 }} />
         <div className="space-y-2">
@@ -105,64 +89,49 @@ const InvoiceSkeleton = () => (
           ))}
         </div>
       </div>
-
-      {/* Offline tests */}
       <div className="px-6 py-4">
         <Skeleton style={{ height: 8, width: 100, marginBottom: 14 }} />
         <div className="space-y-2">
-          {[...Array(1)].map((_, i) => (
-            <div key={i} className="flex items-center justify-between px-4 py-2.5 bg-gray-50 rounded-xl">
-              <Skeleton style={{ height: 12, width: "40%" }} />
-              <Skeleton style={{ height: 12, width: "15%" }} />
-            </div>
-          ))}
+          <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 rounded-xl">
+            <Skeleton style={{ height: 12, width: "40%" }} />
+            <Skeleton style={{ height: 12, width: "15%" }} />
+          </div>
         </div>
       </div>
     </div>
   </>
 );
 
-// ============================================================================
-// HELPERS
-// ============================================================================
-const formatDateTime = (createdAt) => {
-  const date = new Date(createdAt);
-  const day = date.getDate();
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const formatDateTime = (ts) => {
+  const d = new Date(ts);
+  const day = d.getDate();
   const suffix =
-    day % 10 === 1 && day % 100 !== 11
-      ? "st"
-      : day % 10 === 2 && day % 100 !== 12
-        ? "nd"
-        : day % 10 === 3 && day % 100 !== 13
-          ? "rd"
-          : "th";
-  const month = date.toLocaleString("default", { month: "long" });
-  const year = date.getFullYear();
-  const hours = date.getHours();
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const ampm = hours >= 12 ? "PM" : "AM";
-  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+    day % 10 === 1 && day % 100 !== 11 ? "st"
+    : day % 10 === 2 && day % 100 !== 12 ? "nd"
+    : day % 10 === 3 && day % 100 !== 13 ? "rd"
+    : "th";
+  const h = d.getHours();
   return {
-    date: `${day}${suffix} ${month}, ${year}`,
-    time: `${displayHour}:${minutes}${ampm}`,
+    date: `${day}${suffix} ${d.toLocaleString("default", { month: "long" })}, ${d.getFullYear()}`,
+    time: `${h % 12 === 0 ? 12 : h % 12}:${String(d.getMinutes()).padStart(2, "0")}${h >= 12 ? "PM" : "AM"}`,
   };
 };
 
 const toInputDate = (dateStr) => {
   if (!dateStr) return "";
   const d = new Date(dateStr);
-  if (isNaN(d)) return "";
-  return d.toISOString().slice(0, 10);
+  return isNaN(d) ? "" : d.toISOString().slice(0, 10);
 };
 
-// ============================================================================
-// DATE EDITOR
-// ============================================================================
+// ─── Date Editor ──────────────────────────────────────────────────────────────
+
 const DateEditor = ({ invoiceId, testId, initialSampleDate, initialReportDate, onSaved }) => {
   const [sampleDate, setSampleDate] = useState(toInputDate(initialSampleDate));
   const [reportDate, setReportDate] = useState(toInputDate(initialReportDate));
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
+  const [saving,     setSaving]     = useState(false);
+  const [error,      setError]      = useState(null);
 
   const isDirty = toInputDate(initialSampleDate) !== sampleDate || toInputDate(initialReportDate) !== reportDate;
 
@@ -175,10 +144,10 @@ const DateEditor = ({ invoiceId, testId, initialSampleDate, initialReportDate, o
         invoiceId,
         testId,
         sampleCollectionDate: sampleDate || null,
-        reportDate: reportDate || null,
+        reportDate:           reportDate || null,
       });
       onSaved({ sampleCollectionDate: sampleDate || null, reportDate: reportDate || null });
-    } catch (e) {
+    } catch {
       setError("Failed to save dates");
     } finally {
       setSaving(false);
@@ -188,42 +157,12 @@ const DateEditor = ({ invoiceId, testId, initialSampleDate, initialReportDate, o
   return (
     <div className="mt-2 pt-2 border-t border-gray-100">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-0.5">
-          <label className="flex items-center gap-1 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
-            <Calendar className="w-3 h-3 text-indigo-400" />
-            Sample Date
-          </label>
-          <input
-            type="date"
-            value={sampleDate}
-            onChange={(e) => setSampleDate(e.target.value)}
-            className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none
-                       focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white
-                       text-gray-700 cursor-pointer"
-          />
-        </div>
-
-        <div className="flex flex-col gap-0.5">
-          <label className="flex items-center gap-1 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
-            <ClipboardList className="w-3 h-3 text-emerald-500" />
-            Report Date
-          </label>
-          <input
-            type="date"
-            value={reportDate}
-            onChange={(e) => setReportDate(e.target.value)}
-            className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none
-                       focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400 bg-white
-                       text-gray-700 cursor-pointer"
-          />
-        </div>
-
+        <DateField icon={Calendar} iconColor="text-indigo-400" label="Sample Date" value={sampleDate} onChange={setSampleDate} focusColor="indigo" />
+        <DateField icon={ClipboardList} iconColor="text-emerald-500" label="Report Date" value={reportDate} onChange={setReportDate} focusColor="emerald" />
         <button
           onClick={handleSave}
           disabled={saving || !isDirty || (!sampleDate && !reportDate)}
-          className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg
-                     transition-colors disabled:opacity-40 disabled:cursor-not-allowed
-                     bg-indigo-600 hover:bg-indigo-700 text-white self-end"
+          className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-indigo-600 hover:bg-indigo-700 text-white self-end"
         >
           {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
           {saving ? "Saving…" : "Save"}
@@ -234,136 +173,105 @@ const DateEditor = ({ invoiceId, testId, initialSampleDate, initialReportDate, o
   );
 };
 
-// ============================================================================
-// TEST ACTION BUTTONS
-// ============================================================================
+const DateField = ({ icon: Icon, iconColor, label, value, onChange, focusColor }) => (
+  <div className="flex flex-col gap-0.5">
+    <label className="flex items-center gap-1 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+      <Icon className={`w-3 h-3 ${iconColor}`} />{label}
+    </label>
+    <input
+      type="date"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-${focusColor}-100 focus:border-${focusColor}-400 bg-white text-gray-700 cursor-pointer`}
+    />
+  </div>
+);
+
+// ─── Test Action Buttons ──────────────────────────────────────────────────────
+
 const TestActions = ({ invoice, test }) => {
   const uploadState = { invoice, test };
-  const editState = { invoice, test, report: test.report ?? {} };
+  const editState   = { invoice, test, report: test.report ?? {} };
 
   if (!test.isCompleted) {
     return (
-      <Link
-        to="/report-upload"
-        state={uploadState}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700
-                   text-white text-xs font-semibold rounded-lg transition-colors"
-      >
-        <Upload className="w-3.5 h-3.5" />
-        Upload
+      <Link to="/report-upload" state={uploadState} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors">
+        <Upload className="w-3.5 h-3.5" /> Upload
       </Link>
     );
   }
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
-      {/* ── Print (Pad) ── */}
-      <Link
-        to="/view-report"
-        state={{ report: test.report, invoice, test, printType: "PAD" }}
-        title="Print with Pad layout"
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 hover:bg-violet-100
-                   text-violet-700 text-xs font-semibold rounded-lg border border-violet-200
-                   transition-colors"
-      >
-        <Printer className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">Print (Pad)</span>
+      <Link to="/view-report" state={{ report: test.report, invoice, test, printType: "PAD" }}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-semibold rounded-lg border border-violet-200 transition-colors">
+        <Printer className="w-3.5 h-3.5" /><span className="hidden sm:inline">Print (Pad)</span>
       </Link>
-
-      {/* ── Print (Plain A4) ── */}
-      <Link
-        to="/view-report"
-        state={{ report: test.report, invoice, test, printType: "PLAIN" }}
-        title="Print Plain A4"
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100
-                   text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200
-                   transition-colors"
-      >
-        <Printer className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">Print (Plain A4)</span>
+      <Link to="/view-report" state={{ report: test.report, invoice, test, printType: "PLAIN" }}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 transition-colors">
+        <Printer className="w-3.5 h-3.5" /><span className="hidden sm:inline">Print (Plain A4)</span>
       </Link>
-
-      {/* ── Edit ── */}
-      <Link
-        to="/report-upload"
-        state={editState}
-        title="Edit Report"
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100
-                   text-blue-700 text-xs font-semibold rounded-lg border border-blue-200
-                   transition-colors"
-      >
-        <Pencil className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">Edit</span>
+      <Link to="/report-upload" state={editState}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg border border-blue-200 transition-colors">
+        <Pencil className="w-3.5 h-3.5" /><span className="hidden sm:inline">Edit</span>
       </Link>
     </div>
   );
 };
 
-// ============================================================================
-// INVOICE DETAIL CARD
-// ============================================================================
+// ─── Invoice Detail Card ──────────────────────────────────────────────────────
+
 const InvoiceDetail = ({ invoice, onDatesSaved }) => {
   const { date, time } = formatDateTime(invoice.createdAt);
-  const paidAmount = Number(invoice.paidAmount) || 0;
-  const finalPrice = Number(invoice.finalPrice) || 0;
-  const dueAmount = Math.max(0, finalPrice - paidAmount);
+  const amount  = invoice.amount ?? {};
+  const final   = Number(amount.final)   || 0;
+  const paid    = Number(amount.paid)    || 0;
+  const initial = Number(amount.initial) || 0;
+  const due     = Math.max(0, final - paid);
 
-  const onlineTests = invoice.tests.filter((t) => t.schemaId);
-  const offlineTests = invoice.tests.filter((t) => !t.schemaId);
+  const onlineTests   = invoice.tests.filter((t) =>  t.schemaId);
+  const offlineTests  = invoice.tests.filter((t) => !t.schemaId);
   const completedCount = onlineTests.filter((t) => t.isCompleted).length;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      {/* Invoice Header */}
+      {/* Header */}
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-indigo-200 text-xs uppercase tracking-wide font-medium mb-1">Invoice</p>
             <p className="text-white text-xl font-bold font-mono">#{invoice.invoiceId}</p>
-            <p className="text-indigo-200 text-xs mt-1">
-              {date} · {time}
-            </p>
+            <p className="text-indigo-200 text-xs mt-1">{date} · {time}</p>
           </div>
           <div className="text-right">
             <p className="text-indigo-200 text-xs mb-1">Final Amount</p>
-            <p className="text-white text-2xl font-bold">৳{finalPrice.toLocaleString()}</p>
-            {finalPrice < invoice.totalAmount && (
-              <p className="text-indigo-300 text-xs line-through">৳{invoice.totalAmount.toLocaleString()}</p>
+            <p className="text-white text-2xl font-bold">৳{final.toLocaleString()}</p>
+            {final < initial && (
+              <p className="text-indigo-300 text-xs line-through">৳{initial.toLocaleString()}</p>
             )}
             <div className="mt-2">
-              {dueAmount === 0 ? (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-400/20 text-green-200 border border-green-400/30 text-xs font-semibold">
-                  <CheckCircle2 className="w-3 h-3" />
-                  Fully Paid
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-400/20 text-red-200 border border-red-400/30 text-xs font-semibold">
-                  <Wallet className="w-3 h-3" />
-                  Due ৳{dueAmount.toLocaleString()}
-                </span>
-              )}
+              {due === 0
+                ? <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-400/20 text-green-200 border border-green-400/30 text-xs font-semibold"><CheckCircle2 className="w-3 h-3" /> Fully Paid</span>
+                : <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-400/20 text-red-200 border border-red-400/30 text-xs font-semibold"><Wallet className="w-3 h-3" /> Due ৳{due.toLocaleString()}</span>
+              }
             </div>
           </div>
         </div>
       </div>
 
-      {/* Patient Info */}
+      {/* Patient */}
       <div className="px-6 py-4 border-b border-gray-100">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Patient</p>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-indigo-50 rounded-lg">
-              <User className="w-3.5 h-3.5 text-indigo-500" />
-            </div>
+            <div className="p-1.5 bg-indigo-50 rounded-lg"><User className="w-3.5 h-3.5 text-indigo-500" /></div>
             <div>
               <p className="text-[10px] text-gray-400">Name</p>
               <p className="text-sm font-semibold text-gray-900">{invoice.patient?.name}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-indigo-50 rounded-lg">
-              <Phone className="w-3.5 h-3.5 text-indigo-500" />
-            </div>
+            <div className="p-1.5 bg-indigo-50 rounded-lg"><Phone className="w-3.5 h-3.5 text-indigo-500" /></div>
             <div>
               <p className="text-[10px] text-gray-400">Contact</p>
               <p className="text-sm font-semibold text-gray-900">{invoice.patient?.contactNumber}</p>
@@ -391,25 +299,16 @@ const InvoiceDetail = ({ invoice, onDatesSaved }) => {
             {onlineTests.map((test, i) => {
               const testId = test.testId?.$oid || test.testId;
               return (
-                <div
-                  key={testId || i}
-                  className={`rounded-xl border px-4 py-3 transition-colors ${
-                    test.isCompleted ? "border-emerald-100 bg-emerald-50/40" : "border-gray-100"
-                  }`}
-                >
+                <div key={testId || i} className={`rounded-xl border px-4 py-3 transition-colors ${test.isCompleted ? "border-emerald-100 bg-emerald-50/40" : "border-gray-100"}`}>
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className={`w-2.5 h-2.5 rounded-full shrink-0 ${test.isCompleted ? "bg-emerald-400" : "bg-amber-400"}`}
-                      />
+                      <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${test.isCompleted ? "bg-emerald-400" : "bg-amber-400"}`} />
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">{test.name}</p>
                         <p className="text-xs text-gray-400">৳{test.price.toLocaleString()}</p>
                       </div>
                     </div>
-                    <div className="shrink-0">
-                      <TestActions invoice={invoice} test={test} />
-                    </div>
+                    <div className="shrink-0"><TestActions invoice={invoice} test={test} /></div>
                   </div>
                   <DateEditor
                     invoiceId={invoice.invoiceId}
@@ -429,15 +328,11 @@ const InvoiceDetail = ({ invoice, onDatesSaved }) => {
       {offlineTests.length > 0 && (
         <div className="px-6 py-4">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5 mb-3">
-            <FileText className="w-3.5 h-3.5 text-gray-400" />
-            Offline Tests
+            <FileText className="w-3.5 h-3.5 text-gray-400" /> Offline Tests
           </p>
           <div className="space-y-2">
             {offlineTests.map((test, i) => (
-              <div
-                key={test.testId?.$oid || i}
-                className="flex items-center justify-between px-4 py-2.5 bg-gray-50 rounded-xl"
-              >
+              <div key={test.testId?.$oid || i} className="flex items-center justify-between px-4 py-2.5 bg-gray-50 rounded-xl">
                 <span className="text-sm text-gray-700 font-medium">{test.name}</span>
                 <span className="text-xs text-gray-400">৳{test.price.toLocaleString()}</span>
               </div>
@@ -449,15 +344,14 @@ const InvoiceDetail = ({ invoice, onDatesSaved }) => {
   );
 };
 
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
 const Reports = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [invoice, setInvoice] = useState(null);
-  const [searching, setSearching] = useState(false);
-  const [popup, setPopup] = useState(null);
-  const [notFound, setNotFound] = useState(false);
+  const [invoice,     setInvoice]     = useState(null);
+  const [searching,   setSearching]   = useState(false);
+  const [popup,       setPopup]       = useState(null);
+  const [notFound,    setNotFound]    = useState(false);
 
   const location = useLocation();
 
@@ -466,10 +360,10 @@ const Reports = () => {
       setSearching(true);
       setNotFound(false);
       setInvoice(null);
-      const response = await invoiceService.getInvoiceByInvoiceId(String(id));
-      setInvoice(response.data);
-    } catch (e) {
-      if (e?.response?.status === 404) setNotFound(true);
+      const res = await invoiceService.getInvoiceByInvoiceId(String(id));
+      setInvoice(res.data);
+    } catch (err) {
+      if (err?.response?.status === 404) setNotFound(true);
       else setPopup({ type: "error", message: "Failed to load invoice" });
     } finally {
       setSearching(false);
@@ -478,35 +372,19 @@ const Reports = () => {
 
   useEffect(() => {
     const id = location.state?.invoiceId;
-    if (id) {
-      setSearchQuery(String(id));
-      fetchInvoice(id);
-    }
-  }, []);
+    if (id) { setSearchQuery(String(id)); fetchInvoice(id); }
+  }, []); // eslint-disable-line
 
-  const handleSearch = () => {
-    const q = searchQuery.trim();
-    if (!q) return;
-    fetchInvoice(q);
-  };
+  const handleSearch = () => { const q = searchQuery.trim(); if (q) fetchInvoice(q); };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") handleSearch();
-  };
-
-  const handleClear = () => {
-    setSearchQuery("");
-    setInvoice(null);
-    setNotFound(false);
-  };
+  const handleClear = () => { setSearchQuery(""); setInvoice(null); setNotFound(false); };
 
   const handleDatesSaved = (testId, dates) => {
     setInvoice((prev) => ({
       ...prev,
       tests: prev.tests.map((t) => {
         const id = t.testId?.$oid || t.testId;
-        if (id !== testId) return t;
-        return { ...t, report: { ...(t.report ?? {}), ...dates } };
+        return id !== testId ? t : { ...t, report: { ...(t.report ?? {}), ...dates } };
       }),
     }));
     setPopup({ type: "success", message: "Dates saved" });
@@ -519,12 +397,11 @@ const Reports = () => {
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <Upload className="w-7 h-7 text-indigo-600" />
-            Upload and Download Reports
+            <Upload className="w-7 h-7 text-indigo-600" /> Upload and Download Reports
           </h1>
         </div>
 
-        {/* Search Box */}
+        {/* Search */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
           <div className="flex gap-3">
             <div className="relative flex-1">
@@ -534,17 +411,11 @@ const Reports = () => {
                 placeholder="Enter invoice ID... e.g. APX8743"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="w-full pl-11 pr-10 py-2.5 text-sm border border-gray-200 rounded-xl
-                           focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100
-                           outline-none transition-all placeholder-gray-400 font-mono"
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                className="w-full pl-11 pr-10 py-2.5 text-sm border border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder-gray-400 font-mono"
               />
               {searchQuery && (
-                <button
-                  onClick={handleClear}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600
-                             p-1 rounded-lg hover:bg-gray-100 transition-colors"
-                >
+                <button onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               )}
@@ -552,20 +423,15 @@ const Reports = () => {
             <button
               onClick={handleSearch}
               disabled={!searchQuery.trim() || searching}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold
-                         rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-                         flex items-center gap-2 shrink-0"
+              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shrink-0"
             >
-              <ChevronRight className="w-4 h-4" />
-              Search
+              <ChevronRight className="w-4 h-4" /> Search
             </button>
           </div>
         </div>
 
-        {/* Skeleton while searching */}
         {searching && <InvoiceSkeleton />}
 
-        {/* Not Found */}
         {!searching && notFound && (
           <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-8 text-center">
             <div className="bg-red-50 w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -578,7 +444,6 @@ const Reports = () => {
           </div>
         )}
 
-        {/* Invoice Detail */}
         {!searching && invoice && <InvoiceDetail invoice={invoice} onDatesSaved={handleDatesSaved} />}
       </div>
     </section>

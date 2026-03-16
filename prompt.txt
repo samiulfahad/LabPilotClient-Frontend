@@ -132,6 +132,7 @@ referrerCommission,
 labAdjustment,
 final (initial - labAdjustment - referrerDiscount)
 net (final-referrerCommission)
+paid (paidAmount) // and remove paidAmount from older structure, add it here
 }
 
 

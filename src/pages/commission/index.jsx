@@ -1,3 +1,7 @@
+/**
+ * useCallback / useMemo are intentionally absent throughout this file.
+ * babel-plugin-react-compiler handles all memoization automatically.
+ */
 import { useState, useEffect } from "react";
 import {
   ArrowLeft,
@@ -18,9 +22,7 @@ import TimeFrame from "../../components/timeFrame";
 import commissionService from "../../api/commission";
 import Popup from "../../components/popup";
 
-// ============================================================================
-// HELPERS
-// ============================================================================
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (n) => (typeof n === "number" ? n.toLocaleString("en-IN") : "0");
 
@@ -34,6 +36,8 @@ const todayRange = () => {
   };
 };
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const TYPE_META = {
   doctor: { label: "Doctor", icon: Stethoscope, color: "bg-blue-50 text-blue-600 border-blue-100" },
   agent: { label: "Agent", icon: UserCircle, color: "bg-violet-50 text-violet-600 border-violet-100" },
@@ -41,9 +45,15 @@ const TYPE_META = {
   unknown: { label: "Unknown", icon: Users, color: "bg-gray-50 text-gray-500 border-gray-100" },
 };
 
-const CARD_ANIMATION = (idx) => ({
-  style: { animation: `cardIn 0.4s cubic-bezier(.22,1,.36,1) ${idx * 60}ms both` },
-});
+const EMPTY_DATA = {
+  registered: [],
+  unregistered: [],
+  totals: { totalCommission: 0, totalDiscount: 0, totalInvoices: 0 },
+};
+
+// ─── Small primitives ─────────────────────────────────────────────────────────
+
+const cardAnim = (idx) => ({ style: { animation: `cardIn 0.4s cubic-bezier(.22,1,.36,1) ${idx * 60}ms both` } });
 
 const SectionDivider = ({ label, count, countColor }) => (
   <div className="flex items-center gap-3 mb-3">
@@ -53,9 +63,63 @@ const SectionDivider = ({ label, count, countColor }) => (
   </div>
 );
 
-// ============================================================================
-// SKELETON
-// ============================================================================
+const StatCell = ({ label, value, bg = "bg-gray-50", labelColor = "text-gray-400", valueColor = "text-gray-800" }) => (
+  <div className={`${bg} rounded-xl px-3 py-2 text-center`}>
+    <p className={`text-[9.5px] ${labelColor} uppercase tracking-wide font-semibold`}>{label}</p>
+    <p className={`text-sm font-black ${valueColor} mt-0.5`}>{value}</p>
+  </div>
+);
+
+const InvoiceToggle = ({ count, open, onToggle }) => (
+  <button
+    onClick={onToggle}
+    className="w-full flex items-center justify-between px-5 py-2.5 bg-gray-50 border-t border-gray-100 hover:bg-gray-100 transition-colors text-xs font-bold text-gray-500"
+  >
+    <span className="flex items-center gap-1.5">
+      <ReceiptText className="w-3.5 h-3.5" />
+      {count} Invoice{count !== 1 ? "s" : ""}
+    </span>
+    {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+  </button>
+);
+
+// ─── Invoice Row ──────────────────────────────────────────────────────────────
+
+const InvoiceRow = ({ inv, idx }) => (
+  <div className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 gap-2">
+    <div className="flex items-center gap-3 min-w-0">
+      <span className="text-[10px] font-black text-gray-200 w-5 shrink-0 tabular-nums">
+        {String(idx + 1).padStart(2, "0")}
+      </span>
+      <div className="min-w-0">
+        <p className="text-xs font-bold text-gray-800 truncate">{inv.patient?.name}</p>
+        <p className="text-[10px] text-gray-400 mt-0.5">{fmtDate(inv.createdAt)}</p>
+      </div>
+    </div>
+    <div className="flex items-center gap-3 shrink-0 text-right">
+      <div>
+        <p className="text-[10px] text-gray-400">Invoice</p>
+        <p className="text-[11px] font-bold text-gray-600">{inv.invoiceId}</p>
+      </div>
+      <div>
+        <p className="text-[10px] text-gray-400">Final</p>
+        <p className="text-[11px] font-bold text-gray-700">৳{fmt(inv.final)}</p>
+      </div>
+      {inv.discount > 0 && (
+        <div>
+          <p className="text-[10px] text-orange-400">Discount</p>
+          <p className="text-[11px] font-bold text-orange-500">−৳{fmt(inv.discount)}</p>
+        </div>
+      )}
+      <div>
+        <p className="text-[10px] text-gray-400">Comm.</p>
+        <p className="text-[11px] font-black text-indigo-600">৳{fmt(inv.commission)}</p>
+      </div>
+    </div>
+  </div>
+);
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 const SkeletonCard = () => (
   <div className="bg-white border border-gray-100 rounded-2xl p-5 animate-pulse space-y-3">
@@ -77,75 +141,7 @@ const SkeletonCard = () => (
   </div>
 );
 
-// ============================================================================
-// INVOICE ROW
-// ============================================================================
-
-const InvoiceRow = ({ inv, idx }) => (
-  <div className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 gap-2">
-    <div className="flex items-center gap-3 min-w-0">
-      <span className="text-[10px] font-black text-gray-200 w-5 shrink-0 tabular-nums">
-        {String(idx + 1).padStart(2, "0")}
-      </span>
-      <div className="min-w-0">
-        <p className="text-xs font-bold text-gray-800 truncate">{inv.patient?.name}</p>
-        <p className="text-[10px] text-gray-400 mt-0.5">{fmtDate(inv.createdAt)}</p>
-      </div>
-    </div>
-    <div className="flex items-center gap-3 shrink-0 text-right">
-      <div>
-        <p className="text-[10px] text-gray-400">Invoice</p>
-        <p className="text-[11px] font-bold text-gray-600">{inv.invoiceId}</p>
-      </div>
-      <div>
-        <p className="text-[10px] text-gray-400">Final</p>
-        <p className="text-[11px] font-bold text-gray-700">৳{fmt(inv.finalPrice)}</p>
-      </div>
-      {inv.discount > 0 && (
-        <div>
-          <p className="text-[10px] text-orange-400">Discount</p>
-          <p className="text-[11px] font-bold text-orange-500">−৳{fmt(inv.discount)}</p>
-        </div>
-      )}
-      <div>
-        <p className="text-[10px] text-gray-400">Comm.</p>
-        <p className="text-[11px] font-black text-indigo-600">৳{fmt(inv.commission)}</p>
-      </div>
-    </div>
-  </div>
-);
-
-// ============================================================================
-// INVOICE TOGGLE BUTTON
-// ============================================================================
-
-const InvoiceToggle = ({ count, open, onToggle }) => (
-  <button
-    onClick={onToggle}
-    className="w-full flex items-center justify-between px-5 py-2.5 bg-gray-50 border-t border-gray-100 hover:bg-gray-100 transition-colors text-xs font-bold text-gray-500"
-  >
-    <span className="flex items-center gap-1.5">
-      <ReceiptText className="w-3.5 h-3.5" />
-      {count} Invoice{count !== 1 ? "s" : ""}
-    </span>
-    {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-  </button>
-);
-
-// ============================================================================
-// STAT CELL
-// ============================================================================
-
-const StatCell = ({ label, value, bg = "bg-gray-50", labelColor = "text-gray-400", valueColor = "text-gray-800" }) => (
-  <div className={`${bg} rounded-xl px-3 py-2 text-center`}>
-    <p className={`text-[9.5px] ${labelColor} uppercase tracking-wide font-semibold`}>{label}</p>
-    <p className={`text-sm font-black ${valueColor} mt-0.5`}>{value}</p>
-  </div>
-);
-
-// ============================================================================
-// REFERRER CARD (registered)
-// ============================================================================
+// ─── Referrer Card (registered) ───────────────────────────────────────────────
 
 const ReferrerCard = ({ referrer: r, idx }) => {
   const [open, setOpen] = useState(false);
@@ -161,7 +157,7 @@ const ReferrerCard = ({ referrer: r, idx }) => {
   return (
     <div
       className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm transition-shadow hover:shadow-md"
-      {...CARD_ANIMATION(idx)}
+      {...cardAnim(idx)}
     >
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
@@ -186,7 +182,6 @@ const ReferrerCard = ({ referrer: r, idx }) => {
             <p className="text-xl font-black text-orange-500 leading-tight mt-0.5">−৳{fmt(r.totalDiscount)}</p>
           </div>
         </div>
-
         <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-gray-50">
           <StatCell label="Invoices" value={r.totalInvoices} />
           <StatCell
@@ -198,9 +193,7 @@ const ReferrerCard = ({ referrer: r, idx }) => {
           />
         </div>
       </div>
-
       <InvoiceToggle count={r.invoices.length} open={open} onToggle={() => setOpen((p) => !p)} />
-
       {open && (
         <div className="px-5 pb-4 pt-3">
           {r.invoices.map((inv, i) => (
@@ -212,15 +205,13 @@ const ReferrerCard = ({ referrer: r, idx }) => {
   );
 };
 
-// ============================================================================
-// UNREGISTERED CARD
-// ============================================================================
+// ─── Unregistered Card ────────────────────────────────────────────────────────
 
 const UnregisteredCard = ({ group, idx }) => {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm" {...CARD_ANIMATION(idx)}>
+    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm" {...cardAnim(idx)}>
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -241,7 +232,6 @@ const UnregisteredCard = ({ group, idx }) => {
             </div>
           )}
         </div>
-
         <div
           className={`grid gap-2 mt-4 pt-4 border-t border-gray-50 ${group.totalDiscount > 0 ? "grid-cols-2" : "grid-cols-1"}`}
         >
@@ -257,9 +247,7 @@ const UnregisteredCard = ({ group, idx }) => {
           )}
         </div>
       </div>
-
       <InvoiceToggle count={group.invoices.length} open={open} onToggle={() => setOpen((p) => !p)} />
-
       {open && (
         <div className="px-5 pb-4 pt-3">
           {group.invoices.map((inv, i) => (
@@ -271,15 +259,7 @@ const UnregisteredCard = ({ group, idx }) => {
   );
 };
 
-// ============================================================================
-// MAIN
-// ============================================================================
-
-const EMPTY_DATA = {
-  registered: [],
-  unregistered: [],
-  totals: { totalCommission: 0, totalDiscount: 0, totalInvoices: 0 },
-};
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 const Commission = () => {
   const [data, setData] = useState(null);
@@ -335,8 +315,7 @@ const Commission = () => {
             to="/lab-management"
             className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white/60 text-gray-700 hover:bg-gray-50 transition-all flex items-center gap-2 text-sm font-medium shadow-sm"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back
+            <ArrowLeft className="w-4 h-4" /> Back
           </Link>
         </div>
 
@@ -360,7 +339,6 @@ const Commission = () => {
               </div>
               <p className="text-3xl font-black text-white">৳{fmt(d.totals.totalCommission)}</p>
             </div>
-
             <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3.5 shadow-sm">
               <div className="flex items-center gap-2 mb-1">
                 <ReceiptText className="w-3.5 h-3.5 text-gray-400" />
@@ -374,7 +352,6 @@ const Commission = () => {
                 </p>
               )}
             </div>
-
             <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3.5 shadow-sm">
               <div className="flex items-center gap-2 mb-1">
                 <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
@@ -408,7 +385,6 @@ const Commission = () => {
                 </div>
               </div>
             )}
-
             {d.unregistered.length > 0 && (
               <div className="mb-6">
                 <SectionDivider
@@ -423,7 +399,6 @@ const Commission = () => {
                 </div>
               </div>
             )}
-
             {d.registered.length === 0 && d.unregistered.length === 0 && (
               <div className="bg-white border border-gray-100 rounded-2xl py-16 text-center shadow-sm">
                 <Users className="w-10 h-10 text-gray-200 mx-auto mb-3" />
