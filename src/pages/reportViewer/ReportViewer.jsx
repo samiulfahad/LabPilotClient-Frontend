@@ -62,9 +62,6 @@ function isResultField(field) {
   return Boolean(field.referenceRange) || Boolean(field.unit);
 }
 
-/**
- * Extract the data fields from a section object, excluding the __showTitle meta key.
- */
 function getSectionEntries(sectionData) {
   return Object.entries(sectionData).filter(([key]) => key !== "__showTitle");
 }
@@ -126,10 +123,6 @@ function PlainRow({ name, field, colSpan }) {
   );
 }
 
-/**
- * Section component.
- * showHeader: when false the dark title bar is omitted and fields render bare.
- */
 function Section({ sectionName, sectionData, index, showHeader }) {
   const [collapsed, setCollapsed] = useState(false);
   const entries = getSectionEntries(sectionData);
@@ -181,12 +174,10 @@ function Section({ sectionName, sectionData, index, showHeader }) {
     </>
   );
 
-  // ── No header variant ────────────────────────────────────────────────────
   if (!showHeader) {
     return <div className="rounded-lg overflow-hidden border border-slate-200 mb-2.5">{tableBody}</div>;
   }
 
-  // ── With collapsible header ──────────────────────────────────────────────
   return (
     <div className="rounded-lg overflow-hidden border border-slate-200 mb-2.5">
       <button
@@ -279,8 +270,10 @@ function PatientGrid({ patient }) {
   );
 }
 
-// ── Print via browser ─────────────────────────────────────────────────────────
-function buildPrintHTML({ reportName, shortId, mergedPatient, labInfo, sections }) {
+// ── Print HTML builder ────────────────────────────────────────────────────────
+function buildPrintHTML({ reportName, shortId, mergedPatient, labInfo, sections, printType }) {
+  const isPad = printType === "PAD";
+
   const statusLabel = (s) => ({ normal: "Normal", low: "↓ Low", high: "↑ High" })[s] || "—";
   const statusColor = (s) => ({ normal: "#059669", low: "#d97706", high: "#dc2626" })[s] || "#94a3b8";
   const statusBg = (s) => ({ normal: "#f0fdf4", low: "#fffbeb", high: "#fef2f2" })[s] || "white";
@@ -359,6 +352,36 @@ function buildPrintHTML({ reportName, shortId, mergedPatient, labInfo, sections 
   });
   const total = normal + low + high;
 
+  // PAD → plain white 1.5in spacer, no lab card
+  // PLAIN → full dark lab header
+  const topBlock = isPad
+    ? `<div style="height:1.5in;background:white;"></div>`
+    : `<div style="background:#1e293b;padding:16px 20px;display:flex;align-items:flex-start;justify-content:space-between;border-radius:10px 10px 0 0;">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:white;">${labInfo.name}</div>
+          <div style="font-size:10px;color:#94a3b8;margin-top:3px;">${labInfo.tagline}</div>
+          <div style="font-size:9px;color:#64748b;margin-top:4px;">📍 ${labInfo.address}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:9px;color:#94a3b8;">📞 ${labInfo.phone}</div>
+          <div style="font-size:9px;color:#94a3b8;margin-top:2px;">✉ ${labInfo.email}</div>
+          <div style="font-size:9px;color:#64748b;margin-top:4px;font-family:monospace;">Reg: ${labInfo.regNo}</div>
+        </div>
+      </div>`;
+
+  // PAD → no footer at all, no bottom padding needed for it
+  // PLAIN → full signature + disclaimer footer fixed at bottom
+  const footerBlock = isPad
+    ? ""
+    : `<div class="footer-fixed">
+        <table style="width:100%;max-width:680px;margin:0 auto 8px;"><tr>
+          <td style="width:45%;padding-right:20px;"><div style="height:30px;border-bottom:1px dashed #cbd5e1;"></div><div style="font-size:9px;color:#94a3b8;margin-top:3px;">Pathologist Signature &amp; Seal</div></td>
+          <td style="width:10%;"></td>
+          <td style="width:45%;padding-left:20px;"><div style="height:30px;border-bottom:1px dashed #cbd5e1;"></div><div style="font-size:9px;color:#94a3b8;margin-top:3px;text-align:right;">Authorized Signatory</div></td>
+        </tr></table>
+        <div style="font-size:9px;color:#94a3b8;text-align:center;max-width:680px;margin:0 auto;">For qualified medical professionals only. Interpret results in full clinical context. · ${labInfo.name} · ${labInfo.phone}</div>
+      </div>`;
+
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
   <title>${reportName}</title>
   <style>
@@ -369,11 +392,8 @@ function buildPrintHTML({ reportName, shortId, mergedPatient, labInfo, sections 
       .footer-fixed { position:fixed;bottom:0;left:0;right:0;padding:10px 20px;background:white;border-top:1px solid #f1f5f9; }
     }
   </style></head><body>
-  <div style="max-width:680px;margin:0 auto;padding-bottom:90px;">
-    <div style="background:#1e293b;padding:16px 20px;display:flex;align-items:flex-start;justify-content:space-between;border-radius:10px 10px 0 0;">
-      <div><div style="font-size:15px;font-weight:700;color:white;">${labInfo.name}</div><div style="font-size:10px;color:#94a3b8;margin-top:3px;">${labInfo.tagline}</div><div style="font-size:9px;color:#64748b;margin-top:4px;">📍 ${labInfo.address}</div></div>
-      <div style="text-align:right;"><div style="font-size:9px;color:#94a3b8;">📞 ${labInfo.phone}</div><div style="font-size:9px;color:#94a3b8;margin-top:2px;">✉ ${labInfo.email}</div><div style="font-size:9px;color:#64748b;margin-top:4px;font-family:monospace;">Reg: ${labInfo.regNo}</div></div>
-    </div>
+  <div style="max-width:680px;margin:0 auto;padding-bottom:${isPad ? "20px" : "90px"};">
+    ${topBlock}
     <div style="background:#f1f5f9;padding:8px 20px;display:flex;align-items:center;justify-content:space-between;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;">
       <div style="font-size:14px;font-weight:700;color:#0f172a;">${reportName}</div>
       ${shortId ? `<div style="font-size:9px;color:#94a3b8;font-family:monospace;">Invoice No: ${shortId}</div>` : ""}
@@ -387,26 +407,20 @@ function buildPrintHTML({ reportName, shortId, mergedPatient, labInfo, sections 
       ${sections.map(([name, data], i) => renderSection(name, data, i)).join("")}
     </div>
   </div>
-  <div class="footer-fixed">
-    <table style="width:100%;max-width:680px;margin:0 auto 8px;"><tr>
-      <td style="width:45%;padding-right:20px;"><div style="height:30px;border-bottom:1px dashed #cbd5e1;"></div><div style="font-size:9px;color:#94a3b8;margin-top:3px;">Pathologist Signature &amp; Seal</div></td>
-      <td style="width:10%;"></td>
-      <td style="width:45%;padding-left:20px;"><div style="height:30px;border-bottom:1px dashed #cbd5e1;"></div><div style="font-size:9px;color:#94a3b8;margin-top:3px;text-align:right;">Authorized Signatory</div></td>
-    </tr></table>
-    <div style="font-size:9px;color:#94a3b8;text-align:center;max-width:680px;margin:0 auto;">For qualified medical professionals only. Interpret results in full clinical context. · ${labInfo.name} · ${labInfo.phone}</div>
-  </div>
+  ${footerBlock}
   </body></html>`;
 }
 
-function ReportViewer({ report, reportId, reportName, patient = {}, labInfo = LAB_INFO }) {
+// ── Main Component ────────────────────────────────────────────────────────────
+function ReportViewer({ report, reportId, reportName, patient = {}, labInfo = LAB_INFO, printType = "PLAIN" }) {
   const [dlStatus, setDlStatus] = useState("idle");
   const [shareStatus, setShareStatus] = useState("idle");
   const mergedPatient = { ...DEMO_PATIENT, ...patient };
+  const isPad = printType === "PAD";
 
   const resolvedReportName = report.name || reportName || "Lab Report";
   const filename = `${resolvedReportName.replace(/\s+/g, "_")}_report.pdf`;
 
-  // Filter out meta keys (_id, name) to get real section entries
   const sections = Object.entries(report).filter(
     ([key, val]) =>
       key !== "_id" && key !== "name" && val !== null && typeof val === "object" && !Array.isArray(val) && !val.$oid,
@@ -427,7 +441,14 @@ function ReportViewer({ report, reportId, reportName, patient = {}, labInfo = LA
     ).toBlob();
 
   const handlePrint = () => {
-    const html = buildPrintHTML({ reportName: resolvedReportName, shortId, mergedPatient, labInfo, sections });
+    const html = buildPrintHTML({
+      reportName: resolvedReportName,
+      shortId,
+      mergedPatient,
+      labInfo,
+      sections,
+      printType,
+    });
     const win = window.open("", "_blank", "width=820,height=950");
     if (!win) {
       alert("Please allow popups to print.");
@@ -531,7 +552,8 @@ function ReportViewer({ report, reportId, reportName, patient = {}, labInfo = LA
           onClick={handlePrint}
           className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:border-slate-400 transition-all"
         >
-          <Printer className="w-3.5 h-3.5" /> Print
+          <Printer className="w-3.5 h-3.5" />
+          {isPad ? "Print (Pad)" : "Print (Plain A4)"}
         </button>
         <button
           onClick={handleDownload}
@@ -544,32 +566,35 @@ function ReportViewer({ report, reportId, reportName, patient = {}, labInfo = LA
 
       {/* Report card */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-        <div className="bg-slate-800 px-5 py-4 flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <FlaskConical className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-white">{labInfo.name}</p>
-              <p className="text-slate-400 text-[11px] mt-0.5">{labInfo.tagline}</p>
-              <div className="flex items-center gap-1 mt-1.5">
-                <MapPin className="w-2.5 h-2.5 text-slate-500 flex-shrink-0" />
-                <p className="text-slate-500 text-[10px]">{labInfo.address}</p>
+        {/* LAB HEADER — completely hidden on PAD */}
+        {!isPad && (
+          <div className="bg-slate-800 px-5 py-4 flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <FlaskConical className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">{labInfo.name}</p>
+                <p className="text-slate-400 text-[11px] mt-0.5">{labInfo.tagline}</p>
+                <div className="flex items-center gap-1 mt-1.5">
+                  <MapPin className="w-2.5 h-2.5 text-slate-500 flex-shrink-0" />
+                  <p className="text-slate-500 text-[10px]">{labInfo.address}</p>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="text-right flex-shrink-0 space-y-1">
-            <div className="flex items-center justify-end gap-1">
-              <Phone className="w-2.5 h-2.5 text-slate-500" />
-              <p className="text-slate-400 text-[10px]">{labInfo.phone}</p>
+            <div className="text-right flex-shrink-0 space-y-1">
+              <div className="flex items-center justify-end gap-1">
+                <Phone className="w-2.5 h-2.5 text-slate-500" />
+                <p className="text-slate-400 text-[10px]">{labInfo.phone}</p>
+              </div>
+              <div className="flex items-center justify-end gap-1">
+                <Mail className="w-2.5 h-2.5 text-slate-500" />
+                <p className="text-slate-400 text-[10px]">{labInfo.email}</p>
+              </div>
+              <p className="text-slate-500 text-[10px] font-mono">Reg: {labInfo.regNo}</p>
             </div>
-            <div className="flex items-center justify-end gap-1">
-              <Mail className="w-2.5 h-2.5 text-slate-500" />
-              <p className="text-slate-400 text-[10px]">{labInfo.email}</p>
-            </div>
-            <p className="text-slate-500 text-[10px] font-mono">Reg: {labInfo.regNo}</p>
           </div>
-        </div>
+        )}
 
         <div className="flex items-center justify-between px-5 py-2.5 bg-slate-100 border-b border-slate-200">
           <div className="flex items-center gap-2">
@@ -598,26 +623,28 @@ function ReportViewer({ report, reportId, reportName, patient = {}, labInfo = LA
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="mt-8 pt-6 border-t border-slate-200">
-        <div className="grid grid-cols-2 gap-8 mb-5">
-          <div>
-            <div className="h-10 border-b border-dashed border-slate-300" />
-            <p className="text-[10px] text-slate-400 mt-1.5">Pathologist Signature &amp; Seal</p>
+      {/* FOOTER — completely hidden on PAD */}
+      {!isPad && (
+        <div className="mt-8 pt-6 border-t border-slate-200">
+          <div className="grid grid-cols-2 gap-8 mb-5">
+            <div>
+              <div className="h-10 border-b border-dashed border-slate-300" />
+              <p className="text-[10px] text-slate-400 mt-1.5">Pathologist Signature &amp; Seal</p>
+            </div>
+            <div>
+              <div className="h-10 border-b border-dashed border-slate-300" />
+              <p className="text-[10px] text-slate-400 mt-1.5 text-right">Authorized Signatory</p>
+            </div>
           </div>
-          <div>
-            <div className="h-10 border-b border-dashed border-slate-300" />
-            <p className="text-[10px] text-slate-400 mt-1.5 text-right">Authorized Signatory</p>
-          </div>
+          <p className="text-[10px] text-slate-400 text-center leading-relaxed">
+            For qualified medical professionals only. Interpret results in full clinical context.
+            <span className="mx-1.5">·</span>
+            {labInfo.name}
+            <span className="mx-1.5">·</span>
+            {labInfo.phone}
+          </p>
         </div>
-        <p className="text-[10px] text-slate-400 text-center leading-relaxed">
-          For qualified medical professionals only. Interpret results in full clinical context.
-          <span className="mx-1.5">·</span>
-          {labInfo.name}
-          <span className="mx-1.5">·</span>
-          {labInfo.phone}
-        </p>
-      </div>
+      )}
     </div>
   );
 }

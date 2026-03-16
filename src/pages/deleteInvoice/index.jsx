@@ -123,7 +123,7 @@ const DeleteInvoicePanel = ({ onDeleted, onLoadingChange, onError }) => {
       {confirmPopup && invoice && (
         <Popup
           type="warning"
-          message={`Delete invoice #${invoice.invoiceId} for ${invoice.patientName}? It will be hidden from all active lists.`}
+          message={`Delete invoice #${invoice.invoiceId} for ${invoice.patient?.name}? It will be hidden from all active lists.`}
           confirmText="Delete"
           cancelText="Cancel"
           onConfirm={handleConfirmDelete}
@@ -221,14 +221,14 @@ const DeleteInvoicePanel = ({ onDeleted, onLoadingChange, onError }) => {
             <div className="flex flex-wrap gap-x-5 gap-y-1">
               <div className="flex items-center gap-1.5">
                 <User className="w-3 h-3 text-gray-400" />
-                <span className="text-sm font-semibold text-gray-900">{invoice.patientName}</span>
+                <span className="text-sm font-semibold text-gray-900">{invoice.patient?.name}</span>
                 <span className="text-xs text-gray-400 capitalize">
-                  · {invoice.gender} · {invoice.age}y
+                  · {invoice.patient?.gender} · {invoice.patient?.age}y
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Phone className="w-3 h-3 text-gray-400" />
-                <span className="text-xs text-gray-600">{invoice.contactNumber}</span>
+                <span className="text-xs text-gray-600">{invoice.patient?.contactNumber}</span>
               </div>
             </div>
           </div>
@@ -305,7 +305,7 @@ const DeletedInvoiceRow = ({ invoice, index }) => {
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{invoice.patientName}</p>
+          <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{invoice.patient?.name}</p>
           <p className="text-[11px] text-gray-400 mt-0.5">
             #{invoice.invoiceId} · Created {createdDt.date}
           </p>
@@ -328,12 +328,12 @@ const DeletedInvoiceRow = ({ invoice, index }) => {
 
         <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
           <User className="w-3 h-3" />
-          {invoice.gender} · {invoice.age}y
+          {invoice.patient?.gender} · {invoice.patient?.age}y
         </span>
 
         <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
           <Phone className="w-3 h-3" />
-          {invoice.contactNumber}
+          {invoice.patient?.contactNumber}
         </span>
 
         <span className="w-px h-3 bg-gray-200 hidden sm:block" />
@@ -392,7 +392,6 @@ const DeletedInvoicesList = ({ refreshTrigger, onLoadingChange, onError }) => {
     }
   };
 
-  // Initial load — today
   useEffect(() => {
     const now = new Date();
     const initial = {
@@ -403,7 +402,6 @@ const DeletedInvoicesList = ({ refreshTrigger, onLoadingChange, onError }) => {
     loadInvoices(null, true, initial);
   }, []);
 
-  // Re-fetch when parent signals a new deletion
   useEffect(() => {
     if (refreshTrigger === 0) return;
     loadInvoices(null, true, timeRange);

@@ -8,6 +8,17 @@ import LoadingScreen from "../../components/loadingPage";
 import Popup from "../../components/popup";
 
 // ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const LAB_INFO = {
+  name: "LabPilot Pro Diagnostics",
+  address: "123 Medical Center Road, Dhaka 1207, Bangladesh",
+  phone: "+880 1234-567890",
+  email: "info@labpilotpro.com",
+};
+
+// ============================================================================
 // HELPERS
 // ============================================================================
 
@@ -44,11 +55,50 @@ const formatCurrency = (amount) => {
   }).format(num);
 };
 
-const LAB_INFO = {
-  name: "LabPilot Pro Diagnostics",
-  address: "123 Medical Center Road, Dhaka 1207, Bangladesh",
-  phone: "+880 1234-567890",
-  email: "info@labpilotpro.com",
+/**
+ * Normalise raw data from either router state or API response.
+ * Both sources send flat patient fields (name, gender, age, contactNumber).
+ * We group them into a `patient` object here for consistent internal use.
+ */
+const processInvoiceData = (data) => ({
+  invoiceId: data.invoiceId || "",
+  createdAt: data.createdAt || Date.now(),
+  // ── patient grouped ──
+  patient: {
+    name: data.patient.name || "N/A",
+    gender: data.patient?.gender || "N/A",
+    age: data.patient?.age || "N/A",
+    contactNumber: data.patient?.contactNumber || "N/A",
+  },
+  referrer: data.referrer || null,
+  tests: Array.isArray(data.tests) ? data.tests : [],
+  totalAmount: Number(data.totalAmount) || 0,
+  priceAfterReferrerDiscount: Number(data.priceAfterReferrerDiscount) || Number(data.totalAmount) || 0,
+  labAdjustmentAmount: Number(data.labAdjustmentAmount) || 0,
+  finalPrice: Number(data.finalPrice) || Number(data.totalAmount) || 0,
+  paidAmount: Number(data.paidAmount) || 0,
+  reportLink: data.reportLink || data.link || "https://labpilotpro.com",
+});
+
+const getPricingFlags = (invoiceData) => {
+  const referrerDiscount = Number(invoiceData.referrer?.discount) || 0;
+  const showReferrerDiscount = referrerDiscount > 0;
+  const showLabAdjustment = Number(invoiceData.labAdjustmentAmount) > 0;
+  const showSubtotal = showReferrerDiscount || showLabAdjustment;
+  const showReferredBy = Boolean(invoiceData.referrer?.name) && invoiceData.referrer?.type !== "agent";
+  const paidAmount = Number(invoiceData.paidAmount) || 0;
+  const dueAmount = Math.max(0, invoiceData.finalPrice - paidAmount);
+  const isFullyPaid = dueAmount === 0;
+  return {
+    referrerDiscount,
+    showReferrerDiscount,
+    showLabAdjustment,
+    showSubtotal,
+    showReferredBy,
+    paidAmount,
+    dueAmount,
+    isFullyPaid,
+  };
 };
 
 // ============================================================================
@@ -158,15 +208,17 @@ const pdfStyles = StyleSheet.create({
 // ============================================================================
 
 const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, invoiceDate, invoiceTime }) => {
-  const referrerDiscount = Number(invoiceData.referrer?.discount) || 0;
-  const showReferrerDiscount = referrerDiscount > 0;
-  const showLabAdjustment = Number(invoiceData.labAdjustmentAmount) > 0;
-  const showSubtotal = showReferrerDiscount || showLabAdjustment;
-  const showReferredBy = invoiceData.referrer?.name && invoiceData.referrer?.type !== "agent";
-
-  const paidAmount = Number(invoiceData.paidAmount) || 0;
-  const dueAmount = Math.max(0, invoiceData.finalPrice - paidAmount);
-  const isFullyPaid = dueAmount === 0;
+  const { patient } = invoiceData;
+  const {
+    referrerDiscount,
+    showReferrerDiscount,
+    showLabAdjustment,
+    showSubtotal,
+    showReferredBy,
+    paidAmount,
+    dueAmount,
+    isFullyPaid,
+  } = getPricingFlags(invoiceData);
 
   return (
     <Document>
@@ -204,19 +256,19 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, invoiceDate, invoiceTime }
             <View style={pdfStyles.patientGrid}>
               <View style={pdfStyles.patientField}>
                 <Text style={pdfStyles.fieldLabel}>Full Name</Text>
-                <Text style={pdfStyles.fieldValue}>{invoiceData.patientName}</Text>
+                <Text style={pdfStyles.fieldValue}>{patient.name}</Text>
               </View>
               <View style={pdfStyles.patientField}>
                 <Text style={pdfStyles.fieldLabel}>Gender</Text>
-                <Text style={pdfStyles.fieldValue}>{invoiceData.gender}</Text>
+                <Text style={pdfStyles.fieldValue}>{patient.gender}</Text>
               </View>
               <View style={pdfStyles.patientField}>
                 <Text style={pdfStyles.fieldLabel}>Age</Text>
-                <Text style={pdfStyles.fieldValue}>{invoiceData.age} years</Text>
+                <Text style={pdfStyles.fieldValue}>{patient.age} years</Text>
               </View>
               <View style={pdfStyles.patientField}>
                 <Text style={pdfStyles.fieldLabel}>Contact</Text>
-                <Text style={pdfStyles.fieldValue}>{invoiceData.contactNumber}</Text>
+                <Text style={pdfStyles.fieldValue}>{patient.contactNumber}</Text>
               </View>
               {showReferredBy && (
                 <View style={pdfStyles.patientFieldFull}>
@@ -256,7 +308,7 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, invoiceDate, invoiceTime }
             <Text style={[pdfStyles.colName, pdfStyles.colHeader]}>Test Name</Text>
             <Text style={[pdfStyles.colPrice, pdfStyles.colHeader]}>Price</Text>
           </View>
-          {invoiceData.tests?.map((test, i) => (
+          {invoiceData.tests.map((test, i) => (
             <View key={i} style={i % 2 === 0 ? pdfStyles.tableRow : pdfStyles.tableRowEven}>
               <Text style={pdfStyles.colNum}>{i + 1}</Text>
               <Text style={pdfStyles.colName}>{test.name}</Text>
@@ -317,15 +369,17 @@ const InvoicePDFDocument = ({ invoiceData, qrCodeUrl, invoiceDate, invoiceTime }
 // ============================================================================
 
 const InvoiceCard = ({ invoiceData, qrCodeUrl, invoiceDate, invoiceTime }) => {
-  const referrerDiscount = Number(invoiceData.referrer?.discount) || 0;
-  const showReferrerDiscount = referrerDiscount > 0;
-  const showLabAdjustment = Number(invoiceData.labAdjustmentAmount) > 0;
-  const showSubtotal = showReferrerDiscount || showLabAdjustment;
-  const showReferredBy = invoiceData.referrer?.name && invoiceData.referrer?.type !== "agent";
-
-  const paidAmount = Number(invoiceData.paidAmount) || 0;
-  const dueAmount = Math.max(0, invoiceData.finalPrice - paidAmount);
-  const isFullyPaid = dueAmount === 0;
+  const { patient } = invoiceData;
+  const {
+    referrerDiscount,
+    showReferrerDiscount,
+    showLabAdjustment,
+    showSubtotal,
+    showReferredBy,
+    paidAmount,
+    dueAmount,
+    isFullyPaid,
+  } = getPricingFlags(invoiceData);
 
   return (
     <div className="bg-white shadow-lg rounded-xl overflow-hidden">
@@ -378,19 +432,19 @@ const InvoiceCard = ({ invoiceData, qrCodeUrl, invoiceDate, invoiceTime }) => {
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 flex-1">
             <div>
               <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Full Name</p>
-              <p className="text-sm font-medium text-gray-900">{invoiceData.patientName}</p>
+              <p className="text-sm font-medium text-gray-900">{patient.name}</p>
             </div>
             <div>
               <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Gender</p>
-              <p className="text-sm font-medium text-gray-900 capitalize">{invoiceData.gender}</p>
+              <p className="text-sm font-medium text-gray-900 capitalize">{patient.gender}</p>
             </div>
             <div>
               <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Age</p>
-              <p className="text-sm font-medium text-gray-900">{invoiceData.age} years</p>
+              <p className="text-sm font-medium text-gray-900">{patient.age} years</p>
             </div>
             <div>
               <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Contact</p>
-              <p className="text-sm font-medium text-gray-900">{invoiceData.contactNumber}</p>
+              <p className="text-sm font-medium text-gray-900">{patient.contactNumber}</p>
             </div>
             {showReferredBy && (
               <div className="col-span-2">
@@ -403,6 +457,7 @@ const InvoiceCard = ({ invoiceData, qrCodeUrl, invoiceDate, invoiceTime }) => {
             <div className="shrink-0 flex flex-col items-center gap-0.5">
               <img src={qrCodeUrl} alt="QR Code" className="w-20 h-20" />
               <p className="text-[9px] text-gray-500 text-center leading-tight">Scan to download Reports</p>
+
               <a
                 href={invoiceData.reportLink}
                 target="_blank"
@@ -435,7 +490,7 @@ const InvoiceCard = ({ invoiceData, qrCodeUrl, invoiceDate, invoiceTime }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {invoiceData.tests?.map((test, i) => (
+              {invoiceData.tests.map((test, i) => (
                 <tr key={test._id || i} className={i % 2 === 1 ? "bg-gray-50/50" : ""}>
                   <td className="px-3 py-2.5 text-xs text-gray-500">{i + 1}</td>
                   <td className="px-3 py-2.5 text-sm text-gray-900">{test.name}</td>
@@ -448,7 +503,6 @@ const InvoiceCard = ({ invoiceData, qrCodeUrl, invoiceDate, invoiceTime }) => {
           </table>
         </div>
 
-        {/* Pricing Breakdown */}
         <div className="mt-3 flex justify-end">
           <div className="w-64 space-y-1.5">
             {showSubtotal && (
@@ -476,8 +530,7 @@ const InvoiceCard = ({ invoiceData, qrCodeUrl, invoiceDate, invoiceTime }) => {
             <div className="pt-2 border-t border-dashed border-gray-300 space-y-1.5">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600 flex items-center gap-1.5">
-                  <Wallet className="w-3.5 h-3.5 text-green-600" />
-                  Paid Amount
+                  <Wallet className="w-3.5 h-3.5 text-green-600" /> Paid Amount
                 </span>
                 <span className="font-semibold text-green-600">{formatCurrency(paidAmount)}</span>
               </div>
@@ -521,39 +574,21 @@ const PrintInvoice = () => {
   const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
   useEffect(() => {
-    const loadInvoiceData = async () => {
+    const load = async () => {
       try {
-        let data = null;
-
+        let raw = null;
         if (location.state?.invoiceData) {
-          data = location.state.invoiceData;
+          raw = location.state.invoiceData;
         } else if (invoiceId) {
-          const response = await invoiceService.getInvoiceByInvoiceId(invoiceId);
-          data = response.data;
+          const res = await invoiceService.getInvoiceByInvoiceId(invoiceId);
+          raw = res.data;
         } else {
           setPopup({ type: "error", message: "No invoice data available" });
           setTimeout(() => navigate("/invoice/new"), 2000);
-          setLoading(false);
           return;
         }
 
-        const processed = {
-          invoiceId: data.invoiceId || "",
-          createdAt: data.createdAt || Date.now(),
-          patientName: data.patientName || "N/A",
-          gender: data.gender || "N/A",
-          age: data.age || "N/A",
-          contactNumber: data.contactNumber || "N/A",
-          referrer: data.referrer || null,
-          tests: Array.isArray(data.tests) ? data.tests : [],
-          totalAmount: Number(data.totalAmount) || 0,
-          priceAfterReferrerDiscount: Number(data.priceAfterReferrerDiscount) || Number(data.totalAmount) || 0,
-          labAdjustmentAmount: Number(data.labAdjustmentAmount) || 0,
-          finalPrice: Number(data.finalPrice) || Number(data.totalAmount) || 0,
-          paidAmount: Number(data.paidAmount) || 0,
-          reportLink: data.reportLink || data.link || "https://labpilotpro.com",
-        };
-
+        const processed = processInvoiceData(raw);
         setInvoiceData(processed);
 
         const qrDataUrl = await QRCode.toDataURL(processed.reportLink, {
@@ -570,13 +605,14 @@ const PrintInvoice = () => {
         setLoading(false);
       }
     };
-
-    loadInvoiceData();
+    load();
   }, []); // eslint-disable-line
+
+  // ── PDF utils ──────────────────────────────────────────────────────────────
 
   const generatePDFBlob = async () => {
     const { date: invoiceDate, time: invoiceTime } = formatDateTime(invoiceData.createdAt);
-    return await pdf(
+    return pdf(
       <InvoicePDFDocument
         invoiceData={invoiceData}
         qrCodeUrl={qrCodeUrl}
@@ -597,7 +633,9 @@ const PrintInvoice = () => {
     URL.revokeObjectURL(url);
   };
 
-  const getFileName = () => `Invoice-${invoiceData.patientName?.replace(/\s+/g, "_") || "patient"}.pdf`;
+  const getFileName = () => `Invoice-${invoiceData.patient.name?.replace(/\s+/g, "_") || "patient"}.pdf`;
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleDownload = async () => {
     try {
@@ -640,7 +678,7 @@ const PrintInvoice = () => {
       setSharing(true);
       const { date: invoiceDate } = formatDateTime(invoiceData.createdAt);
       const message =
-        `Hello ${invoiceData.patientName},\n\n` +
+        `Hello ${invoiceData.patient.name},\n\n` +
         `Your diagnostic reports from ${LAB_INFO.name} are ready!\n\n` +
         `Tests: ${invoiceData.tests?.length || 0} test(s)\n` +
         `Total: ${formatCurrency(invoiceData.finalPrice)}\n` +
@@ -655,7 +693,7 @@ const PrintInvoice = () => {
       if (navigator.share) {
         const canShareFile = navigator.canShare?.({ files: [pdfFile] });
         await navigator.share({
-          title: `Invoice – ${invoiceData.patientName}`,
+          title: `Invoice – ${invoiceData.patient.name}`,
           text: message,
           ...(canShareFile ? { files: [pdfFile] } : {}),
         });
@@ -665,13 +703,13 @@ const PrintInvoice = () => {
         downloadBlob(pdfBlob, fileName);
       }
     } catch (error) {
-      if (error.name !== "AbortError") {
-        setPopup({ type: "error", message: "Could not share invoice" });
-      }
+      if (error.name !== "AbortError") setPopup({ type: "error", message: "Could not share invoice" });
     } finally {
       setSharing(false);
     }
   };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   if (loading) return <LoadingScreen message="Loading invoice..." />;
   if (!invoiceData) return null;

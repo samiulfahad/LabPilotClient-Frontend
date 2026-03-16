@@ -19,10 +19,7 @@ import {
   Eye,
   UserCircle,
   Receipt,
-  BadgePercent,
-  Coins,
   TestTube2,
-  Clock,
   DollarSign,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -35,6 +32,7 @@ import TimeFrame from "../../components/timeFrame";
 // ============================================================================
 // HELPERS
 // ============================================================================
+
 const formatDateTime = (createdAt) => {
   const date = new Date(createdAt);
   const day = date.getDate();
@@ -65,17 +63,18 @@ const formatCurrency = (amount) =>
     minimumFractionDigits: 0,
   }).format(amount || 0);
 
+const getDueAmount = (inv) => Math.max(0, (inv.finalPrice || 0) - (inv.paidAmount || 0));
+const isFullyPaidFn = (inv) => getDueAmount(inv) === 0;
+
 // ============================================================================
 // INVOICE DETAILS MODAL
 // ============================================================================
+
 const InvoiceDetailsModal = ({
   invoiceId,
   isOpen,
   onClose,
   invoice: invoiceRow,
-  onEditPatient,
-  onCollectDue,
-  onMarkDelivered,
   onLoadingChange,
   onError,
   onPatientUpdated,
@@ -96,19 +95,25 @@ const InvoiceDetailsModal = ({
       .finally(() => setLoading(false));
   }, [isOpen, invoiceId]);
 
-  // Row-level values (from passed invoiceRow, available immediately without waiting for fetch)
-  const rowDueAmount = invoiceRow ? Math.max(0, (invoiceRow.finalPrice || 0) - (invoiceRow.paidAmount || 0)) : 0;
-  const rowIsFullyPaid = rowDueAmount === 0;
-  const rowHasReports = invoiceRow?.tests?.some((t) => t.schemaId);
+  const retry = () => {
+    setError(null);
+    setLoading(true);
+    invoiceService
+      .getInvoiceByInvoiceId(invoiceId)
+      .then((res) => setInvoice(res.data))
+      .catch(() => setError("Failed to load invoice details."))
+      .finally(() => setLoading(false));
+  };
 
-  const dueAmount = invoice ? Math.max(0, (invoice.finalPrice || 0) - (invoice.paidAmount || 0)) : 0;
+  const rowHasReports = invoiceRow?.tests?.some((t) => t.schemaId);
+  const dueAmount = invoice ? getDueAmount(invoice) : 0;
   const isFullyPaid = invoice ? dueAmount === 0 : false;
   const { date, time } = invoice ? formatDateTime(invoice.createdAt) : { date: "", time: "" };
-
+  const patient = invoice?.patient ?? null;
   const referrer = invoice?.referrer;
   const hasReferrer = referrer && (referrer.name || referrer.id);
-  const hasDiscount = referrer && referrer.discount > 0;
-  const hasCommission = referrer && referrer.commission > 0;
+  const hasDiscount = referrer?.discount > 0;
+  const hasCommission = referrer?.commission > 0;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="sm">
@@ -136,7 +141,6 @@ const InvoiceDetailsModal = ({
         {/* Loading skeleton */}
         {loading && (
           <div className="space-y-4 animate-pulse">
-            {/* Patient skeleton */}
             <div className="bg-gray-50 rounded-xl p-4 space-y-3">
               <div className="h-3.5 bg-gray-200 rounded w-1/3" />
               <div className="grid grid-cols-2 gap-3">
@@ -148,7 +152,6 @@ const InvoiceDetailsModal = ({
                 ))}
               </div>
             </div>
-            {/* Tests skeleton */}
             <div className="bg-gray-50 rounded-xl p-4 space-y-3">
               <div className="h-3.5 bg-gray-200 rounded w-1/4" />
               {[1, 2].map((i) => (
@@ -158,7 +161,6 @@ const InvoiceDetailsModal = ({
                 </div>
               ))}
             </div>
-            {/* Payment skeleton */}
             <div className="bg-gray-50 rounded-xl p-4 space-y-2">
               <div className="h-3.5 bg-gray-200 rounded w-1/3" />
               {[1, 2, 3].map((i) => (
@@ -178,18 +180,7 @@ const InvoiceDetailsModal = ({
               <AlertCircle className="w-5 h-5 text-red-400" />
             </div>
             <p className="text-sm text-gray-500">{error}</p>
-            <button
-              onClick={() => {
-                setError(null);
-                setLoading(true);
-                invoiceService
-                  .getInvoiceByInvoiceId(invoiceId)
-                  .then((res) => setInvoice(res.data))
-                  .catch(() => setError("Failed to load invoice details."))
-                  .finally(() => setLoading(false));
-              }}
-              className="text-xs font-semibold text-indigo-600 hover:underline"
-            >
+            <button onClick={retry} className="text-xs font-semibold text-indigo-600 hover:underline">
               Try again
             </button>
           </div>
@@ -207,19 +198,19 @@ const InvoiceDetailsModal = ({
               <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Name</p>
-                  <p className="font-semibold text-gray-900 text-xs leading-snug">{invoice.patientName}</p>
+                  <p className="font-semibold text-gray-900 text-xs leading-snug">{patient.name}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Gender</p>
-                  <p className="font-semibold text-gray-900 text-xs capitalize">{invoice.gender}</p>
+                  <p className="font-semibold text-gray-900 text-xs capitalize">{patient.gender}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Age</p>
-                  <p className="font-semibold text-gray-900 text-xs">{invoice.age} yrs</p>
+                  <p className="font-semibold text-gray-900 text-xs">{patient.age} yrs</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Contact</p>
-                  <p className="font-semibold text-gray-900 text-xs">{invoice.contactNumber}</p>
+                  <p className="font-semibold text-gray-900 text-xs">{patient.contactNumber}</p>
                 </div>
                 <div className="col-span-2">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Date & Time</p>
@@ -337,16 +328,14 @@ const InvoiceDetailsModal = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
-                    Paid
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Paid
                   </span>
                   <span className="font-semibold text-green-600">{formatCurrency(invoice.paidAmount)}</span>
                 </div>
                 {!isFullyPaid ? (
                   <div className="flex justify-between">
                     <span className="text-gray-500 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
-                      Due
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" /> Due
                     </span>
                     <span className="font-semibold text-red-500">{formatCurrency(dueAmount)}</span>
                   </div>
@@ -359,7 +348,7 @@ const InvoiceDetailsModal = ({
               </div>
             </div>
 
-            {/* Status */}
+            {/* Status badges */}
             <div className="flex items-center gap-2">
               <span
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold border ${
@@ -384,10 +373,9 @@ const InvoiceDetailsModal = ({
         )}
       </div>
 
-      {/* Footer — always shown once invoiceId is present */}
+      {/* Footer */}
       {invoiceRow && (
         <div className="px-5 pb-5 space-y-2">
-          {/* Primary actions row */}
           <div className="flex gap-2">
             <button
               onClick={onClose}
@@ -421,29 +409,30 @@ const InvoiceDetailsModal = ({
 // ============================================================================
 // EDIT PATIENT MODAL
 // ============================================================================
+
 const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingChange, onError }) => {
-  const [form, setForm] = useState({ patientName: "", gender: "", age: "", contactNumber: "" });
+  const [form, setForm] = useState({ name: "", gender: "", age: "", contactNumber: "" });
 
   useEffect(() => {
-    if (invoice) {
-      setForm({
-        patientName: invoice.patientName || "",
-        gender: invoice.gender || "",
-        age: invoice.age || "",
-        contactNumber: invoice.contactNumber || "",
-      });
-    }
+    if (!invoice?.patient) return;
+    const p = invoice.patient;
+    setForm({
+      name: p.name || "",
+      gender: p.gender || "",
+      age: p.age || "",
+      contactNumber: p.contactNumber || "",
+    });
   }, [invoice]);
 
-  const isValid = form.patientName.trim() && form.gender && form.age && form.contactNumber.trim();
+  const isValid = form.name.trim() && form.gender && form.age && form.contactNumber.trim();
 
   const handleSubmit = async () => {
     if (!isValid) return;
     onClose();
     try {
       onLoadingChange("Updating patient info...");
-      await invoiceService.updatePatientInfo(invoice.invoiceId, form);
-      onSaved(invoice.invoiceId, { ...form, age: Number(form.age) });
+      await invoiceService.updatePatientInfo(invoice.invoiceId, { patient: form });
+      onSaved(invoice.invoiceId, { patient: { ...form, age: Number(form.age) } });
     } catch {
       onError("Failed to update patient info. Please try again.");
     } finally {
@@ -483,8 +472,8 @@ const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingChange, 
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
             <input
               type="text"
-              value={form.patientName}
-              onChange={(e) => setForm((p) => ({ ...p, patientName: e.target.value }))}
+              value={form.name}
+              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
               className={inputBase}
               placeholder="Full name"
             />
@@ -577,6 +566,7 @@ const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingChange, 
 // ============================================================================
 // SKELETON
 // ============================================================================
+
 const SkeletonInvoice = () => (
   <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 animate-pulse">
     <div className="flex items-center justify-between gap-3">
@@ -596,6 +586,7 @@ const SkeletonInvoice = () => (
 // ============================================================================
 // INVOICE ROW
 // ============================================================================
+
 const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated, onLoadingChange, onError }) => {
   const { date, time } = formatDateTime(invoice.createdAt);
   const [confirming, setConfirming] = useState(false);
@@ -603,13 +594,10 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
   const [editingPatient, setEditingPatient] = useState(false);
   const [viewingDetails, setViewingDetails] = useState(false);
 
-  const paidAmount = Number(invoice.paidAmount) || 0;
-  const finalPrice = Number(invoice.finalPrice) || 0;
-  const dueAmount = Math.max(0, finalPrice - paidAmount);
-  const isFullyPaid = dueAmount === 0;
-
-  const onlineTests = invoice.tests.filter((t) => t.schemaId);
-  const hasReports = onlineTests.length > 0;
+  const dueAmount = getDueAmount(invoice);
+  const isFullyPaid = isFullyPaidFn(invoice);
+  const hasReports = invoice.tests.some((t) => t.schemaId);
+  const patient = invoice.patient;
 
   const handleConfirmDelivery = async () => {
     setConfirming(false);
@@ -637,40 +625,12 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
     }
   };
 
-  const DeliveryBadge = () =>
-    invoice.isDelivered ? (
-      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-50 text-blue-600 border border-blue-100 text-xs font-medium">
-        <PackageCheck className="w-3 h-3" />
-        Delivered
-      </span>
-    ) : (
-      <button
-        onClick={() => setConfirming(true)}
-        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white text-gray-500 border border-gray-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 text-xs font-medium transition-all"
-      >
-        <PackageCheck className="w-3 h-3" />
-        Mark Delivered
-      </button>
-    );
-
-  const PaymentBadge = () =>
-    isFullyPaid ? (
-      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-50 text-green-700 border border-green-100 text-xs font-medium">
-        <CheckCircle2 className="w-3 h-3" />
-        Paid
-      </span>
-    ) : (
-      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-50 text-red-600 border border-red-100 text-xs font-medium">
-        <Wallet className="w-3 h-3" />৳{dueAmount.toLocaleString()}
-      </span>
-    );
-
   return (
     <>
       {confirming && (
         <Popup
           type="warning"
-          message={`Mark invoice #${invoice.invoiceId} for ${invoice.patientName} as delivered? This action cannot be undone.`}
+          message={`Mark invoice #${invoice.invoiceId} for ${patient.name} as delivered? This action cannot be undone.`}
           confirmText="Mark Delivered"
           cancelText="Cancel"
           onConfirm={handleConfirmDelivery}
@@ -680,7 +640,7 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
       {collectingDue && (
         <Popup
           type="warning"
-          message={`Collect the full due amount of ৳${dueAmount.toLocaleString()} from ${invoice.patientName} (Invoice #${invoice.invoiceId})? This will mark the invoice as fully paid.`}
+          message={`Collect the full due amount of ৳${dueAmount.toLocaleString()} from ${patient.name} (Invoice #${invoice.invoiceId})? This will mark the invoice as fully paid.`}
           confirmText={`Collect ৳${dueAmount.toLocaleString()}`}
           cancelText="Cancel"
           onConfirm={handleCollectDue}
@@ -702,33 +662,33 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
         isOpen={viewingDetails}
         onClose={() => setViewingDetails(false)}
         invoice={invoice}
-        onEditPatient={() => setEditingPatient(true)}
-        onCollectDue={() => setCollectingDue(true)}
-        onMarkDelivered={() => setConfirming(true)}
         onLoadingChange={onLoadingChange}
         onError={onError}
         onPatientUpdated={onPatientUpdated}
       />
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all duration-200 overflow-hidden">
-        {/* ── Header strip ───────────────────────────────────────────── */}
+        {/* Header strip */}
         <div className="flex items-center gap-3 px-4 pt-3.5 pb-3">
-          {/* Index badge */}
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 shadow-sm">
             <span className="text-[11px] font-bold text-white">{index + 1}</span>
           </div>
-
-          {/* Name + meta */}
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-gray-900 text-sm leading-tight truncate">{invoice.patientName}</p>
+            <p className="font-bold text-gray-900 text-sm leading-tight truncate">{patient.name}</p>
             <p className="text-[11px] text-gray-400 mt-0.5 truncate">
               #{invoice.invoiceId} · {date} · {time}
             </p>
           </div>
-
-          {/* Status pills — always visible */}
           <div className="flex items-center gap-1.5 shrink-0">
-            <PaymentBadge />
+            {isFullyPaid ? (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-50 text-green-700 border border-green-100 text-xs font-medium">
+                <CheckCircle2 className="w-3 h-3" /> Paid
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-50 text-red-600 border border-red-100 text-xs font-medium">
+                <Wallet className="w-3 h-3" />৳{dueAmount.toLocaleString()}
+              </span>
+            )}
             {invoice.isDelivered && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-semibold">
                 <PackageCheck className="w-3 h-3" />
@@ -738,69 +698,52 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
           </div>
         </div>
 
-        {/* ── Action buttons — always visible on all screen sizes ─────── */}
+        {/* Action buttons */}
         <div className="px-3 pb-3 flex items-center gap-1.5 flex-wrap">
-          {/* Details */}
           <button
             onClick={() => setViewingDetails(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-100 transition-all"
           >
-            <Eye className="w-3.5 h-3.5" />
-            Details
+            <Eye className="w-3.5 h-3.5" /> Details
           </button>
-
-          {/* Invoice */}
           <Link
             to={`/invoice/print/${invoice.invoiceId}`}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 transition-all"
           >
-            <FileText className="w-3.5 h-3.5" />
-            Invoice
+            <FileText className="w-3.5 h-3.5" /> Invoice
           </Link>
-
-          {/* Reports — only when available */}
           {hasReports && (
             <Link
               to="/reports"
               state={{ invoiceId: invoice.invoiceId }}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-sm transition-all"
             >
-              <FlaskConical className="w-3.5 h-3.5" />
-              Reports
+              <FlaskConical className="w-3.5 h-3.5" /> Reports
             </Link>
           )}
 
-          {/* Spacer pushes remaining buttons right */}
           <div className="flex-1" />
 
-          {/* Edit */}
           <button
             onClick={() => setEditingPatient(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 border border-gray-200 transition-all"
           >
-            <Pencil className="w-3.5 h-3.5" />
-            Edit
+            <Pencil className="w-3.5 h-3.5" /> Edit
           </button>
-
-          {/* Collect due */}
           {!isFullyPaid && (
             <button
               onClick={() => setCollectingDue(true)}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all"
             >
-              <Banknote className="w-3.5 h-3.5" />
-              Collect
+              <Banknote className="w-3.5 h-3.5" /> Collect
             </button>
           )}
-
-          {/* Mark delivered */}
           {!invoice.isDelivered && (
             <button
               onClick={() => setConfirming(true)}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-100 transition-all"
             >
-              <PackageCheck className="w-3.5 h-3.5" />
-              Deliver
+              <PackageCheck className="w-3.5 h-3.5" /> Deliver
             </button>
           )}
         </div>
@@ -812,6 +755,7 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
+
 const InvoiceList = () => {
   const [invoices, setInvoices] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -831,16 +775,15 @@ const InvoiceList = () => {
         setLoadingMessage("Loading more invoices...");
       }
 
-      const response = await invoiceService.getInvoices({
+      const { data } = await invoiceService.getInvoices({
         cursor,
         limit: 20,
         ...(range && { startDate: range.start, endDate: range.end }),
       });
-      const { invoices: newInvoices, nextCursor: nc, hasMore: hm } = response.data;
 
-      setInvoices((prev) => (replace ? newInvoices : [...prev, ...newInvoices]));
-      setNextCursor(nc);
-      setHasMore(hm);
+      setInvoices((prev) => (replace ? data.invoices : [...prev, ...data.invoices]));
+      setNextCursor(data.nextCursor);
+      setHasMore(data.hasMore);
     } catch {
       setPopup({ type: "error", message: "Could not load invoices" });
     } finally {
@@ -872,28 +815,22 @@ const InvoiceList = () => {
   };
 
   const total = invoices.length;
-  const pending = invoices.filter((inv) => Math.max(0, (inv.finalPrice || 0) - (inv.paidAmount || 0)) > 0).length;
-  const completed = invoices.filter((inv) => Math.max(0, (inv.finalPrice || 0) - (inv.paidAmount || 0)) === 0).length;
+  const pending = invoices.filter((inv) => !isFullyPaidFn(inv)).length;
+  const completed = invoices.filter((inv) => isFullyPaidFn(inv)).length;
 
-  let filteredInvoices = [...invoices];
-  if (statusFilter === "pending") {
-    filteredInvoices = filteredInvoices.filter((inv) => Math.max(0, (inv.finalPrice || 0) - (inv.paidAmount || 0)) > 0);
-  } else if (statusFilter === "paid") {
-    filteredInvoices = filteredInvoices.filter(
-      (inv) => Math.max(0, (inv.finalPrice || 0) - (inv.paidAmount || 0)) === 0,
-    );
-  }
+  const filteredInvoices =
+    statusFilter === "pending"
+      ? invoices.filter((inv) => !isFullyPaidFn(inv))
+      : statusFilter === "paid"
+        ? invoices.filter((inv) => isFullyPaidFn(inv))
+        : invoices;
 
-  const handleDelivered = (invoiceId) =>
-    setInvoices((prev) => prev.map((inv) => (inv.invoiceId === invoiceId ? { ...inv, isDelivered: true } : inv)));
-
-  const handleCollected = (invoiceId) =>
-    setInvoices((prev) =>
-      prev.map((inv) => (inv.invoiceId === invoiceId ? { ...inv, paidAmount: inv.finalPrice } : inv)),
-    );
-
-  const handlePatientUpdated = (invoiceId, updatedFields) =>
-    setInvoices((prev) => prev.map((inv) => (inv.invoiceId === invoiceId ? { ...inv, ...updatedFields } : inv)));
+  const handleDelivered = (id) =>
+    setInvoices((prev) => prev.map((inv) => (inv.invoiceId === id ? { ...inv, isDelivered: true } : inv)));
+  const handleCollected = (id) =>
+    setInvoices((prev) => prev.map((inv) => (inv.invoiceId === id ? { ...inv, paidAmount: inv.finalPrice } : inv)));
+  const handlePatientUpdated = (id, fields) =>
+    setInvoices((prev) => prev.map((inv) => (inv.invoiceId === id ? { ...inv, ...fields } : inv)));
 
   const showLoadMore = hasMore && statusFilter === "all";
 

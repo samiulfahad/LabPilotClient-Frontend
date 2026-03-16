@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Search,
+  Printer,
   Upload,
   User,
   Phone,
@@ -89,7 +90,6 @@ const InvoiceSkeleton = () => (
                 </div>
                 <Skeleton style={{ height: 30, width: 70, borderRadius: 8, flexShrink: 0 }} />
               </div>
-              {/* Date editor area */}
               <div className="mt-2 pt-2 border-t border-gray-100 flex gap-3">
                 <div className="space-y-1">
                   <Skeleton style={{ height: 8, width: 70 }} />
@@ -256,25 +256,40 @@ const TestActions = ({ invoice, test }) => {
   }
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {/* ── Print (Pad) ── */}
       <Link
         to="/view-report"
-        state={{ report: test.report, invoice }}
-        title="View Report"
+        state={{ report: test.report, invoice, test, printType: "PAD" }}
+        title="Print with Pad layout"
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 hover:bg-violet-100
+                   text-violet-700 text-xs font-semibold rounded-lg border border-violet-200
+                   transition-colors"
+      >
+        <Printer className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Print (Pad)</span>
+      </Link>
+
+      {/* ── Print (Plain A4) ── */}
+      <Link
+        to="/view-report"
+        state={{ report: test.report, invoice, test, printType: "PLAIN" }}
+        title="Print Plain A4"
         className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100
                    text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200
                    transition-colors"
       >
-        <Eye className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">View</span>
+        <Printer className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Print (Plain A4)</span>
       </Link>
 
+      {/* ── Edit ── */}
       <Link
         to="/report-upload"
         state={editState}
         title="Edit Report"
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 hover:bg-violet-100
-                   text-violet-700 text-xs font-semibold rounded-lg border border-violet-200
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100
+                   text-blue-700 text-xs font-semibold rounded-lg border border-blue-200
                    transition-colors"
       >
         <Pencil className="w-3.5 h-3.5" />
@@ -342,7 +357,7 @@ const InvoiceDetail = ({ invoice, onDatesSaved }) => {
             </div>
             <div>
               <p className="text-[10px] text-gray-400">Name</p>
-              <p className="text-sm font-semibold text-gray-900">{invoice.patientName}</p>
+              <p className="text-sm font-semibold text-gray-900">{invoice.patient?.name}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -351,16 +366,16 @@ const InvoiceDetail = ({ invoice, onDatesSaved }) => {
             </div>
             <div>
               <p className="text-[10px] text-gray-400">Contact</p>
-              <p className="text-sm font-semibold text-gray-900">{invoice.contactNumber}</p>
+              <p className="text-sm font-semibold text-gray-900">{invoice.patient?.contactNumber}</p>
             </div>
           </div>
           <div>
             <p className="text-[10px] text-gray-400">Gender</p>
-            <p className="text-sm font-medium text-gray-700 capitalize">{invoice.gender}</p>
+            <p className="text-sm font-medium text-gray-700 capitalize">{invoice.patient?.gender}</p>
           </div>
           <div>
             <p className="text-[10px] text-gray-400">Age</p>
-            <p className="text-sm font-medium text-gray-700">{invoice.age} years</p>
+            <p className="text-sm font-medium text-gray-700">{invoice.patient?.age} years</p>
           </div>
         </div>
       </div>

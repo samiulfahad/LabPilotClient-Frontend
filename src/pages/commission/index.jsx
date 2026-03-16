@@ -35,10 +35,10 @@ const todayRange = () => {
 };
 
 const TYPE_META = {
-  doctor:    { label: "Doctor",    icon: Stethoscope, color: "bg-blue-50 text-blue-600 border-blue-100" },
-  agent:     { label: "Agent",     icon: UserCircle,  color: "bg-violet-50 text-violet-600 border-violet-100" },
-  institute: { label: "Institute", icon: Building2,   color: "bg-amber-50 text-amber-600 border-amber-100" },
-  unknown:   { label: "Unknown",   icon: Users,       color: "bg-gray-50 text-gray-500 border-gray-100" },
+  doctor: { label: "Doctor", icon: Stethoscope, color: "bg-blue-50 text-blue-600 border-blue-100" },
+  agent: { label: "Agent", icon: UserCircle, color: "bg-violet-50 text-violet-600 border-violet-100" },
+  institute: { label: "Institute", icon: Building2, color: "bg-amber-50 text-amber-600 border-amber-100" },
+  unknown: { label: "Unknown", icon: Users, color: "bg-gray-50 text-gray-500 border-gray-100" },
 };
 
 const CARD_ANIMATION = (idx) => ({
@@ -88,7 +88,7 @@ const InvoiceRow = ({ inv, idx }) => (
         {String(idx + 1).padStart(2, "0")}
       </span>
       <div className="min-w-0">
-        <p className="text-xs font-bold text-gray-800 truncate">{inv.patientName}</p>
+        <p className="text-xs font-bold text-gray-800 truncate">{inv.patient?.name}</p>
         <p className="text-[10px] text-gray-400 mt-0.5">{fmtDate(inv.createdAt)}</p>
       </div>
     </div>
@@ -164,7 +164,6 @@ const ReferrerCard = ({ referrer: r, idx }) => {
       {...CARD_ANIMATION(idx)}
     >
       <div className="p-5">
-        {/* Header row: name left, DISCOUNT right (swapped from commission) */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-100 shrink-0">
@@ -172,20 +171,22 @@ const ReferrerCard = ({ referrer: r, idx }) => {
             </div>
             <div>
               <p className="text-sm font-black text-gray-900 leading-tight">{r.name}</p>
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border mt-0.5 ${meta.color}`}>
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border mt-0.5 ${meta.color}`}
+              >
                 <Icon className="w-2.5 h-2.5" />
                 {meta.label}
               </span>
             </div>
           </div>
-          {/* DISCOUNT shown in header */}
           <div className="text-right shrink-0">
-            <p className="text-[9px] text-orange-400 font-bold uppercase tracking-widest leading-none">Discount Given</p>
+            <p className="text-[9px] text-orange-400 font-bold uppercase tracking-widest leading-none">
+              Discount Given
+            </p>
             <p className="text-xl font-black text-orange-500 leading-tight mt-0.5">−৳{fmt(r.totalDiscount)}</p>
           </div>
         </div>
 
-        {/* Stats grid: Invoices + COMMISSION (swapped from discount) */}
         <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-gray-50">
           <StatCell label="Invoices" value={r.totalInvoices} />
           <StatCell
@@ -241,7 +242,9 @@ const UnregisteredCard = ({ group, idx }) => {
           )}
         </div>
 
-        <div className={`grid gap-2 mt-4 pt-4 border-t border-gray-50 ${group.totalDiscount > 0 ? "grid-cols-2" : "grid-cols-1"}`}>
+        <div
+          className={`grid gap-2 mt-4 pt-4 border-t border-gray-50 ${group.totalDiscount > 0 ? "grid-cols-2" : "grid-cols-1"}`}
+        >
           <StatCell label="Invoices" value={group.totalInvoices} />
           {group.totalDiscount > 0 && (
             <StatCell

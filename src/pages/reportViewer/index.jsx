@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Eye, X } from "lucide-react";
+import { ArrowLeft, Eye, Printer, X } from "lucide-react";
 import ReportViewer from "./ReportViewer";
 
-// ─── Styles (reuses ur-drawer system) ────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -73,6 +73,28 @@ const STYLES = `
   .ur-drawer-body::-webkit-scrollbar { width: 4px; }
   .ur-drawer-body::-webkit-scrollbar-track { background: transparent; }
   .ur-drawer-body::-webkit-scrollbar-thumb { background: #d1d5de; border-radius: 4px; }
+
+  .ur-print-badge {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .ur-print-badge.pad {
+    background: rgba(124,58,237,0.18);
+    border: 1px solid rgba(124,58,237,0.35);
+    color: #c4b5fd;
+  }
+  .ur-print-badge.plain {
+    background: rgba(37,99,235,0.18);
+    border: 1px solid rgba(37,99,235,0.35);
+    color: #93c5fd;
+  }
 `;
 
 function StyleInjector() {
@@ -127,10 +149,25 @@ function NoReport({ onClose }) {
         >
           <Eye style={{ width: 20, height: 20, color: "#dc2626" }} />
         </div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#0d1117", marginBottom: 8, letterSpacing: "-0.02em" }}>
+        <div
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            color: "#0d1117",
+            marginBottom: 8,
+            letterSpacing: "-0.02em",
+          }}
+        >
           No Report Data
         </div>
-        <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.6, marginBottom: 20 }}>
+        <div
+          style={{
+            fontSize: 13,
+            color: "#6b7280",
+            lineHeight: 1.6,
+            marginBottom: 20,
+          }}
+        >
           No report data was found. Please go back and try again.
         </div>
         <button
@@ -162,7 +199,10 @@ function NoReport({ onClose }) {
 export default function ReportPage() {
   const { state } = useLocation();
   const navigate = useNavigate();
+
   const report = state?.report;
+  const printType = state?.printType ?? "PLAIN"; // "PAD" | "PLAIN"
+  const isPad = printType === "PAD";
 
   const [closing, setClosing] = useState(false);
 
@@ -197,10 +237,18 @@ export default function ReportPage() {
           <div className="ur-drawer-icon view">
             <Eye style={{ width: 15, height: 15, color: "#6ee7b7" }} />
           </div>
+
           <div className="ur-drawer-title">
             <h2>View — {testName}</h2>
             <p>{invoiceId ? `Invoice #${invoiceId}` : "Report Details"}</p>
           </div>
+
+          {/* Print type badge */}
+          <div className={`ur-print-badge ${isPad ? "pad" : "plain"}`}>
+            <Printer style={{ width: 11, height: 11 }} />
+            {isPad ? "Pad" : "Plain A4"}
+          </div>
+
           <button className="ur-close-btn" onClick={handleClose} title="Close (Esc)">
             <X style={{ width: 15, height: 15 }} />
           </button>
@@ -212,7 +260,7 @@ export default function ReportPage() {
             <NoReport onClose={handleClose} />
           ) : (
             <div style={{ padding: "24px 20px" }}>
-              <ReportViewer report={report} reportId={report._id} />
+              <ReportViewer report={report} reportId={report._id} printType={printType} />
             </div>
           )}
         </div>
