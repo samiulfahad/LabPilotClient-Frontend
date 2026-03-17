@@ -4,9 +4,22 @@
  */
 import { useState, useEffect } from "react";
 import {
-  Search, Printer, Upload, User, Phone, FlaskConical, FileText,
-  CheckCircle2, Wallet, X, ChevronRight, Pencil, Calendar,
-  ClipboardList, Check, Loader2,
+  Search,
+  Printer,
+  Upload,
+  User,
+  Phone,
+  FlaskConical,
+  FileText,
+  CheckCircle2,
+  Wallet,
+  X,
+  ChevronRight,
+  Pencil,
+  Calendar,
+  ClipboardList,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 import Popup from "../../components/popup";
@@ -108,10 +121,13 @@ const formatDateTime = (ts) => {
   const d = new Date(ts);
   const day = d.getDate();
   const suffix =
-    day % 10 === 1 && day % 100 !== 11 ? "st"
-    : day % 10 === 2 && day % 100 !== 12 ? "nd"
-    : day % 10 === 3 && day % 100 !== 13 ? "rd"
-    : "th";
+    day % 10 === 1 && day % 100 !== 11
+      ? "st"
+      : day % 10 === 2 && day % 100 !== 12
+        ? "nd"
+        : day % 10 === 3 && day % 100 !== 13
+          ? "rd"
+          : "th";
   const h = d.getHours();
   return {
     date: `${day}${suffix} ${d.toLocaleString("default", { month: "long" })}, ${d.getFullYear()}`,
@@ -130,8 +146,8 @@ const toInputDate = (dateStr) => {
 const DateEditor = ({ invoiceId, testId, initialSampleDate, initialReportDate, onSaved }) => {
   const [sampleDate, setSampleDate] = useState(toInputDate(initialSampleDate));
   const [reportDate, setReportDate] = useState(toInputDate(initialReportDate));
-  const [saving,     setSaving]     = useState(false);
-  const [error,      setError]      = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
   const isDirty = toInputDate(initialSampleDate) !== sampleDate || toInputDate(initialReportDate) !== reportDate;
 
@@ -144,7 +160,7 @@ const DateEditor = ({ invoiceId, testId, initialSampleDate, initialReportDate, o
         invoiceId,
         testId,
         sampleCollectionDate: sampleDate || null,
-        reportDate:           reportDate || null,
+        reportDate: reportDate || null,
       });
       onSaved({ sampleCollectionDate: sampleDate || null, reportDate: reportDate || null });
     } catch {
@@ -157,8 +173,22 @@ const DateEditor = ({ invoiceId, testId, initialSampleDate, initialReportDate, o
   return (
     <div className="mt-2 pt-2 border-t border-gray-100">
       <div className="flex flex-wrap items-end gap-3">
-        <DateField icon={Calendar} iconColor="text-indigo-400" label="Sample Date" value={sampleDate} onChange={setSampleDate} focusColor="indigo" />
-        <DateField icon={ClipboardList} iconColor="text-emerald-500" label="Report Date" value={reportDate} onChange={setReportDate} focusColor="emerald" />
+        <DateField
+          icon={Calendar}
+          iconColor="text-indigo-400"
+          label="Sample Date"
+          value={sampleDate}
+          onChange={setSampleDate}
+          focusColor="indigo"
+        />
+        <DateField
+          icon={ClipboardList}
+          iconColor="text-emerald-500"
+          label="Report Date"
+          value={reportDate}
+          onChange={setReportDate}
+          focusColor="emerald"
+        />
         <button
           onClick={handleSave}
           disabled={saving || !isDirty || (!sampleDate && !reportDate)}
@@ -176,7 +206,8 @@ const DateEditor = ({ invoiceId, testId, initialSampleDate, initialReportDate, o
 const DateField = ({ icon: Icon, iconColor, label, value, onChange, focusColor }) => (
   <div className="flex flex-col gap-0.5">
     <label className="flex items-center gap-1 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
-      <Icon className={`w-3 h-3 ${iconColor}`} />{label}
+      <Icon className={`w-3 h-3 ${iconColor}`} />
+      {label}
     </label>
     <input
       type="date"
@@ -188,14 +219,19 @@ const DateField = ({ icon: Icon, iconColor, label, value, onChange, focusColor }
 );
 
 // ─── Test Action Buttons ──────────────────────────────────────────────────────
+// Only invoiceId + testId + testName are passed — the destination pages fetch
+// their own report data from the API.
 
 const TestActions = ({ invoice, test }) => {
-  const uploadState = { invoice, test };
-  const editState   = { invoice, test, report: test.report ?? {} };
+  const testId = test.testId?.$oid || test.testId;
 
   if (!test.isCompleted) {
     return (
-      <Link to="/report-upload" state={uploadState} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors">
+      <Link
+        to="/report-upload"
+        state={{ invoiceId: invoice.invoiceId, testId, testName: test.name, invoice }}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
+      >
         <Upload className="w-3.5 h-3.5" /> Upload
       </Link>
     );
@@ -203,17 +239,29 @@ const TestActions = ({ invoice, test }) => {
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
-      <Link to="/view-report" state={{ report: test.report, invoice, test, printType: "PAD" }}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-semibold rounded-lg border border-violet-200 transition-colors">
-        <Printer className="w-3.5 h-3.5" /><span className="hidden sm:inline">Print (Pad)</span>
+      <Link
+        to="/report-download"
+        state={{ invoiceId: invoice.invoiceId, testId, testName: test.name, printType: "PAD" }}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-semibold rounded-lg border border-violet-200 transition-colors"
+      >
+        <Printer className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Print (Pad)</span>
       </Link>
-      <Link to="/view-report" state={{ report: test.report, invoice, test, printType: "PLAIN" }}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 transition-colors">
-        <Printer className="w-3.5 h-3.5" /><span className="hidden sm:inline">Print (Plain A4)</span>
+      <Link
+        to="/report-download"
+        state={{ invoiceId: invoice.invoiceId, testId, testName: test.name, printType: "PLAIN" }}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 transition-colors"
+      >
+        <Printer className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Print (Plain A4)</span>
       </Link>
-      <Link to="/report-upload" state={editState}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg border border-blue-200 transition-colors">
-        <Pencil className="w-3.5 h-3.5" /><span className="hidden sm:inline">Edit</span>
+      <Link
+        to="/report-upload"
+        state={{ invoiceId: invoice.invoiceId, testId, testName: test.name, invoice, isEdit: true }}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg border border-blue-200 transition-colors"
+      >
+        <Pencil className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Edit</span>
       </Link>
     </div>
   );
@@ -223,14 +271,14 @@ const TestActions = ({ invoice, test }) => {
 
 const InvoiceDetail = ({ invoice, onDatesSaved }) => {
   const { date, time } = formatDateTime(invoice.createdAt);
-  const amount  = invoice.amount ?? {};
-  const final   = Number(amount.final)   || 0;
-  const paid    = Number(amount.paid)    || 0;
+  const amount = invoice.amount ?? {};
+  const final = Number(amount.final) || 0;
+  const paid = Number(amount.paid) || 0;
   const initial = Number(amount.initial) || 0;
-  const due     = Math.max(0, final - paid);
+  const due = Math.max(0, final - paid);
 
-  const onlineTests   = invoice.tests.filter((t) =>  t.schemaId);
-  const offlineTests  = invoice.tests.filter((t) => !t.schemaId);
+  const onlineTests = invoice.tests.filter((t) => t.schemaId);
+  const offlineTests = invoice.tests.filter((t) => !t.schemaId);
   const completedCount = onlineTests.filter((t) => t.isCompleted).length;
 
   return (
@@ -241,19 +289,24 @@ const InvoiceDetail = ({ invoice, onDatesSaved }) => {
           <div>
             <p className="text-indigo-200 text-xs uppercase tracking-wide font-medium mb-1">Invoice</p>
             <p className="text-white text-xl font-bold font-mono">#{invoice.invoiceId}</p>
-            <p className="text-indigo-200 text-xs mt-1">{date} · {time}</p>
+            <p className="text-indigo-200 text-xs mt-1">
+              {date} · {time}
+            </p>
           </div>
           <div className="text-right">
             <p className="text-indigo-200 text-xs mb-1">Final Amount</p>
             <p className="text-white text-2xl font-bold">৳{final.toLocaleString()}</p>
-            {final < initial && (
-              <p className="text-indigo-300 text-xs line-through">৳{initial.toLocaleString()}</p>
-            )}
+            {final < initial && <p className="text-indigo-300 text-xs line-through">৳{initial.toLocaleString()}</p>}
             <div className="mt-2">
-              {due === 0
-                ? <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-400/20 text-green-200 border border-green-400/30 text-xs font-semibold"><CheckCircle2 className="w-3 h-3" /> Fully Paid</span>
-                : <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-400/20 text-red-200 border border-red-400/30 text-xs font-semibold"><Wallet className="w-3 h-3" /> Due ৳{due.toLocaleString()}</span>
-              }
+              {due === 0 ? (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-400/20 text-green-200 border border-green-400/30 text-xs font-semibold">
+                  <CheckCircle2 className="w-3 h-3" /> Fully Paid
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-400/20 text-red-200 border border-red-400/30 text-xs font-semibold">
+                  <Wallet className="w-3 h-3" /> Due ৳{due.toLocaleString()}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -264,14 +317,18 @@ const InvoiceDetail = ({ invoice, onDatesSaved }) => {
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Patient</p>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-indigo-50 rounded-lg"><User className="w-3.5 h-3.5 text-indigo-500" /></div>
+            <div className="p-1.5 bg-indigo-50 rounded-lg">
+              <User className="w-3.5 h-3.5 text-indigo-500" />
+            </div>
             <div>
               <p className="text-[10px] text-gray-400">Name</p>
               <p className="text-sm font-semibold text-gray-900">{invoice.patient?.name}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-indigo-50 rounded-lg"><Phone className="w-3.5 h-3.5 text-indigo-500" /></div>
+            <div className="p-1.5 bg-indigo-50 rounded-lg">
+              <Phone className="w-3.5 h-3.5 text-indigo-500" />
+            </div>
             <div>
               <p className="text-[10px] text-gray-400">Contact</p>
               <p className="text-sm font-semibold text-gray-900">{invoice.patient?.contactNumber}</p>
@@ -299,16 +356,23 @@ const InvoiceDetail = ({ invoice, onDatesSaved }) => {
             {onlineTests.map((test, i) => {
               const testId = test.testId?.$oid || test.testId;
               return (
-                <div key={testId || i} className={`rounded-xl border px-4 py-3 transition-colors ${test.isCompleted ? "border-emerald-100 bg-emerald-50/40" : "border-gray-100"}`}>
+                <div
+                  key={testId || i}
+                  className={`rounded-xl border px-4 py-3 transition-colors ${test.isCompleted ? "border-emerald-100 bg-emerald-50/40" : "border-gray-100"}`}
+                >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${test.isCompleted ? "bg-emerald-400" : "bg-amber-400"}`} />
+                      <div
+                        className={`w-2.5 h-2.5 rounded-full shrink-0 ${test.isCompleted ? "bg-emerald-400" : "bg-amber-400"}`}
+                      />
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">{test.name}</p>
                         <p className="text-xs text-gray-400">৳{test.price.toLocaleString()}</p>
                       </div>
                     </div>
-                    <div className="shrink-0"><TestActions invoice={invoice} test={test} /></div>
+                    <div className="shrink-0">
+                      <TestActions invoice={invoice} test={test} />
+                    </div>
                   </div>
                   <DateEditor
                     invoiceId={invoice.invoiceId}
@@ -332,7 +396,10 @@ const InvoiceDetail = ({ invoice, onDatesSaved }) => {
           </p>
           <div className="space-y-2">
             {offlineTests.map((test, i) => (
-              <div key={test.testId?.$oid || i} className="flex items-center justify-between px-4 py-2.5 bg-gray-50 rounded-xl">
+              <div
+                key={test.testId?.$oid || i}
+                className="flex items-center justify-between px-4 py-2.5 bg-gray-50 rounded-xl"
+              >
                 <span className="text-sm text-gray-700 font-medium">{test.name}</span>
                 <span className="text-xs text-gray-400">৳{test.price.toLocaleString()}</span>
               </div>
@@ -346,12 +413,12 @@ const InvoiceDetail = ({ invoice, onDatesSaved }) => {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-const Reports = () => {
+const Report = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [invoice,     setInvoice]     = useState(null);
-  const [searching,   setSearching]   = useState(false);
-  const [popup,       setPopup]       = useState(null);
-  const [notFound,    setNotFound]    = useState(false);
+  const [invoice, setInvoice] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [popup, setPopup] = useState(null);
+  const [notFound, setNotFound] = useState(false);
 
   const location = useLocation();
 
@@ -360,8 +427,9 @@ const Reports = () => {
       setSearching(true);
       setNotFound(false);
       setInvoice(null);
-      const res = await invoiceService.getInvoiceByInvoiceId(String(id));
+      const res = await invoiceService.getReportSummary(String(id));
       setInvoice(res.data);
+      console.log(res.data);
     } catch (err) {
       if (err?.response?.status === 404) setNotFound(true);
       else setPopup({ type: "error", message: "Failed to load invoice" });
@@ -372,12 +440,22 @@ const Reports = () => {
 
   useEffect(() => {
     const id = location.state?.invoiceId;
-    if (id) { setSearchQuery(String(id)); fetchInvoice(id); }
+    if (id) {
+      setSearchQuery(String(id));
+      fetchInvoice(id);
+    }
   }, []); // eslint-disable-line
 
-  const handleSearch = () => { const q = searchQuery.trim(); if (q) fetchInvoice(q); };
+  const handleSearch = () => {
+    const q = searchQuery.trim();
+    if (q) fetchInvoice(q);
+  };
 
-  const handleClear = () => { setSearchQuery(""); setInvoice(null); setNotFound(false); };
+  const handleClear = () => {
+    setSearchQuery("");
+    setInvoice(null);
+    setNotFound(false);
+  };
 
   const handleDatesSaved = (testId, dates) => {
     setInvoice((prev) => ({
@@ -415,7 +493,10 @@ const Reports = () => {
                 className="w-full pl-11 pr-10 py-2.5 text-sm border border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder-gray-400 font-mono"
               />
               {searchQuery && (
-                <button onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors">
+                <button
+                  onClick={handleClear}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                >
                   <X className="w-4 h-4" />
                 </button>
               )}
@@ -450,4 +531,4 @@ const Reports = () => {
   );
 };
 
-export default Reports;
+export default Report;

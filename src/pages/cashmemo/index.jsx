@@ -16,6 +16,7 @@ import {
   Trash2,
   Printer,
   FlaskConical,
+  Banknote,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../components/timeFrame";
@@ -76,29 +77,24 @@ const SkeletonMemo = () => (
       </div>
     </div>
     <div className="px-6 py-2 space-y-0">
-      {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="flex items-center justify-between py-3.5 border-b border-gray-50">
-          <div className="space-y-1.5">
-            <div className="h-3.5 w-32 bg-gray-200 rounded" />
-            <div className="h-2.5 w-24 bg-gray-100 rounded" />
-          </div>
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center justify-between py-3 border-b border-gray-50">
+          <div className="h-3.5 w-32 bg-gray-200 rounded" />
           <div className="h-5 w-20 bg-gray-200 rounded-lg" />
         </div>
       ))}
+      <div className="h-24 w-full bg-emerald-50 border border-emerald-100 rounded-xl my-3" />
+      <div className="flex items-center justify-between py-3 border-b border-gray-50">
+        <div className="h-3.5 w-32 bg-gray-200 rounded" />
+        <div className="h-5 w-20 bg-gray-200 rounded-lg" />
+      </div>
       <div className="flex items-center gap-2 my-3">
         <div className="flex-1 h-px bg-gray-100" />
         <div className="h-6 w-64 bg-gray-100 rounded-full" />
         <div className="flex-1 h-px bg-gray-100" />
       </div>
-      <div className="h-16 w-full bg-gray-200 rounded-xl mb-4" />
+      <div className="h-16 w-full bg-gray-200 rounded-xl mb-3" />
       <div className="h-12 w-full bg-red-50 border border-red-100 rounded-xl mb-5" />
-    </div>
-    <div className="px-6 pb-5 border-t border-gray-100 pt-4">
-      <div className="h-3 w-20 bg-gray-200 rounded-full mb-3" />
-      <div className="grid grid-cols-2 gap-3">
-        <div className="h-16 bg-gray-100 rounded-xl" />
-        <div className="h-16 bg-gray-100 rounded-xl" />
-      </div>
     </div>
     <div className="px-6 pb-5 border-t border-gray-100 pt-4">
       <div className="h-3 w-16 bg-gray-200 rounded-full mb-3" />
@@ -149,7 +145,10 @@ const CashMemo = () => {
   const fetchSummary = async (range) => {
     try {
       setLoading(true);
-      const res = await cashmemoService.getSummary({ startDate: range.start, endDate: range.end });
+      const res = await cashmemoService.getSummary({
+        startDate: range.start,
+        endDate: range.end,
+      });
       setSummary(res.data);
     } catch {
       setPopup({ type: "error", message: "Failed to load cash memo. Please try again." });
@@ -167,6 +166,9 @@ const CashMemo = () => {
   const d = summary ?? {};
   const pendingCount = (d.totalInvoices ?? 0) - (d.deliveredCount ?? 0);
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
+
+  // Gross Counter Amount = Total − Lab Adjustment − Referrer Discount
+  const grossCounterAmount = (d.initial ?? 0) - (d.labAdjustment ?? 0) - (d.referrerDiscount ?? 0);
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
@@ -242,56 +244,77 @@ const CashMemo = () => {
             {/* P&L rows */}
             <div className="px-6 py-2">
               {/* Total Amount */}
-              <div className="flex items-center justify-between py-3.5 border-b border-gray-50">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">Total Amount</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">Sum of all test prices</p>
-                </div>
+              <div className="flex items-center justify-between py-3 border-b border-gray-50">
+                <p className="text-sm font-semibold text-gray-800">Total Amount</p>
                 <p className="text-lg font-bold text-gray-900">৳{fmt(d.initial)}</p>
               </div>
 
-              {/* Deduction rows */}
-              {[
-                {
-                  icon: Minus,
-                  iconColor: "text-yellow-500",
-                  label: "Lab Adjustment",
-                  sub: "Lab concession",
-                  value: `− ৳${fmt(d.labAdjustment)}`,
-                  valueClass: "text-base font-semibold text-yellow-600",
-                },
-                {
-                  icon: Minus,
-                  iconColor: "text-orange-500",
-                  label: "Referrer's Discount",
-                  sub: "Discount passed to patients",
-                  value: `− ৳${fmt(d.referrerDiscount)}`,
-                  valueClass: "text-base font-semibold text-orange-500",
-                },
-                {
-                  icon: Minus,
-                  iconColor: "text-purple-600",
-                  label: "Commission",
-                  sub: "Owed to referrers",
-                  value: `− ৳${fmt(d.referrerCommission)}`,
-                  valueClass: "text-base font-black text-purple-700",
-                  labelClass: "text-sm font-black text-purple-700",
-                  border: "border-dashed border-indigo-100",
-                },
-              ].map(
-                ({ icon: Icon, iconColor, label, sub, value, valueClass, labelClass, border = "border-gray-50" }) => (
-                  <div key={label} className={`flex items-center justify-between py-3.5 border-b ${border}`}>
-                    <div className="flex items-center gap-1.5">
-                      <Icon className={`w-3.5 h-3.5 ${iconColor} shrink-0`} />
-                      <div>
-                        <p className={labelClass ?? "text-sm font-semibold text-gray-700"}>{label}</p>
-                        <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>
-                      </div>
+              {/* Lab Adjustment */}
+              <div className="flex items-center justify-between py-3 border-b border-gray-50">
+                <div className="flex items-center gap-1.5">
+                  <Minus className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
+                  <p className="text-sm font-semibold text-gray-700">Lab Adjustment</p>
+                </div>
+                <p className="text-base font-semibold text-yellow-600">− ৳{fmt(d.labAdjustment)}</p>
+              </div>
+
+              {/* Referrer's Discount */}
+              <div className="flex items-center justify-between py-3 border-b border-gray-50">
+                <div className="flex items-center gap-1.5">
+                  <Minus className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                  <p className="text-sm font-semibold text-gray-700">Referrer's Discount</p>
+                </div>
+                <p className="text-base font-semibold text-orange-500">− ৳{fmt(d.referrerDiscount)}</p>
+              </div>
+
+              {/* ── Gross Counter Amount ─────────────────────────────────────── */}
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 overflow-hidden my-3">
+                {/* Header row */}
+                <div className="flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                      <Banknote className="w-4 h-4 text-white" />
                     </div>
-                    <p className={valueClass}>{value}</p>
+                    <div>
+                      <p className="text-[11px] font-semibold text-emerald-100 uppercase tracking-widest">
+                        Gross Counter Amount
+                      </p>
+                      <p className="text-[10px] text-emerald-200 mt-0.5">Total − Lab Adj. − Discount</p>
+                    </div>
                   </div>
-                ),
-              )}
+                  <p className="text-3xl font-black text-white tracking-tight">৳{fmt(grossCounterAmount)}</p>
+                </div>
+                {/* Collected / Due breakdown */}
+                <div className="grid grid-cols-2 divide-x divide-emerald-100">
+                  <div className="flex items-center gap-2.5 px-4 py-3">
+                    <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+                      <Wallet className="w-3.5 h-3.5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold text-green-700 uppercase tracking-wide">Collected</p>
+                      <p className="text-base font-black text-green-700">৳{fmt(d.totalPaid)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5 px-4 py-3">
+                    <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                      <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold text-red-600 uppercase tracking-wide">Due</p>
+                      <p className="text-base font-black text-red-600">৳{fmt(d.totalDue)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Commission */}
+              <div className="flex items-center justify-between py-3 border-b border-dashed border-indigo-100">
+                <div className="flex items-center gap-1.5">
+                  <Minus className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                  <p className="text-sm font-black text-purple-700">Commission</p>
+                </div>
+                <p className="text-base font-black text-purple-700">− ৳{fmt(d.referrerCommission)}</p>
+              </div>
 
               {/* Formula tag */}
               <div className="flex items-center gap-2 my-3">
@@ -302,14 +325,14 @@ const CashMemo = () => {
                 <div className="flex-1 h-px bg-gray-100" />
               </div>
 
-              {/* Net Profit */}
+              {/* Net Earning */}
               <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl mb-4">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
                     <TrendingUp className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold text-indigo-200 uppercase tracking-widest">Net Profit</p>
+                    <p className="text-[11px] font-semibold text-indigo-200 uppercase tracking-widest">Net Earning</p>
                     <p className="text-[10px] text-indigo-300 mt-0.5">After all deductions</p>
                   </div>
                 </div>
@@ -364,33 +387,6 @@ const CashMemo = () => {
               </div>
             </div>
 
-            {/* Collection */}
-            <div className="px-6 pb-5 border-t border-gray-100 pt-4">
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Collection</p>
-              <div className="grid grid-cols-2 gap-3">
-                <StatCard
-                  icon={Wallet}
-                  iconBg="bg-green-100"
-                  iconColor="text-green-600"
-                  label="Collected"
-                  labelColor="text-green-700"
-                  value={`৳${fmt(d.totalPaid)}`}
-                  valueBg="bg-green-50"
-                  border="border border-green-100"
-                />
-                <StatCard
-                  icon={AlertCircle}
-                  iconBg="bg-red-100"
-                  iconColor="text-red-500"
-                  label="Due"
-                  labelColor="text-red-600"
-                  value={`৳${fmt(d.totalDue)}`}
-                  valueBg="bg-red-50"
-                  border="border border-red-100"
-                />
-              </div>
-            </div>
-
             {/* Delivery */}
             <div className="px-6 pb-5 border-t border-gray-100 pt-4">
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Delivery</p>
@@ -421,7 +417,7 @@ const CashMemo = () => {
         )}
 
         <p className="text-center text-[11px] text-gray-400 mt-4 pb-6 no-print">
-          Net Profit = Total Amount − Lab Adjustment − Referrer Discount − Commission
+          Net Earning = Total Amount − Lab Adjustment − Referrer Discount − Commission
         </p>
       </div>
     </section>

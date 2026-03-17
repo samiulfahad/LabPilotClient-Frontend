@@ -10,9 +10,9 @@ import AddTest from "./pages/labManagement/manageTests/AddTest";
 import CreateInvoice from "./pages/createInvoice";
 import PrintInvoice from "./pages/createInvoice/PrintInvoice";
 import InvoiceList from "./pages/invoices";
-import Reports from "./pages/reports";
-import UploadReport from "./pages/uploadReport";
-import ReportViewer from "./pages/reportViewer";
+import Report from "./pages/report";
+import ReportUpload from "./pages/reportUpload";
+import ReportDownload from "./pages/reportDownload";
 import DeleteInvoices from "./pages/deleteInvoice";
 import CashMemo from "./pages/cashmemo";
 import Commission from "./pages/commission";
@@ -28,9 +28,9 @@ function App() {
         <Route path="/invoice/print/:invoiceId" element={<PrintInvoice />} />
         <Route path="/invoice/all" element={<InvoiceList />} />
         <Route path="/invoice/delete" element={<DeleteInvoices />} />
-        <Route path="/report-upload" element={<UploadReport />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/view-report" element={<ReportViewer />} />
+        <Route path="/report" element={<Report />} />
+        <Route path="/report-upload" element={<ReportUpload />} />
+        <Route path="/report-download" element={<ReportDownload />} />
         <Route path="/lab-management" element={<LabManagement />} />
         <Route path="/manage-referrers" element={<ManageReferrers />} />
         <Route path="/manage-staffs" element={<ManageStaffs />} />

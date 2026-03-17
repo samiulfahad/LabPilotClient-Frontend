@@ -171,9 +171,6 @@ const STYLES = `
   .sr2-badge.low    { background: var(--c-amber-dim);  color: var(--c-amber);  border-color: rgba(217,115,22,0.25); }
   .sr2-badge.high   { background: var(--c-red-dim);    color: var(--c-red);    border-color: rgba(220,38,38,0.25); }
   .sr2-badge.edited { background: var(--c-violet-dim); color: var(--c-violet); border-color: rgba(124,58,237,0.2); font-family: 'JetBrains Mono', monospace; font-size: 9px; }
-  .sr2-context-warn { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--c-amber); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
-  .sr2-field-err { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--c-red); font-weight: 500; margin-top: 5px; }
-
   .sr2-tip-wrap { position: relative; display: inline-flex; }
   .sr2-tip-box { position: absolute; z-index: 50; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: 210px; background: var(--c-ink-2); color: #e2e8f0; font-size: 11px; border-radius: var(--radius-md); padding: 10px 12px; box-shadow: var(--shadow-lg); border: 1px solid rgba(255,255,255,0.08); pointer-events: none; }
   .sr2-tip-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #60a5fa; margin-bottom: 7px; }
@@ -217,10 +214,6 @@ const STYLES = `
   .sr2-ti-wrap.floated .sr2-ti-label, .sr2-ti-wrap:focus-within .sr2-ti-label { top: 0; transform: translateY(-50%); font-size: 9px; color: var(--c-blue); background: var(--c-surface); padding: 0 4px; left: 9px; }
   .sr2-ti { width: 100%; padding: 18px 14px 8px 12px; background: transparent; border: none; outline: none; font-family: 'Outfit', sans-serif; font-size: 13.5px; color: var(--c-ink); min-height: 54px; }
   .sr2-ti::placeholder { color: transparent; }
-
-  .sr2-gender { flex: 1; padding: 10px; border-radius: var(--radius-md); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; border: 1.5px solid var(--c-border); background: var(--c-surface); color: var(--c-ink-3); cursor: pointer; transition: all 0.12s; min-height: 42px; }
-  .sr2-gender:hover { border-color: var(--c-ink-3); color: var(--c-ink); }
-  .sr2-gender.on { background: var(--c-ink); border-color: var(--c-ink); color: #fff; }
 
   .sr2-action-bar { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); flex-wrap: wrap; gap: 12px; }
   .sr2-action-hint { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--c-ink-4); }
@@ -379,9 +372,6 @@ function NumberField({ field, value, onChange, error, patientAge, patientGender,
   const status = getRangeStatus(value, range);
   const hasValue = value !== "" && value !== null && value !== undefined;
   const isChanged = isEditMode && originalValue !== undefined && String(value) !== String(originalValue ?? "");
-  const needsContext =
-    ((field.standardRange?.type === "age" || field.standardRange?.type === "combined") && !patientAge) ||
-    ((field.standardRange?.type === "gender" || field.standardRange?.type === "combined") && !patientGender);
 
   let cls = "sr2-field-wrap";
   if (error) cls += " err";
@@ -427,14 +417,6 @@ function NumberField({ field, value, onChange, error, patientAge, patientGender,
           </span>
         )}
         <RangeTooltip field={field} />
-        {needsContext && !range && field.standardRange?.type !== "none" && (
-          <span className="sr2-context-warn">
-            <AlertTriangle style={{ width: 10, height: 10 }} />
-            {!patientAge && (field.standardRange?.type === "age" || field.standardRange?.type === "combined")
-              ? "Enter age"
-              : "Select gender"}
-          </span>
-        )}
         {isChanged && (
           <span className="sr2-badge edited">
             <Pencil style={{ width: 8, height: 8 }} />
@@ -903,62 +885,9 @@ function PatientBanner({ invoice }) {
   );
 }
 
-// ─── Manual Patient Context ───────────────────────────────────────────────────
-
-function ManualPatient({ patientAge, setPatientAge, patientGender, setPatientGender }) {
-  const floated = patientAge !== "" && patientAge !== null && patientAge !== undefined;
-  return (
-    <div className="sr2-patient">
-      <div className="sr2-patient-head">
-        <User style={{ width: 13, height: 13, color: "#60a5fa" }} />
-        <span className="sr2-patient-head-label">Patient Context</span>
-        <span className="sr2-patient-head-id">Required for dynamic ranges</span>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", background: "var(--c-surface)" }}>
-        <div className="sr2-patient-cell">
-          <div className="sr2-patient-cell-label" style={{ marginBottom: 8 }}>
-            Age
-          </div>
-          <div className={`sr2-field-wrap ${floated ? "floated" : ""}`} style={{ background: "var(--c-surface)" }}>
-            <span className="sr2-float-label">Years</span>
-            <input
-              type="number"
-              value={patientAge}
-              onChange={(e) => setPatientAge(e.target.value)}
-              placeholder=" "
-              min="0"
-              max="150"
-              className="sr2-num-input"
-              style={{ paddingRight: "50px" }}
-            />
-            <span className="sr2-unit">yrs</span>
-          </div>
-        </div>
-        <div className="sr2-patient-cell" style={{ borderRight: "none" }}>
-          <div className="sr2-patient-cell-label" style={{ marginBottom: 8 }}>
-            Gender
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            {["male", "female"].map((g) => (
-              <button
-                key={g}
-                type="button"
-                className={`sr2-gender ${patientGender === g ? "on" : ""}`}
-                onClick={() => setPatientGender(patientGender === g ? "" : g)}
-              >
-                {g === "male" ? "♂ Male" : "♀ Female"}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Build Payload ────────────────────────────────────────────────────────────
 
-function buildPayload(schema, values, patientAge, patientGender, invoice) {
+function buildPayload(schema, values, patientAge, patientGender) {
   const report = {};
   schema.sections.forEach((sec, si) => {
     const sd = {};
@@ -981,18 +910,7 @@ function buildPayload(schema, values, patientAge, patientGender, invoice) {
     if (Object.keys(sd).length > 0) report[sec.name] = { ...sd, __showTitle: sec.showTitleInReport !== false };
   });
 
-  return {
-    ...report,
-    name: schema.name,
-    ...(invoice
-      ? {
-          invoiceId: invoice.invoiceId,
-          patientName: invoice.patient.name,
-          patientAge: invoice.patient.age,
-          patientGender: invoice.patient.gender,
-        }
-      : { patientAge: patientAge || null, patientGender: patientGender || null }),
-  };
+  return { ...report, name: schema.name };
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -1004,8 +922,8 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
   const [values, setValues] = useState(computeInitial);
   const [errors, setErrors] = useState({});
   const [originalValues] = useState(() => (isEditMode ? hydrateValuesFromReport(schema, existingReport) : {}));
-  const [patientAge, setPatientAge] = useState(invoice?.patient?.age ?? existingReport?.patientAge ?? "");
-  const [patientGender, setPatientGender] = useState(invoice?.patient?.gender ?? existingReport?.patientGender ?? "");
+  const patientAge = invoice?.patient?.age ?? existingReport?.patientAge ?? "";
+  const patientGender = invoice?.patient?.gender ?? existingReport?.patientGender ?? "";
 
   if (!schema || !schema.sections) return null;
 
@@ -1013,13 +931,6 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
     setValues(computeInitial());
     setErrors({});
   }, [JSON.stringify(schema?.sections), JSON.stringify(existingReport)]);
-
-  useEffect(() => {
-    if (invoice?.patient) {
-      setPatientAge(invoice.patient.age ?? "");
-      setPatientGender(invoice.patient.gender ?? "");
-    }
-  }, [invoice?._id]);
 
   const handleChange = (key, val) => {
     setValues((v) => ({ ...v, [key]: val }));
@@ -1072,7 +983,7 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
       return;
     }
     setErrors({});
-    const payload = buildPayload(schema, values, patientAge, patientGender, invoice);
+    const payload = buildPayload(schema, values, patientAge, patientGender);
     if (isEditMode) onUpdate?.(payload);
     else onSubmit?.(payload);
   };
@@ -1082,11 +993,6 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
     setErrors({});
   };
 
-  const needsContext = schema.sections.some((sec) =>
-    sec.fields.some(
-      (f) => f.type === "number" && f.standardRange?.type !== "none" && f.standardRange?.type !== "simple",
-    ),
-  );
   const hasFields = schema.sections.some((s) => s.fields.length > 0);
   const totalFields = allKeys.length;
   const totalFilled = allKeys.filter((k) => {
@@ -1253,18 +1159,7 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
         )}
 
         {/* Patient banner */}
-        {invoice ? (
-          <PatientBanner invoice={invoice} />
-        ) : (
-          needsContext && (
-            <ManualPatient
-              patientAge={patientAge}
-              setPatientAge={setPatientAge}
-              patientGender={patientGender}
-              setPatientGender={setPatientGender}
-            />
-          )
-        )}
+        {invoice && <PatientBanner invoice={invoice} />}
 
         {/* Sections */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>

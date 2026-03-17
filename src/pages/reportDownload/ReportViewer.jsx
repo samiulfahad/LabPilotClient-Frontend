@@ -32,15 +32,19 @@ const LAB_INFO = {
   regNo: "DGDA/LAB/2024/0042",
 };
 
-const DEMO_PATIENT = {
-  name: "Demo Patient",
-  age: "32 yrs",
-  gender: "Male",
-  contact: "+880 1700-000000",
-  referredBy: "Dr. Karim Ahmed",
-  sampleDate: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
-  reportDate: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+// Empty patient fallback — all fields blank, nothing hardcoded
+const EMPTY_PATIENT = {
+  name: "",
+  age: "",
+  gender: "",
+  contact: "",
+  referredBy: "",
+  sampleDate: "",
+  reportDate: "",
 };
+
+// ── Keys inside report that are metadata, not sections ────────────────────────
+const REPORT_META_KEYS = new Set(["_id", "name", "reportDate", "sampleCollectionDate"]);
 
 function parseRange(ref) {
   if (!ref) return null;
@@ -61,7 +65,6 @@ function isResultField(field) {
   if (!field || typeof field !== "object") return false;
   return Boolean(field.referenceRange) || Boolean(field.unit);
 }
-
 function getSectionEntries(sectionData) {
   return Object.entries(sectionData).filter(([key]) => key !== "__showTitle");
 }
@@ -174,9 +177,7 @@ function Section({ sectionName, sectionData, index, showHeader }) {
     </>
   );
 
-  if (!showHeader) {
-    return <div className="rounded-lg overflow-hidden border border-slate-200 mb-2.5">{tableBody}</div>;
-  }
+  if (!showHeader) return <div className="rounded-lg overflow-hidden border border-slate-200 mb-2.5">{tableBody}</div>;
 
   return (
     <div className="rounded-lg overflow-hidden border border-slate-200 mb-2.5">
@@ -271,7 +272,7 @@ function PatientGrid({ patient }) {
 }
 
 // ── Print HTML builder ────────────────────────────────────────────────────────
-function buildPrintHTML({ reportName, shortId, mergedPatient, labInfo, sections, printType }) {
+function buildPrintHTML({ reportName, shortId, patient, labInfo, sections, printType }) {
   const isPad = printType === "PAD";
 
   const statusLabel = (s) => ({ normal: "Normal", low: "↓ Low", high: "↑ High" })[s] || "—";
@@ -308,28 +309,18 @@ function buildPrintHTML({ reportName, shortId, mergedPatient, labInfo, sections,
         return `<tr style="background:white;"><td style="padding:7px 12px;font-size:12px;color:#6b7280;border-bottom:1px solid #f1f5f9;">${name}</td><td style="padding:7px 12px;font-size:12px;font-weight:600;color:#111827;border-bottom:1px solid #f1f5f9;" colspan="${hasUnits ? 4 : 3}">${val || "—"}</td></tr>`;
       })
       .join("");
-
     const headerHTML = showHeader
-      ? `<div style="background:#334155;padding:8px 14px;display:flex;align-items:center;gap:8px;">
-          <span style="width:20px;height:20px;background:rgba(255,255,255,0.15);border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:white;font-size:9px;font-weight:700;">${String.fromCharCode(65 + index)}</span>
-          <span style="color:white;font-size:12px;font-weight:600;flex:1;">${sectionName}</span>
-          <span style="color:#94a3b8;font-size:9px;">${entries.length} parameter${entries.length !== 1 ? "s" : ""}</span>
-        </div>`
+      ? `<div style="background:#334155;padding:8px 14px;display:flex;align-items:center;gap:8px;"><span style="width:20px;height:20px;background:rgba(255,255,255,0.15);border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:white;font-size:9px;font-weight:700;">${String.fromCharCode(65 + index)}</span><span style="color:white;font-size:12px;font-weight:600;flex:1;">${sectionName}</span><span style="color:#94a3b8;font-size:9px;">${entries.length} parameter${entries.length !== 1 ? "s" : ""}</span></div>`
       : "";
-
-    return `<div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:10px;">
-      ${headerHTML}
-      ${resultEntries.length > 0 ? `<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;"><th style="padding:5px 12px;text-align:left;font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:34%;">Parameter</th><th style="padding:5px 12px;text-align:left;font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:16%;">Result</th>${unitHeader}<th style="padding:5px 12px;text-align:left;font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:24%;">Ref. Range</th><th style="padding:5px 12px;text-align:left;font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:18%;">Status</th></tr></thead><tbody>${resultRows}</tbody></table>` : ""}
-      ${plainEntries.length > 0 ? `<table style="width:100%;border-collapse:collapse;${resultEntries.length > 0 ? "border-top:1px solid #e2e8f0;" : ""}"><tbody>${plainRows}</tbody></table>` : ""}
-    </div>`;
+    return `<div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:10px;">${headerHTML}${resultEntries.length > 0 ? `<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;"><th style="padding:5px 12px;text-align:left;font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:34%;">Parameter</th><th style="padding:5px 12px;text-align:left;font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:16%;">Result</th>${unitHeader}<th style="padding:5px 12px;text-align:left;font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:24%;">Ref. Range</th><th style="padding:5px 12px;text-align:left;font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:18%;">Status</th></tr></thead><tbody>${resultRows}</tbody></table>` : ""}${plainEntries.length > 0 ? `<table style="width:100%;border-collapse:collapse;${resultEntries.length > 0 ? "border-top:1px solid #e2e8f0;" : ""}"><tbody>${plainRows}</tbody></table>` : ""}</div>`;
   };
 
   const mainFields = [
-    { label: "Patient Name", value: mergedPatient.name },
-    { label: "Age / Gender", value: [mergedPatient.age, mergedPatient.gender].filter(Boolean).join(" · ") },
-    { label: "Contact", value: mergedPatient.contact },
-    { label: "Sample Date", value: mergedPatient.sampleDate },
-    { label: "Report Date", value: mergedPatient.reportDate },
+    { label: "Patient Name", value: patient.name },
+    { label: "Age / Gender", value: [patient.age, patient.gender].filter(Boolean).join(" · ") },
+    { label: "Contact", value: patient.contact },
+    { label: "Sample Date", value: patient.sampleDate },
+    { label: "Report Date", value: patient.reportDate },
   ];
   const mainCells = mainFields
     .map(
@@ -352,82 +343,43 @@ function buildPrintHTML({ reportName, shortId, mergedPatient, labInfo, sections,
   });
   const total = normal + low + high;
 
-  // PAD → plain white 1.5in spacer, no lab card
-  // PLAIN → full dark lab header
   const topBlock = isPad
     ? `<div style="height:1.5in;background:white;"></div>`
-    : `<div style="background:#1e293b;padding:16px 20px;display:flex;align-items:flex-start;justify-content:space-between;border-radius:10px 10px 0 0;">
-        <div>
-          <div style="font-size:15px;font-weight:700;color:white;">${labInfo.name}</div>
-          <div style="font-size:10px;color:#94a3b8;margin-top:3px;">${labInfo.tagline}</div>
-          <div style="font-size:9px;color:#64748b;margin-top:4px;">📍 ${labInfo.address}</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:9px;color:#94a3b8;">📞 ${labInfo.phone}</div>
-          <div style="font-size:9px;color:#94a3b8;margin-top:2px;">✉ ${labInfo.email}</div>
-          <div style="font-size:9px;color:#64748b;margin-top:4px;font-family:monospace;">Reg: ${labInfo.regNo}</div>
-        </div>
-      </div>`;
+    : `<div style="background:#1e293b;padding:16px 20px;display:flex;align-items:flex-start;justify-content:space-between;border-radius:10px 10px 0 0;"><div><div style="font-size:15px;font-weight:700;color:white;">${labInfo.name}</div><div style="font-size:10px;color:#94a3b8;margin-top:3px;">${labInfo.tagline}</div><div style="font-size:9px;color:#64748b;margin-top:4px;">📍 ${labInfo.address}</div></div><div style="text-align:right;"><div style="font-size:9px;color:#94a3b8;">📞 ${labInfo.phone}</div><div style="font-size:9px;color:#94a3b8;margin-top:2px;">✉ ${labInfo.email}</div><div style="font-size:9px;color:#64748b;margin-top:4px;font-family:monospace;">Reg: ${labInfo.regNo}</div></div></div>`;
 
-  // PAD → no footer at all, no bottom padding needed for it
-  // PLAIN → full signature + disclaimer footer fixed at bottom
   const footerBlock = isPad
     ? ""
-    : `<div class="footer-fixed">
-        <table style="width:100%;max-width:680px;margin:0 auto 8px;"><tr>
-          <td style="width:45%;padding-right:20px;"><div style="height:30px;border-bottom:1px dashed #cbd5e1;"></div><div style="font-size:9px;color:#94a3b8;margin-top:3px;">Pathologist Signature &amp; Seal</div></td>
-          <td style="width:10%;"></td>
-          <td style="width:45%;padding-left:20px;"><div style="height:30px;border-bottom:1px dashed #cbd5e1;"></div><div style="font-size:9px;color:#94a3b8;margin-top:3px;text-align:right;">Authorized Signatory</div></td>
-        </tr></table>
-        <div style="font-size:9px;color:#94a3b8;text-align:center;max-width:680px;margin:0 auto;">For qualified medical professionals only. Interpret results in full clinical context. · ${labInfo.name} · ${labInfo.phone}</div>
-      </div>`;
+    : `<div class="footer-fixed"><table style="width:100%;max-width:680px;margin:0 auto 8px;"><tr><td style="width:45%;padding-right:20px;"><div style="height:30px;border-bottom:1px dashed #cbd5e1;"></div><div style="font-size:9px;color:#94a3b8;margin-top:3px;">Pathologist Signature &amp; Seal</div></td><td style="width:10%;"></td><td style="width:45%;padding-left:20px;"><div style="height:30px;border-bottom:1px dashed #cbd5e1;"></div><div style="font-size:9px;color:#94a3b8;margin-top:3px;text-align:right;">Authorized Signatory</div></td></tr></table><div style="font-size:9px;color:#94a3b8;text-align:center;max-width:680px;margin:0 auto;">For qualified medical professionals only. Interpret results in full clinical context. · ${labInfo.name} · ${labInfo.phone}</div></div>`;
 
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
-  <title>${reportName}</title>
-  <style>
-    * { box-sizing:border-box;margin:0;padding:0 }
-    body { font-family:'Segoe UI',Arial,sans-serif;background:white;color:#1e293b;-webkit-print-color-adjust:exact;print-color-adjust:exact }
-    @page { size:A4;margin:14mm }
-    @media print {
-      .footer-fixed { position:fixed;bottom:0;left:0;right:0;padding:10px 20px;background:white;border-top:1px solid #f1f5f9; }
-    }
-  </style></head><body>
-  <div style="max-width:680px;margin:0 auto;padding-bottom:${isPad ? "20px" : "90px"};">
-    ${topBlock}
-    <div style="background:#f1f5f9;padding:8px 20px;display:flex;align-items:center;justify-content:space-between;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;">
-      <div style="font-size:14px;font-weight:700;color:#0f172a;">${reportName}</div>
-      ${shortId ? `<div style="font-size:9px;color:#94a3b8;font-family:monospace;">Invoice No: ${shortId}</div>` : ""}
-    </div>
-    <table style="width:100%;border-collapse:collapse;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;">
-      <tr style="border-bottom:1px solid #e2e8f0;">${mainCells}</tr>
-      <tr><td colspan="5" style="padding:5px 12px;background:white;"><span style="font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-right:10px;">Referred By</span><span style="font-size:11px;font-weight:600;color:#1e293b;">${mergedPatient.referredBy || "—"}</span></td></tr>
-    </table>
-    ${total > 0 ? `<div style="background:#f8fafc;padding:7px 20px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;font-size:11px;display:flex;gap:6px;"><span style="color:#64748b;">${total} parameters:</span><span style="font-weight:700;color:#059669;">${normal} Normal</span>${low > 0 ? `<span>·</span><span style="font-weight:700;color:#d97706;">${low} Low</span>` : ""}${high > 0 ? `<span>·</span><span style="font-weight:700;color:#dc2626;">${high} High</span>` : ""}</div>` : ""}
-    <div style="padding:14px 20px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
-      ${sections.map(([name, data], i) => renderSection(name, data, i)).join("")}
-    </div>
-  </div>
-  ${footerBlock}
-  </body></html>`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><title>${reportName}</title><style>* { box-sizing:border-box;margin:0;padding:0 } body { font-family:'Segoe UI',Arial,sans-serif;background:white;color:#1e293b;-webkit-print-color-adjust:exact;print-color-adjust:exact } @page { size:A4;margin:14mm } @media print { .footer-fixed { position:fixed;bottom:0;left:0;right:0;padding:10px 20px;background:white;border-top:1px solid #f1f5f9; } }</style></head><body><div style="max-width:680px;margin:0 auto;padding-bottom:${isPad ? "20px" : "90px"};">${topBlock}<div style="background:#f1f5f9;padding:8px 20px;display:flex;align-items:center;justify-content:space-between;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;"><div style="font-size:14px;font-weight:700;color:#0f172a;">${reportName}</div>${shortId ? `<div style="font-size:9px;color:#94a3b8;font-family:monospace;">Invoice No: ${shortId}</div>` : ""}</div><table style="width:100%;border-collapse:collapse;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;"><tr style="border-bottom:1px solid #e2e8f0;">${mainCells}</tr><tr><td colspan="5" style="padding:5px 12px;background:white;"><span style="font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-right:10px;">Referred By</span><span style="font-size:11px;font-weight:600;color:#1e293b;">${patient.referredBy || "—"}</span></td></tr></table>${total > 0 ? `<div style="background:#f8fafc;padding:7px 20px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;font-size:11px;display:flex;gap:6px;"><span style="color:#64748b;">${total} parameters:</span><span style="font-weight:700;color:#059669;">${normal} Normal</span>${low > 0 ? `<span>·</span><span style="font-weight:700;color:#d97706;">${low} Low</span>` : ""}${high > 0 ? `<span>·</span><span style="font-weight:700;color:#dc2626;">${high} High</span>` : ""}</div>` : ""}<div style="padding:14px 20px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">${sections.map(([name, data], i) => renderSection(name, data, i)).join("")}</div></div>${footerBlock}</body></html>`;
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-function ReportViewer({ report, reportId, reportName, patient = {}, labInfo = LAB_INFO, printType = "PLAIN" }) {
+function ReportViewer({
+  report,
+  patient = null,
+  reportName,
+  labInfo = LAB_INFO,
+  printType = "PLAIN",
+  invoiceId = null,
+}) {
   const [dlStatus, setDlStatus] = useState("idle");
   const [shareStatus, setShareStatus] = useState("idle");
-  const mergedPatient = { ...DEMO_PATIENT, ...patient };
+
+  const resolvedPatient = patient ?? EMPTY_PATIENT;
   const isPad = printType === "PAD";
 
   const resolvedReportName = report.name || reportName || "Lab Report";
   const filename = `${resolvedReportName.replace(/\s+/g, "_")}_report.pdf`;
 
+  // ── invoiceId prop takes priority, fall back to report field ─────────────────
+  const shortId = invoiceId || report.invoiceId || "";
+
+  // ── Filter out metadata keys — only keep actual section objects ──────────────
   const sections = Object.entries(report).filter(
     ([key, val]) =>
-      key !== "_id" && key !== "name" && val !== null && typeof val === "object" && !Array.isArray(val) && !val.$oid,
+      !REPORT_META_KEYS.has(key) && val !== null && typeof val === "object" && !Array.isArray(val) && !val.$oid,
   );
-
-  const id = report._id?.$oid || reportId || "";
-  const shortId = id.length > 16 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id;
 
   const generateBlob = () =>
     pdf(
@@ -435,29 +387,39 @@ function ReportViewer({ report, reportId, reportName, patient = {}, labInfo = LA
         report={report}
         reportName={resolvedReportName}
         shortId={shortId}
-        patient={mergedPatient}
+        patient={resolvedPatient}
         labInfo={labInfo}
       />,
     ).toBlob();
 
+  // ── Print via hidden iframe — no new tab ─────────────────────────────────────
   const handlePrint = () => {
     const html = buildPrintHTML({
       reportName: resolvedReportName,
       shortId,
-      mergedPatient,
+      patient: resolvedPatient,
       labInfo,
       sections,
       printType,
     });
-    const win = window.open("", "_blank", "width=820,height=950");
-    if (!win) {
-      alert("Please allow popups to print.");
-      return;
-    }
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-    win.onload = () => win.print();
+
+    const existing = document.getElementById("ur-print-frame");
+    if (existing) existing.remove();
+
+    const iframe = document.createElement("iframe");
+    iframe.id = "ur-print-frame";
+    iframe.style.cssText = "position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden;";
+    document.body.appendChild(iframe);
+
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(html);
+    iframe.contentDocument.close();
+
+    iframe.onload = () => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      setTimeout(() => iframe.remove(), 1000);
+    };
   };
 
   const handleDownload = async () => {
@@ -566,7 +528,7 @@ function ReportViewer({ report, reportId, reportName, patient = {}, labInfo = LA
 
       {/* Report card */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-        {/* LAB HEADER — completely hidden on PAD */}
+        {/* Lab header — hidden on PAD */}
         {!isPad && (
           <div className="bg-slate-800 px-5 py-4 flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
@@ -596,6 +558,7 @@ function ReportViewer({ report, reportId, reportName, patient = {}, labInfo = LA
           </div>
         )}
 
+        {/* Report title bar with Invoice No */}
         <div className="flex items-center justify-between px-5 py-2.5 bg-slate-100 border-b border-slate-200">
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
@@ -604,7 +567,7 @@ function ReportViewer({ report, reportId, reportName, patient = {}, labInfo = LA
           {shortId && <p className="text-[10px] text-slate-400 font-mono">Invoice No: {shortId}</p>}
         </div>
 
-        <PatientGrid patient={mergedPatient} />
+        <PatientGrid patient={resolvedPatient} />
 
         <div className="px-5 py-2 bg-slate-50 border-b border-slate-200">
           <SummaryStrip sections={sections} />
@@ -623,7 +586,7 @@ function ReportViewer({ report, reportId, reportName, patient = {}, labInfo = LA
         </div>
       </div>
 
-      {/* FOOTER — completely hidden on PAD */}
+      {/* Footer — hidden on PAD */}
       {!isPad && (
         <div className="mt-8 pt-6 border-t border-slate-200">
           <div className="grid grid-cols-2 gap-8 mb-5">

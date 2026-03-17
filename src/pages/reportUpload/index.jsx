@@ -10,10 +10,8 @@ import reportService from "../../api/report";
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
-  /* ── Overlay backdrop ── */
   .ur-overlay { display: none; }
 
-  /* ── Drawer panel ── */
   .ur-drawer {
     position: fixed; top: 0; left: 0; bottom: 0; right: 0; z-index: 201;
     background: #f7f8fa;
@@ -33,7 +31,6 @@ const STYLES = `
   }
   @keyframes ur-fade-out { from { opacity: 1; } to { opacity: 0; } }
 
-  /* ── Drawer header ── */
   .ur-drawer-header {
     display: flex; align-items: center; gap: 12px;
     padding: 16px 20px;
@@ -49,9 +46,7 @@ const STYLES = `
   .ur-drawer-icon.create { background: rgba(37,99,235,0.25); }
   .ur-drawer-icon.edit   { background: rgba(124,58,237,0.25); }
 
-  .ur-drawer-title {
-    flex: 1; min-width: 0;
-  }
+  .ur-drawer-title { flex: 1; min-width: 0; }
   .ur-drawer-title h2 {
     font-family: 'Outfit', sans-serif;
     font-size: 14px; font-weight: 700; color: #f1f5f9;
@@ -76,7 +71,6 @@ const STYLES = `
     color: #fca5a5;
   }
 
-  /* ── Scroll body ── */
   .ur-drawer-body {
     flex: 1; overflow-y: auto;
     overscroll-behavior: contain;
@@ -85,7 +79,6 @@ const STYLES = `
   .ur-drawer-body::-webkit-scrollbar-track { background: transparent; }
   .ur-drawer-body::-webkit-scrollbar-thumb { background: #d1d5de; border-radius: 4px; }
 
-  /* ── Skeleton ── */
   .ur-skeleton-shell {
     padding: 24px 20px;
     font-family: 'Outfit', sans-serif;
@@ -101,7 +94,6 @@ const STYLES = `
     100% { background-position: -200% 0; }
   }
 
-  /* ── Error state ── */
   .ur-error-shell {
     display: flex; align-items: center; justify-content: center;
     padding: 60px 24px; font-family: 'Outfit', sans-serif;
@@ -145,7 +137,6 @@ function StyleInjector() {
 function SkeletonLoader() {
   return (
     <div className="ur-skeleton-shell">
-      {/* Header card skeleton */}
       <div style={{ background: "#fff", border: "1px solid #e4e7ed", borderRadius: 16, padding: 24, marginBottom: 12 }}>
         <div style={{ display: "flex", gap: 14, marginBottom: 20 }}>
           <div className="ur-sk" style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0 }} />
@@ -154,7 +145,6 @@ function SkeletonLoader() {
             <div className="ur-sk" style={{ height: 22, width: "65%" }} />
           </div>
         </div>
-        {/* Stats row */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
           {[...Array(4)].map((_, i) => (
             <div key={i} style={{ background: "#f2f4f7", borderRadius: 10, padding: "12px 14px" }}>
@@ -163,7 +153,6 @@ function SkeletonLoader() {
             </div>
           ))}
         </div>
-        {/* Progress bar */}
         <div style={{ marginTop: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
             <div className="ur-sk" style={{ height: 9, width: "15%" }} />
@@ -172,8 +161,6 @@ function SkeletonLoader() {
           <div className="ur-sk" style={{ height: 4, borderRadius: 4 }} />
         </div>
       </div>
-
-      {/* Patient banner skeleton */}
       <div
         style={{
           background: "#fff",
@@ -199,8 +186,6 @@ function SkeletonLoader() {
           ))}
         </div>
       </div>
-
-      {/* Section skeleton × 2 */}
       {[...Array(2)].map((_, si) => (
         <div
           key={si}
@@ -239,7 +224,6 @@ function SkeletonLoader() {
                     borderRadius: 10,
                     padding: "18px 14px 10px 12px",
                     minHeight: 54,
-                    background: "#fff",
                   }}
                 >
                   <div className="ur-sk" style={{ height: 9, width: "55%", marginBottom: 10 }} />
@@ -251,8 +235,6 @@ function SkeletonLoader() {
           </div>
         </div>
       ))}
-
-      {/* Action bar skeleton */}
       <div
         style={{
           background: "#fff",
@@ -282,8 +264,8 @@ function ErrorState({ message, onRetry }) {
         <div className="ur-error-icon">
           <AlertCircle style={{ width: 20, height: 20, color: "#dc2626" }} />
         </div>
-        <div className="ur-error-title">Failed to Load Schema</div>
-        <div className="ur-error-msg">{message || "Something went wrong while loading the report schema."}</div>
+        <div className="ur-error-title">Failed to Load</div>
+        <div className="ur-error-msg">{message || "Something went wrong while loading the report."}</div>
         <button className="ur-error-btn" onClick={onRetry}>
           <RotateCcw style={{ width: 13, height: 13 }} />
           Try Again
@@ -294,14 +276,17 @@ function ErrorState({ message, onRetry }) {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-function UploadReport() {
+function ReportUpload() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { invoice, test, report: existingReport } = location.state ?? {};
-  const isEditMode = Boolean(existingReport && Object.keys(existingReport).length > 0);
+  // Only identity fields come from route state — everything else is fetched.
+  const { invoiceId, testId, testName: stateTestName, isEdit = false } = location.state ?? {};
 
   const [schema, setSchema] = useState(null);
+  const [invoice, setInvoice] = useState(null); // { invoiceId, patient }
+  const [existingReport, setExistingReport] = useState(null);
+  const [resolvedName, setResolvedName] = useState(stateTestName ?? "Report");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -313,7 +298,6 @@ function UploadReport() {
     setTimeout(() => navigate(-1), 250);
   };
 
-  // Close on Escape
   useEffect(() => {
     const handler = (e) => {
       if (e.key === "Escape") handleClose();
@@ -322,31 +306,50 @@ function UploadReport() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const fetchSchema = async () => {
+  const fetchData = async () => {
+    if (!invoiceId || !testId) {
+      setError("Missing invoice or test information.");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
+
     try {
-      const response = await testService.getSchemaBySchemaId(test.schemaId);
-      setSchema(response.data);
+      // reportService.getById returns: { report, patient, invoiceId, testName, schemaId, isCompleted }
+      const { data } = await reportService.getById(invoiceId, testId);
+
+      // Resolve the test name (state has it already but API is authoritative)
+      const name = data.testName ?? stateTestName ?? "Report";
+      setResolvedName(name);
+
+      // Build a minimal invoice shape that SchemaRenderer's PatientBanner expects
+      setInvoice({ invoiceId: data.invoiceId, patient: data.patient });
+
+      // In edit mode, hydrate the existing report; for new upload it's empty
+      if (isEdit && data.report && Object.keys(data.report).length > 0) {
+        setExistingReport(data.report);
+      }
+
+      // Fetch the schema using the schemaId returned by the API
+      const schemaRes = await testService.getSchemaBySchemaId(data.schemaId);
+      setSchema(schemaRes.data);
     } catch (e) {
-      setError(e?.response?.data?.message || e?.message || "Failed to load schema.");
+      setError(e?.response?.data?.message || e?.message || "Failed to load report data.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSchema();
+    fetchData();
   }, []);
 
   const handleSubmit = async (payload) => {
     try {
       setSubmitting(true);
-      await reportService.addReport({
-        report: payload,
-        invoiceId: invoice.invoiceId,
-        testId: test.testId,
-      });
+      await reportService.addReport({ report: payload, invoiceId, testId });
       setPopup({ type: "success", message: "Report submitted successfully" });
     } catch (e) {
       setPopup({ type: "error", message: e?.response?.data?.message || "Could not submit report" });
@@ -358,11 +361,7 @@ function UploadReport() {
   const handleUpdate = async (payload) => {
     try {
       setSubmitting(true);
-      await reportService.updateReport({
-        report: payload,
-        invoiceId: invoice.invoiceId,
-        testId: test.testId,
-      });
+      await reportService.updateReport({ report: payload, invoiceId, testId });
       setPopup({ type: "success", message: "Report updated successfully" });
     } catch (e) {
       setPopup({ type: "error", message: e?.response?.data?.message || "Could not update report" });
@@ -371,30 +370,25 @@ function UploadReport() {
     }
   };
 
-  const testName = test?.name ?? "Report";
-  const invoiceId = invoice?.invoiceId ?? "";
-
   return (
     <>
       <StyleInjector />
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      {/* Backdrop */}
       <div className={`ur-overlay${closing ? " closing" : ""}`} onClick={handleClose} />
 
-      {/* Drawer */}
       <div className={`ur-drawer${closing ? " closing" : ""}`}>
         {/* Header */}
         <div className="ur-drawer-header">
-          <div className={`ur-drawer-icon ${isEditMode ? "edit" : "create"}`}>
-            {isEditMode ? (
+          <div className={`ur-drawer-icon ${isEdit ? "edit" : "create"}`}>
+            {isEdit ? (
               <Pencil style={{ width: 15, height: 15, color: "#c4b5fd" }} />
             ) : (
               <FileText style={{ width: 15, height: 15, color: "#93c5fd" }} />
             )}
           </div>
           <div className="ur-drawer-title">
-            <h2>{isEditMode ? `Edit — ${testName}` : `Upload — ${testName}`}</h2>
+            <h2>{isEdit ? `Edit — ${resolvedName}` : `Upload — ${resolvedName}`}</h2>
             <p>{invoiceId ? `Invoice #${invoiceId}` : "New Report"}</p>
           </div>
           <button className="ur-close-btn" onClick={handleClose} title="Close (Esc)">
@@ -402,18 +396,18 @@ function UploadReport() {
           </button>
         </div>
 
-        {/* Scrollable body */}
+        {/* Body */}
         <div className="ur-drawer-body">
           {loading && <SkeletonLoader />}
-          {!loading && error && <ErrorState message={error} onRetry={fetchSchema} />}
+          {!loading && error && <ErrorState message={error} onRetry={fetchData} />}
           {!loading && !error && schema && (
             <SchemaRenderer
               schema={schema}
-              invoice={invoice ?? null}
+              invoice={invoice}
               onSubmit={handleSubmit}
               onUpdate={handleUpdate}
               loading={submitting}
-              existingReport={isEditMode ? existingReport : null}
+              existingReport={isEdit ? existingReport : null}
             />
           )}
         </div>
@@ -422,4 +416,4 @@ function UploadReport() {
   );
 }
 
-export default UploadReport;
+export default ReportUpload;

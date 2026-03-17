@@ -303,7 +303,7 @@ const InvoiceDetailsModal = ({
             </Link>
             {rowHasReports && (
               <Link
-                to="/reports"
+                to="/report"
                 state={{ invoiceId }}
                 className="flex-1 py-2.5 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition-colors text-center flex items-center justify-center gap-1.5"
               >
@@ -571,7 +571,7 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
           />
           {hasReports && (
             <LinkChip
-              to="/reports"
+              to="/report"
               state={{ invoiceId: invoice.invoiceId }}
               icon={FlaskConical}
               label="Reports"

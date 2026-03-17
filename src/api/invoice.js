@@ -11,6 +11,9 @@ const invoiceService = {
     return api.get(`/invoice/all?${params}`);
   },
   getInvoiceByInvoiceId: (_id) => api.get(`/invoice/${_id}`),
+  // Lean fetch for the Reports page — patient info, amounts, and per-test
+  // status + dates only. No report body, no referrer, no schema details.
+  getReportSummary: (invoiceId) => api.get(`/invoice/${invoiceId}/report-summary`),
   updatePatientInfo: (invoiceId, data) => api.patch(`/invoice/${invoiceId}/patient-info`, data),
   collectDue: (invoiceId) => api.patch(`/invoice/${invoiceId}/collect-due`),
   markDelivered: (invoiceId) => api.patch(`/invoice/${invoiceId}/mark-delivered`),
