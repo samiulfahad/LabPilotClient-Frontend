@@ -1,112 +1,5 @@
 import { useState } from "react";
-
-// ─── icons (inline SVGs so zero extra deps) ──────────────────────────────────
-const Icon = {
-  Today: () => (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  ),
-  Date: () => (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-    </svg>
-  ),
-  Month: () => (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-      <rect x="8" y="14" width="8" height="4" rx="1" />
-    </svg>
-  ),
-  Range: () => (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-      <line x1="7" y1="15" x2="17" y2="15" />
-      <line x1="7" y1="19" x2="13" y2="19" />
-    </svg>
-  ),
-  Arrow: () => (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="5" y1="12" x2="19" y2="12" />
-      <polyline points="12 5 19 12 12 19" />
-    </svg>
-  ),
-  X: () => (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  ),
-  Dot: () => (
-    <svg width="6" height="6" viewBox="0 0 6 6">
-      <circle cx="3" cy="3" r="3" fill="currentColor" />
-    </svg>
-  ),
-};
+import { Clock, Calendar, CalendarDays, CalendarRange, ArrowRight, X, Circle } from "lucide-react";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const toStartOfDay = (d) => new Date(d).setHours(0, 0, 0, 0);
@@ -393,10 +286,10 @@ const PickerPanel = ({ mode, onConfirm, onCancel }) => {
 
       <div className="tf-actions">
         <button className="tf-cancel" onClick={onCancel}>
-          <Icon.X />
+          <X size={13} strokeWidth={2.5} />
         </button>
         <button className="tf-apply" onClick={apply} disabled={!valid}>
-          <Icon.Arrow /> Apply
+          <ArrowRight size={12} strokeWidth={2.5} /> Apply
         </button>
       </div>
 
@@ -407,10 +300,10 @@ const PickerPanel = ({ mode, onConfirm, onCancel }) => {
 
 // ─── TimeFrame ────────────────────────────────────────────────────────────────
 const FILTERS = [
-  { key: "today", label: "Today", Icon: Icon.Today },
-  { key: "date", label: "By Date", Icon: Icon.Date },
-  { key: "month", label: "By Month", Icon: Icon.Month },
-  { key: "dateRange", label: "Date Range", Icon: Icon.Range },
+  { key: "today", label: "Today", icon: Clock },
+  { key: "date", label: "By Date", icon: Calendar },
+  { key: "month", label: "By Month", icon: CalendarDays },
+  { key: "dateRange", label: "Date Range", icon: CalendarRange },
 ];
 
 const TimeFrame = ({ onFetchData }) => {
@@ -448,19 +341,20 @@ const TimeFrame = ({ onFetchData }) => {
       <style>{css}</style>
       <div className="tf-root">
         <div className="tf-row">
-          {FILTERS.map(({ key, label, Icon: I }) => (
+          {FILTERS.map(({ key, label, icon: TabIcon }) => (
             <button
               key={key}
               onClick={() => handleTab(key)}
               className={`tf-tab${activeMode === key ? " active" : pickerMode === key ? " open" : ""}`}
             >
-              <I /> {label}
+              <TabIcon size={14} strokeWidth={2.2} />
+              {label}
             </button>
           ))}
 
           <div className="tf-badge">
             <span className="tf-badge-dot">
-              <Icon.Dot />
+              <Circle size={6} fill="currentColor" strokeWidth={0} />
             </span>
             {activeLabel}
           </div>

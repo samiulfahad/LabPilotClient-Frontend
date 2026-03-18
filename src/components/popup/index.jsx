@@ -1,11 +1,11 @@
 import React from "react";
+import { CheckCircle2, XCircle, AlertTriangle, X } from "lucide-react";
 import Portal from "../Portal";
-import Icons from "../icons"; // Import the centralized icons
 
 // Only three types: success, error, warning
 const typeConfig = {
   success: {
-    icon: Icons.Success,
+    icon: CheckCircle2,
     title: "Success!",
     titleColor: "text-green-600",
     iconBgColor: "bg-gradient-to-br from-green-100 to-emerald-100",
@@ -14,7 +14,7 @@ const typeConfig = {
     singleButton: true,
   },
   error: {
-    icon: Icons.Error,
+    icon: XCircle,
     title: "Error!",
     titleColor: "text-red-600",
     iconBgColor: "bg-gradient-to-br from-red-100 to-rose-100",
@@ -23,7 +23,7 @@ const typeConfig = {
     singleButton: true,
   },
   warning: {
-    icon: Icons.Warning,
+    icon: AlertTriangle,
     title: "Are you sure?",
     titleColor: "text-yellow-600",
     iconBgColor: "bg-gradient-to-br from-yellow-100 to-amber-100",
@@ -48,7 +48,6 @@ const Popup = ({
 
   const handleConfirm = () => {
     onConfirm?.();
-    // Disappears popup while loading starts
     handleClose();
   };
 
@@ -56,29 +55,21 @@ const Popup = ({
     setIsClosing(true);
     setTimeout(() => {
       onClose?.();
-    }, 200); // Match animation duration
+    }, 200);
   };
 
   const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      handleClose();
-    }
+    if (e.target === e.currentTarget) handleClose();
   };
 
-  // Close popup on Escape key or Enter key
   React.useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
         handleClose();
       } else if (e.key === "Enter") {
-        if (config.singleButton) {
-          handleClose();
-        } else {
-          handleConfirm();
-        }
+        config.singleButton ? handleClose() : handleConfirm();
       }
     };
-
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [config.singleButton]);
@@ -92,7 +83,7 @@ const Popup = ({
         onClick={handleBackdropClick}
       >
         <div
-          className={`bg-white rounded-3xl shadow-2xl max-w-md w-full mx-auto border border-gray-100 transition-all duration-200 ${
+          className={`bg-white rounded-3xl shadow-2xl max-w-md w-full mx-auto border border-gray-100 relative transition-all duration-200 ${
             isClosing ? "opacity-0 scale-50 -translate-y-4" : "opacity-100 scale-100 translate-y-0"
           }`}
         >
@@ -105,7 +96,7 @@ const Popup = ({
                   isClosing ? "scale-50 opacity-0" : "scale-100 opacity-100"
                 }`}
               >
-                <IconComponent className={`w-10 h-10 ${config.iconColor}`} />
+                <IconComponent className={`w-10 h-10 ${config.iconColor}`} strokeWidth={1.5} />
               </div>
             </div>
 
@@ -137,7 +128,7 @@ const Popup = ({
                 <button
                   onClick={handleClose}
                   className={`
-                    w-full py-3.5 px-6 text-white font-semibold rounded-xl 
+                    w-full py-3.5 px-6 text-white font-semibold rounded-xl
                     transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-green-200
                     shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]
                     ${config.buttonColor}
@@ -151,7 +142,7 @@ const Popup = ({
                   <button
                     onClick={handleClose}
                     className={`
-                      flex-1 py-3.5 px-6 text-white font-semibold rounded-xl 
+                      flex-1 py-3.5 px-6 text-white font-semibold rounded-xl
                       transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-300
                       shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]
                       ${config.cancelButtonColor}
@@ -162,7 +153,7 @@ const Popup = ({
                   <button
                     onClick={handleConfirm}
                     className={`
-                      flex-1 py-3.5 px-6 text-white font-semibold rounded-xl 
+                      flex-1 py-3.5 px-6 text-white font-semibold rounded-xl
                       transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-yellow-200
                       shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]
                       ${config.confirmButtonColor}
@@ -184,9 +175,7 @@ const Popup = ({
             }`}
             aria-label="Close"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-5 h-5" />
           </button>
         </div>
       </div>

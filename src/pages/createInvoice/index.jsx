@@ -819,6 +819,7 @@ const CreateInvoice = () => {
       .then((res) => {
         setAvailableReferrers(res.data.referrers || []);
         setAvailableTests(res.data.tests || []);
+        console.log(res.data);
       })
       .catch(() => setPopup({ type: "error", message: "Could not load required data" }))
       .finally(() => setInitialLoading(false));

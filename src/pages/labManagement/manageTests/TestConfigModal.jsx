@@ -1,51 +1,37 @@
 import { useState, useEffect } from "react";
-import { Settings, DollarSign, FileText, Eye, Star, FlaskConical, XCircle, Loader2, CheckCircle2 } from "lucide-react";
+import { Settings, DollarSign, FileText, Eye, FlaskConical, XCircle, Loader2, CheckCircle2 } from "lucide-react";
 import testService from "../../../api/test";
 
 const TestConfigModal = ({ test, onClose, onSave }) => {
-  const [price, setPrice] = useState(test.price || "");
+  const [price, setPrice] = useState(test.price ?? "");
   const [schemas, setSchemas] = useState([]);
-  const [selectedSchemaId, setSelectedSchemaId] = useState(test.schemaId || null);
+  const [selectedSchemaId, setSelectedSchemaId] = useState(test.schemaId ?? null);
   const [loadingSchemas, setLoadingSchemas] = useState(false);
   const [schemaError, setSchemaError] = useState(null);
 
-  // Load schemas when modal opens
   useEffect(() => {
-    const loadSchemas = async () => {
+    if (!test.testId) return;
+    const load = async () => {
+      setLoadingSchemas(true);
+      setSchemaError(null);
       try {
-        setLoadingSchemas(true);
-        setSchemaError(null);
-        const response = await testService.getSchemasByTestId(test.testId);
-        setSchemas(response.data || []);
-      } catch (error) {
-        console.error("Failed to load formats:", error);
+        const res = await testService.getSchemasByTestId(test.testId);
+        setSchemas(res.data ?? []);
+      } catch {
         setSchemaError("Could not load formats");
         setSchemas([]);
       } finally {
         setLoadingSchemas(false);
       }
     };
-
-    if (test.testId) {
-      loadSchemas();
-    }
+    load();
   }, [test.testId]);
 
-  const handleSubmit = () => {
-    onSave({
-      ...test,
-      price: parseFloat(price) || 0,
-      schemaId: selectedSchemaId,
-    });
-  };
-
-  const handleRemoveSchema = () => {
-    setSelectedSchemaId(null);
-  };
+  const handleSubmit = () => onSave({ ...test, price: parseFloat(price) || 0, schemaId: selectedSchemaId });
 
   return (
     <div className="relative">
-      {/* Header - Sticky at top */}
+      {/* Header */}
       <div className="sticky top-0 z-10 px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-teal-50 to-cyan-50">
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <Settings className="w-6 h-6 text-teal-600" />
@@ -57,7 +43,7 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
         </p>
       </div>
 
-      {/* Scrollable Content - Parent modal handles scrolling */}
+      {/* Body */}
       <div className="px-6 py-6 bg-gray-50">
         <div className="space-y-5 max-w-2xl mx-auto">
           {/* Price */}
@@ -67,57 +53,59 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
               Test Price
             </h3>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm">৳</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm pointer-events-none select-none">
+                ৳
+              </span>
               <input
                 type="number"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                className="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-100 outline-none transition-all text-sm"
                 placeholder="Enter price"
                 min="0"
+                className="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none
+                  focus:border-teal-500 focus:ring-2 focus:ring-teal-100 transition-all
+                  [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </div>
           </div>
 
-          {/* Schemas Section */}
+          {/* Schemas */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
             <div className="mb-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-gray-500" />
-                  Available Formats
-                </h3>
-              </div>
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-gray-500" />
+                Available Formats
+              </h3>
               <p className="text-xs text-gray-500 mt-1">
                 {selectedSchemaId
-                  ? "This test is currently online. You can select a different format or make it offline."
-                  : "Select a format to make this test available online"}
+                  ? "This test is currently online. Select a different format or make it offline."
+                  : "Select a format to make this test available online."}
               </p>
             </div>
 
             {selectedSchemaId && (
-              <div className="mb-3 p-3 bg-orange-50 border-2 border-orange-200 rounded-lg">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm font-medium text-orange-900">Test is Online</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleRemoveSchema}
-                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 rounded-lg transition-all shadow-sm hover:shadow"
-                  >
-                    <XCircle className="w-4 h-4" />
-                    Make Offline
-                  </button>
+              <div className="mb-3 p-3 bg-orange-50 border-2 border-orange-200 rounded-lg flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+                  <span className="text-sm font-medium text-orange-900">Test is Online</span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedSchemaId(null)}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white
+                    bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700
+                    rounded-lg transition-all shadow-sm hover:shadow"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Make Offline
+                </button>
               </div>
             )}
 
             {loadingSchemas ? (
-              <div className="flex items-center justify-center py-8">
+              <div className="flex items-center justify-center py-8 gap-2">
                 <Loader2 className="w-6 h-6 text-teal-600 animate-spin" />
-                <span className="ml-2 text-sm text-gray-500">Loading schemas...</span>
+                <span className="text-sm text-gray-500">Loading schemas...</span>
               </div>
             ) : schemaError ? (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
@@ -148,7 +136,7 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div
-                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                          className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
                             isSelected ? "border-teal-500 bg-teal-500" : "border-gray-400"
                           }`}
                         >
@@ -180,11 +168,10 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            // TODO: Implement view schema functionality
-                            console.log("View schema:", schema._id);
+                            // TODO: view schema details
                           }}
-                          className="p-1.5 bg-white border border-gray-200 hover:border-purple-300 hover:bg-purple-50 rounded-lg transition-all"
                           title="View schema details"
+                          className="p-1.5 bg-white border border-gray-200 hover:border-purple-300 hover:bg-purple-50 rounded-lg transition-all"
                         >
                           <Eye className="w-3.5 h-3.5 text-gray-500" />
                         </button>
@@ -198,20 +185,23 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
         </div>
       </div>
 
-      {/* Footer - Sticky at bottom */}
+      {/* Footer */}
       <div className="sticky bottom-0 z-10 border-t border-gray-200 px-6 py-4 bg-white">
         <div className="flex gap-3 max-w-2xl mx-auto">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-sm bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 hover:border-gray-400"
+            className="flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all
+              bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 hover:border-gray-400"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSubmit}
-            className="flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-sm bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-sm hover:shadow"
+            className="flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all
+              bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700
+              text-white shadow-sm hover:shadow"
           >
             Save Configuration
           </button>

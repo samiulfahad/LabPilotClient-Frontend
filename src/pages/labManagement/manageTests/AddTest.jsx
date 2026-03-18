@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Search, X, FlaskConical, Check, Plus, ChevronDown, ChevronRight, CheckCircle2 } from "lucide-react";
 import testService from "../../../api/test";
 import Popup from "../../../components/popup";
-import InputField from "../../../components/html/InputField";
 import LoadingScreen from "../../../components/loadingPage";
 
 // Helper: extract a plain string ID from either a plain string or a { $oid } object
@@ -68,7 +67,6 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
           testService.getCategories(),
           existingTests.length === 0 ? testService.getTestList() : Promise.resolve({ data: existingTests }),
         ]);
-
         setAvailableTests(testsRes.data);
         setCategories(catsRes.data);
         setRegisteredTests(ownTestsRes.data);
@@ -342,14 +340,15 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
                                       className="mt-2 sm:mt-0 sm:flex-shrink-0 sm:w-48"
                                       onClick={(e) => e.stopPropagation()}
                                     >
-                                      <InputField
-                                        label="Price"
-                                        name="price"
+                                      <label className="block text-xs font-medium text-gray-600 mb-1">Price</label>
+                                      <input
                                         type="number"
+                                        name="price"
                                         value={selectedTests[testKey]?.price ?? ""}
                                         onChange={(e) => updateTestField(testKey, "price", e.target.value)}
                                         placeholder="0"
                                         min="0"
+                                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-100 outline-none transition-all placeholder-gray-400"
                                       />
                                     </div>
                                   )}
