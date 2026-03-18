@@ -44,12 +44,22 @@ const INITIAL_FORM = {
   paidAmount: 0,
 };
 
-// ─── Pricing helpers ─────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", minimumFractionDigits: 0 }).format(n);
 
 const toFixed2 = (n) => parseFloat(n.toFixed(2));
+
+/**
+ * For doctors: "Dr. Smith ( MBBS, FCPS )"
+ * For others: just the name
+ */
+const formatReferrerName = (referrer) => {
+  if (!referrer || typeof referrer !== "object") return referrer ?? "";
+  if (referrer.type === "doctor" && referrer.degree?.trim()) return `${referrer.name} ( ${referrer.degree.trim()} )`;
+  return referrer.name;
+};
 
 /** Discount the patient pays (subtracted from their bill) */
 const calcReferrerDiscount = ({ referredBy, hasReferrerDiscount, referrerDiscount, initial }) => {
@@ -161,12 +171,7 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
             {referredBy && (
               <div className="col-span-2">
                 <p className="text-gray-500">Referred By</p>
-                <p className="font-medium text-gray-900">
-                  {typeof referredBy === "string" ? referredBy : referredBy.name}
-                  {referredBy?.degree && (
-                    <span className="text-gray-600 text-sm font-normal ml-2">({referredBy.degree})</span>
-                  )}
-                </p>
+                <p className="font-medium text-gray-900">{formatReferrerName(referredBy)}</p>
                 {referredBy?.commissionValue > 0 && (
                   <p className="text-xs text-blue-600 mt-0.5">
                     Commission:{" "}
@@ -187,8 +192,8 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
           badge={`${selectedTests.length} ${selectedTests.length === 1 ? "Test" : "Tests"}`}
         >
           <div className="space-y-2">
-            {selectedTests.map((t, i) => (
-              <div key={t._id || i} className="flex items-center justify-between p-3 bg-white rounded-lg">
+            {selectedTests.map((t) => (
+              <div key={t.testId} className="flex items-center justify-between p-3 bg-white rounded-lg">
                 <span className="text-sm text-gray-900">{t.name}</span>
                 <span className="text-sm font-medium text-gray-900">{fmt(t.price)}</span>
               </div>
@@ -255,7 +260,6 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
   );
 };
 
-// Small helpers used only inside InvoiceSummary
 const SummaryBlock = ({ icon: Icon, title, badge, children }) => (
   <div className="bg-gray-50 rounded-xl p-5">
     <div className="flex items-center justify-between mb-4">
@@ -318,12 +322,10 @@ const InvoiceForm = ({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const activeReferrers = availableReferrers.filter((r) => r.isActive);
+  // Name-only search
   const filteredReferrers = referrerQuery.trim()
-    ? activeReferrers.filter(
-        (r) => r.name.toLowerCase().includes(referrerQuery.toLowerCase()) || r.contactNumber.includes(referrerQuery),
-      )
-    : activeReferrers;
+    ? availableReferrers.filter((r) => r.name.toLowerCase().includes(referrerQuery.toLowerCase()))
+    : availableReferrers;
 
   const filteredTests = testQuery.trim()
     ? availableTests.filter((t) => t.name.toLowerCase().includes(testQuery.toLowerCase()))
@@ -334,10 +336,9 @@ const InvoiceForm = ({
     setShowReferrerDrop(false);
     setReferrerQuery("");
   };
+
   const referrerDisplayValue =
-    referredBy && typeof referredBy === "object"
-      ? `${referredBy.name}${referredBy.degree ? ` (${referredBy.degree})` : ""}`
-      : referrerQuery;
+    referredBy && typeof referredBy === "object" ? formatReferrerName(referredBy) : referrerQuery;
 
   const clearReferrer = (e) => {
     e.preventDefault();
@@ -407,7 +408,11 @@ const InvoiceForm = ({
               {GENDERS.map((g) => (
                 <label
                   key={g}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 border rounded-lg cursor-pointer transition-all text-sm font-medium select-none ${patient.gender === g ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50"}`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 border rounded-lg cursor-pointer transition-all text-sm font-medium select-none ${
+                    patient.gender === g
+                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      : "border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50"
+                  }`}
                 >
                   <input
                     type="radio"
@@ -445,7 +450,7 @@ const InvoiceForm = ({
                       setShowReferrerDrop(false);
                     }}
                     className="w-full pl-9 pr-9 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    placeholder="Search by name or contact number"
+                    placeholder="Search by name"
                   />
                   {referredBy && (
                     <button
@@ -472,11 +477,7 @@ const InvoiceForm = ({
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="font-medium text-gray-900 text-sm">{r.name}</p>
-                              <p className="text-xs text-gray-500">
-                                {r.contactNumber}
-                                {r.degree && ` • ${r.degree}`}
-                              </p>
+                              <p className="font-medium text-gray-900 text-sm">{formatReferrerName(r)}</p>
                               {r.commissionValue > 0 && (
                                 <p className="text-xs text-blue-500 mt-0.5">
                                   Commission:{" "}
@@ -488,7 +489,13 @@ const InvoiceForm = ({
                             </div>
                             {r.type && (
                               <span
-                                className={`px-2 py-0.5 text-xs font-medium rounded capitalize ${r.type === "doctor" ? "bg-blue-100 text-blue-700" : r.type === "agent" ? "bg-amber-100 text-amber-700" : "bg-teal-100 text-teal-700"}`}
+                                className={`px-2 py-0.5 text-xs font-medium rounded capitalize ${
+                                  r.type === "doctor"
+                                    ? "bg-blue-100 text-blue-700"
+                                    : r.type === "agent"
+                                      ? "bg-amber-100 text-amber-700"
+                                      : "bg-teal-100 text-teal-700"
+                                }`}
                               >
                                 {r.type}
                               </span>
@@ -536,10 +543,10 @@ const InvoiceForm = ({
             <div className="absolute top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
               {filteredTests.length > 0 ? (
                 filteredTests.map((test) => {
-                  const selected = selectedTests.some((t) => t._id === test._id);
+                  const selected = selectedTests.some((t) => t.testId === test.testId);
                   return (
                     <button
-                      key={test._id}
+                      key={test.testId}
                       type="button"
                       onMouseDown={(e) => {
                         e.preventDefault();
@@ -581,9 +588,9 @@ const InvoiceForm = ({
               </span>
             </div>
             <div className="space-y-2">
-              {selectedTests.map((test, i) => (
+              {selectedTests.map((test) => (
                 <div
-                  key={test._id || i}
+                  key={test.testId}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
                 >
                   <div>
@@ -756,7 +763,6 @@ const InvoiceForm = ({
   );
 };
 
-// Reusable toggle checkbox used in Pricing section
 const CheckboxToggle = ({ checked, onChange, icon: Icon, label }) => (
   <label className="flex items-center gap-2 cursor-pointer">
     <input
@@ -836,8 +842,8 @@ const CreateInvoice = () => {
   const handleTestToggle = (test) => {
     setFormData((prev) => ({
       ...prev,
-      selectedTests: prev.selectedTests.some((t) => t._id === test._id)
-        ? prev.selectedTests.filter((t) => t._id !== test._id)
+      selectedTests: prev.selectedTests.some((t) => t.testId === test.testId)
+        ? prev.selectedTests.filter((t) => t.testId !== test.testId)
         : [...prev.selectedTests, test],
     }));
   };
@@ -862,16 +868,17 @@ const CreateInvoice = () => {
         patient,
         referrer: {
           id: referredBy?._id ?? null,
+          // Doctor: "Dr. Smith ( MBBS, FCPS )" — degree concatenated at submit time
           name:
             typeof referredBy === "object" && referredBy !== null
-              ? referredBy.name
+              ? formatReferrerName(referredBy)
               : typeof referredBy === "string"
                 ? referredBy
                 : pendingReferrerNameRef.current.trim() || null,
           type: referredBy?.type ?? null,
         },
-        tests: selectedTests.map(({ _id, name, price, schemaId }) => ({
-          testId: _id,
+        tests: selectedTests.map(({ testId, name, price, schemaId }) => ({
+          testId,
           name,
           price,
           schemaId: schemaId || null,

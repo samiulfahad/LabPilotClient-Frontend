@@ -151,7 +151,7 @@ const CashMemo = () => {
       });
       setSummary(res.data);
     } catch {
-      setPopup({ type: "error", message: "Failed to load cash memo. Please try again." });
+      setPopup({ type: "error", message: "Failed to load cashmemo. Please try again." });
     } finally {
       setLoading(false);
     }
@@ -189,7 +189,7 @@ const CashMemo = () => {
         <div className="flex items-center justify-between mb-5 no-print">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <ReceiptText className="w-7 h-7 text-indigo-600" /> Cash Memo
+              <ReceiptText className="w-7 h-7 text-indigo-600" /> Cashmemo
             </h1>
             <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
               <Activity className="w-4 h-4 text-indigo-400" /> Financial summary by time frame
@@ -230,7 +230,7 @@ const CashMemo = () => {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-[11px] font-semibold text-indigo-500 uppercase tracking-widest mb-0.5">
-                    Cash Memo
+                    Cashmemo
                   </p>
                   <h2 className="text-lg font-extrabold text-gray-900 leading-tight">{headingLabel}</h2>
                 </div>

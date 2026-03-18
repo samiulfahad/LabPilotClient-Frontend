@@ -15,7 +15,7 @@ import {
 
 const menu = [
   { label: "Home", path: "/", icon: Home },
-  { label: "Cash Memo", path: "/cashmemo", icon: Receipt },
+  { label: "Cashmemo", path: "/cashmemo", icon: Receipt },
   { label: "New Invoice", path: "/invoice/new", icon: FilePlus },
   { label: "Delete Invoice", path: "/invoice/delete", icon: Trash2 },
   { label: "Invoice List", path: "/invoice/all", icon: List },
