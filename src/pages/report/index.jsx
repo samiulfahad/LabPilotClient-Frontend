@@ -429,7 +429,7 @@ const Report = () => {
       setInvoice(null);
       const res = await invoiceService.getReportSummary(String(id));
       setInvoice(res.data);
-      console.log(res.data);
+      // console.log(res.data);
     } catch (err) {
       if (err?.response?.status === 404) setNotFound(true);
       else setPopup({ type: "error", message: "Failed to load invoice" });

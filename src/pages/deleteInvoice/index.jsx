@@ -339,6 +339,7 @@ const DeletedInvoicesList = ({ refreshTrigger, onLoadingChange, onError }) => {
         limit: 20,
         ...(range && { startDate: range.start, endDate: range.end }),
       });
+      console.log(data);
       setInvoices((prev) => (replace ? data.invoices : [...prev, ...data.invoices]));
       setNextCursor(data.nextCursor);
       setHasMore(data.hasMore);
