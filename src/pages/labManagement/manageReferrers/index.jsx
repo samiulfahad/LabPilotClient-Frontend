@@ -68,6 +68,7 @@ const ManageReferrer = () => {
   const loadReferrers = async () => {
     try {
       const response = await referrerService.getReferrers();
+      console.log(response.data);
       setReferrers(response.data);
     } catch (e) {
       setPopup({ type: "error", message: "Could not load referrers" });

@@ -70,6 +70,7 @@ const ManageStaff = () => {
   const loadStaff = async () => {
     try {
       const response = await staffService.getStaffs();
+      console.log(response.data);
       setStaff(response.data);
     } catch (e) {
       setPopup({ type: "error", message: "Could not load staff" });
