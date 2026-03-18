@@ -68,7 +68,7 @@ const ACTIONS = [
     glow: "rgba(59,130,246,0.3)",
   },
   {
-    to: "/reports",
+    to: "/report",
     icon: FlaskConical,
     label: "Reports",
     sub: "Test results & data",
