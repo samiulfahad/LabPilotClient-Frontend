@@ -40,12 +40,25 @@ const TYPE_OPTIONS = [
   },
 ];
 
+const COMMISSION_OPTIONS = [
+  {
+    value: "percentage",
+    label: "Percentage",
+    activeClass: "border-blue-500 bg-blue-50",
+    textClass: "text-blue-700",
+    checkClass: "text-blue-600",
+  },
+  {
+    value: "fixed",
+    label: "Fixed",
+    activeClass: "border-green-500 bg-green-50",
+    textClass: "text-green-700",
+    checkClass: "text-green-600",
+  },
+];
+
 const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
   const isEdit = formData.formType === "editReferrer";
-
-  const handleFieldChange = (field, value) => {
-    onChange(field, value);
-  };
 
   return (
     <div className="relative max-h-[80vh] sm:max-h-full">
@@ -57,196 +70,153 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
         </h2>
       </div>
 
-      {/* Scrollable Content */}
+      {/* Body */}
       <div className="px-6 py-6 bg-gray-50">
         <form onSubmit={onSubmit} className="space-y-5 max-w-2xl mx-auto">
-          {/* Referrer Type — 3 options */}
+          {/* Type */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
             <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <Briefcase className="w-4 h-4 text-gray-500" />
               Referrer Type
             </h3>
             <div className="grid grid-cols-3 gap-3">
-              {TYPE_OPTIONS.map((opt) => {
-                const Icon = opt.icon;
-                const isSelected = formData.type === opt.value;
+              {TYPE_OPTIONS.map(({ value, label, icon: Icon, activeClasses, checkColor, iconActive }) => {
+                const isSelected = formData.type === value;
                 return (
                   <button
-                    key={opt.value}
+                    key={value}
                     type="button"
-                    onClick={() => handleFieldChange("type", opt.value)}
-                    className={`relative py-3 px-3 rounded-lg font-medium transition-all duration-200 border-2 ${
-                      isSelected ? opt.activeClasses : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                    }`}
+                    onClick={() => onChange("type", value)}
+                    className={`relative py-3 px-3 rounded-lg font-medium transition-all duration-200 border-2 ${isSelected ? activeClasses : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"}`}
                   >
                     <div className="flex flex-col items-center gap-1.5">
-                      <Icon className={`w-5 h-5 ${isSelected ? opt.iconActive : "text-gray-400"}`} />
-                      <span className="text-xs font-semibold">{opt.label}</span>
+                      <Icon className={`w-5 h-5 ${isSelected ? iconActive : "text-gray-400"}`} />
+                      <span className="text-xs font-semibold">{label}</span>
                     </div>
-                    {isSelected && (
-                      <div className="absolute top-1.5 right-1.5">
-                        <Check className={`w-3.5 h-3.5 ${opt.checkColor}`} />
-                      </div>
-                    )}
+                    {isSelected && <Check className={`absolute top-1.5 right-1.5 w-3.5 h-3.5 ${checkColor}`} />}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Basic Information */}
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-            <div className="space-y-3">
-              {/* Name + Contact */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      value={formData.name || ""}
-                      onChange={(e) => handleFieldChange("name", e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
-                      placeholder="Enter referrer name"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Contact Number <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="tel"
-                      value={formData.contactNumber || ""}
-                      onChange={(e) => handleFieldChange("contactNumber", e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
-                      placeholder="01XXXXXXXXX"
-                      maxLength={11}
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Degree — only for doctor */}
-              {formData.type === "doctor" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Medical Degree</label>
-                  <div className="relative">
-                    <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      value={formData.degree || ""}
-                      onChange={(e) => handleFieldChange("degree", e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
-                      placeholder="e.g., MBBS, MD, FCPS"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Details */}
+          {/* Basic Info */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Additional Details</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
-                  <FileText className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <textarea
-                    value={formData.details || ""}
-                    onChange={(e) => handleFieldChange("details", e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none text-sm"
-                    placeholder="Additional information about the referrer"
-                    rows={2}
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={formData.name || ""}
+                    onChange={(e) => onChange("name", e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
+                    placeholder="Enter referrer name"
+                    required
                   />
                 </div>
               </div>
-
-              {/* Status */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Account Status</label>
-                <select
-                  value={formData.isActive ? "true" : "false"}
-                  onChange={(e) => handleFieldChange("isActive", e.target.value === "true")}
-                  className={`w-full px-4 py-2 border rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all appearance-none cursor-pointer text-sm ${
-                    formData.isActive
-                      ? "bg-green-50 text-green-700 border-green-300"
-                      : "bg-red-50 text-red-700 border-red-300"
-                  }`}
-                >
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contact Number <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="tel"
+                    value={formData.contactNumber || ""}
+                    onChange={(e) => onChange("contactNumber", e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
+                    placeholder="01XXXXXXXXX"
+                    maxLength={11}
+                    required
+                  />
+                </div>
               </div>
+            </div>
+
+            {formData.type === "doctor" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Medical Degree</label>
+                <div className="relative">
+                  <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={formData.degree || ""}
+                    onChange={(e) => onChange("degree", e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
+                    placeholder="e.g., MBBS, MD, FCPS"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Additional Details</label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                <textarea
+                  value={formData.details || ""}
+                  onChange={(e) => onChange("details", e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none text-sm"
+                  placeholder="Additional information about the referrer"
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Account Status</label>
+              <select
+                value={formData.isActive ? "true" : "false"}
+                onChange={(e) => onChange("isActive", e.target.value === "true")}
+                className={`w-full px-4 py-2 border rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all appearance-none cursor-pointer text-sm ${formData.isActive ? "bg-green-50 text-green-700 border-green-300" : "bg-red-50 text-red-700 border-red-300"}`}
+              >
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
             </div>
           </div>
 
-          {/* Commission Details */}
+          {/* Commission */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
             <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-gray-500" />
               Commission Details
             </h3>
             <div className="space-y-3">
-              {/* Commission Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Commission Type</label>
                 <div className="grid grid-cols-2 gap-3">
-                  {[
-                    {
-                      value: "percentage",
-                      label: "Percentage",
-                      activeClass: "border-blue-500 bg-blue-50",
-                      textClass: "text-blue-700",
-                      checkClass: "text-blue-600",
-                    },
-                    {
-                      value: "fixed",
-                      label: "Fixed",
-                      activeClass: "border-green-500 bg-green-50",
-                      textClass: "text-green-700",
-                      checkClass: "text-green-600",
-                    },
-                  ].map((opt) => (
+                  {COMMISSION_OPTIONS.map(({ value, label, activeClass, textClass, checkClass }) => (
                     <label
-                      key={opt.value}
-                      className={`relative flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                        formData.commissionType === opt.value
-                          ? `${opt.activeClass}`
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
+                      key={value}
+                      className={`relative flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${formData.commissionType === value ? activeClass : "border-gray-200 hover:border-gray-300"}`}
                     >
                       <input
                         type="radio"
                         name="commissionType"
-                        value={opt.value}
-                        checked={formData.commissionType === opt.value}
-                        onChange={(e) => handleFieldChange("commissionType", e.target.value)}
+                        value={value}
+                        checked={formData.commissionType === value}
+                        onChange={(e) => onChange("commissionType", e.target.value)}
                         className="w-4 h-4 text-blue-600"
                       />
                       <span
-                        className={`font-medium text-sm ${
-                          formData.commissionType === opt.value ? opt.textClass : "text-gray-700"
-                        }`}
+                        className={`font-medium text-sm ${formData.commissionType === value ? textClass : "text-gray-700"}`}
                       >
-                        {opt.label}
+                        {label}
                       </span>
-                      {formData.commissionType === opt.value && (
-                        <div className="absolute top-2 right-2">
-                          <Check className={`w-4 h-4 ${opt.checkClass}`} />
-                        </div>
+                      {formData.commissionType === value && (
+                        <Check className={`absolute top-2 right-2 w-4 h-4 ${checkClass}`} />
                       )}
                     </label>
                   ))}
                 </div>
               </div>
 
-              {/* Commission Value */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   {formData.commissionType === "percentage" ? "Percentage Value" : "Amount"}
@@ -261,7 +231,7 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
                   <input
                     type="number"
                     value={formData.commissionValue || ""}
-                    onChange={(e) => handleFieldChange("commissionValue", parseFloat(e.target.value) || 0)}
+                    onChange={(e) => onChange("commissionValue", parseFloat(e.target.value) || 0)}
                     className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
                     placeholder={formData.commissionType === "percentage" ? "0–100" : "Amount in BDT"}
                     min="0"
@@ -275,8 +245,7 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
                 </div>
                 {formData.commissionType === "percentage" && (
                   <p className="mt-1.5 text-xs text-gray-500 flex items-center gap-1">
-                    <Info className="w-3 h-3" />
-                    Enter a value between 0 and 100
+                    <Info className="w-3 h-3" /> Enter a value between 0 and 100
                   </p>
                 )}
               </div>
@@ -291,14 +260,14 @@ const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-sm bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 hover:border-gray-400"
+            className="flex-1 py-2.5 px-4 rounded-lg font-medium text-sm bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 hover:border-gray-400 transition-all"
           >
             Cancel
           </button>
           <button
             type="submit"
             onClick={onSubmit}
-            className="flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-sm bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-sm hover:shadow"
+            className="flex-1 py-2.5 px-4 rounded-lg font-medium text-sm bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-sm hover:shadow transition-all"
           >
             {isEdit ? "Update" : "Create Referrer"}
           </button>

@@ -34,20 +34,27 @@ const initialData = {
   isActive: true,
 };
 
-// Skeleton component for loading state
+const STATS_CONFIG = [
+  { key: "total", label: "Total", icon: Users, color: "blue", textColor: "text-gray-900" },
+  { key: "active", label: "Active", icon: UserCheck, color: "green", textColor: "text-green-600" },
+  { key: "doctors", label: "Doctors", icon: Stethoscope, color: "indigo", textColor: "text-indigo-600" },
+  { key: "agents", label: "Agents", icon: Briefcase, color: "amber", textColor: "text-amber-600" },
+  { key: "institutes", label: "Institutes", icon: Building2, color: "teal", textColor: "text-teal-600" },
+];
+
 const SkeletonReferrer = () => (
   <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 animate-pulse">
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-4 flex-1">
-        <div className="w-12 h-12 rounded-full bg-gray-200"></div>
+        <div className="w-12 h-12 rounded-full bg-gray-200" />
         <div className="flex-1">
-          <div className="h-5 bg-gray-200 rounded w-1/3 mb-2"></div>
-          <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+          <div className="h-5 bg-gray-200 rounded w-1/3 mb-2" />
+          <div className="h-4 bg-gray-100 rounded w-1/4" />
         </div>
       </div>
       <div className="flex gap-2">
-        <div className="h-9 w-20 bg-gray-200 rounded-lg"></div>
-        <div className="h-9 w-20 bg-gray-200 rounded-lg"></div>
+        <div className="h-9 w-20 bg-gray-200 rounded-lg" />
+        <div className="h-9 w-20 bg-gray-200 rounded-lg" />
       </div>
     </div>
   </div>
@@ -68,9 +75,8 @@ const ManageReferrer = () => {
   const loadReferrers = async () => {
     try {
       const response = await referrerService.getReferrers();
-      console.log(response.data);
       setReferrers(response.data);
-    } catch (e) {
+    } catch {
       setPopup({ type: "error", message: "Could not load referrers" });
     } finally {
       setInitialLoading(false);
@@ -81,48 +87,34 @@ const ManageReferrer = () => {
     loadReferrers();
   }, []);
 
-  const stats = useMemo(() => {
-    const total = referrers.length;
-    const active = referrers.filter((r) => r.isActive).length;
-    const doctors = referrers.filter((r) => r.type === "doctor").length;
-    const agents = referrers.filter((r) => r.type === "agent").length;
-    const institutes = referrers.filter((r) => r.type === "institute").length;
-    return { total, active, doctors, agents, institutes };
-  }, [referrers]);
+  const stats = useMemo(
+    () => ({
+      total: referrers.length,
+      active: referrers.filter((r) => r.isActive).length,
+      doctors: referrers.filter((r) => r.type === "doctor").length,
+      agents: referrers.filter((r) => r.type === "agent").length,
+      institutes: referrers.filter((r) => r.type === "institute").length,
+    }),
+    [referrers],
+  );
 
   const filteredReferrers = useMemo(() => {
-    let filtered = [...referrers];
-
-    if (typeFilter !== "all") {
-      filtered = filtered.filter((r) => r.type === typeFilter);
-    }
-
-    if (statusFilter === "active") {
-      filtered = filtered.filter((r) => r.isActive === true);
-    } else if (statusFilter === "inactive") {
-      filtered = filtered.filter((r) => r.isActive === false);
-    }
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (r) =>
-          r.name.toLowerCase().includes(query) ||
-          r.contactNumber.includes(query) ||
-          r.degree?.toLowerCase().includes(query),
-      );
-    }
-
-    return filtered;
+    return referrers.filter((r) => {
+      if (typeFilter !== "all" && r.type !== typeFilter) return false;
+      if (statusFilter === "active" && !r.isActive) return false;
+      if (statusFilter === "inactive" && r.isActive) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        return r.name.toLowerCase().includes(q) || r.contactNumber.includes(q) || r.degree?.toLowerCase().includes(q);
+      }
+      return true;
+    });
   }, [referrers, typeFilter, statusFilter, searchQuery]);
 
-  const handleFormChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  const handleFormChange = (field, value) => setFormData((prev) => ({ ...prev, [field]: value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!formData.name?.trim()) {
       setPopup({ type: "error", message: "Name is required" });
       return;
@@ -142,29 +134,28 @@ const ManageReferrer = () => {
 
     try {
       setLoading(true);
-
       if (formData.formType === "addReferrer") {
         setLoadingMessage("Creating referrer");
         await referrerService.addReferrer(formData);
-        await loadReferrers();
-        setPopup({ type: "success", message: "Referrer created successfully" });
-      }
-
-      if (formData.formType === "editReferrer") {
+      } else {
         setLoadingMessage("Updating referrer");
         await referrerService.editReferrer(formData);
-        await loadReferrers();
-        setPopup({ type: "success", message: "Referrer updated successfully" });
       }
-
+      await loadReferrers();
+      setPopup({
+        type: "success",
+        message: `Referrer ${formData.formType === "addReferrer" ? "created" : "updated"} successfully`,
+      });
       setIsModalOpen(false);
       setFormData(initialData);
     } catch (e) {
       console.error("Error:", e);
-      const errorMessage =
-        e?.response?.data?.error ||
-        (formData.formType === "editReferrer" ? "Could not edit referrer" : "Could not add referrer");
-      setPopup({ type: "error", message: errorMessage });
+      setPopup({
+        type: "error",
+        message:
+          e?.response?.data?.error ||
+          (formData.formType === "editReferrer" ? "Could not edit referrer" : "Could not add referrer"),
+      });
     } finally {
       setLoading(false);
       setLoadingMessage("Processing request");
@@ -181,12 +172,10 @@ const ManageReferrer = () => {
       setLoading(true);
       setLoadingMessage("Deleting referrer");
       await referrerService.deleteReferrer(popup._id);
-      setReferrers((prev) => prev.filter((referrer) => referrer._id !== popup._id));
+      setReferrers((prev) => prev.filter((r) => r._id !== popup._id));
       setPopup({ type: "success", message: "Referrer deleted successfully" });
     } catch (e) {
-      console.error("Error deleting:", e);
-      const errorMessage = e?.response?.data?.error || "Could not delete referrer";
-      setPopup({ type: "error", message: errorMessage });
+      setPopup({ type: "error", message: e?.response?.data?.error || "Could not delete referrer" });
     } finally {
       setLoading(false);
       setLoadingMessage("Processing request");
@@ -197,28 +186,23 @@ const ManageReferrer = () => {
     try {
       setLoading(true);
       setLoadingMessage(isActivating ? "Activating referrer" : "Deactivating referrer");
-      const serviceCall = isActivating
+      await (isActivating
         ? referrerService.activateReferrer(popup._id)
-        : referrerService.deactivateReferrer(popup._id);
-
-      await serviceCall;
-
-      setReferrers((prev) =>
-        prev.map((referrer) => (referrer._id === popup._id ? { ...referrer, isActive: isActivating } : referrer)),
-      );
-      setPopup({
-        type: "success",
-        message: `Referrer ${isActivating ? "activated" : "deactivated"} successfully`,
-      });
+        : referrerService.deactivateReferrer(popup._id));
+      setReferrers((prev) => prev.map((r) => (r._id === popup._id ? { ...r, isActive: isActivating } : r)));
+      setPopup({ type: "success", message: `Referrer ${isActivating ? "activated" : "deactivated"} successfully` });
     } catch (e) {
-      console.error(`Error ${isActivating ? "activating" : "deactivating"}:`, e);
-      const errorMessage = e?.response?.data?.error || `Could not ${isActivating ? "activate" : "deactivate"} referrer`;
-      setPopup({ type: "error", message: errorMessage });
+      setPopup({
+        type: "error",
+        message: e?.response?.data?.error || `Could not ${isActivating ? "activate" : "deactivate"} referrer`,
+      });
     } finally {
       setLoading(false);
       setLoadingMessage("Processing request");
     }
   };
+
+  const hasFilters = typeFilter !== "all" || statusFilter !== "all";
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 px-4 py-6">
@@ -250,132 +234,66 @@ const ManageReferrer = () => {
               Referrer Management
             </h1>
             <p className="text-sm text-gray-600 mt-1 hidden sm:flex items-center gap-1.5">
-              <Activity className="w-4 h-4 text-blue-500" />
-              Manage referrers & commissions
+              <Activity className="w-4 h-4 text-blue-500" /> Manage referrers & commissions
             </p>
           </div>
-
           <div className="flex items-center gap-3 shrink-0">
             <Link
               to="/lab-management"
-              className="px-2 md:px-4 py-2.5 rounded-xl border border-gray-200 bg-white/50 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow"
+              className="px-2 md:px-4 py-2.5 rounded-xl border border-gray-200 bg-white/50 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back</span>
+              <ArrowLeft className="w-4 h-4" /> <span>Back</span>
             </Link>
-
             <button
               onClick={() => {
                 setFormData({ ...initialData, formType: "addReferrer" });
                 setIsModalOpen(true);
               }}
-              className="hidden sm:flex bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 items-center justify-center gap-2 text-sm sm:text-base"
+              className="hidden sm:flex bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all items-center gap-2 text-sm"
             >
-              <Plus className="w-5 h-5" />
-              <span>Add Referrer</span>
+              <Plus className="w-5 h-5" /> Add Referrer
             </button>
           </div>
         </div>
 
-        {/* Mobile-only row */}
+        {/* Mobile add button */}
         <div className="flex flex-col gap-3 sm:hidden mb-6">
           <p className="text-sm text-gray-600 flex items-center gap-1.5">
-            <Activity className="w-4 h-4 text-blue-500" />
-            Manage referrers & commissions
+            <Activity className="w-4 h-4 text-blue-500" /> Manage referrers & commissions
           </p>
           <button
             onClick={() => {
               setFormData({ ...initialData, formType: "addReferrer" });
               setIsModalOpen(true);
             }}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 text-sm"
           >
-            <Plus className="w-5 h-5" />
-            <span>Add Referrer</span>
+            <Plus className="w-5 h-5" /> Add Referrer
           </button>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <Users className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-600 font-medium">Total</p>
-                {initialLoading ? (
-                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
-                ) : (
-                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-green-50 rounded-lg">
-                <UserCheck className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-600 font-medium">Active</p>
-                {initialLoading ? (
-                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
-                ) : (
-                  <p className="text-2xl font-bold text-green-600">{stats.active}</p>
-                )}
+          {STATS_CONFIG.map(({ key, label, icon: Icon, color, textColor }) => (
+            <div
+              key={key}
+              className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center gap-2">
+                <div className={`p-2 bg-${color}-50 rounded-lg`}>
+                  <Icon className={`w-6 h-6 text-${color}-600`} />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600 font-medium">{label}</p>
+                  {initialLoading ? (
+                    <div className="h-8 w-12 bg-gray-200 rounded animate-pulse" />
+                  ) : (
+                    <p className={`text-2xl font-bold ${textColor}`}>{stats[key]}</p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-indigo-50 rounded-lg">
-                <Stethoscope className="w-6 h-6 text-indigo-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-600 font-medium">Doctors</p>
-                {initialLoading ? (
-                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
-                ) : (
-                  <p className="text-2xl font-bold text-indigo-600">{stats.doctors}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-amber-50 rounded-lg">
-                <Briefcase className="w-6 h-6 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-600 font-medium">Agents</p>
-                {initialLoading ? (
-                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
-                ) : (
-                  <p className="text-2xl font-bold text-amber-600">{stats.agents}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-teal-50 rounded-lg">
-                <Building2 className="w-6 h-6 text-teal-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-600 font-medium">Institutes</p>
-                {initialLoading ? (
-                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
-                ) : (
-                  <p className="text-2xl font-bold text-teal-600">{stats.institutes}</p>
-                )}
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Filters */}
@@ -385,8 +303,6 @@ const ManageReferrer = () => {
               <Filter className="w-4 h-4 text-gray-500" />
               <span className="text-sm font-semibold text-gray-700">Filters:</span>
             </div>
-
-            {/* Type Filter */}
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-gray-500">Type</span>
               <div className="flex rounded-lg bg-gray-100 p-1">
@@ -395,56 +311,47 @@ const ManageReferrer = () => {
                     key={t}
                     onClick={() => setTypeFilter(t)}
                     disabled={initialLoading}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
-                      typeFilter === t ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
-                    } ${initialLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${typeFilter === t ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"} disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     {t}
                   </button>
                 ))}
               </div>
             </div>
-
-            {/* Status Filter */}
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-gray-500">Status</span>
               <div className="flex rounded-lg bg-gray-100 p-1">
-                {["all", "active", "inactive"].map((status) => (
+                {["all", "active", "inactive"].map((s) => (
                   <button
-                    key={status}
-                    onClick={() => setStatusFilter(status)}
+                    key={s}
+                    onClick={() => setStatusFilter(s)}
                     disabled={initialLoading}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
-                      statusFilter === status ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
-                    } ${initialLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${statusFilter === s ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"} disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    {status}
+                    {s}
                   </button>
                 ))}
               </div>
             </div>
-
-            {/* Reset */}
-            {(typeFilter !== "all" || statusFilter !== "all") && (
+            {hasFilters && (
               <button
                 onClick={() => {
                   setTypeFilter("all");
                   setStatusFilter("all");
                 }}
                 disabled={initialLoading}
-                className="ml-auto text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1.5 transition-colors font-medium px-3 py-1.5 hover:bg-blue-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="ml-auto text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1.5 font-medium px-3 py-1.5 hover:bg-blue-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Reset Filters
+                <RotateCcw className="w-3.5 h-3.5" /> Reset Filters
               </button>
             )}
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* Search */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               placeholder="Search by name, contact, or degree..."
@@ -457,7 +364,7 @@ const ManageReferrer = () => {
               <button
                 onClick={() => setSearchQuery("")}
                 disabled={initialLoading}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors disabled:opacity-50"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -465,12 +372,11 @@ const ManageReferrer = () => {
           </div>
         </div>
 
-        {/* Modal */}
         <Modal isOpen={isModalOpen} size="md" onClose={handleClose}>
           <ReferrerForm formData={formData} onChange={handleFormChange} onSubmit={handleSubmit} onClose={handleClose} />
         </Modal>
 
-        {/* Referrers List */}
+        {/* List */}
         {initialLoading ? (
           <div className="space-y-3">
             {[1, 2, 3, 4].map((i) => (
@@ -483,16 +389,14 @@ const ManageReferrer = () => {
               <Users className="w-8 h-8 text-blue-600" />
             </div>
             <h3 className="text-lg font-semibold text-gray-800 mb-2">
-              {searchQuery || typeFilter !== "all" || statusFilter !== "all"
-                ? "No referrers found"
-                : "No referrers yet"}
+              {hasFilters || searchQuery ? "No referrers found" : "No referrers yet"}
             </h3>
             <p className="text-gray-500 text-sm mb-4 max-w-md mx-auto">
-              {searchQuery || typeFilter !== "all" || statusFilter !== "all"
-                ? "Try adjusting your filters or search criteria to find what you're looking for"
+              {hasFilters || searchQuery
+                ? "Try adjusting your filters or search criteria"
                 : "Get started by adding your first referrer to begin tracking commissions"}
             </p>
-            {!searchQuery && typeFilter === "all" && statusFilter === "all" && (
+            {!hasFilters && !searchQuery && (
               <button
                 onClick={() => {
                   setFormData({ ...initialData, formType: "addReferrer" });
@@ -500,18 +404,16 @@ const ManageReferrer = () => {
                 }}
                 className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm hover:shadow transition-all"
               >
-                <UserPlus className="w-4 h-4" />
-                Add Your First Referrer
+                <UserPlus className="w-4 h-4" /> Add Your First Referrer
               </button>
             )}
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredReferrers.map((item, index) => (
+            {filteredReferrers.map((item) => (
               <Referrer
                 key={item._id}
                 input={item}
-                index={index}
                 onEdit={() => {
                   setFormData({
                     name: item.name || "",
