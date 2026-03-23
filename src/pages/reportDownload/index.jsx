@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Eye, Printer, X } from "lucide-react";
 import ReportViewer from "./ReportViewer";
 import reportService from "../../api/report";
@@ -138,13 +138,14 @@ function ErrorState({ message, onClose }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function ReportDownload() {
-  const { state } = useLocation();
+  // Read params from URL query string so this page works when opened in a new tab.
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const invoiceId = state?.invoiceId;
-  const testId = state?.testId;
-  const testName = state?.testName ?? "Report";
-  const printType = state?.printType ?? "PLAIN";
+  const invoiceId = searchParams.get("invoiceId");
+  const testId = searchParams.get("testId");
+  const testName = searchParams.get("testName") ?? "Report";
+  const printType = searchParams.get("printType") ?? "PLAIN";
   const isPad = printType === "PAD";
 
   const [report, setReport] = useState(null);
@@ -181,7 +182,14 @@ export default function ReportDownload() {
 
   const handleClose = () => {
     setClosing(true);
-    setTimeout(() => navigate(-1), 250);
+    setTimeout(() => {
+      // In a new tab there may be no history to go back to — close the tab instead.
+      if (window.history.length > 1) {
+        navigate(-1);
+      } else {
+        window.close();
+      }
+    }, 250);
   };
 
   useEffect(() => {

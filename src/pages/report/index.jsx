@@ -26,6 +26,11 @@ import Popup from "../../components/popup";
 import invoiceService from "../../api/invoice";
 import reportService from "../../api/report";
 
+// ─── Session persistence keys ─────────────────────────────────────────────────
+
+const SS_QUERY = "report_page_query";
+const SS_INVOICE = "report_page_invoice";
+
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 const Skeleton = ({ className = "", style = {} }) => (
@@ -219,8 +224,8 @@ const DateField = ({ icon: Icon, iconColor, label, value, onChange, focusColor }
 );
 
 // ─── Test Action Buttons ──────────────────────────────────────────────────────
-// Only invoiceId + testId + testName are passed — the destination pages fetch
-// their own report data from the API.
+// Print links open in a new tab using query params (no router state needed).
+// Upload / Edit links stay in the same tab and still use router state.
 
 const TestActions = ({ invoice, test }) => {
   const testId = test.testId?.$oid || test.testId;
@@ -237,19 +242,24 @@ const TestActions = ({ invoice, test }) => {
     );
   }
 
+  const padUrl = `/report-download?invoiceId=${invoice.invoiceId}&testId=${testId}&testName=${encodeURIComponent(test.name)}&printType=PAD`;
+  const plainUrl = `/report-download?invoiceId=${invoice.invoiceId}&testId=${testId}&testName=${encodeURIComponent(test.name)}&printType=PLAIN`;
+
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
       <Link
-        to="/report-download"
-        state={{ invoiceId: invoice.invoiceId, testId, testName: test.name, printType: "PAD" }}
+        to={padUrl}
+        target="_blank"
+        rel="noopener noreferrer"
         className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-semibold rounded-lg border border-violet-200 transition-colors"
       >
         <Printer className="w-3.5 h-3.5" />
         <span className="hidden sm:inline">Print (Pad)</span>
       </Link>
       <Link
-        to="/report-download"
-        state={{ invoiceId: invoice.invoiceId, testId, testName: test.name, printType: "PLAIN" }}
+        to={plainUrl}
+        target="_blank"
+        rel="noopener noreferrer"
         className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 transition-colors"
       >
         <Printer className="w-3.5 h-3.5" />
@@ -414,13 +424,32 @@ const InvoiceDetail = ({ invoice, onDatesSaved }) => {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const Report = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [invoice, setInvoice] = useState(null);
+  // Lazy-initialise from sessionStorage so state survives back-navigation
+  const [searchQuery, setSearchQuery] = useState(() => sessionStorage.getItem(SS_QUERY) ?? "");
+  const [invoice, setInvoice] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(SS_INVOICE);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [searching, setSearching] = useState(false);
   const [popup, setPopup] = useState(null);
   const [notFound, setNotFound] = useState(false);
 
   const location = useLocation();
+
+  // Keep sessionStorage in sync with state
+  useEffect(() => {
+    if (searchQuery) sessionStorage.setItem(SS_QUERY, searchQuery);
+    else sessionStorage.removeItem(SS_QUERY);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (invoice) sessionStorage.setItem(SS_INVOICE, JSON.stringify(invoice));
+    else sessionStorage.removeItem(SS_INVOICE);
+  }, [invoice]);
 
   const fetchInvoice = async (id) => {
     try {
@@ -429,7 +458,6 @@ const Report = () => {
       setInvoice(null);
       const res = await invoiceService.getReportSummary(String(id));
       setInvoice(res.data);
-      // console.log(res.data);
     } catch (err) {
       if (err?.response?.status === 404) setNotFound(true);
       else setPopup({ type: "error", message: "Failed to load invoice" });
@@ -441,9 +469,12 @@ const Report = () => {
   useEffect(() => {
     const id = location.state?.invoiceId;
     if (id) {
-      setSearchQuery(String(id));
-      fetchInvoice(id);
+      // Navigated here with an explicit invoice — override the cache
+      const idStr = String(id);
+      setSearchQuery(idStr);
+      fetchInvoice(idStr);
     }
+    // Otherwise the lazy-initialised state already restored from sessionStorage
   }, []); // eslint-disable-line
 
   const handleSearch = () => {
