@@ -224,8 +224,6 @@ const DateField = ({ icon: Icon, iconColor, label, value, onChange, focusColor }
 );
 
 // ─── Test Action Buttons ──────────────────────────────────────────────────────
-// Print links open in a new tab using query params (no router state needed).
-// Upload / Edit links stay in the same tab and still use router state.
 
 const TestActions = ({ invoice, test }) => {
   const testId = test.testId?.$oid || test.testId;
@@ -469,12 +467,16 @@ const Report = () => {
   useEffect(() => {
     const id = location.state?.invoiceId;
     if (id) {
-      // Navigated here with an explicit invoice — override the cache
+      // Navigated here with an explicit invoiceId (e.g. after uploading a report).
+      // Always refetch so the latest server data is shown — never use the stale cache.
       const idStr = String(id);
       setSearchQuery(idStr);
       fetchInvoice(idStr);
+    } else if (searchQuery) {
+      // No explicit invoiceId in state but we have a cached query (e.g. plain back-nav).
+      // Refetch live data instead of relying on the sessionStorage snapshot.
+      fetchInvoice(searchQuery);
     }
-    // Otherwise the lazy-initialised state already restored from sessionStorage
   }, []); // eslint-disable-line
 
   const handleSearch = () => {

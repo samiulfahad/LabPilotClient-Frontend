@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Eye, Printer, X } from "lucide-react";
 import ReportViewer from "./ReportViewer";
@@ -8,59 +9,199 @@ import reportService from "../../api/report";
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
-  .ur-overlay { display: none; }
+  /*
+   * The portal div sits as a direct child of <body>, so it is outside
+   * every stacking context created by the React app layout.
+   * z-index here is just a safety net — it is not fighting anything.
+   */
+  #ur-portal-root {
+    position: fixed;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 99999 !important;
+    overflow: hidden;
+    /* Dynamic viewport height so mobile browser chrome is excluded */
+    height: 100dvh !important;
+  }
 
   .ur-drawer {
-    position: fixed; top: 0; left: 0; bottom: 0; right: 0; z-index: 201;
-    background: #f7f8fa; display: flex; flex-direction: column;
+    position: absolute;
+    inset: 0;
+    background: #f7f8fa;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     animation: ur-slide-in 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
   }
-  @keyframes ur-slide-in { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-  .ur-drawer.closing { animation: ur-slide-out 0.25s cubic-bezier(0.32, 0, 0.67, 0) forwards; }
+  @keyframes ur-slide-in  { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+  .ur-drawer.closing      { animation: ur-slide-out 0.25s cubic-bezier(0.32, 0, 0.67, 0) forwards; }
   @keyframes ur-slide-out { from { transform: translateX(0); } to { transform: translateX(-100%); } }
 
+  /* ─── Header ─────────────────────────────────────────────────────────────── */
   .ur-drawer-header {
-    display: flex; align-items: center; gap: 12px; padding: 16px 20px;
-    background: #0d1117; border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    /* base height */
+    min-height: 56px;
+    /* push content below notch on iOS / Android */
+    padding-top: max(12px, env(safe-area-inset-top, 12px));
+    padding-bottom: 12px;
+    padding-left: 12px;
+    padding-right: 12px;
+    background: #0d1117;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+    /* NEVER let content overflow and hide the X button */
+    overflow: visible;
   }
-  .ur-drawer-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  .ur-drawer-icon {
+    width: 32px; height: 32px; min-width: 32px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
   .ur-drawer-icon.view { background: rgba(5, 150, 105, 0.25); }
 
-  .ur-drawer-title { flex: 1; min-width: 0; }
-  .ur-drawer-title h2 { font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 700; color: #f1f5f9; letter-spacing: -0.01em; margin: 0; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ur-drawer-title p  { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.3); margin: 2px 0 0; text-transform: uppercase; letter-spacing: 0.07em; }
+  /* Middle text block — grows to fill space, truncates */
+  .ur-drawer-title {
+    flex: 1 1 0%;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .ur-drawer-title h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px; font-weight: 700; color: #f1f5f9;
+    letter-spacing: -0.01em; margin: 0; line-height: 1.25;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ur-drawer-title p {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; color: rgba(255,255,255,0.3);
+    margin: 3px 0 0; text-transform: uppercase; letter-spacing: 0.07em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
 
-  .ur-close-btn { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; color: rgba(255,255,255,0.5); transition: all 0.15s; flex-shrink: 0; }
-  .ur-close-btn:hover { background: rgba(220,38,38,0.2); border-color: rgba(220,38,38,0.3); color: #fca5a5; }
-
-  .ur-drawer-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
-  .ur-drawer-body::-webkit-scrollbar { width: 4px; }
-  .ur-drawer-body::-webkit-scrollbar-track { background: transparent; }
-  .ur-drawer-body::-webkit-scrollbar-thumb { background: #d1d5de; border-radius: 4px; }
-
-  .ur-print-badge { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; flex-shrink: 0; }
+  /* Print badge — hidden on small phones so the X is never squeezed out */
+  .ur-print-badge {
+    display: flex; align-items: center; gap: 5px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; font-weight: 500;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  @media (max-width: 400px) { .ur-print-badge { display: none !important; } }
   .ur-print-badge.pad   { background: rgba(124,58,237,0.18); border: 1px solid rgba(124,58,237,0.35); color: #c4b5fd; }
   .ur-print-badge.plain { background: rgba(37,99,235,0.18);  border: 1px solid rgba(37,99,235,0.35);  color: #93c5fd; }
 
-  .ur-loading { display: flex; align-items: center; justify-content: center; padding: 80px 24px; flex-direction: column; gap: 12px; }
-  .ur-spinner { width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid rgba(255,255,255,0.08); border-top-color: #60a5fa; animation: ur-spin 0.7s linear infinite; }
+  /* ─── Close / X button ────────────────────────────────────────────────────
+   * Uses explicit px values and !important so nothing in the app can
+   * accidentally override flex sizing and cause it to disappear.          */
+  .ur-close-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.10);
+    border: 1.5px solid rgba(255,255,255,0.18);
+    cursor: pointer;
+    color: #ffffff;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    /* make sure icon is centered and visible */
+    padding: 0;
+    box-sizing: border-box;
+  }
+  .ur-close-btn:hover,
+  .ur-close-btn:active {
+    background: rgba(220,38,38,0.30) !important;
+    border-color: rgba(220,38,38,0.50) !important;
+    color: #fca5a5 !important;
+  }
+
+  /* ─── Scrollable body ───────────────────────────────────────────────────── */
+  .ur-drawer-body {
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    background: #f7f8fa;
+  }
+  .ur-drawer-body::-webkit-scrollbar { width: 4px; }
+  .ur-drawer-body::-webkit-scrollbar-track { background: transparent; }
+  .ur-drawer-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+  /* ─── Loading spinner ───────────────────────────────────────────────────── */
+  .ur-loading {
+    display: flex; align-items: center; justify-content: center;
+    padding: 80px 24px; flex-direction: column; gap: 12px;
+  }
+  .ur-spinner {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 2.5px solid rgba(0,0,0,0.08);
+    border-top-color: #60a5fa;
+    animation: ur-spin 0.7s linear infinite;
+  }
   @keyframes ur-spin { to { transform: rotate(360deg); } }
 `;
 
-function StyleInjector() {
+// ─── Portal hook — mounts a <div> directly on <body> ─────────────────────────
+// This escapes EVERY stacking context the React app layout creates, so
+// z-index fights are impossible.
+function useBodyPortal() {
+  const [el, setEl] = useState(null);
+
   useEffect(() => {
-    const id = "ur-styles-v2";
-    if (!document.getElementById(id)) {
-      const el = document.createElement("style");
-      el.id = id;
-      el.textContent = STYLES;
-      document.head.appendChild(el);
+    // Inject stylesheet once
+    const styleId = "ur-styles-v4";
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = STYLES;
+      document.head.appendChild(style);
     }
+    // Clean up old stylesheet versions
+    ["ur-styles-v2", "ur-styles-v3"].forEach((id) => {
+      document.getElementById(id)?.remove();
+    });
+
+    // Mount portal div as direct child of <body>
+    const div = document.createElement("div");
+    div.id = "ur-portal-root";
+    document.body.appendChild(div);
+    setEl(div);
+
+    // Prevent the page behind from scrolling / being interacted with
+    const savedOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.removeChild(div);
+      document.body.style.overflow = savedOverflow;
+    };
   }, []);
-  return null;
+
+  return el;
 }
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 const formatDate = (val) => {
   if (!val) return "";
   const d = new Date(val);
@@ -106,7 +247,7 @@ function ErrorState({ message, onClose }) {
         >
           <Eye style={{ width: 20, height: 20, color: "#dc2626" }} />
         </div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#0d1117", marginBottom: 8, letterSpacing: "-0.02em" }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#0d1117", marginBottom: 8 }}>
           {message || "Failed to load report"}
         </div>
         <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.6, marginBottom: 20 }}>
@@ -138,7 +279,6 @@ function ErrorState({ message, onClose }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function ReportDownload() {
-  // Read params from URL query string so this page works when opened in a new tab.
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -154,6 +294,9 @@ export default function ReportDownload() {
   const [error, setError] = useState(null);
   const [closing, setClosing] = useState(false);
 
+  // Portal div mounted directly on <body> — escapes all layout stacking contexts
+  const portalEl = useBodyPortal();
+
   useEffect(() => {
     if (!invoiceId || !testId) {
       setError("Missing invoice or test information.");
@@ -164,8 +307,6 @@ export default function ReportDownload() {
       .getById(invoiceId, testId)
       .then(({ data }) => {
         setReport(data.report);
-        console.log(data);
-        // Map API shape → PatientGrid shape expected by ReportViewer
         setPatient({
           name: data.patient?.name ?? "",
           age: data.patient?.age != null ? `${data.patient.age} yrs` : "",
@@ -183,12 +324,8 @@ export default function ReportDownload() {
   const handleClose = () => {
     setClosing(true);
     setTimeout(() => {
-      // In a new tab there may be no history to go back to — close the tab instead.
-      if (window.history.length > 1) {
-        navigate(-1);
-      } else {
-        window.close();
-      }
+      if (window.history.length > 1) navigate(-1);
+      else window.close();
     }, 250);
   };
 
@@ -200,54 +337,62 @@ export default function ReportDownload() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  return (
-    <>
-      <StyleInjector />
-      <div className={`ur-overlay${closing ? " closing" : ""}`} onClick={handleClose} />
+  // Wait until the portal <div> is appended to <body>
+  if (!portalEl) return null;
 
-      <div className={`ur-drawer${closing ? " closing" : ""}`}>
-        <div className="ur-drawer-header">
-          <div className="ur-drawer-icon view">
-            <Eye style={{ width: 15, height: 15, color: "#6ee7b7" }} />
-          </div>
-          <div className="ur-drawer-title">
-            <h2>View — {testName}</h2>
-            <p>{invoiceId ? `Invoice #${invoiceId}` : "Report Details"}</p>
-          </div>
-          <div className={`ur-print-badge ${isPad ? "pad" : "plain"}`}>
-            <Printer style={{ width: 11, height: 11 }} />
-            {isPad ? "Pad" : "Plain A4"}
-          </div>
-          <button className="ur-close-btn" onClick={handleClose} title="Close (Esc)">
-            <X style={{ width: 15, height: 15 }} />
-          </button>
+  return createPortal(
+    <div className={`ur-drawer${closing ? " closing" : ""}`}>
+      {/* ── Header ── */}
+      <div className="ur-drawer-header">
+        {/* Icon */}
+        <div className="ur-drawer-icon view">
+          <Eye style={{ width: 15, height: 15, color: "#6ee7b7" }} />
         </div>
 
-        <div className="ur-drawer-body">
-          {loading && (
-            <div className="ur-loading">
-              <div className="ur-spinner" />
-              <span
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: 11,
-                  color: "rgba(255,255,255,0.3)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.07em",
-                }}
-              >
-                Loading report…
-              </span>
-            </div>
-          )}
-          {!loading && error && <ErrorState message={error} onClose={handleClose} />}
-          {!loading && !error && report && (
-            <div style={{ padding: "24px 20px" }}>
-              <ReportViewer report={report} patient={patient} printType={printType} invoiceId={invoiceId} />
-            </div>
-          )}
+        {/* Title — grows, truncates */}
+        <div className="ur-drawer-title">
+          <h2>View — {testName}</h2>
+          <p>{invoiceId ? `Invoice #${invoiceId}` : "Report Details"}</p>
         </div>
+
+        {/* Print badge — hidden on ≤400 px */}
+        <div className={`ur-print-badge ${isPad ? "pad" : "plain"}`}>
+          <Printer style={{ width: 10, height: 10 }} />
+          {isPad ? "Pad" : "Plain A4"}
+        </div>
+
+        {/* X — always last, never hidden */}
+        <button className="ur-close-btn" onClick={handleClose} title="Close (Esc)" aria-label="Close report">
+          <X style={{ width: 18, height: 18, display: "block" }} />
+        </button>
       </div>
-    </>
+
+      {/* ── Body ── */}
+      <div className="ur-drawer-body">
+        {loading && (
+          <div className="ur-loading">
+            <div className="ur-spinner" />
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 11,
+                color: "#64748b",
+                textTransform: "uppercase",
+                letterSpacing: "0.07em",
+              }}
+            >
+              Loading report…
+            </span>
+          </div>
+        )}
+        {!loading && error && <ErrorState message={error} onClose={handleClose} />}
+        {!loading && !error && report && (
+          <div style={{ padding: "20px 16px" }}>
+            <ReportViewer report={report} patient={patient} printType={printType} invoiceId={invoiceId} />
+          </div>
+        )}
+      </div>
+    </div>,
+    portalEl,
   );
 }

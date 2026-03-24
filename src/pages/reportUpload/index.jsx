@@ -284,18 +284,27 @@ function ReportUpload() {
   const { invoiceId, testId, testName: stateTestName, isEdit = false } = location.state ?? {};
 
   const [schema, setSchema] = useState(null);
-  const [invoice, setInvoice] = useState(null); // { invoiceId, patient }
+  const [invoice, setInvoice] = useState(null);
   const [existingReport, setExistingReport] = useState(null);
   const [resolvedName, setResolvedName] = useState(stateTestName ?? "Report");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false); // ← tracks successful submission
   const [popup, setPopup] = useState(null);
   const [closing, setClosing] = useState(false);
 
+  // If submitted, go back to /report with the invoiceId so it refetches.
+  // Otherwise fall back to normal back-navigation.
   const handleClose = () => {
     setClosing(true);
-    setTimeout(() => navigate(-1), 250);
+    setTimeout(() => {
+      if (submitted && invoiceId) {
+        navigate("/report", { state: { invoiceId } });
+      } else {
+        navigate(-1);
+      }
+    }, 250);
   };
 
   useEffect(() => {
@@ -304,7 +313,7 @@ function ReportUpload() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [submitted]); // re-register when submitted changes so handleClose is fresh
 
   const fetchData = async () => {
     if (!invoiceId || !testId) {
@@ -320,19 +329,15 @@ function ReportUpload() {
       // reportService.getById returns: { report, patient, invoiceId, testName, schemaId, isCompleted }
       const { data } = await reportService.getById(invoiceId, testId);
 
-      // Resolve the test name (state has it already but API is authoritative)
       const name = data.testName ?? stateTestName ?? "Report";
       setResolvedName(name);
 
-      // Build a minimal invoice shape that SchemaRenderer's PatientBanner expects
       setInvoice({ invoiceId: data.invoiceId, patient: data.patient });
 
-      // In edit mode, hydrate the existing report; for new upload it's empty
       if (isEdit && data.report && Object.keys(data.report).length > 0) {
         setExistingReport(data.report);
       }
 
-      // Fetch the schema using the schemaId returned by the API
       const schemaRes = await testService.getSchemaBySchemaId(data.schemaId);
       setSchema(schemaRes.data);
     } catch (e) {
@@ -350,6 +355,7 @@ function ReportUpload() {
     try {
       setSubmitting(true);
       await reportService.addReport({ report: payload, invoiceId, testId });
+      setSubmitted(true); // ← mark success so handleClose navigates correctly
       setPopup({ type: "success", message: "Report submitted successfully" });
     } catch (e) {
       setPopup({ type: "error", message: e?.response?.data?.message || "Could not submit report" });
@@ -362,6 +368,7 @@ function ReportUpload() {
     try {
       setSubmitting(true);
       await reportService.updateReport({ report: payload, invoiceId, testId });
+      setSubmitted(true); // ← mark success so handleClose navigates correctly
       setPopup({ type: "success", message: "Report updated successfully" });
     } catch (e) {
       setPopup({ type: "error", message: e?.response?.data?.message || "Could not update report" });
