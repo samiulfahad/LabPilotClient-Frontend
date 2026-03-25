@@ -125,15 +125,15 @@ export default function Login() {
     setResetPhone("");
   };
 
-  /* ── Modern mobile-first input styles ── */
+  /* ── Responsive input styles (tuned for mobile) ── */
   const inputBase =
-    "w-full bg-gray-50/70 border border-gray-200/80 rounded-2xl px-5 py-4 pl-12 text-base text-slate-800 outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100/60 focus:bg-white sm:px-3.5 sm:py-2.5 sm:pl-10 sm:text-sm";
+    "w-full bg-gray-50/70 border border-gray-200/80 rounded-2xl px-4 py-3 pl-10 text-base text-slate-800 outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100/60 focus:bg-white sm:px-5 sm:py-4 sm:pl-12 sm:text-sm";
 
   const inputErr = "border-red-300 ring-4 ring-red-100/60 focus:border-red-400 focus:ring-red-100/60";
 
   return (
     <div
-      className="min-h-screen flex items-start sm:items-center justify-center p-6 sm:p-4 relative overflow-hidden"
+      className="h-screen overflow-hidden flex items-center justify-center p-4 relative"
       style={{
         background: "linear-gradient(145deg, #f0f4ff 0%, #f0f1f7 40%, #e8f5ff 100%)",
         fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
@@ -176,7 +176,7 @@ export default function Login() {
       >
         {/* ── Brand header (matches DesktopMenu header exactly) ── */}
         <div
-          className="flex items-center gap-3 px-6 py-5 sm:px-5 sm:py-4 rounded-t-3xl border-b border-slate-200"
+          className="flex items-center gap-3 px-5 py-4 sm:px-6 sm:py-5 rounded-t-3xl border-b border-slate-200"
           style={{
             background: "linear-gradient(135deg, #dbeafe 0%, #e2e8f0 100%)",
             animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.05s both",
@@ -203,10 +203,10 @@ export default function Login() {
           className="bg-white/85 backdrop-blur-md border border-gray-200/80 border-t-0 shadow-lg"
           style={{ borderRadius: "0 0 24px 24px" }}
         >
-          <div className="px-6 sm:px-7 pt-8 sm:pt-6 pb-8 sm:pb-6">
+          <div className="px-5 pt-6 pb-6 sm:px-7 sm:pt-8 sm:pb-8">
             {/* ── View headings ── */}
             {view === "login" && (
-              <div className="mb-5" style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both" }}>
+              <div className="mb-4 sm:mb-5" style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both" }}>
                 <h1
                   className="text-[26px] sm:text-[22px] font-black text-gray-900 tracking-tight leading-tight mb-0.5"
                   style={{ letterSpacing: "-0.03em" }}
@@ -218,7 +218,7 @@ export default function Login() {
             )}
 
             {view === "reset" && (
-              <div className="mb-5" style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both" }}>
+              <div className="mb-4 sm:mb-5" style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both" }}>
                 <h1
                   className="text-[26px] sm:text-[22px] font-black text-gray-900 tracking-tight leading-tight mb-0.5"
                   style={{ letterSpacing: "-0.03em" }}
@@ -232,7 +232,7 @@ export default function Login() {
             )}
 
             {view === "sent" && (
-              <div className="mb-5" style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both" }}>
+              <div className="mb-4 sm:mb-5" style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both" }}>
                 <h1
                   className="text-[26px] sm:text-[22px] font-black text-gray-900 tracking-tight leading-tight mb-0.5"
                   style={{ letterSpacing: "-0.03em" }}
@@ -245,16 +245,16 @@ export default function Login() {
 
             {/* ════ LOGIN ════ */}
             {view === "login" && (
-              <div className="flex flex-col gap-6 sm:gap-4">
+              <div className="flex flex-col gap-5 sm:gap-4">
                 {/* Lab ID */}
                 <div style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.15s both" }}>
                   <Field label="Lab ID" icon={Hash} error={errors.labId}>
                     <Hash
                       size={15}
-                      className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
+                      className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
                     />
                     <input
-                      className={`${inputBase} font-mono tracking-[0.2em] font-bold pr-24 sm:pr-20 ${
+                      className={`${inputBase} font-mono tracking-[0.2em] font-bold pr-20 sm:pr-24 ${
                         errors.labId ? inputErr : ""
                       }`}
                       type="text"
@@ -273,7 +273,7 @@ export default function Login() {
                   <Field label="Phone Number" icon={Phone} error={errors.phone}>
                     <Phone
                       size={15}
-                      className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
+                      className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
                     />
                     <input
                       className={`${inputBase} ${errors.phone ? inputErr : ""}`}
@@ -290,10 +290,10 @@ export default function Login() {
                   <Field label="Password" icon={Lock} error={errors.password}>
                     <Lock
                       size={15}
-                      className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
+                      className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
                     />
                     <input
-                      className={`${inputBase} pr-12 sm:pr-11 ${errors.password ? inputErr : ""}`}
+                      className={`${inputBase} pr-11 sm:pr-12 ${errors.password ? inputErr : ""}`}
                       type={showPw ? "text" : "password"}
                       placeholder="••••••••"
                       value={password}
@@ -302,7 +302,7 @@ export default function Login() {
                     />
                     <button
                       type="button"
-                      className="absolute right-4 sm:right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      className="absolute right-3.5 sm:right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                       onClick={() => setShowPw((p) => !p)}
                       tabIndex={-1}
                     >
@@ -313,7 +313,7 @@ export default function Login() {
 
                 {/* Forgot */}
                 <div
-                  className="flex justify-end -mt-1"
+                  className="flex justify-end -mt-0.5"
                   style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.28s both" }}
                 >
                   <button
@@ -342,7 +342,7 @@ export default function Login() {
                     type="button"
                     onClick={handleLogin}
                     disabled={loading}
-                    className="group w-full flex items-center justify-center gap-2 px-6 py-3.5 sm:px-4 sm:py-2.5 rounded-2xl font-semibold text-base sm:text-sm text-white transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/25 active:translate-y-0"
+                    className="group w-full flex items-center justify-center gap-2 px-6 py-3 sm:px-4 sm:py-3.5 rounded-2xl font-semibold text-base sm:text-sm text-white transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/25 active:translate-y-0"
                     style={{
                       background: "linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)",
                       boxShadow: "0 4px 16px rgba(37,99,235,0.28)",
@@ -364,13 +364,13 @@ export default function Login() {
             {/* ════ RESET ════ */}
             {view === "reset" && (
               <div
-                className="flex flex-col gap-6 sm:gap-5"
+                className="flex flex-col gap-5 sm:gap-5"
                 style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both" }}
               >
                 <Field label="Registered Phone Number" icon={Phone} error={errors.resetPhone}>
                   <Phone
                     size={15}
-                    className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
+                    className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
                   />
                   <input
                     className={`${inputBase} ${errors.resetPhone ? inputErr : ""}`}
@@ -387,7 +387,7 @@ export default function Login() {
                   type="button"
                   onClick={handleReset}
                   disabled={loading}
-                  className="group w-full flex items-center justify-center gap-2 px-6 py-3.5 sm:px-4 sm:py-2.5 rounded-2xl font-semibold text-base sm:text-sm text-white transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/25"
+                  className="group w-full flex items-center justify-center gap-2 px-6 py-3 sm:px-4 sm:py-3.5 rounded-2xl font-semibold text-base sm:text-sm text-white transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/25"
                   style={{
                     background: "linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)",
                     boxShadow: "0 4px 16px rgba(37,99,235,0.28)",
@@ -417,7 +417,7 @@ export default function Login() {
             {/* ════ SENT ════ */}
             {view === "sent" && (
               <div
-                className="flex flex-col items-center gap-6 sm:gap-5 py-4 sm:py-2"
+                className="flex flex-col items-center gap-5 sm:gap-5 py-2 sm:py-4"
                 style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both" }}
               >
                 {/* Success icon */}
@@ -454,7 +454,7 @@ export default function Login() {
           </div>
 
           {/* ── Card footer ── */}
-          <div className="flex items-center justify-between px-6 sm:px-7 py-3.5 sm:py-3 rounded-b-3xl border-t border-gray-100 bg-gray-50/50">
+          <div className="flex items-center justify-between px-5 py-2.5 sm:px-7 sm:py-3 rounded-b-3xl border-t border-gray-100 bg-gray-50/50">
             <div className="flex items-center gap-1.5">
               <ShieldCheck size={12} className="text-blue-400" />
               <span className="text-[11px] text-gray-400 font-medium">256-bit encrypted</span>
@@ -468,7 +468,7 @@ export default function Login() {
 
         {/* ── Bottom label ── */}
         <p
-          className="text-center text-[11px] text-gray-300 font-medium mt-4"
+          className="text-center text-[11px] text-gray-300 font-medium mt-2 sm:mt-4"
           style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.5s both" }}
         >
           LabPilot · Diagnostic Lab Management System
