@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { NavLink, Link } from "react-router-dom";
 import { LogOut, Menu, X, ChevronRight } from "lucide-react";
+import { useAuthStore } from "../../store/authStore";
 import menu from "./menu";
 
 const MobileMenu = () => {
+  const logout = useAuthStore((s) => s.logout);
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [lastScroll, setLastScroll] = useState(0);
   const [scrollDirection, setScrollDirection] = useState("");
@@ -47,9 +50,14 @@ const MobileMenu = () => {
     };
   }, [isMenuOpen]);
 
+  const handleLogout = () => {
+    closeMenu();
+    logout();
+  };
+
   return (
     <>
-      {/* Modern Mobile Navbar – Glass Effect */}
+      {/* Mobile Navbar */}
       <div className="lg:hidden">
         <nav
           className={`
@@ -62,7 +70,10 @@ const MobileMenu = () => {
           <Link to="/" className="flex flex-col">
             <span
               className="text-gray-900 font-bold text-base leading-none"
-              style={{ fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif", letterSpacing: "-0.02em" }}
+              style={{
+                fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
+                letterSpacing: "-0.02em",
+              }}
             >
               LabPilot<span className="font-light">Pro</span>
             </span>
@@ -91,13 +102,14 @@ const MobileMenu = () => {
       {/* Slide-out Drawer */}
       <div
         className={`
-          lg:hidden fixed top-0 right-0 h-full w-80 max-w-[85vw] bg-white/95 backdrop-blur-xl 
-          z-50 shadow-2xl transform transition-transform duration-300 ease-out
+          lg:hidden fixed top-0 right-0 h-full w-80 max-w-[85vw]
+          bg-white/95 backdrop-blur-xl z-50 shadow-2xl
+          transform transition-transform duration-300 ease-out
           ${isMenuOpen ? "translate-x-0" : "translate-x-full"}
         `}
       >
         <div className="flex flex-col h-full">
-          {/* Drawer Header – Premium Gradient */}
+          {/* Drawer Header */}
           <div className="flex-shrink-0 p-5 bg-gradient-to-br from-blue-600 to-indigo-600">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -142,7 +154,8 @@ const MobileMenu = () => {
                         <>
                           <div
                             className={`
-                              w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 flex-shrink-0
+                              w-9 h-9 rounded-lg flex items-center justify-center
+                              transition-all duration-200 flex-shrink-0
                               ${
                                 isActive
                                   ? "bg-blue-100 text-blue-600"
@@ -156,7 +169,7 @@ const MobileMenu = () => {
                           <ChevronRight
                             className={`
                               w-4 h-4 transition-all duration-200
-                              ${isActive ? "text-blue-600 translate-x-0" : "text-gray-400 group-hover:translate-x-0.5"}
+                              ${isActive ? "text-blue-600" : "text-gray-400 group-hover:translate-x-0.5"}
                             `}
                           />
                         </>
@@ -168,11 +181,14 @@ const MobileMenu = () => {
             </div>
           </div>
 
-          {/* Fixed Logout Button */}
+          {/* Footer – Logout only */}
           <div className="flex-shrink-0 p-4 border-t border-gray-200/80 bg-white/50 backdrop-blur-sm">
             <button
-              onClick={closeMenu}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-gray-700 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all duration-200 group"
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl
+                text-gray-700 hover:text-red-600 hover:bg-red-50
+                border border-transparent hover:border-red-200
+                transition-all duration-200 group"
             >
               <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
               <span className="text-sm font-medium">Logout</span>

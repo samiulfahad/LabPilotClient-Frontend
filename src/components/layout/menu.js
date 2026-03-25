@@ -10,7 +10,7 @@ import {
   FlaskConical,
   HelpCircle,
   Search,
-  File
+  File,
 } from "lucide-react";
 
 const menu = [

@@ -1,4 +1,6 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { useAuthStore } from "./store/authStore";
+import LabPilotLogin from "./pages/login";
 
 import Layout from "./components/layout";
 import Home from "./pages/home";
@@ -18,6 +20,10 @@ import CashMemo from "./pages/cashmemo";
 import Commission from "./pages/commission";
 
 function App() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  if (!isAuthenticated) return <LabPilotLogin />;
+
   return (
     <Layout>
       <Routes>
@@ -36,6 +42,7 @@ function App() {
         <Route path="/manage-staffs" element={<ManageStaffs />} />
         <Route path="/manage-tests" element={<ManageTests />} />
         <Route path="/test/add" element={<AddTest />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
   );
