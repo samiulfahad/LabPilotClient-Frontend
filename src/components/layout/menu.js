@@ -23,7 +23,7 @@ const menu = [
   { label: "Commission", path: "/commission", icon: DollarSign },
   { label: "Billing", path: "/billing", icon: CreditCard },
   { label: "Lab Management", path: "/lab-management", icon: FlaskConical },
-  { label: "Support", path: "/support", icon: HelpCircle },
+  { label: "Help", path: "/help", icon: HelpCircle },
 ];
 
 export default menu;

@@ -1,7 +1,7 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { useAuthStore } from "./store/authStore";
-import LabPilotLogin from "./pages/login";
 
+import LabPilotLogin from "./pages/login";
 import Layout from "./components/layout";
 import Home from "./pages/home";
 import LabManagement from "./pages/labManagement";
@@ -18,15 +18,38 @@ import ReportDownload from "./pages/reportDownload";
 import DeleteInvoices from "./pages/deleteInvoice";
 import CashMemo from "./pages/cashmemo";
 import Commission from "./pages/commission";
+import Help from "./pages/help";
 
+// ─── Route Wrapper for Protected Pages ──────────────────────────────────────
+const ProtectedRoutes = () => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  // If not logged in, kick them to the login page
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  // If logged in, show the Layout (Sidebar/Navbar) and the requested page
+  return (
+    <Layout>
+      <Outlet />
+    </Layout>
+  );
+};
+
+// ─── Main App Component ─────────────────────────────────────────────────────
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  if (!isAuthenticated) return <LabPilotLogin />;
-
   return (
-    <Layout>
-      <Routes>
+    <Routes>
+      {/* ════ PUBLIC ROUTES (No login required) ════ */}
+      {/* If they are already logged in, don't show them the login page again */}
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LabPilotLogin />} />
+      {/* Help is now public and accessible without logging in */}
+      <Route path="/help" element={<Help />} />
+      
+      {/* ════ PROTECTED ROUTES (Login required) ════ */}
+      <Route element={<ProtectedRoutes />}>
         <Route path="/" element={<Home />} />
         <Route path="/cashmemo" element={<CashMemo />} />
         <Route path="/commission" element={<Commission />} />
@@ -42,9 +65,10 @@ function App() {
         <Route path="/manage-staffs" element={<ManageStaffs />} />
         <Route path="/manage-tests" element={<ManageTests />} />
         <Route path="/test/add" element={<AddTest />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Layout>
+      </Route>
+      {/* Catch-all: Redirect unknown URLs to home */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
