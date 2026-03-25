@@ -15,23 +15,8 @@ import {
   Loader2,
   ShieldCheck,
   Send,
-  Activity,
   Microscope,
 } from "lucide-react";
-
-/* ─── helpers ──────────────────────────────────────────────────────────────── */
-const useClock = () => {
-  const [time, setTime] = useState(new Date());
-  useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  return time.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-};
 
 /* ─── Field wrapper ──────────────────────────────────────────────────────── */
 const Field = ({ label, icon: Icon, error, children }) => (
@@ -91,8 +76,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [resetPhone, setResetPhone] = useState("");
 
-  const clock = useClock();
-
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 60);
     return () => clearTimeout(t);
@@ -143,7 +126,6 @@ export default function Login() {
   };
 
   /* ── Modern mobile-first input styles ── */
-  /* Bigger touch targets + padding on mobile, tighter on larger screens */
   const inputBase =
     "w-full bg-gray-50/70 border border-gray-200/80 rounded-2xl px-5 py-4 pl-12 text-base text-slate-800 outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100/60 focus:bg-white sm:px-3.5 sm:py-2.5 sm:pl-10 sm:text-sm";
 
@@ -151,7 +133,7 @@ export default function Login() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      className="min-h-screen flex items-start sm:items-center justify-center p-6 sm:p-4 relative overflow-hidden"
       style={{
         background: "linear-gradient(145deg, #f0f4ff 0%, #f0f1f7 40%, #e8f5ff 100%)",
         fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
@@ -182,18 +164,6 @@ export default function Login() {
           backgroundSize: "36px 36px",
         }}
       />
-
-      {/* ── Top clock bar (matches Home topnav) ── */}
-      <div
-        className="fixed top-4 right-4 z-50 flex items-center gap-1.5 bg-white/80 backdrop-blur border border-gray-100 rounded-2xl px-3 py-2 shadow-sm"
-        style={{
-          opacity: mounted ? 1 : 0,
-          transition: "opacity 0.5s ease 0.6s",
-        }}
-      >
-        <Activity className="w-3 h-3 text-emerald-500" />
-        <span className="text-xs font-mono font-bold text-gray-700 tabular-nums">{clock}</span>
-      </div>
 
       {/* ── Card ── */}
       <div
@@ -366,7 +336,7 @@ export default function Login() {
                   </div>
                 )}
 
-                {/* Submit — matches Home action card gradient style */}
+                {/* Submit */}
                 <div className="mt-1" style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.32s both" }}>
                   <button
                     type="button"
@@ -450,7 +420,7 @@ export default function Login() {
                 className="flex flex-col items-center gap-6 sm:gap-5 py-4 sm:py-2"
                 style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both" }}
               >
-                {/* Success icon — matches Home's stat card style */}
+                {/* Success icon */}
                 <div
                   className="w-16 h-16 sm:w-14 sm:h-14 rounded-3xl flex items-center justify-center"
                   style={{
@@ -483,7 +453,7 @@ export default function Login() {
             )}
           </div>
 
-          {/* ── Card footer (matches Layout footer style) ── */}
+          {/* ── Card footer ── */}
           <div className="flex items-center justify-between px-6 sm:px-7 py-3.5 sm:py-3 rounded-b-3xl border-t border-gray-100 bg-gray-50/50">
             <div className="flex items-center gap-1.5">
               <ShieldCheck size={12} className="text-blue-400" />
