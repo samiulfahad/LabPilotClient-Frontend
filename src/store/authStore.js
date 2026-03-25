@@ -1,100 +1,64 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { jwtDecode } from "jwt-decode"; // You'll need to run: npm install jwt-decode
+import api from "../services/api"; // Import your newly configured Axios instance
 
-// ── Mock users (matching your DB documents) ──────────────────────────────────
-const MOCK_USERS = [
-  {
-    _id: "69bf99cb7961a1fa58421222",
-    labOid: "69bd7e4b9a381e898978f7b0",
-    labId: 12345,
-    name: "Support Admin",
-    phone: "SUPPORTADMIN",
-    password: "hasan1",
-    role: "supportAdmin",
-    permissions: {
-      createInvoice: true,
-      editInvoice: true,
-      deleteInvoice: true,
-      cashmemo: true,
-      uploadReport: true,
-      downloadReport: true,
-    },
-    isActive: false,
-    isDeleted: true,
-  },
-  {
-    _id: "69bf9572ab03690c07bfe612",
-    labOid: "69bd7e4b9a381e898978f7b0",
-    labId: 12345,
-    name: "hjj j",
-    phone: "01723939836",
-    password: "hasan1", // mock password
-    role: "staff",
-    permissions: {
-      createInvoice: false,
-      editInvoice: true,
-      deleteInvoice: false,
-      cashmemo: false,
-      uploadReport: false,
-      downloadReport: false,
-    },
-    isActive: false,
-    isDeleted: true,
-    email: "kjkj@jgs.con",
-  },
-  {
-    _id: "69bf9522ab03690c07bfe611",
-    labOid: "69bd7e4b9a381e898978f7b0",
-    labId: 12345,
-    name: "jhkj",
-    phone: "01735935619",
-    password: "hasan1", // mock password
-    role: "admin",
-    permissions: {
-      createInvoice: true,
-      editInvoice: true,
-      deleteInvoice: true,
-      cashmemo: true,
-      uploadReport: true,
-      downloadReport: true,
-    },
-    isActive: true,
-    isDeleted: false,
-    email: "kjkj@jgs.conwwq",
-  },
-];
-
-// ── Store ─────────────────────────────────────────────────────────────────────
 export const useAuthStore = create(
   persist(
     (set) => ({
       user: null,
+      token: null,
       isAuthenticated: false,
 
-      // Returns { success: true } or { success: false, message: string }
+      // Helper function used by the Axios interceptor
+      setToken: (newToken) => set({ token: newToken }),
+
       login: async (labId, phone, password) => {
-        // Simulate network delay
-        await new Promise((r) => setTimeout(r, 1500));
+        try {
+          // Send request via your Axios instance (bypasses auth interceptor since no token exists yet)
+          const response = await api.post("/login", {
+            labId: Number(labId),
+            phone,
+            password,
+          });
 
-        const found = MOCK_USERS.find((u) => u.labId === Number(labId) && u.phone === phone && u.password === password);
+          const { accessToken } = response.data;
 
-        if (!found) {
-          return { success: false, message: "Invalid Lab ID, phone, or password." };
+          // Decode the payload to get user data (role, permissions, etc.)
+          const decodedUser = jwtDecode(accessToken);
+
+          set({
+            user: decodedUser,
+            token: accessToken,
+            isAuthenticated: true,
+          });
+
+          return { success: true };
+        } catch (error) {
+          // Handle specific backend error messages if available
+          const message = error.response?.data?.error || "Login failed. Please check your credentials.";
+          return { success: false, message };
         }
-
-        // Strip password before storing
-        const { password: _pw, ...safeUser } = found;
-
-        set({ user: safeUser, isAuthenticated: true });
-        return { success: true };
       },
 
-      logout: () => set({ user: null, isAuthenticated: false }),
+      logout: async () => {
+        try {
+          // Tell the backend to clear the httpOnly cookies and delete the session from the DB
+          await api.post("/logout");
+        } catch (error) {
+          console.error("Logout API failed, but clearing local state anyway", error);
+        } finally {
+          // Always clear local state, even if the backend request fails
+          set({ user: null, token: null, isAuthenticated: false });
+        }
+      },
     }),
     {
-      name: "labpilot-auth", // key in localStorage
+      name: "labpilot-auth",
       partialize: (state) => ({
         user: state.user,
+        // We persist the token so if they refresh the page before expiry, they remain logged in
+        token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
     },
