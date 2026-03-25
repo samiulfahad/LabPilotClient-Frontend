@@ -278,7 +278,7 @@ export default function Login() {
                     <input
                       className={`${inputBase} ${errors.phone ? inputErr : ""}`}
                       type="tel"
-                      placeholder="+880 1XXX-XXXXXX"
+                      placeholder="01711XXXXXX"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                     />
