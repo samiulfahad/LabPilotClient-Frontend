@@ -3,6 +3,8 @@ import { NavLink, Link } from "react-router-dom";
 import { LogOut, Menu, X, ChevronRight } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import menu from "./menu";
+import LogoutConfirmModal from "../logoutModal";
+import LoadingScreen from "../loadingPage";
 
 const MobileMenu = () => {
   const logout = useAuthStore((s) => s.logout);
@@ -10,6 +12,8 @@ const MobileMenu = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [lastScroll, setLastScroll] = useState(0);
   const [scrollDirection, setScrollDirection] = useState("");
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   // Hide navbar on scroll down, show on scroll up
   useEffect(() => {
@@ -50,9 +54,17 @@ const MobileMenu = () => {
     };
   }, [isMenuOpen]);
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
     closeMenu();
-    logout();
+    // Small delay so the drawer finishes closing before the modal appears
+    setTimeout(() => setShowConfirm(true), 300);
+  };
+
+  const handleLogoutConfirm = async () => {
+    setShowConfirm(false);
+    setLoggingOut(true);
+    await logout();
+    setLoggingOut(false);
   };
 
   return (
@@ -184,7 +196,7 @@ const MobileMenu = () => {
           {/* Footer – Logout only */}
           <div className="flex-shrink-0 p-4 border-t border-gray-200/80 bg-white/50 backdrop-blur-sm">
             <button
-              onClick={handleLogout}
+              onClick={handleLogoutClick}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl
                 text-gray-700 hover:text-red-600 hover:bg-red-50
                 border border-transparent hover:border-red-200
@@ -196,6 +208,15 @@ const MobileMenu = () => {
           </div>
         </div>
       </div>
+
+      {showConfirm && (
+        <LogoutConfirmModal
+          onConfirm={handleLogoutConfirm}
+          onCancel={() => setShowConfirm(false)}
+        />
+      )}
+
+      {loggingOut && <LoadingScreen message="Signing you out" />}
     </>
   );
 };

@@ -5,12 +5,11 @@ const cloud = "https://labpilotclient-backend.onrender.com/api/v1";
 const local = "http://localhost:5000/api/v1";
 
 const api = axios.create({
-  baseURL: cloud, // Change to cloud for production
+  baseURL: cloud,
   timeout: 10000,
   withCredentials: true, // CRITICAL: Ensures refresh cookies are sent to the backend
 });
 
-// Variables to handle multiple simultaneous requests when token expires
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -25,10 +24,15 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
+// BUG FIX 5: Reset the refresh state so no future requests hang if logout races a refresh.
+const resetRefreshState = (error = null) => {
+  processQueue(error);
+  isRefreshing = false;
+};
+
 // ── Request Interceptor: Attach Access Token ──
 api.interceptors.request.use(
   (config) => {
-    // Get token directly from Zustand state
     const token = useAuthStore.getState().token;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -44,51 +48,53 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // If error is 401 and we haven't already retried this specific request
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // If the refresh endpoint itself fails with 401, logout immediately
-      // This prevents infinite loops
-      if (originalRequest.url.includes("/refresh")) {
-        useAuthStore.getState().logout();
+      // BUG FIX 1: Skip the interceptor for /login — the authStore handles that error itself.
+      // Skip /refresh too to prevent infinite loops.
+      if (originalRequest.url.includes("/refresh") || originalRequest.url.includes("/login")) {
+        if (originalRequest.url.includes("/refresh")) {
+          // BUG FIX 5: Clean up refresh state before logging out.
+          resetRefreshState(error);
+          useAuthStore.getState().logout();
+        }
         return Promise.reject(error);
       }
 
-      // If another request is already refreshing the token, queue this one up
+      // If another request is already refreshing, queue this one.
       if (isRefreshing) {
         return new Promise(function (resolve, reject) {
           failedQueue.push({ resolve, reject });
         })
           .then((token) => {
             originalRequest.headers["Authorization"] = "Bearer " + token;
-            return api(originalRequest); // Retry request with new token
+            return api(originalRequest);
           })
           .catch((err) => {
             return Promise.reject(err);
           });
       }
 
-      // Start the refresh process
       originalRequest._retry = true;
       isRefreshing = true;
 
       try {
-        // Because withCredentials is true, the httpOnly refresh cookie is sent automatically
         const { data } = await api.post("/refresh");
         const newAccessToken = data.accessToken;
 
-        // Update Zustand store with the new token
         useAuthStore.getState().setToken(newAccessToken);
 
-        // Process any other requests that were waiting
+        // BUG FIX 5: Use resetRefreshState so the queue is always drained and
+        // isRefreshing is always cleared — even if something throws after processQueue.
+        resetRefreshState(null);
+        // Re-resolve queue with new token
         processQueue(null, newAccessToken);
 
-        // Retry the original failed request
         originalRequest.headers["Authorization"] = "Bearer " + newAccessToken;
         return api(originalRequest);
       } catch (refreshError) {
-        // The refresh token is expired or invalid
-        processQueue(refreshError, null);
-        useAuthStore.getState().logout(); // Nuke the state and redirect
+        // BUG FIX 5: Drain the queue with the error so queued requests reject cleanly.
+        resetRefreshState(refreshError);
+        useAuthStore.getState().logout();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
