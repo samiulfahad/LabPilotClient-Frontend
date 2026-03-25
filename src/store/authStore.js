@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { jwtDecode } from "jwt-decode"; // You'll need to run: npm install jwt-decode
-import api from "../services/api"; // Import your newly configured Axios instance
+import api from "../api/baseAPI"; // Import your newly configured Axios instance
 
 export const useAuthStore = create(
   persist(
