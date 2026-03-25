@@ -68,7 +68,7 @@ export default function Login() {
   const navigate = useNavigate();
 
   const [loginError, setLoginError] = useState("");
-  const [labId, setLabId] = useState("");
+  const [labKey, setLabKey] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -83,7 +83,7 @@ export default function Login() {
 
   const validateLogin = () => {
     const e = {};
-    if (!/^\d{5}$/.test(labId)) e.labId = "Must be exactly 5 digits";
+    if (!/^\d{5}$/.test(labKey)) e.labKey = "Must be exactly 5 digits";
     if (!/^\+?[\d\s\-()+]{7,}$/.test(phone)) e.phone = "Enter a valid phone number";
     if (password.length < 6) e.password = "Password is too short";
     setErrors(e);
@@ -101,7 +101,7 @@ export default function Login() {
     if (!validateLogin()) return;
     setLoginError("");
     setLoading(true);
-    const result = await login(labId, phone, password);
+    const result = await login(labKey, phone, password);
     setLoading(false);
     if (result.success) navigate("/");
     else setLoginError(result.message);
@@ -248,23 +248,23 @@ export default function Login() {
               <div className="flex flex-col gap-6 sm:gap-4">
                 {/* Lab ID */}
                 <div style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.15s both" }}>
-                  <Field label="Lab ID" icon={Hash} error={errors.labId}>
+                  <Field label="Lab ID" icon={Hash} error={errors.labKey}>
                     <Hash
                       size={15}
                       className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
                     />
                     <input
                       className={`${inputBase} font-mono tracking-[0.2em] font-bold pr-24 sm:pr-20 ${
-                        errors.labId ? inputErr : ""
+                        errors.labKey ? inputErr : ""
                       }`}
                       type="text"
                       inputMode="numeric"
                       placeholder="00000"
-                      value={labId}
-                      onChange={(e) => setLabId(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                      value={labKey}
+                      onChange={(e) => setLabKey(e.target.value.replace(/\D/g, "").slice(0, 5))}
                       maxLength={5}
                     />
-                    <LabDots count={labId.length} />
+                    <LabDots count={labKey.length} />
                   </Field>
                 </div>
 

@@ -13,11 +13,11 @@ export const useAuthStore = create(
       // Helper function used by the Axios interceptor
       setToken: (newToken) => set({ token: newToken }),
 
-      login: async (labId, phone, password) => {
+      login: async (labKey, phone, password) => {
         try {
           // Send request via your Axios instance (bypasses auth interceptor since no token exists yet)
           const response = await api.post("/login", {
-            labId: Number(labId),
+            labKey: Number(labKey),
             phone,
             password,
           });
