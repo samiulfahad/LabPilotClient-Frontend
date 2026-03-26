@@ -24,9 +24,10 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-// BUG FIX 5: Reset the refresh state so no future requests hang if logout races a refresh.
-const resetRefreshState = (error = null) => {
-  processQueue(error);
+// Drains the queue and resets isRefreshing — always call this instead of
+// manually toggling isRefreshing so the two stay in sync.
+const resetRefreshState = (error = null, token = null) => {
+  processQueue(error, token); // ✅ pass token through so queued requests get the new token
   isRefreshing = false;
 };
 
@@ -49,11 +50,11 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // BUG FIX 1: Skip the interceptor for /login — the authStore handles that error itself.
+      // Skip the interceptor for /login — the authStore handles that error itself.
       // Skip /refresh too to prevent infinite loops.
       if (originalRequest.url.includes("/refresh") || originalRequest.url.includes("/login")) {
         if (originalRequest.url.includes("/refresh")) {
-          // BUG FIX 5: Clean up refresh state before logging out.
+          // Clean up refresh state before logging out.
           resetRefreshState(error);
           useAuthStore.getState().logout();
         }
@@ -83,22 +84,23 @@ api.interceptors.response.use(
 
         useAuthStore.getState().setToken(newAccessToken);
 
-        // BUG FIX 5: Use resetRefreshState so the queue is always drained and
-        // isRefreshing is always cleared — even if something throws after processQueue.
-        resetRefreshState(null);
-        // Re-resolve queue with new token
-        processQueue(null, newAccessToken);
+        // ✅ resetRefreshState now passes the token directly to processQueue,
+        //    so all queued requests get the new token. The old code called
+        //    resetRefreshState(null) then processQueue(null, newAccessToken)
+        //    separately — the second call was redundant (queue was already empty).
+        resetRefreshState(null, newAccessToken);
 
         originalRequest.headers["Authorization"] = "Bearer " + newAccessToken;
         return api(originalRequest);
       } catch (refreshError) {
-        // BUG FIX 5: Drain the queue with the error so queued requests reject cleanly.
+        // Drain the queue with the error so queued requests reject cleanly.
         resetRefreshState(refreshError);
         useAuthStore.getState().logout();
         return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
       }
+      // ✅ Removed the `finally { isRefreshing = false; }` block — resetRefreshState
+      //    already sets isRefreshing = false in both the try and catch paths,
+      //    so the finally was redundant and could race with the next refresh cycle.
     }
 
     return Promise.reject(error);
