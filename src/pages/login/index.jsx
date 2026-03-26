@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuthStore } from "../../store/authStore";
 import { useNavigate } from "react-router-dom";
 import {
-  FlaskConical,
   Hash,
   Phone,
   Lock,
@@ -15,11 +14,10 @@ import {
   Loader2,
   ShieldCheck,
   Send,
-  Microscope,
 } from "lucide-react";
 
 /* ─── Field wrapper ──────────────────────────────────────────────────────── */
-const Field = ({ label, icon: Icon, error, children }) => (
+const Field = ({ label, error, children }) => (
   <div className="flex flex-col gap-1.5">
     <label
       className="text-[10.5px] font-bold tracking-[0.12em] text-slate-400 uppercase select-none"
@@ -41,9 +39,9 @@ const Field = ({ label, icon: Icon, error, children }) => (
 );
 
 /* ─── Lab ID dot progress ────────────────────────────────────────────────── */
-const LabDots = ({ count }) => (
+const LabDots = ({ count, total = 5 }) => (
   <div className="absolute right-5 sm:right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-[5px]">
-    {[0, 1, 2, 3, 4].map((i) => (
+    {Array.from({ length: total }).map((_, i) => (
       <span
         key={i}
         style={{
@@ -59,9 +57,139 @@ const LabDots = ({ count }) => (
   </div>
 );
 
+/* ─── Per-digit underline phone input ────────────────────────────────────── */
+const MAX_PHONE = 11;
+
+const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
+  const inputRef = useRef(null);
+  const [focused, setFocused] = useState(false);
+
+  const handleContainerClick = () => inputRef.current?.focus();
+
+  return (
+    <div
+      onClick={handleContainerClick}
+      className="cursor-text relative"
+      style={{
+        padding: "10px 0 8px 0",
+        borderRadius: "16px",
+        background: focused ? "#fff" : "rgba(249,250,251,0.7)",
+        border: error ? "1px solid #fca5a5" : focused ? "1px solid #60a5fa" : "1px solid rgba(229,231,235,0.8)",
+        boxShadow: focused ? "0 0 0 4px rgba(59,130,246,0.1)" : error ? "0 0 0 4px rgba(252,165,165,0.2)" : "none",
+        transition: "border 0.2s, box-shadow 0.2s, background 0.2s",
+      }}
+    >
+      {/* Hidden real input */}
+      <input
+        ref={inputRef}
+        type="tel"
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, MAX_PHONE))}
+        onKeyDown={onKeyDown}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        autoFocus={autoFocus}
+        maxLength={MAX_PHONE}
+        style={{
+          position: "absolute",
+          inset: 0,
+          opacity: 0,
+          width: "100%",
+          height: "100%",
+          cursor: "text",
+          zIndex: 10,
+        }}
+        aria-label="Phone number"
+      />
+
+      {/* Phone icon + digit cells row */}
+      <div className="flex items-end px-4 sm:px-3 gap-0">
+        <Phone
+          size={14}
+          style={{
+            color: focused ? "#3b82f6" : "#9ca3af",
+            marginRight: "10px",
+            marginBottom: "4px",
+            flexShrink: 0,
+            transition: "color 0.2s",
+          }}
+        />
+
+        {/* Digit cells */}
+        <div className="flex items-end gap-[7px] sm:gap-[5px] flex-1">
+          {Array.from({ length: MAX_PHONE }).map((_, i) => {
+            const filled = i < value.length;
+            const isCursor = focused && i === value.length;
+
+            return (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  flex: 1,
+                  minWidth: 0,
+                  gap: "3px",
+                }}
+              >
+                {/* Digit */}
+                <span
+                  style={{
+                    fontFamily: "'SF Mono', 'Fira Code', 'Roboto Mono', monospace",
+                    fontSize: "16px",
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    color: filled ? "#1e3a8a" : "transparent",
+                    display: "block",
+                    minHeight: "18px",
+                    userSelect: "none",
+                  }}
+                >
+                  {filled ? value[i] : "0"}
+                </span>
+
+                {/* Underline bar */}
+                <div style={{ position: "relative", width: "100%", height: "2.5px" }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      borderRadius: "2px",
+                      background: filled ? "#2563eb" : isCursor ? "#93c5fd" : "#e5e7eb",
+                      transition: "background 0.15s",
+                    }}
+                  />
+                  {/* Blinking cursor */}
+                  {isCursor && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        bottom: "3px",
+                        width: "1.5px",
+                        height: "17px",
+                        background: "#2563eb",
+                        borderRadius: "1px",
+                        animation: "lpBlink 1s step-end infinite",
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* ─── Component ─────────────────────────────────────────────────────────── */
 export default function Login() {
-  const [view, setView] = useState("login"); // login | reset | sent
+  const [view, setView] = useState("login");
   const [mounted, setMounted] = useState(false);
 
   const login = useAuthStore((s) => s.login);
@@ -84,7 +212,7 @@ export default function Login() {
   const validateLogin = () => {
     const e = {};
     if (!/^\d{5}$/.test(labKey)) e.labKey = "Must be exactly 5 digits";
-    if (!/^\+?[\d\s\-()+]{7,}$/.test(phone)) e.phone = "Enter a valid phone number";
+    if (phone.length < 7) e.phone = "Enter a valid phone number";
     if (password.length < 6) e.password = "Password is too short";
     setErrors(e);
     return !Object.keys(e).length;
@@ -92,7 +220,7 @@ export default function Login() {
 
   const validateReset = () => {
     const e = {};
-    if (!/^\+?[\d\s\-()+]{7,}$/.test(resetPhone)) e.resetPhone = "Enter a valid phone number";
+    if (resetPhone.length < 7) e.resetPhone = "Enter a valid phone number";
     setErrors(e);
     return !Object.keys(e).length;
   };
@@ -125,10 +253,8 @@ export default function Login() {
     setResetPhone("");
   };
 
-  /* ── Modern mobile-first input styles ── */
   const inputBase =
     "w-full bg-gray-50/70 border border-gray-200/80 rounded-2xl px-5 py-4 pl-12 text-base text-slate-800 outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100/60 focus:bg-white sm:px-3.5 sm:py-2.5 sm:pl-10 sm:text-sm";
-
   const inputErr = "border-red-300 ring-4 ring-red-100/60 focus:border-red-400 focus:ring-red-100/60";
 
   return (
@@ -139,7 +265,7 @@ export default function Login() {
         fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
       }}
     >
-      {/* ── Background blobs (matches Home) ── */}
+      {/* Background blobs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div
           className="absolute -top-48 -left-48 w-[560px] h-[560px] rounded-full opacity-[0.18] blur-3xl"
@@ -155,17 +281,17 @@ export default function Login() {
         />
       </div>
 
-      {/* ── Fine grid (matches Home) ── */}
+      {/* Fine grid */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage: `linear-gradient(rgba(99,102,241,0.035) 1px, transparent 1px),
-                            linear-gradient(90deg, rgba(99,102,241,0.035) 1px, transparent 1px)`,
+                          linear-gradient(90deg, rgba(99,102,241,0.035) 1px, transparent 1px)`,
           backgroundSize: "36px 36px",
         }}
       />
 
-      {/* ── Card ── */}
+      {/* Card */}
       <div
         className="relative z-10 w-full max-w-[420px]"
         style={{
@@ -174,7 +300,7 @@ export default function Login() {
           transition: "opacity 0.5s cubic-bezier(.22,1,.36,1), transform 0.5s cubic-bezier(.22,1,.36,1)",
         }}
       >
-        {/* ── Brand header (matches DesktopMenu header exactly) ── */}
+        {/* Brand header */}
         <div
           className="flex items-center gap-3 px-6 py-5 sm:px-5 sm:py-4 rounded-t-3xl border-b border-slate-200"
           style={{
@@ -191,20 +317,19 @@ export default function Login() {
             </span>
             <span className="text-[10px] text-slate-500 font-medium leading-tight mt-1">Modern Health Management</span>
           </div>
-          {/* Online badge (matches Home) */}
           <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-[10px] font-bold text-emerald-600">Online</span>
           </div>
         </div>
 
-        {/* ── Card body ── */}
+        {/* Card body */}
         <div
           className="bg-white/85 backdrop-blur-md border border-gray-200/80 border-t-0 shadow-lg"
           style={{ borderRadius: "0 0 24px 24px" }}
         >
           <div className="px-6 sm:px-7 pt-8 sm:pt-6 pb-8 sm:pb-6">
-            {/* ── View headings ── */}
+            {/* Headings */}
             {view === "login" && (
               <div className="mb-5" style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both" }}>
                 <h1
@@ -216,7 +341,6 @@ export default function Login() {
                 <p className="text-sm sm:text-[13px] text-gray-400 font-light">Sign in to access your lab workspace</p>
               </div>
             )}
-
             {view === "reset" && (
               <div className="mb-5" style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both" }}>
                 <h1
@@ -230,7 +354,6 @@ export default function Login() {
                 </p>
               </div>
             )}
-
             {view === "sent" && (
               <div className="mb-5" style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both" }}>
                 <h1
@@ -248,15 +371,13 @@ export default function Login() {
               <div className="flex flex-col gap-6 sm:gap-4">
                 {/* Lab ID */}
                 <div style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.15s both" }}>
-                  <Field label="Lab ID" icon={Hash} error={errors.labKey}>
+                  <Field label="Lab ID" error={errors.labKey}>
                     <Hash
                       size={15}
                       className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
                     />
                     <input
-                      className={`${inputBase} font-mono tracking-[0.2em] font-bold pr-24 sm:pr-20 ${
-                        errors.labKey ? inputErr : ""
-                      }`}
+                      className={`${inputBase} font-mono tracking-[0.2em] font-bold pr-24 sm:pr-20 ${errors.labKey ? inputErr : ""}`}
                       type="text"
                       inputMode="numeric"
                       placeholder="00000"
@@ -264,30 +385,25 @@ export default function Login() {
                       onChange={(e) => setLabKey(e.target.value.replace(/\D/g, "").slice(0, 5))}
                       maxLength={5}
                     />
-                    <LabDots count={labKey.length} />
+                    <LabDots count={labKey.length} total={5} />
                   </Field>
                 </div>
 
-                {/* Phone */}
+                {/* Phone — per-digit underline */}
                 <div style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.20s both" }}>
-                  <Field label="Phone Number" icon={Phone} error={errors.phone}>
-                    <Phone
-                      size={15}
-                      className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
-                    />
-                    <input
-                      className={`${inputBase} ${errors.phone ? inputErr : ""}`}
-                      type="tel"
-                      placeholder="01711XXXXXX"
+                  <Field label="Phone Number" error={errors.phone}>
+                    <PhoneDigitInput
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={setPhone}
+                      onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                      error={errors.phone}
                     />
                   </Field>
                 </div>
 
                 {/* Password */}
                 <div style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.25s both" }}>
-                  <Field label="Password" icon={Lock} error={errors.password}>
+                  <Field label="Password" error={errors.password}>
                     <Lock
                       size={15}
                       className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
@@ -325,7 +441,6 @@ export default function Login() {
                   </button>
                 </div>
 
-                {/* Error */}
                 {loginError && (
                   <div
                     className="flex items-center gap-2 px-3 py-2.5 rounded-2xl text-[12.5px] text-red-600 font-medium bg-red-50 border border-red-200"
@@ -336,7 +451,6 @@ export default function Login() {
                   </div>
                 )}
 
-                {/* Submit */}
                 <div className="mt-1" style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.32s both" }}>
                   <button
                     type="button"
@@ -367,18 +481,12 @@ export default function Login() {
                 className="flex flex-col gap-6 sm:gap-5"
                 style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both" }}
               >
-                <Field label="Registered Phone Number" icon={Phone} error={errors.resetPhone}>
-                  <Phone
-                    size={15}
-                    className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
-                  />
-                  <input
-                    className={`${inputBase} ${errors.resetPhone ? inputErr : ""}`}
-                    type="tel"
-                    placeholder="+880 1XXX-XXXXXX"
+                <Field label="Registered Phone Number" error={errors.resetPhone}>
+                  <PhoneDigitInput
                     value={resetPhone}
-                    onChange={(e) => setResetPhone(e.target.value)}
+                    onChange={setResetPhone}
                     onKeyDown={(e) => e.key === "Enter" && handleReset()}
+                    error={errors.resetPhone}
                     autoFocus
                   />
                 </Field>
@@ -420,7 +528,6 @@ export default function Login() {
                 className="flex flex-col items-center gap-6 sm:gap-5 py-4 sm:py-2"
                 style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both" }}
               >
-                {/* Success icon */}
                 <div
                   className="w-16 h-16 sm:w-14 sm:h-14 rounded-3xl flex items-center justify-center"
                   style={{
@@ -432,15 +539,18 @@ export default function Login() {
                 >
                   <CheckCircle2 size={28} color="#16a34a" strokeWidth={1.8} />
                 </div>
-
                 <div className="text-center space-y-1">
                   <p className="text-sm sm:text-[13.5px] text-slate-500">Reset link sent to</p>
-                  <p className="text-base sm:text-[14px] font-bold text-slate-800">{resetPhone}</p>
+                  <p
+                    className="text-base sm:text-[14px] font-bold text-slate-800"
+                    style={{ fontFamily: "'SF Mono', 'Fira Code', monospace", letterSpacing: "0.15em" }}
+                  >
+                    {resetPhone}
+                  </p>
                   <p className="text-xs sm:text-[11.5px] text-gray-400 font-light mt-1">
                     Check your SMS inbox · Link expires in 15 min
                   </p>
                 </div>
-
                 <button
                   type="button"
                   className="flex items-center gap-1 text-[13.5px] sm:text-[13px] text-gray-400 hover:text-gray-600 transition-colors font-medium"
@@ -453,7 +563,7 @@ export default function Login() {
             )}
           </div>
 
-          {/* ── Card footer ── */}
+          {/* Card footer */}
           <div className="flex items-center justify-between px-6 sm:px-7 py-3.5 sm:py-3 rounded-b-3xl border-t border-gray-100 bg-gray-50/50">
             <div className="flex items-center gap-1.5">
               <ShieldCheck size={12} className="text-blue-400" />
@@ -467,7 +577,7 @@ export default function Login() {
         </div>
       </div>
 
-      {/* ── Bottom label ── */}
+      {/* Bottom label */}
       <div className="absolute bottom-6 left-0 w-full flex justify-center pointer-events-none">
         <p
           className="text-[11px] text-gray-400 font-medium"
@@ -484,7 +594,11 @@ export default function Login() {
         }
         @keyframes lpPulse {
           0%, 100% { box-shadow: 0 0 0 6px rgba(34,197,94,0.08); }
-          50%      { box-shadow: 0 0 0 12px rgba(34,197,94,0); }
+          50%       { box-shadow: 0 0 0 12px rgba(34,197,94,0); }
+        }
+        @keyframes lpBlink {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0; }
         }
       `}</style>
     </div>
