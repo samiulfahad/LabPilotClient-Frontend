@@ -59,6 +59,7 @@ const LabDots = ({ count, total = 5 }) => (
 
 /* ─── Per-digit underline phone input ────────────────────────────────────── */
 const MAX_PHONE = 11;
+
 const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
   const inputRef = useRef(null);
   const [focused, setFocused] = useState(false);
@@ -70,12 +71,15 @@ const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
       onClick={handleContainerClick}
       className="cursor-text relative"
       style={{
-        padding: "10px 0 8px 0",
+        padding: "12px 0",
         borderRadius: "16px",
         background: focused ? "#fff" : "rgba(249,250,251,0.7)",
         border: error ? "1px solid #fca5a5" : focused ? "1px solid #60a5fa" : "1px solid rgba(229,231,235,0.8)",
         boxShadow: focused ? "0 0 0 4px rgba(59,130,246,0.1)" : error ? "0 0 0 4px rgba(252,165,165,0.2)" : "none",
-        transition: "border 0.2s, box-shadow 0.2s, background 0.2s",
+        transition: "all 0.2s ease",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center", // This centers the entire inner row
       }}
     >
       <input
@@ -101,22 +105,19 @@ const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
         aria-label="Phone number"
       />
 
-      <div className="flex items-end px-2 sm:px-3">
+      <div className="flex items-center">
         <Phone
-          size={14}
+          size={15}
           style={{
             color: focused ? "#3b82f6" : "#9ca3af",
-            marginRight: "4px", // Reduced margin from icon
-            marginBottom: "4px",
+            marginRight: "12px", // Space between icon and centered numbers
             flexShrink: 0,
             transition: "color 0.2s",
           }}
         />
 
-        {/* FIX: Changed gap to 0.5px and used justify-center 
-            to keep the digits tightly packed 
-        */}
-        <div className="flex items-end gap-[0.5px] flex-1 justify-center">
+        {/* Digit Row: flex-none and justify-center ensures they sit together in the middle */}
+        <div className="flex items-center gap-[4px] flex-none">
           {Array.from({ length: MAX_PHONE }).map((_, i) => {
             const filled = i < value.length;
             const isCursor = focused && i === value.length;
@@ -126,45 +127,41 @@ const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
                 key={i}
                 style={{
                   display: "flex",
-                  flexDirection: "column",
                   alignItems: "center",
-                  flex: "0 0 auto", // Changed from flex-1 to prevent stretching
-                  width: "14px", // Fixed narrow width for each digit
-                  gap: "3px",
+                  justifyContent: "center",
+                  width: "18px",
+                  height: "24px",
+                  position: "relative",
                 }}
               >
                 <span
                   style={{
                     fontFamily: "'SF Mono', 'Fira Code', 'Roboto Mono', monospace",
-                    fontSize: "16px",
+                    fontSize: "18px",
                     fontWeight: 700,
                     lineHeight: 1,
-                    color: filled ? "#1e3a8a" : "#e5e7eb", // Light placeholder color instead of transparent
-                    display: "block",
-                    minHeight: "18px",
+                    color: filled ? "#1e3a8a" : "#e2e8f0",
                     userSelect: "none",
+                    transition: "color 0.2s",
                   }}
                 >
                   {filled ? value[i] : "0"}
                 </span>
 
-                <div style={{ position: "relative", width: "100%", height: "2.5px" }}>
-                  {isCursor && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        bottom: "3px",
-                        width: "1.5px",
-                        height: "17px",
-                        background: "#2563eb",
-                        borderRadius: "1px",
-                        animation: "lpBlink 1s step-end infinite",
-                      }}
-                    />
-                  )}
-                </div>
+                {isCursor && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: "2px",
+                      height: "18px",
+                      background: "#2563eb",
+                      borderRadius: "1px",
+                      animation: "lpBlink 1s step-end infinite",
+                    }}
+                  />
+                )}
               </div>
             );
           })}
