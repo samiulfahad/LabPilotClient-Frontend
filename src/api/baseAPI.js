@@ -9,7 +9,7 @@ const local = "http://localhost:3000/api/v1";
 // after purchasing a domain use the 'cloud' option below and remove /api/*  https://labpilotclient-backend.onrender.com/api/:splat  200 from public/_redirects.
 // baseURL: cloud
 const api = axios.create({
-  baseURL: local,
+  baseURL: "/api/v1",
   timeout: 10000,
   withCredentials: true, // CRITICAL: Ensures refresh cookies are sent to the backend
 });
