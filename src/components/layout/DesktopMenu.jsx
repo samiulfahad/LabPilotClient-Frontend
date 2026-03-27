@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { LogOut } from "lucide-react";
+import { LogOut, AlertTriangle } from "lucide-react"; // Added AlertTriangle
 import { useAuthStore } from "../../store/authStore";
 import menu from "./menu";
-import LogoutConfirmModal from "../logoutModal";
 import LoadingScreen from "../loadingPage";
+import Modal from "../modal"; // Import your custom Modal
 
 const DesktopMenu = () => {
   const logout = useAuthStore((s) => s.logout);
@@ -38,7 +38,9 @@ const DesktopMenu = () => {
               >
                 LabPilot<span className="font-light">Pro</span>
               </span>
-              <span className="text-[10px] text-slate-500 font-medium leading-tight mt-1">Modern Health Management</span>
+              <span className="text-[10px] text-slate-500 font-medium leading-tight mt-1">
+                Modern Health Management
+              </span>
             </div>
           </div>
         </div>
@@ -103,12 +105,38 @@ const DesktopMenu = () => {
         </div>
       </nav>
 
-      {showConfirm && (
-        <LogoutConfirmModal
-          onConfirm={handleLogoutConfirm}
-          onCancel={() => setShowConfirm(false)}
-        />
-      )}
+      {/* --- NEW LOGOUT MODAL INTEGRATION --- */}
+      <Modal isOpen={showConfirm} onClose={() => setShowConfirm(false)} size="sm">
+        <div className="p-8">
+          <div className="flex flex-col items-center text-center">
+            {/* Warning Icon Circle */}
+            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-4 border border-red-100">
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Confirm Logout</h3>
+            <p className="text-sm text-gray-500 mb-8 px-2 leading-relaxed">
+              Are you sure you want to sign out of <strong>LabPilot Pro</strong>? You will need to re-authenticate to
+              access your lab data.
+            </p>
+
+            <div className="flex w-full gap-3">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogoutConfirm}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-200 transition-all active:scale-95"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       {loggingOut && <LoadingScreen message="Signing you out" />}
     </>
