@@ -25,6 +25,8 @@ import {
   Receipt,
   TestTube2,
   DollarSign,
+  UserCheck,
+  Clock,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Popup from "../../components/popup";
@@ -59,6 +61,13 @@ const formatDateTime = (ts) => {
 const getDue = (inv) => Math.max(0, (inv.amount?.final ?? 0) - (inv.amount?.paid ?? 0));
 const isFullyPaid = (inv) => getDue(inv) === 0;
 
+// NEW: delivery field is now nested under delivery.status
+const isDelivered = (inv) => inv.delivery?.status === true;
+
+// Safe tests accessor — list projection only returns tests.schemaId
+const getTests = (inv) => inv.tests ?? [];
+const hasReportSchemas = (inv) => getTests(inv).some((t) => t.schemaId);
+
 // ─── Invoice Details Modal ────────────────────────────────────────────────────
 
 const InvoiceDetailsModal = ({
@@ -74,7 +83,7 @@ const InvoiceDetailsModal = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetch = () => {
+  const fetchInvoice = () => {
     setError(null);
     setLoading(true);
     invoiceService
@@ -87,16 +96,23 @@ const InvoiceDetailsModal = ({
   useEffect(() => {
     if (!isOpen || !invoiceId) return;
     setInvoice(null);
-    fetch();
+    fetchInvoice();
   }, [isOpen, invoiceId]);
 
-  const rowHasReports = invoiceRow?.tests?.some((t) => t.schemaId);
+  // Use full invoice data when available, fall back to list row
+  const rowHasReports = hasReportSchemas(invoiceRow ?? {});
   const due = invoice ? getDue(invoice) : 0;
   const fullyPaid = invoice ? due === 0 : false;
+  const delivered = invoice ? isDelivered(invoice) : false;
   const { date, time } = invoice ? formatDateTime(invoice.createdAt) : { date: "", time: "" };
+
   const patient = invoice?.patient ?? null;
   const referrer = invoice?.referrer ?? null;
   const amount = invoice?.amount ?? null;
+
+  // createdBy info from full invoice
+  const createdBy = invoice?.createdBy ?? null;
+  const deliveredBy = invoice?.delivery?.by ?? null;
 
   const hasReferrer = referrer && (referrer.name || referrer.id);
   const hasDiscount = (amount?.referrerDiscount ?? 0) > 0;
@@ -134,7 +150,7 @@ const InvoiceDetailsModal = ({
               <AlertCircle className="w-5 h-5 text-red-400" />
             </div>
             <p className="text-sm text-gray-500">{error}</p>
-            <button onClick={fetch} className="text-xs font-semibold text-indigo-600 hover:underline">
+            <button onClick={fetchInvoice} className="text-xs font-semibold text-indigo-600 hover:underline">
               Try again
             </button>
           </div>
@@ -154,6 +170,27 @@ const InvoiceDetailsModal = ({
                 </div>
               </div>
             </InfoBlock>
+
+            {/* Created By */}
+            {createdBy?.name && (
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                <SectionLabel icon={UserCheck} label="Created By" color="text-slate-700" />
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 mt-3">
+                  <DetailField label="Staff" value={createdBy.name} labelClass="text-slate-400" />
+                  <DetailField label="Created At" value={`${date} · ${time}`} labelClass="text-slate-400" />
+                  {delivered && deliveredBy?.name && (
+                    <div className="col-span-2">
+                      <DetailField
+                        label="Delivered By"
+                        value={deliveredBy.name}
+                        labelClass="text-slate-400"
+                        valueClass="text-blue-700"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Referrer */}
             {hasReferrer && (
@@ -200,7 +237,7 @@ const InvoiceDetailsModal = ({
             {/* Tests */}
             <InfoBlock icon={TestTube2} label="Tests" badge={invoice.tests?.length ?? 0}>
               <div className="space-y-1.5">
-                {invoice.tests?.map((t, i) => (
+                {(invoice.tests ?? []).map((t, i) => (
                   <div
                     key={t.testId || i}
                     className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-100"
@@ -211,6 +248,29 @@ const InvoiceDetailsModal = ({
                 ))}
               </div>
             </InfoBlock>
+
+            {/* Collections / Payment history */}
+            {invoice.collections?.length > 0 && (
+              <InfoBlock icon={Clock} label="Collection History" badge={invoice.collections.length}>
+                <div className="space-y-1.5">
+                  {invoice.collections.map((c, i) => {
+                    const { date: cDate, time: cTime } = formatDateTime(c.at);
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-100"
+                      >
+                        <div>
+                          <p className="text-xs font-medium text-gray-800">{c.by?.name ?? "—"}</p>
+                          <p className="text-[10px] text-gray-400">{`${cDate} · ${cTime}`}</p>
+                        </div>
+                        <span className="text-xs font-semibold text-green-600">{fmt(c.amount)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </InfoBlock>
+            )}
 
             {/* Payment */}
             <InfoBlock icon={DollarSign} label="Payment">
@@ -265,7 +325,7 @@ const InvoiceDetailsModal = ({
             {/* Status badges */}
             <div className="flex items-center gap-2">
               <StatusBadge
-                active={invoice.isDelivered}
+                active={delivered}
                 activeClass="bg-blue-50 text-blue-600 border-blue-100"
                 inactiveClass="bg-gray-50 text-gray-500 border-gray-200"
                 icon={PackageCheck}
@@ -454,7 +514,8 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
 
   const due = getDue(invoice);
   const fullyPaid = isFullyPaid(invoice);
-  const hasReports = invoice.tests.some((t) => t.schemaId);
+  const delivered = isDelivered(invoice); // ← use helper, reads delivery.status
+  const hasReports = hasReportSchemas(invoice); // ← safe, handles missing tests
   const patient = invoice.patient;
 
   const handleConfirmDelivery = async () => {
@@ -534,6 +595,7 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
             <p className="font-bold text-gray-900 text-sm leading-tight truncate">{patient.name}</p>
             <p className="text-[11px] text-gray-400 mt-0.5 truncate">
               #{invoice.invoiceId} · {date} · {time}
+              {invoice.createdBy?.name && <span className="text-gray-300"> · by {invoice.createdBy.name}</span>}
             </p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -546,7 +608,7 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
                 <Wallet className="w-3 h-3" />৳{due.toLocaleString()}
               </span>
             )}
-            {invoice.isDelivered && (
+            {delivered && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-semibold">
                 <PackageCheck className="w-3 h-3" />
                 <span className="hidden sm:inline">Delivered</span>
@@ -593,7 +655,7 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
               className="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
             />
           )}
-          {!invoice.isDelivered && (
+          {!delivered && (
             <ActionChip
               onClick={() => setConfirming(true)}
               icon={PackageCheck}
@@ -628,7 +690,6 @@ const InvoiceList = () => {
         limit: 20,
         ...(range && { startDate: range.start, endDate: range.end }),
       });
-      console.log(data);
       setInvoices((prev) => (replace ? data.invoices : [...prev, ...data.invoices]));
       setNextCursor(data.nextCursor);
       setHasMore(data.hasMore);
@@ -655,6 +716,7 @@ const InvoiceList = () => {
     loadInvoices(null, true, range);
   };
 
+  // Safe: invoices is always an array (initialized as [])
   const total = invoices.length;
   const pending = invoices.filter((inv) => !isFullyPaid(inv)).length;
   const completed = invoices.filter((inv) => isFullyPaid(inv)).length;
@@ -666,12 +728,17 @@ const InvoiceList = () => {
         ? invoices.filter((inv) => isFullyPaid(inv))
         : invoices;
 
+  // Optimistic updates — delivery now lives under delivery.status
   const handleDelivered = (id) =>
-    setInvoices((prev) => prev.map((inv) => (inv.invoiceId === id ? { ...inv, isDelivered: true } : inv)));
+    setInvoices((prev) =>
+      prev.map((inv) => (inv.invoiceId === id ? { ...inv, delivery: { ...inv.delivery, status: true } } : inv)),
+    );
+
   const handleCollected = (id) =>
     setInvoices((prev) =>
       prev.map((inv) => (inv.invoiceId === id ? { ...inv, amount: { ...inv.amount, paid: inv.amount.final } } : inv)),
     );
+
   const handlePatientUpdated = (id, fields) =>
     setInvoices((prev) => prev.map((inv) => (inv.invoiceId === id ? { ...inv, ...fields } : inv)));
 

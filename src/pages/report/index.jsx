@@ -26,11 +26,6 @@ import Popup from "../../components/popup";
 import invoiceService from "../../api/invoice";
 import reportService from "../../api/report";
 
-// ─── Session persistence keys ─────────────────────────────────────────────────
-
-const SS_QUERY = "report_page_query";
-const SS_INVOICE = "report_page_invoice";
-
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 const Skeleton = ({ className = "", style = {} }) => (
@@ -422,32 +417,13 @@ const InvoiceDetail = ({ invoice, onDatesSaved }) => {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const Report = () => {
-  // Lazy-initialise from sessionStorage so state survives back-navigation
-  const [searchQuery, setSearchQuery] = useState(() => sessionStorage.getItem(SS_QUERY) ?? "");
-  const [invoice, setInvoice] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem(SS_INVOICE);
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [invoice, setInvoice] = useState(null);
   const [searching, setSearching] = useState(false);
   const [popup, setPopup] = useState(null);
   const [notFound, setNotFound] = useState(false);
 
   const location = useLocation();
-
-  // Keep sessionStorage in sync with state
-  useEffect(() => {
-    if (searchQuery) sessionStorage.setItem(SS_QUERY, searchQuery);
-    else sessionStorage.removeItem(SS_QUERY);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    if (invoice) sessionStorage.setItem(SS_INVOICE, JSON.stringify(invoice));
-    else sessionStorage.removeItem(SS_INVOICE);
-  }, [invoice]);
 
   const fetchInvoice = async (id) => {
     try {
@@ -458,26 +434,21 @@ const Report = () => {
       setInvoice(res.data);
     } catch (err) {
       if (err?.response?.status === 404) setNotFound(true);
-      else setPopup({ type: "error", message: "Failed to load invoice" });
+      else setPopup({ type: "error", message: "Invoice NOT Found" });
     } finally {
       setSearching(false);
     }
   };
 
+  // Fetch invoice on mount if an invoiceId was passed via location state
   useEffect(() => {
     const id = location.state?.invoiceId;
     if (id) {
-      // Navigated here with an explicit invoiceId (e.g. after uploading a report).
-      // Always refetch so the latest server data is shown — never use the stale cache.
       const idStr = String(id);
       setSearchQuery(idStr);
       fetchInvoice(idStr);
-    } else if (searchQuery) {
-      // No explicit invoiceId in state but we have a cached query (e.g. plain back-nav).
-      // Refetch live data instead of relying on the sessionStorage snapshot.
-      fetchInvoice(searchQuery);
     }
-  }, []); // eslint-disable-line
+  }, []);
 
   const handleSearch = () => {
     const q = searchQuery.trim();

@@ -2,13 +2,14 @@ import axios from "axios";
 import { useAuthStore } from "../store/authStore";
 
 const cloud = "https://labpilotclient-backend.onrender.com/api/v1";
+const railway ="https://labpilotclient-backend-production.up.railway.app/api/v1"
 const local = "http://localhost:3000/api/v1";
 
 // TO DO
 // after purchasing a domain use the 'cloud' option below and remove /api/*  https://labpilotclient-backend.onrender.com/api/:splat  200 from public/_redirects.
 // baseURL: cloud
 const api = axios.create({
-  baseURL: "/api/v1",
+  baseURL: local,
   timeout: 10000,
   withCredentials: true, // CRITICAL: Ensures refresh cookies are sent to the backend
 });

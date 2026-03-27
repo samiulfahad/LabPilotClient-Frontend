@@ -104,12 +104,13 @@ const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
       />
 
       {/* Phone icon + digit cells row */}
-      <div className="flex items-end px-4 sm:px-3 gap-0">
+      {/* UPDATED: Reduced padding on mobile (px-2) to give digits more room */}
+      <div className="flex items-end px-2 sm:px-3 gap-0">
         <Phone
           size={14}
           style={{
             color: focused ? "#3b82f6" : "#9ca3af",
-            marginRight: "10px",
+            marginRight: "8px",
             marginBottom: "4px",
             flexShrink: 0,
             transition: "color 0.2s",
@@ -117,7 +118,7 @@ const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
         />
 
         {/* Digit cells */}
-        <div className="flex items-end gap-[7px] sm:gap-[5px] flex-1">
+        <div className="flex items-end gap-[4px] sm:gap-[5px] flex-1">
           {Array.from({ length: MAX_PHONE }).map((_, i) => {
             const filled = i < value.length;
             const isCursor = focused && i === value.length;
@@ -259,7 +260,8 @@ export default function Login() {
 
   return (
     <div
-      className="fixed inset-0 h-[100dvh] w-full flex items-center justify-center p-4 sm:p-6 overflow-hidden"
+      // UPDATED: Changed p-4 to px-2 py-4 on mobile so the card can stretch wider
+      className="fixed inset-0 h-[100dvh] w-full flex items-center justify-center px-2 py-4 sm:p-6 overflow-hidden"
       style={{
         background: "linear-gradient(145deg, #f0f4ff 0%, #f0f1f7 40%, #e8f5ff 100%)",
         fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
@@ -302,7 +304,8 @@ export default function Login() {
       >
         {/* Brand header */}
         <div
-          className="flex items-center gap-3 px-6 py-5 sm:px-5 sm:py-4 rounded-t-3xl border-b border-slate-200"
+          // UPDATED: Changed px-6 to px-4 on mobile
+          className="flex items-center gap-3 px-4 sm:px-6 py-4 rounded-t-3xl border-b border-slate-200"
           style={{
             background: "linear-gradient(135deg, #dbeafe 0%, #e2e8f0 100%)",
             animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.05s both",
@@ -328,7 +331,8 @@ export default function Login() {
           className="bg-white/85 backdrop-blur-md border border-gray-200/80 border-t-0 shadow-lg"
           style={{ borderRadius: "0 0 24px 24px" }}
         >
-          <div className="px-6 sm:px-7 pt-8 sm:pt-6 pb-8 sm:pb-6">
+          {/* UPDATED: Changed px-6 to px-4 on mobile */}
+          <div className="px-4 sm:px-7 pt-6 sm:pt-6 pb-6 sm:pb-6">
             {/* Headings */}
             {view === "login" && (
               <div className="mb-5" style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both" }}>
@@ -564,7 +568,8 @@ export default function Login() {
           </div>
 
           {/* Card footer */}
-          <div className="flex items-center justify-between px-6 sm:px-7 py-3.5 sm:py-3 rounded-b-3xl border-t border-gray-100 bg-gray-50/50">
+          {/* UPDATED: Changed px-6 to px-4 on mobile */}
+          <div className="flex items-center justify-between px-4 sm:px-7 py-3.5 sm:py-3 rounded-b-3xl border-t border-gray-100 bg-gray-50/50">
             <div className="flex items-center gap-1.5">
               <ShieldCheck size={12} className="text-blue-400" />
               <span className="text-[11px] text-gray-400 font-medium">256-bit encrypted</span>
@@ -594,11 +599,11 @@ export default function Login() {
         }
         @keyframes lpPulse {
           0%, 100% { box-shadow: 0 0 0 6px rgba(34,197,94,0.08); }
-          50%       { box-shadow: 0 0 0 12px rgba(34,197,94,0); }
+          50%      { box-shadow: 0 0 0 12px rgba(34,197,94,0); }
         }
         @keyframes lpBlink {
           0%, 100% { opacity: 1; }
-          50%       { opacity: 0; }
+          50%      { opacity: 0; }
         }
       `}</style>
     </div>

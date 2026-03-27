@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Settings, ChevronRight, Shield, Phone, Mail, FlaskConical, Package, Users, UserCheck } from "lucide-react";
+import { Settings, ChevronRight, FlaskConical, Package, Users, UserCheck } from "lucide-react";
 
 const CARDS = [
   {
@@ -38,11 +38,6 @@ const CARDS = [
     hoverBorder: "group-hover:border-purple-200",
     textColor: "text-purple-600",
   },
-];
-
-const CREDENTIALS = [
-  { type: "mobile", label: "Mobile", icon: Phone, value: "+880 1712 345678", buttonLabel: "Change Number" },
-  { type: "email", label: "Email", icon: Mail, value: "admin@diagnostics.com", buttonLabel: "Change Email" },
 ];
 
 const ActionButton = ({ onClick, label, className = "" }) => (
@@ -85,13 +80,10 @@ const CredentialRow = ({ label, icon: Icon, value, buttonLabel, onAction }) => (
 );
 
 const LabManagement = () => {
-  const handleChangeCredentials = (type) => {
-    alert(`Opening ${type} change modal...`);
-  };
-
+ 
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-2">
-      <div className="max-w-7xl mx-auto px-4 py-4">
+      <div className="max-w-6xl mx-auto px-4 py-4">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2.5 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-md">
@@ -137,37 +129,6 @@ const LabManagement = () => {
               </div>
             );
           })}
-        </div>
-
-        {/* Account Security */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-[0_4px_12px_rgba(0,0,0,0.02)] p-5">
-          <div className="flex items-center gap-3 pb-3 border-b border-gray-100 mb-3">
-            <div className="p-2 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg">
-              <Shield className="w-4 h-4 text-indigo-600" />
-            </div>
-            <h2 className="text-sm font-semibold text-gray-800">Account Security</h2>
-          </div>
-
-          <div className="space-y-3">
-            {CREDENTIALS.map(({ type, label, icon, value, buttonLabel }) => (
-              <CredentialRow
-                key={type}
-                label={label}
-                icon={icon}
-                value={value}
-                buttonLabel={buttonLabel}
-                onAction={() => handleChangeCredentials(type)}
-              />
-            ))}
-
-            <div className="flex justify-center p-3 rounded-lg hover:bg-gray-50/80 transition-colors">
-              <ActionButton
-                onClick={() => handleChangeCredentials("password")}
-                label="Change Password"
-                className="w-1/2"
-              />
-            </div>
-          </div>
         </div>
       </div>
     </div>
