@@ -1,6 +1,19 @@
 import axios from "axios";
 import { useAuthStore } from "../store/authStore";
 
+// ── ID Normalizer ──
+function normalizeIds(value) {
+  if (value === null || value === undefined) return value;
+  if (typeof value === "object" && "$oid" in value) return value.$oid;
+  if (Array.isArray(value)) return value.map(normalizeIds);
+  if (typeof value === "object") {
+    const out = {};
+    for (const key of Object.keys(value)) out[key] = normalizeIds(value[key]);
+    return out;
+  }
+  return value;
+}
+
 const cloud = "https://labpilotclient-backend.onrender.com/api/v1";
 const local = "http://localhost:5000/api/v1";
 
@@ -28,19 +41,6 @@ const resetRefreshState = (error = null, token = null) => {
   processQueue(error, token);
   isRefreshing = false;
 };
-
-// ── Normalize { $oid: "..." } → plain string ──
-function normalizeIds(value) {
-  if (value === null || value === undefined) return value;
-  if (typeof value === "object" && "$oid" in value) return value.$oid;
-  if (Array.isArray(value)) return value.map(normalizeIds);
-  if (typeof value === "object") {
-    const out = {};
-    for (const key of Object.keys(value)) out[key] = normalizeIds(value[key]);
-    return out;
-  }
-  return value;
-}
 
 // ── Request Interceptor: Attach Access Token ──
 api.interceptors.request.use(
