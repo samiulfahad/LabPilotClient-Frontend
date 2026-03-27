@@ -186,8 +186,8 @@ const MobileMenu = () => {
             </div>
 
             <h3 className="text-lg font-bold text-gray-900 mb-2">Confirm Logout</h3>
-            <p className="text-sm text-gray-500 mb-8 px-4">
-              Are you sure you want to sign out? You will need to enter your credentials to access the system again.
+            <p className="text-md text-gray-500 mb-8 px-4">
+               Are you sure you want to sign out of <strong>LabPilot Pro</strong>?
             </p>
 
             <div className="flex w-full gap-3">

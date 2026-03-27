@@ -115,9 +115,8 @@ const DesktopMenu = () => {
             </div>
 
             <h3 className="text-lg font-bold text-gray-900 mb-2">Confirm Logout</h3>
-            <p className="text-sm text-gray-500 mb-8 px-2 leading-relaxed">
-              Are you sure you want to sign out of <strong>LabPilot Pro</strong>? You will need to re-authenticate to
-              access your lab data.
+            <p className="text-md text-gray-500 mb-8 px-2 leading-relaxed">
+              Are you sure you want to sign out of <strong>LabPilot Pro</strong>?
             </p>
 
             <div className="flex w-full gap-3">
