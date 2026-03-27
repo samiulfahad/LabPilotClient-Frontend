@@ -20,18 +20,9 @@ import TestConfigModal from "./TestConfigModal";
 import testService from "../../../api/test";
 import LoadingScreen from "../../../components/loadingPage";
 
-const resolveId = (id) => {
-  if (!id) return null;
-  if (typeof id === "object" && id.$oid) return id.$oid;
-  return String(id);
-};
-
 const UNCATEGORIZED_ID = "uncategorized";
 const STATUS_FILTERS = ["all", "online", "offline"];
-
 const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
-
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 const SkeletonTest = () => (
   <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 animate-pulse">
@@ -47,8 +38,6 @@ const SkeletonTest = () => (
     </div>
   </div>
 );
-
-// ─── Stat Card ────────────────────────────────────────────────────────────────
 
 const StatCard = ({ icon: Icon, iconBg, iconColor, label, value, loading }) => (
   <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
@@ -67,8 +56,6 @@ const StatCard = ({ icon: Icon, iconBg, iconColor, label, value, loading }) => (
     </div>
   </div>
 );
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
 
 const ManageTests = () => {
   const [tests, setTests] = useState([]);
@@ -105,20 +92,16 @@ const ManageTests = () => {
   // Derived: category map
   const categoryMap = {};
   categories.forEach((c) => {
-    const id = resolveId(c._id);
-    if (id) categoryMap[id] = c.name;
+    if (c._id) categoryMap[c._id] = c.name;
   });
 
   // Derived: enriched tests
-  const enrichedTests = tests.map((t) => {
-    const rawId = resolveId(t.categoryId);
-    return {
-      ...t,
-      categoryId: rawId || UNCATEGORIZED_ID,
-      categoryName: rawId && categoryMap[rawId] ? categoryMap[rawId] : "Uncategorized",
-      isOnline: !!t.schemaId,
-    };
-  });
+  const enrichedTests = tests.map((t) => ({
+    ...t,
+    categoryId: t.categoryId || UNCATEGORIZED_ID,
+    categoryName: t.categoryId && categoryMap[t.categoryId] ? categoryMap[t.categoryId] : "Uncategorized",
+    isOnline: !!t.schemaId,
+  }));
 
   // Derived: stats
   const total = enrichedTests.length;
@@ -171,7 +154,7 @@ const ManageTests = () => {
     setLoading(true);
     try {
       await testService.editTest({
-        testId: updatedTest.testId,
+        testId: updatedTest._id, // ← was updatedTest.testId, should be _id
         price: updatedTest.price,
         schemaId: updatedTest.schemaId,
       });
@@ -196,7 +179,6 @@ const ManageTests = () => {
     setIsConfigOpen(true);
   };
   const closeConfig = () => setIsConfigOpen(false);
-
   const isFiltered = searchQuery || statusFilter !== "all";
 
   return (
@@ -304,7 +286,7 @@ const ManageTests = () => {
           />
         </div>
 
-        {/* Filters + Search */}
+        {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
@@ -343,6 +325,7 @@ const ManageTests = () => {
           </div>
         </div>
 
+        {/* Search */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />

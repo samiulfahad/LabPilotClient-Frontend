@@ -6,14 +6,6 @@ import testService from "../../../api/test";
 import Popup from "../../../components/popup";
 import LoadingScreen from "../../../components/loadingPage";
 
-// Helper: extract a plain string ID from either a plain string or a { $oid } object
-const resolveId = (id) => {
-  if (!id) return null;
-  if (typeof id === "object" && id.$oid) return id.$oid;
-  return String(id);
-};
-
-// Skeleton components for loading state
 const SkeletonTestItem = () => (
   <div className="p-4 bg-white animate-pulse">
     <div className="flex items-center gap-3">
@@ -58,7 +50,6 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
   const [registeredTests, setRegisteredTests] = useState([]);
   const [categories, setCategories] = useState([]);
 
-  // Load all three data sources in parallel on mount.
   useEffect(() => {
     const loadAll = async () => {
       try {
@@ -67,19 +58,18 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
           testService.getCategories(),
           existingTests.length === 0 ? testService.getTestList() : Promise.resolve({ data: existingTests }),
         ]);
+
         setAvailableTests(testsRes.data);
         setCategories(catsRes.data);
         setRegisteredTests(ownTestsRes.data);
-        console.log(testsRes.data);
 
         const expanded = {};
         catsRes.data.forEach((c) => {
-          const id = resolveId(c._id);
-          if (id) expanded[id] = true;
+          if (c._id) expanded[c._id] = true;
         });
         expanded["uncategorized"] = true;
         setExpandedCategories(expanded);
-      } catch (e) {
+      } catch {
         setPopup({ type: "error", message: "Could not load tests" });
       } finally {
         setInitialLoading(false);
@@ -88,46 +78,37 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
     loadAll();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Registered tests use `testId` field to reference a global test's _id
+  // Derived
   const existingTestIds = new Set(registeredTests.map((t) => t.testId));
 
-  // Build category map: resolvedId -> name
   const categoryMap = {};
   categories.forEach((c) => {
-    const id = resolveId(c._id);
-    if (id) categoryMap[id] = c.name;
+    if (c._id) categoryMap[c._id] = c.name;
   });
 
-  // Filter tests
   let filtered = [...availableTests];
   if (searchQuery.trim()) {
     const q = searchQuery.toLowerCase();
     filtered = filtered.filter((t) => t.name.toLowerCase().includes(q));
   }
 
-  // Group by category — resolve categoryId whether it's a string or { $oid }
   const groupedTests = {};
   filtered.forEach((test) => {
-    const catKey = resolveId(test.categoryId) || "uncategorized";
+    const catKey = test.categoryId || "uncategorized";
     const catName = categoryMap[catKey] || "Uncategorized";
-    if (!groupedTests[catKey]) {
-      groupedTests[catKey] = { name: catName, tests: [] };
-    }
+    if (!groupedTests[catKey]) groupedTests[catKey] = { name: catName, tests: [] };
     groupedTests[catKey].tests.push(test);
   });
 
-  const getTestKey = (test) => resolveId(test._id);
-
+  // Handlers
   const toggleSelect = (testKey) => {
-    if (!testKey) return;
-    if (existingTestIds.has(testKey)) return;
-
+    if (!testKey || existingTestIds.has(testKey)) return;
     setSelectedTests((prev) => {
       const updated = { ...prev };
       if (updated[testKey]) {
         delete updated[testKey];
       } else {
-        const test = availableTests.find((t) => resolveId(t._id) === testKey);
+        const test = availableTests.find((t) => t._id === testKey);
         if (!test) return prev;
         updated[testKey] = { price: "" };
       }
@@ -136,31 +117,27 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
   };
 
   const updateTestField = (testKey, field, value) => {
-    setSelectedTests((prev) => ({
-      ...prev,
-      [testKey]: { ...prev[testKey], [field]: value },
-    }));
+    setSelectedTests((prev) => ({ ...prev, [testKey]: { ...prev[testKey], [field]: value } }));
   };
 
   const toggleCategory = (catKey) => {
     setExpandedCategories((prev) => ({ ...prev, [catKey]: !prev[catKey] }));
   };
 
-  const selectedCount = Object.keys(selectedTests).length;
-
   const handleSave = async () => {
+    const selectedCount = Object.keys(selectedTests).length;
     if (selectedCount === 0) {
       setPopup({ type: "error", message: "Please select at least one test" });
       return;
     }
 
     const toSave = Object.entries(selectedTests).map(([testKey, config]) => {
-      const test = availableTests.find((t) => resolveId(t._id) === testKey);
+      const test = availableTests.find((t) => t._id === testKey);
       return {
         name: test.name,
         testId: testKey,
-        categoryId: resolveId(test.categoryId),
-        schemaId: test.schemaId ? resolveId(test.schemaId) : null,
+        categoryId: test.categoryId ?? null,
+        schemaId: test.schemaId ?? null,
         price: parseFloat(config.price) || 0,
       };
     });
@@ -174,7 +151,7 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
         setPopup({ type: "success", message: `${toSave.length} test(s) added successfully` });
         setTimeout(() => navigate(-1), 1500);
       }
-    } catch (e) {
+    } catch {
       setPopup({ type: "error", message: "Could not add tests" });
     } finally {
       setLoading(false);
@@ -186,6 +163,8 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
     else navigate(-1);
   };
 
+  const selectedCount = Object.keys(selectedTests).length;
+
   return (
     <>
       <section className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50 to-cyan-50 px-4 py-6">
@@ -193,29 +172,24 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
         {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
         <div className="max-w-4xl mx-auto" style={{ paddingBottom: selectedCount > 0 ? "88px" : "0" }}>
-          {/* ===== RESPONSIVE HEADER ===== */}
-          {/* Row 1: Heading + Back button */}
+          {/* Header */}
           <div className="flex items-center justify-between mb-2 sm:mb-4">
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
                 <Plus className="w-6 h-6 sm:w-7 sm:h-7 text-teal-600" />
                 Add Lab Tests
               </h1>
-              {/* Subtitle – hidden on desktop (will show below) */}
               <p className="text-sm text-gray-500 mt-0.5 hidden sm:block">Select tests, set price, then save</p>
             </div>
-
-            {/* Back button – always top right */}
             <button
               onClick={handleBack}
               className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white/50 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow shrink-0"
             >
-              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+              <ArrowLeft className="w-4 h-4" />
               <span>Back</span>
             </button>
           </div>
 
-          {/* Row 2: Subtitle – visible only on mobile */}
           <p className="text-sm text-gray-500 mb-4 sm:hidden">Select tests, set price, then save</p>
 
           {/* Search */}
@@ -242,15 +216,10 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
             </div>
           </div>
 
-          {/* Category-wise Test List */}
+          {/* Test List */}
           <div className="space-y-4">
             {initialLoading ? (
-              // Skeleton loading state
-              <>
-                {[1, 2, 3].map((i) => (
-                  <SkeletonCategory key={i} />
-                ))}
-              </>
+              [1, 2, 3].map((i) => <SkeletonCategory key={i} />)
             ) : Object.keys(groupedTests).length === 0 ? (
               <div className="bg-white rounded-xl p-8 text-center border border-gray-100">
                 <FlaskConical className="w-10 h-10 text-gray-300 mx-auto mb-3" />
@@ -259,7 +228,6 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
             ) : (
               Object.entries(groupedTests).map(([catKey, { name: categoryName, tests: catTests }]) => (
                 <div key={catKey} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                  {/* Category Header */}
                   <button
                     onClick={() => toggleCategory(catKey)}
                     className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-gray-100 hover:from-teal-100 hover:to-cyan-100 transition-all"
@@ -278,11 +246,10 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
                     )}
                   </button>
 
-                  {/* Tests */}
                   {expandedCategories[catKey] && (
                     <div className="divide-y divide-gray-50">
                       {catTests.map((test, index) => {
-                        const testKey = getTestKey(test);
+                        const testKey = test._id;
                         const isAlreadyAdded = existingTestIds.has(testKey);
                         const isSelected = !!selectedTests[testKey];
 
@@ -299,7 +266,6 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
                             }`}
                           >
                             <div className="flex items-start sm:items-center gap-3">
-                              {/* Checkbox */}
                               <div className="flex-shrink-0 mt-0.5 sm:mt-0">
                                 {isAlreadyAdded ? (
                                   <div className="w-5 h-5 rounded-full bg-green-100 border-2 border-green-400 flex items-center justify-center">
@@ -307,19 +273,15 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
                                   </div>
                                 ) : (
                                   <div
-                                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                                      isSelected ? "bg-teal-600 border-teal-600" : "border-gray-300 bg-white"
-                                    }`}
+                                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? "bg-teal-600 border-teal-600" : "border-gray-300 bg-white"}`}
                                   >
                                     {isSelected && <Check className="w-3 h-3 text-white" />}
                                   </div>
                                 )}
                               </div>
 
-                              {/* Right side: name row + price */}
                               <div className="flex-1 min-w-0">
                                 <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3">
-                                  {/* Name & badges */}
                                   <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
                                     <span className="font-semibold text-gray-800 text-sm">{test.name}</span>
                                     {!testKey && (
@@ -334,7 +296,6 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
                                     )}
                                   </div>
 
-                                  {/* Price – only when selected */}
                                   {isSelected && !isAlreadyAdded && (
                                     <div
                                       className="mt-2 sm:mt-0 sm:flex-shrink-0 sm:w-48"
@@ -343,7 +304,6 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
                                       <label className="block text-xs font-medium text-gray-600 mb-1">Price</label>
                                       <input
                                         type="number"
-                                        name="price"
                                         value={selectedTests[testKey]?.price ?? ""}
                                         onChange={(e) => updateTestField(testKey, "price", e.target.value)}
                                         placeholder="0"
@@ -367,7 +327,6 @@ const AddTest = ({ existingTests = [], onBack, onSave }) => {
         </div>
       </section>
 
-      {/* Sticky Bottom Save Bar – rendered via portal to escape blur/filter ancestors */}
       {selectedCount > 0 &&
         createPortal(
           <div
