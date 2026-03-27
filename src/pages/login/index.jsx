@@ -59,7 +59,6 @@ const LabDots = ({ count, total = 5 }) => (
 
 /* ─── Per-digit underline phone input ────────────────────────────────────── */
 const MAX_PHONE = 11;
-
 const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
   const inputRef = useRef(null);
   const [focused, setFocused] = useState(false);
@@ -79,7 +78,6 @@ const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
         transition: "border 0.2s, box-shadow 0.2s, background 0.2s",
       }}
     >
-      {/* Hidden real input */}
       <input
         ref={inputRef}
         type="tel"
@@ -103,22 +101,22 @@ const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
         aria-label="Phone number"
       />
 
-      {/* Phone icon + digit cells row */}
-      {/* UPDATED: Reduced padding on mobile (px-2) to give digits more room */}
-      <div className="flex items-end px-2 sm:px-3 gap-0">
+      <div className="flex items-end px-2 sm:px-3">
         <Phone
           size={14}
           style={{
             color: focused ? "#3b82f6" : "#9ca3af",
-            marginRight: "8px",
+            marginRight: "4px", // Reduced margin from icon
             marginBottom: "4px",
             flexShrink: 0,
             transition: "color 0.2s",
           }}
         />
 
-        {/* Digit cells */}
-        <div className="flex items-end gap-[4px] sm:gap-[5px] flex-1">
+        {/* FIX: Changed gap to 0.5px and used justify-center 
+            to keep the digits tightly packed 
+        */}
+        <div className="flex items-end gap-[0.5px] flex-1 justify-center">
           {Array.from({ length: MAX_PHONE }).map((_, i) => {
             const filled = i < value.length;
             const isCursor = focused && i === value.length;
@@ -130,19 +128,18 @@ const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  flex: 1,
-                  minWidth: 0,
+                  flex: "0 0 auto", // Changed from flex-1 to prevent stretching
+                  width: "14px", // Fixed narrow width for each digit
                   gap: "3px",
                 }}
               >
-                {/* Digit */}
                 <span
                   style={{
                     fontFamily: "'SF Mono', 'Fira Code', 'Roboto Mono', monospace",
                     fontSize: "16px",
                     fontWeight: 700,
                     lineHeight: 1,
-                    color: filled ? "#1e3a8a" : "transparent",
+                    color: filled ? "#1e3a8a" : "#e5e7eb", // Light placeholder color instead of transparent
                     display: "block",
                     minHeight: "18px",
                     userSelect: "none",
@@ -151,18 +148,7 @@ const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
                   {filled ? value[i] : "0"}
                 </span>
 
-                {/* Underline bar */}
                 <div style={{ position: "relative", width: "100%", height: "2.5px" }}>
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      borderRadius: "2px",
-                      background: filled ? "#2563eb" : isCursor ? "#93c5fd" : "#e5e7eb",
-                      transition: "background 0.15s",
-                    }}
-                  />
-                  {/* Blinking cursor */}
                   {isCursor && (
                     <div
                       style={{
@@ -260,7 +246,6 @@ export default function Login() {
 
   return (
     <div
-      // UPDATED: Changed p-4 to px-2 py-4 on mobile so the card can stretch wider
       className="fixed inset-0 h-[100dvh] w-full flex items-center justify-center px-2 py-4 sm:p-6 overflow-hidden"
       style={{
         background: "linear-gradient(145deg, #f0f4ff 0%, #f0f1f7 40%, #e8f5ff 100%)",
@@ -304,7 +289,6 @@ export default function Login() {
       >
         {/* Brand header */}
         <div
-          // UPDATED: Changed px-6 to px-4 on mobile
           className="flex items-center gap-3 px-4 sm:px-6 py-4 rounded-t-3xl border-b border-slate-200"
           style={{
             background: "linear-gradient(135deg, #dbeafe 0%, #e2e8f0 100%)",
@@ -331,7 +315,6 @@ export default function Login() {
           className="bg-white/85 backdrop-blur-md border border-gray-200/80 border-t-0 shadow-lg"
           style={{ borderRadius: "0 0 24px 24px" }}
         >
-          {/* UPDATED: Changed px-6 to px-4 on mobile */}
           <div className="px-4 sm:px-7 pt-6 sm:pt-6 pb-6 sm:pb-6">
             {/* Headings */}
             {view === "login" && (
@@ -393,7 +376,7 @@ export default function Login() {
                   </Field>
                 </div>
 
-                {/* Phone — per-digit underline */}
+                {/* Phone — per-digit input (no underline) */}
                 <div style={{ animation: "lpFadeUp 0.5s cubic-bezier(.22,1,.36,1) 0.20s both" }}>
                   <Field label="Phone Number" error={errors.phone}>
                     <PhoneDigitInput
@@ -426,7 +409,7 @@ export default function Login() {
                       onClick={() => setShowPw((p) => !p)}
                       tabIndex={-1}
                     >
-                      {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                      {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </Field>
                 </div>
@@ -568,7 +551,6 @@ export default function Login() {
           </div>
 
           {/* Card footer */}
-          {/* UPDATED: Changed px-6 to px-4 on mobile */}
           <div className="flex items-center justify-between px-4 sm:px-7 py-3.5 sm:py-3 rounded-b-3xl border-t border-gray-100 bg-gray-50/50">
             <div className="flex items-center gap-1.5">
               <ShieldCheck size={12} className="text-blue-400" />
