@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { NavLink, Link } from "react-router-dom";
-import { LogOut, Menu, X, ChevronRight } from "lucide-react";
+import { LogOut, Menu, X, ChevronRight, AlertTriangle } from "lucide-react"; // Added AlertTriangle
 import { useAuthStore } from "../../store/authStore";
 import menu from "./menu";
-import LogoutConfirmModal from "../logoutModal";
 import LoadingScreen from "../loadingPage";
+import Modal from "../modal"
 
 const MobileMenu = () => {
   const logout = useAuthStore((s) => s.logout);
@@ -37,27 +37,19 @@ const MobileMenu = () => {
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
 
-  // Escape key closes menu
+  // Prevent body scroll when drawer is open (Modal handles its own scroll lock)
   useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === "Escape" && isMenuOpen) setIsMenuOpen(false);
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [isMenuOpen]);
-
-  // Prevent body scroll when menu open
-  useEffect(() => {
-    document.body.style.overflow = isMenuOpen ? "hidden" : "unset";
-    return () => {
+    if (isMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else if (!showConfirm) {
       document.body.style.overflow = "unset";
-    };
-  }, [isMenuOpen]);
+    }
+  }, [isMenuOpen, showConfirm]);
 
   const handleLogoutClick = () => {
     closeMenu();
-    // Small delay so the drawer finishes closing before the modal appears
-    setTimeout(() => setShowConfirm(true), 300);
+    // Tiny delay to allow drawer transition to feel smooth
+    setTimeout(() => setShowConfirm(true), 150);
   };
 
   const handleLogoutConfirm = async () => {
@@ -82,10 +74,7 @@ const MobileMenu = () => {
           <Link to="/" className="flex flex-col">
             <span
               className="text-gray-900 font-bold text-base leading-none"
-              style={{
-                fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif",
-                letterSpacing: "-0.02em",
-              }}
+              style={{ fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: "-0.02em" }}
             >
               LabPilot<span className="font-light">Pro</span>
             </span>
@@ -95,21 +84,15 @@ const MobileMenu = () => {
           <button
             onClick={toggleMenu}
             className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100/80 transition-all duration-200"
-            aria-label="Toggle menu"
           >
             {isMenuOpen ? <X className="w-5 h-5 text-gray-700" /> : <Menu className="w-5 h-5 text-gray-700" />}
           </button>
         </nav>
-        <div className="h-16" /> {/* Spacer */}
+        <div className="h-16" />
       </div>
 
-      {/* Overlay */}
-      {isMenuOpen && (
-        <div
-          className="lg:hidden fixed inset-0 z-40 bg-black/30 backdrop-blur-sm transition-opacity duration-300"
-          onClick={closeMenu}
-        />
-      )}
+      {/* Overlay for Drawer */}
+      {isMenuOpen && <div className="lg:hidden fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={closeMenu} />}
 
       {/* Slide-out Drawer */}
       <div
@@ -135,72 +118,56 @@ const MobileMenu = () => {
               </div>
               <button
                 onClick={closeMenu}
-                className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-all"
+                className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30"
               >
                 <X className="w-4 h-4 text-white" />
               </button>
             </div>
           </div>
 
-          {/* Scrollable Menu Items */}
-          <div className="flex-1 overflow-hidden bg-gray-50/50">
-            <div className="h-full overflow-y-auto px-3 py-4">
-              <div className="space-y-0.5">
-                {menu.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      end={item.path === "/"}
-                      onClick={closeMenu}
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
-                          isActive
-                            ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200/80 shadow-sm"
-                            : "text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm border border-transparent"
-                        }`
-                      }
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <div
-                            className={`
-                              w-9 h-9 rounded-lg flex items-center justify-center
-                              transition-all duration-200 flex-shrink-0
-                              ${
-                                isActive
-                                  ? "bg-blue-100 text-blue-600"
-                                  : "bg-gray-100 text-gray-500 group-hover:bg-blue-50 group-hover:text-blue-600"
-                              }
-                            `}
-                          >
-                            <Icon className="w-4 h-4" />
-                          </div>
-                          <span className="font-medium text-sm flex-1">{item.label}</span>
-                          <ChevronRight
-                            className={`
-                              w-4 h-4 transition-all duration-200
-                              ${isActive ? "text-blue-600" : "text-gray-400 group-hover:translate-x-0.5"}
-                            `}
-                          />
-                        </>
-                      )}
-                    </NavLink>
-                  );
-                })}
-              </div>
+          {/* Menu Content */}
+          <div className="flex-1 overflow-y-auto px-3 py-4 bg-gray-50/50">
+            <div className="space-y-0.5">
+              {menu.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    end={item.path === "/"}
+                    onClick={closeMenu}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+                        isActive
+                          ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200/80 shadow-sm"
+                          : "text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent"
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <div
+                          className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${isActive ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-500 group-hover:bg-blue-50 group-hover:text-blue-600"}`}
+                        >
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <span className="font-medium text-sm flex-1">{item.label}</span>
+                        <ChevronRight
+                          className={`w-4 h-4 ${isActive ? "text-blue-600" : "text-gray-400 group-hover:translate-x-0.5"}`}
+                        />
+                      </>
+                    )}
+                  </NavLink>
+                );
+              })}
             </div>
           </div>
 
-          {/* Footer – Logout only */}
-          <div className="flex-shrink-0 p-4 border-t border-gray-200/80 bg-white/50 backdrop-blur-sm">
+          {/* Drawer Footer */}
+          <div className="flex-shrink-0 p-4 border-t border-gray-200/80 bg-white/50">
             <button
               onClick={handleLogoutClick}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl
-                text-gray-700 hover:text-red-600 hover:bg-red-50
-                border border-transparent hover:border-red-200
-                transition-all duration-200 group"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-gray-700 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all duration-200 group"
             >
               <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
               <span className="text-sm font-medium">Logout</span>
@@ -209,12 +176,37 @@ const MobileMenu = () => {
         </div>
       </div>
 
-      {showConfirm && (
-        <LogoutConfirmModal
-          onConfirm={handleLogoutConfirm}
-          onCancel={() => setShowConfirm(false)}
-        />
-      )}
+      {/* --- NEW LOGOUT MODAL INTEGRATION --- */}
+      <Modal isOpen={showConfirm} onClose={() => setShowConfirm(false)} size="sm">
+        <div className="p-6">
+          <div className="flex flex-col items-center text-center">
+            {/* Warning Icon Circle */}
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4 border border-red-100">
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Confirm Logout</h3>
+            <p className="text-sm text-gray-500 mb-8 px-4">
+              Are you sure you want to sign out? You will need to enter your credentials to access the system again.
+            </p>
+
+            <div className="flex w-full gap-3">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogoutConfirm}
+                className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-200 transition-all active:scale-95"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       {loggingOut && <LoadingScreen message="Signing you out" />}
     </>
