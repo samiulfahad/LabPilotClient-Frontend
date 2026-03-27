@@ -12,6 +12,7 @@ import {
   MapPin,
   Phone,
 } from "lucide-react";
+import { useAuthStore } from "../../store/authStore"; // adjust path if needed
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 const useClock = () => {
@@ -32,21 +33,6 @@ const getGreeting = () => {
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
-};
-
-// ─── config ──────────────────────────────────────────────────────────────────
-const LAB = {
-  name: "Digi Lab Health Care",
-  tagline: "Advanced Diagnostics & Pathology",
-  address: "House 12, Road 4, Dhanmondi, Dhaka",
-  phone: "+880 1700-000000",
-  id: "123456",
-};
-
-const USER = {
-  name: "Admin",
-  role: "Lab Administrator",
-  initials: "AD",
 };
 
 // ─── actions ─────────────────────────────────────────────────────────────────
@@ -136,6 +122,21 @@ const Card = ({ to, icon: Icon, label, sub, grad, glow, idx }) => (
 const Home = () => {
   const clock = useClock();
 
+  // Pull live data from Zustand store (auto-hydrated from localStorage)
+  const { user, lab } = useAuthStore();
+
+  // ── Derived display values with safe fallbacks ──
+  const labName = lab?.name ?? "—";
+  const labId = lab?.labKey ?? "—";
+  const labAddress = [lab?.contact?.address, lab?.contact?.district].filter(Boolean).join(", ") || "—";
+  const labPhone = lab?.contact?.primary ?? "—";
+
+  const userName = user?.name ?? "User";
+  const userRole = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "—";
+
+  const greeting = getGreeting();
+  const greetingEmoji = greeting === "Good morning" ? "☀️" : greeting === "Good afternoon" ? "🌤️" : "🌙";
+
   return (
     <div className="min-h-screen bg-[#f0f1f7] relative overflow-hidden">
       {/* ── Background blobs ── */}
@@ -179,7 +180,7 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Clock only */}
+          {/* Clock */}
           <div className="flex items-center gap-1.5 bg-white/80 backdrop-blur border border-gray-100 rounded-xl px-3 py-2 shadow-sm">
             <Activity className="w-3 h-3 text-emerald-500" />
             <span className="text-xs font-mono font-bold text-gray-700 tabular-nums">{clock}</span>
@@ -204,22 +205,19 @@ const Home = () => {
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xl">
-                    {getGreeting() === "Good morning" ? "☀️" : getGreeting() === "Good afternoon" ? "🌤️" : "🌙"}
-                  </span>
-                  <span className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest">
-                    {getGreeting().charAt(0).toUpperCase() + getGreeting().slice(1)}
-                  </span>
+                  <span className="text-xl">{greetingEmoji}</span>
+                  <span className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest">{greeting}</span>
                 </div>
                 <h1 className="text-2xl font-black text-gray-900 leading-tight tracking-tight">
-                  Welcome back<span className="text-indigo-500">.</span>
+                  Welcome back, {userName}
+                  <span className="text-indigo-500">.</span>
                 </h1>
               </div>
 
               <div className="flex flex-col items-end gap-2 shrink-0">
                 <div className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-xl text-right">
                   <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest leading-none">Lab ID</p>
-                  <p className="text-base font-black text-indigo-700 leading-tight mt-0.5">{LAB.id}</p>
+                  <p className="text-base font-black text-indigo-700 leading-tight mt-0.5">{labId}</p>
                 </div>
                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -231,15 +229,15 @@ const Home = () => {
             {/* ── Lab name + contact ── */}
             <div className="mt-4 mb-4 pl-0.5">
               <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Your Lab</p>
-              <p className="text-base font-black text-gray-800 leading-snug">{LAB.name}</p>
+              <p className="text-base font-black text-gray-800 leading-snug">{labName}</p>
               <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-1.5">
                 <div className="flex items-center gap-1.5">
                   <MapPin className="w-3 h-3 text-gray-300" />
-                  <span className="text-[11px] text-gray-400">{LAB.address}</span>
+                  <span className="text-[11px] text-gray-400">{labAddress}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Phone className="w-3 h-3 text-gray-300" />
-                  <span className="text-[11px] text-gray-400">{LAB.phone}</span>
+                  <span className="text-[11px] text-gray-400">{labPhone}</span>
                 </div>
               </div>
             </div>
@@ -247,8 +245,8 @@ const Home = () => {
             {/* ── Stats strip ── */}
             <div className="pt-4 border-t border-gray-50 grid grid-cols-3 gap-4">
               {[
-                { label: "Logged in as", value: USER.name },
-                { label: "System", value: "All Systems Go" },
+                { label: "Logged in as", value: userName },
+                { label: "Role", value: userRole },
                 { label: "Version", value: "LabPilot v1" },
               ].map(({ label, value }) => (
                 <div key={label}>
