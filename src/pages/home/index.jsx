@@ -76,7 +76,7 @@ const ACTIONS = [
     glow: "rgba(16,185,129,0.3)",
   },
   {
-    to: "/referrers",
+    to: "/manage-referrers",
     icon: Users,
     label: "Referrers",
     sub: "Doctors & commissions",
