@@ -1,17 +1,4 @@
-import {
-  User,
-  Phone,
-  Shield,
-  Check,
-  FileText,
-  FilePlus,
-  FileEdit,
-  Trash,
-  Upload,
-  Download,
-  AtSign,
-  Mail,
-} from "lucide-react";
+import { User, Phone, Shield, Check, FileText, FilePlus, FileEdit, Trash, Upload, Download, Mail } from "lucide-react";
 
 const PERMISSIONS_LIST = [
   {
@@ -104,22 +91,6 @@ const StaffForm = ({ formData, onChange, onSubmit, onClose }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Username <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={formData.username || ""}
-                    onChange={(e) => onChange("username", e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-sm"
-                    placeholder="username"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Email <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -134,23 +105,23 @@ const StaffForm = ({ formData, onChange, onSubmit, onClose }) => {
                   />
                 </div>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Mobile Number <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="tel"
-                  value={formData.mobileNumber || ""}
-                  onChange={(e) => onChange("mobileNumber", e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-sm"
-                  placeholder="01XXXXXXXXX"
-                  maxLength={11}
-                  required
-                />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone Number <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="tel"
+                    value={formData.phone || ""}
+                    onChange={(e) => onChange("phone", e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-sm"
+                    placeholder="01XXXXXXXXX"
+                    minLength={10}
+                    maxLength={15}
+                    required
+                  />
+                </div>
               </div>
             </div>
 

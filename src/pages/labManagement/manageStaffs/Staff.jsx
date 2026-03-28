@@ -72,9 +72,8 @@ const Staff = ({ input, onEdit, onDelete, onDeactivate, onActivate }) => {
             {/* Contact pills */}
             <div className="flex flex-wrap items-center gap-2">
               {[
-                { icon: User, bg: "bg-indigo-100", color: "text-indigo-600", value: `@${input.username}` },
                 { icon: Mail, bg: "bg-blue-100", color: "text-blue-600", value: input.email, truncate: true },
-                { icon: Phone, bg: "bg-purple-100", color: "text-purple-600", value: input.mobileNumber },
+                { icon: Phone, bg: "bg-purple-100", color: "text-purple-600", value: input.phone },
               ].map(({ icon: Icon, bg, color, value, truncate }) => (
                 <div
                   key={value}

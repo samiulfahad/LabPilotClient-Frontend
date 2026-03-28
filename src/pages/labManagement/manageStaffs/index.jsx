@@ -23,9 +23,8 @@ import LoadingScreen from "../../../components/loadingPage";
 
 const initialData = {
   name: "",
-  username: "",
   email: "",
-  mobileNumber: "",
+  phone: "",
   permissions: {
     createInvoice: false,
     editInvoice: false,
@@ -119,12 +118,7 @@ const ManageStaff = () => {
       if (statusFilter === "inactive" && s.isActive) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        return (
-          s.name.toLowerCase().includes(q) ||
-          s.username.toLowerCase().includes(q) ||
-          s.email.toLowerCase().includes(q) ||
-          s.mobileNumber.includes(q)
-        );
+        return s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q) || s.phone.includes(q);
       }
       return true;
     });
@@ -143,16 +137,12 @@ const ManageStaff = () => {
       setPopup({ type: "error", message: "Name is required" });
       return;
     }
-    if (!formData.username?.trim()) {
-      setPopup({ type: "error", message: "Username is required" });
-      return;
-    }
     if (!formData.email?.trim()) {
       setPopup({ type: "error", message: "Email is required" });
       return;
     }
-    if (!formData.mobileNumber?.trim()) {
-      setPopup({ type: "error", message: "Mobile number is required" });
+    if (!formData.phone?.trim()) {
+      setPopup({ type: "error", message: "Phone number is required" });
       return;
     }
 
@@ -362,7 +352,7 @@ const ManageStaff = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by name, username, email, or mobile number..."
+              placeholder="Search by name, email, or phone number..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               disabled={initialLoading}
@@ -425,9 +415,8 @@ const ManageStaff = () => {
                 onEdit={() => {
                   setFormData({
                     name: item.name || "",
-                    username: item.username || "",
                     email: item.email || "",
-                    mobileNumber: item.mobileNumber || "",
+                    phone: item.phone || "",
                     permissions: item.permissions || initialData.permissions,
                     isActive: item.isActive ?? true,
                     type: "editStaff",
