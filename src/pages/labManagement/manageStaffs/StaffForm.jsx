@@ -112,13 +112,15 @@ const StaffForm = ({ formData, onChange, onSubmit, onClose }) => {
                     type="tel"
                     value={formData.phone || ""}
                     onChange={(e) => onChange("phone", e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-sm"
+                    className={`w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-sm ${isEdit ? "bg-gray-50 text-gray-400 cursor-not-allowed" : ""}`}
                     placeholder="01XXXXXXXXX"
                     minLength={10}
                     maxLength={15}
-                    required
+                    readOnly={isEdit}
+                    required={!isEdit}
                   />
                 </div>
+                {isEdit && <p className="mt-1 text-xs text-gray-400">Phone number cannot be changed after creation.</p>}
               </div>
             </div>
 
