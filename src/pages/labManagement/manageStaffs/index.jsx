@@ -137,10 +137,6 @@ const ManageStaff = () => {
       setPopup({ type: "error", message: "Name is required" });
       return;
     }
-    if (!formData.email?.trim()) {
-      setPopup({ type: "error", message: "Email is required" });
-      return;
-    }
     if (!formData.phone?.trim()) {
       setPopup({ type: "error", message: "Phone number is required" });
       return;
