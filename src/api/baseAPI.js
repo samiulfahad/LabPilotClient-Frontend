@@ -1,9 +1,9 @@
 import axios from "axios";
 import { useAuthStore } from "../store/authStore";
 
-// const cloud = "https://labpilotclient-backend.onrender.com/api/v1";
-// const railway = "https://labpilotclient-backend-production.up.railway.app/api/v1";
-// const local = "http://localhost:3000/api/v1";
+const cloud = "https://labpilotclient-backend.onrender.com/api/v1";
+const railway = "https://labpilotclient-backend-production.up.railway.app/api/v1";
+const local = "http://localhost:3000/api/v1";
 
 const api = axios.create({
   baseURL: "/api/v1",

@@ -154,7 +154,7 @@ const ManageTests = () => {
     setLoading(true);
     try {
       await testService.editTest({
-        testId: updatedTest._id, // ← was updatedTest.testId, should be _id
+        testId: updatedTest._id,
         price: updatedTest.price,
         schemaId: updatedTest.schemaId,
       });
@@ -418,7 +418,7 @@ const ManageTests = () => {
                           message: `Are you sure you want to delete "${item.name}"?`,
                           action: "delete",
                           _id: item._id,
-                          testId: item.testId,
+                          testId: item._id, // ✅ fixed: was item.testId (catalog ref), backend expects mongo _id
                         })
                       }
                     />

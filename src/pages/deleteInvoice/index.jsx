@@ -63,7 +63,8 @@ const DeleteInvoicePanel = ({ onDeleted, onLoadingChange, onError }) => {
       setNotFound(false);
       setInvoice(null);
       const { data } = await invoiceService.getInvoiceByInvoiceId(String(id).trim());
-      data.isDeleted ? setNotFound(true) : setInvoice(data);
+      // ✅ fixed: was data.isDeleted — new structure uses deletion.status
+      data.deletion?.status ? setNotFound(true) : setInvoice(data);
     } catch (err) {
       if (err?.response?.status === 404) setNotFound(true);
       else onError("Failed to load invoice.");
@@ -76,6 +77,7 @@ const DeleteInvoicePanel = ({ onDeleted, onLoadingChange, onError }) => {
     const q = searchQuery.trim();
     if (q) fetchInvoice(q);
   };
+
   const handleClear = () => {
     setSearchQuery("");
     setInvoice(null);
@@ -252,7 +254,9 @@ const DeleteInvoicePanel = ({ onDeleted, onLoadingChange, onError }) => {
 
 const DeletedInvoiceRow = ({ invoice, index }) => {
   const createdDt = formatDateTime(invoice.createdAt);
-  const deletedDt = formatDateTime(invoice.deletedAt);
+  // ✅ fixed: was invoice.deletedAt — new structure uses deletion.at
+  const deletedDt = formatDateTime(invoice.deletion?.at);
+  const deletedBy = invoice.deletion?.by?.name ?? null;
   const final = invoice.amount?.final ?? 0;
   const due = getDue(invoice);
   const onlineTests = invoice.tests?.filter((t) => t.schemaId) ?? [];
@@ -279,6 +283,15 @@ const DeletedInvoiceRow = ({ invoice, index }) => {
           <History className="w-3 h-3" />
           {deletedDt.date} · {deletedDt.time}
         </span>
+        {deletedBy && (
+          <>
+            <span className="w-px h-3 bg-gray-200 hidden sm:block" />
+            <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
+              <User className="w-3 h-3" />
+              {deletedBy}
+            </span>
+          </>
+        )}
         <span className="w-px h-3 bg-gray-200 hidden sm:block" />
         <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
           <User className="w-3 h-3" />
@@ -339,7 +352,6 @@ const DeletedInvoicesList = ({ refreshTrigger, onLoadingChange, onError }) => {
         limit: 20,
         ...(range && { startDate: range.start, endDate: range.end }),
       });
-      console.log(data);
       setInvoices((prev) => (replace ? data.invoices : [...prev, ...data.invoices]));
       setNextCursor(data.nextCursor);
       setHasMore(data.hasMore);
