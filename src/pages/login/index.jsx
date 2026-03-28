@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuthStore } from "../../store/authStore";
 import { useNavigate } from "react-router-dom";
+import api from "../../api/baseAPI";
 import {
   Hash,
   Phone,
@@ -13,10 +14,9 @@ import {
   AlertCircle,
   Loader2,
   ShieldCheck,
-  Send,
 } from "lucide-react";
 
-/* ─── Field wrapper (Restored Original) ──────────────────────────────────── */
+/* ─── Field wrapper ───────────────────────────────────────────────────────── */
 const Field = ({ label, error, children }) => (
   <div className="flex flex-col gap-1.5">
     <label
@@ -38,7 +38,7 @@ const Field = ({ label, error, children }) => (
   </div>
 );
 
-/* ─── Lab ID dot progress (Restored Original) ────────────────────────────── */
+/* ─── Lab ID dot progress ─────────────────────────────────────────────────── */
 const LabDots = ({ count, total = 5 }) => (
   <div className="absolute right-5 sm:right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-[5px]">
     {Array.from({ length: total }).map((_, i) => (
@@ -57,7 +57,7 @@ const LabDots = ({ count, total = 5 }) => (
   </div>
 );
 
-/* ─── Centered Phone Digit Input ─────────────────────────────────────────── */
+/* ─── Phone Digit Input ───────────────────────────────────────────────────── */
 const MAX_PHONE = 11;
 
 const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
@@ -98,7 +98,6 @@ const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
           zIndex: 10,
         }}
       />
-
       <div className="flex items-center">
         <Phone size={14} style={{ color: focused ? "#3b82f6" : "#9ca3af", marginRight: "12px", flexShrink: 0 }} />
         <div className="flex items-center gap-[4px]">
@@ -149,13 +148,53 @@ const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
   );
 };
 
+/* ─── OTP Box Input ───────────────────────────────────────────────────────── */
+const OtpInput = ({ value, onChange }) => {
+  const refs = Array.from({ length: 6 }, () => useRef(null));
+
+  const handleChange = (i, val) => {
+    const digit = val.replace(/\D/g, "").slice(-1);
+    const arr = value.split("");
+    arr[i] = digit;
+    const next = arr.join("");
+    onChange(next);
+    if (digit && i < 5) refs[i + 1].current?.focus();
+  };
+
+  const handleKeyDown = (i, e) => {
+    if (e.key === "Backspace" && !value[i] && i > 0) {
+      refs[i - 1].current?.focus();
+    }
+  };
+
+  return (
+    <div className="flex gap-2 justify-center">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <input
+          key={i}
+          ref={refs[i]}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={value[i] || ""}
+          autoFocus={i === 0}
+          onChange={(e) => handleChange(i, e.target.value)}
+          onKeyDown={(e) => handleKeyDown(i, e)}
+          className="w-11 h-12 text-center text-lg font-bold font-mono border border-gray-200 rounded-xl bg-gray-50 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-slate-800"
+        />
+      ))}
+    </div>
+  );
+};
+
 /* ─── Main Login Component ───────────────────────────────────────────────── */
 export default function Login() {
-  const [view, setView] = useState("login");
+  const [view, setView] = useState("login"); // login | reset | otp | success
   const [mounted, setMounted] = useState(false);
   const login = useAuthStore((s) => s.login);
   const navigate = useNavigate();
 
+  // Login state
   const [loginError, setLoginError] = useState("");
   const [labKey, setLabKey] = useState("");
   const [phone, setPhone] = useState("");
@@ -163,13 +202,24 @@ export default function Login() {
   const [showPw, setShowPw] = useState(false);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+
+  // Reset state
+  const [resetLabKey, setResetLabKey] = useState("");
   const [resetPhone, setResetPhone] = useState("");
+  const [resetError, setResetError] = useState("");
+
+  // OTP + new password state
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [otpError, setOtpError] = useState("");
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 60);
     return () => clearTimeout(t);
   }, []);
 
+  // ── Login ──
   const validateLogin = () => {
     const e = {};
     if (!/^\d{5}$/.test(labKey)) e.labKey = "Must be 5 digits";
@@ -189,6 +239,58 @@ export default function Login() {
     else setLoginError(result.message);
   };
 
+  // ── Forgot password — request OTP ──
+  const handleRequestOtp = async () => {
+    if (!/^\d{5}$/.test(resetLabKey)) return setResetError("Lab Key must be 5 digits");
+    if (resetPhone.length < 11) return setResetError("Enter 11 digit phone number");
+    setResetError("");
+    setLoading(true);
+    try {
+      await api.post("/forgot-password", {
+        phone: resetPhone,
+        labKey: Number(resetLabKey),
+      });
+      setView("otp");
+    } catch (err) {
+      const msg = err?.response?.data?.error;
+      setResetError(msg || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── OTP — verify + set new password ──
+  const handleResetPassword = async () => {
+    if (otp.length < 6) return setOtpError("Enter the 6-digit OTP");
+    if (newPassword.length < 6) return setOtpError("Password must be at least 6 characters");
+    setOtpError("");
+    setLoading(true);
+    try {
+      await api.post("/reset-password", {
+        phone: resetPhone,
+        labKey: Number(resetLabKey),
+        otp,
+        newPassword,
+      });
+      setView("success");
+    } catch (err) {
+      const msg = err?.response?.data?.error;
+      setOtpError(msg || "Invalid or expired OTP. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const goBackToLogin = () => {
+    setView("login");
+    setResetLabKey("");
+    setResetPhone("");
+    setOtp("");
+    setNewPassword("");
+    setResetError("");
+    setOtpError("");
+  };
+
   const inputBase =
     "w-full bg-gray-50/70 border border-gray-200/80 rounded-2xl py-4 text-center text-base text-slate-800 outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100/60 focus:bg-white sm:py-2.5 sm:text-sm";
   const inputErr = "border-red-300 ring-4 ring-red-100/60 focus:border-red-400 focus:ring-red-100/60";
@@ -201,7 +303,7 @@ export default function Login() {
         fontFamily: "'Inter', system-ui, sans-serif",
       }}
     >
-      {/* Background blobs & Grid (Restored Original) */}
+      {/* Background blobs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div
           className="absolute -top-48 -left-48 w-[560px] h-[560px] rounded-full opacity-[0.18] blur-3xl"
@@ -229,7 +331,7 @@ export default function Login() {
           transition: "opacity 0.5s, transform 0.5s",
         }}
       >
-        {/* Brand Header (Restored Original) */}
+        {/* Brand Header */}
         <div
           className="flex items-center gap-3 px-4 sm:px-6 py-4 rounded-t-3xl border-b border-slate-200"
           style={{ background: "linear-gradient(135deg, #dbeafe 0%, #e2e8f0 100%)" }}
@@ -251,12 +353,13 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Card Body (Restored Original) */}
+        {/* Card Body */}
         <div
           className="bg-white/85 backdrop-blur-md border border-gray-200/80 border-t-0 shadow-lg"
           style={{ borderRadius: "0 0 24px 24px" }}
         >
           <div className="px-4 sm:px-7 pt-6 pb-6">
+            {/* ── LOGIN VIEW ── */}
             {view === "login" && (
               <div className="flex flex-col gap-6 sm:gap-4">
                 <div className="mb-2 text-center">
@@ -268,7 +371,6 @@ export default function Login() {
                   </p>
                 </div>
 
-                {/* Lab ID - Centered */}
                 <Field label="Lab ID" error={errors.labKey}>
                   <Hash
                     size={15}
@@ -286,7 +388,6 @@ export default function Login() {
                   <LabDots count={labKey.length} />
                 </Field>
 
-                {/* Phone - Centered */}
                 <Field label="Phone Number" error={errors.phone}>
                   <PhoneDigitInput
                     value={phone}
@@ -296,7 +397,6 @@ export default function Login() {
                   />
                 </Field>
 
-                {/* Password - Centered */}
                 <Field label="Password" error={errors.password}>
                   <Lock
                     size={15}
@@ -358,48 +458,145 @@ export default function Login() {
               </div>
             )}
 
-            {/* Reset & Sent views... (Restored Original Layout Logic) */}
+            {/* ── RESET VIEW — enter lab key + phone ── */}
             {view === "reset" && (
-              <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-5">
                 <div className="text-center">
-                  <h1 className="text-[22px] font-black text-gray-900">Reset password</h1>
-                  <p className="text-sm text-gray-400">We'll send a secure link to your phone</p>
+                  <h1 className="text-[22px] font-black text-gray-900">Forgot password?</h1>
+                  <p className="text-sm text-gray-400 mt-1">Enter your Lab ID and phone — we'll send an OTP</p>
                 </div>
-                <Field label="Phone Number" error={errors.resetPhone}>
+
+                <Field label="Lab ID">
+                  <Hash
+                    size={15}
+                    className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
+                  />
+                  <input
+                    className={`${inputBase} font-mono tracking-[0.25em] font-bold`}
+                    style={{ paddingLeft: "45px", paddingRight: "45px" }}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="00000"
+                    value={resetLabKey}
+                    onChange={(e) => setResetLabKey(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                  />
+                  <LabDots count={resetLabKey.length} />
+                </Field>
+
+                <Field label="Phone Number">
                   <PhoneDigitInput value={resetPhone} onChange={setResetPhone} autoFocus />
                 </Field>
+
+                {resetError && (
+                  <div className="flex items-center gap-2 justify-center px-3 py-2.5 rounded-2xl text-[12.5px] text-red-600 bg-red-50 border border-red-200">
+                    <AlertCircle size={13} />
+                    {resetError}
+                  </div>
+                )}
+
                 <button
-                  onClick={() => setView("sent")}
-                  className="w-full py-3.5 rounded-2xl bg-blue-600 text-white font-bold"
+                  onClick={handleRequestOtp}
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all disabled:opacity-60"
                 >
-                  Send Reset Link
+                  {loading ? <Loader2 size={17} className="animate-spin" /> : "Send OTP"}
                 </button>
+
                 <button
-                  onClick={() => setView("login")}
-                  className="flex items-center justify-center gap-1 text-sm text-gray-400"
+                  onClick={goBackToLogin}
+                  className="flex items-center justify-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <ChevronLeft size={15} /> Back to Sign In
                 </button>
               </div>
             )}
 
-            {view === "sent" && (
+            {/* ── OTP VIEW — enter OTP + new password ── */}
+            {view === "otp" && (
+              <div className="flex flex-col gap-5">
+                <div className="text-center">
+                  <h1 className="text-[22px] font-black text-gray-900">Enter OTP</h1>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Sent to <span className="font-semibold text-gray-600">{resetPhone}</span>
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-[10.5px] font-bold tracking-[0.12em] text-slate-400 uppercase text-center mb-2">
+                    6-digit OTP
+                  </p>
+                  <OtpInput value={otp} onChange={setOtp} />
+                </div>
+
+                <Field label="New Password">
+                  <Lock
+                    size={15}
+                    className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
+                  />
+                  <input
+                    className={`${inputBase} tracking-[0.1em]`}
+                    style={{ paddingLeft: "45px", paddingRight: "55px" }}
+                    type={showNewPw ? "text" : "password"}
+                    placeholder="Min 6 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleResetPassword()}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-all"
+                    onClick={() => setShowNewPw((p) => !p)}
+                  >
+                    {showNewPw ? <EyeOff size={22} strokeWidth={2.2} /> : <Eye size={22} strokeWidth={2.2} />}
+                  </button>
+                </Field>
+
+                {otpError && (
+                  <div className="flex items-center gap-2 justify-center px-3 py-2.5 rounded-2xl text-[12.5px] text-red-600 bg-red-50 border border-red-200">
+                    <AlertCircle size={13} />
+                    {otpError}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleResetPassword}
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all disabled:opacity-60"
+                >
+                  {loading ? <Loader2 size={17} className="animate-spin" /> : "Reset Password"}
+                </button>
+
+                <button
+                  onClick={() => setView("reset")}
+                  className="flex items-center justify-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <ChevronLeft size={15} /> Back
+                </button>
+              </div>
+            )}
+
+            {/* ── SUCCESS VIEW ── */}
+            {view === "success" && (
               <div className="flex flex-col items-center gap-6 py-4">
                 <div className="w-16 h-16 rounded-3xl flex items-center justify-center bg-emerald-50 border border-emerald-100">
                   <CheckCircle2 size={28} color="#16a34a" />
                 </div>
                 <div className="text-center">
-                  <p className="text-sm text-slate-500">Reset link sent to</p>
-                  <p className="text-base font-bold text-slate-800">{resetPhone}</p>
+                  <h2 className="text-lg font-black text-gray-900">Password Reset!</h2>
+                  <p className="text-sm text-slate-500 mt-1">You've been logged out of all devices.</p>
+                  <p className="text-sm text-slate-500">Please sign in with your new password.</p>
                 </div>
-                <button onClick={() => setView("login")} className="flex items-center gap-1 text-sm text-gray-400">
-                  <ChevronLeft size={15} /> Back to Sign In
+                <button
+                  onClick={goBackToLogin}
+                  className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all"
+                >
+                  Back to Sign In
                 </button>
               </div>
             )}
           </div>
 
-          {/* Card Footer (Restored Original) */}
+          {/* Card Footer */}
           <div className="flex items-center justify-between px-4 sm:px-7 py-3.5 rounded-b-3xl border-t border-gray-100 bg-gray-50/50">
             <div className="flex items-center gap-1.5">
               <ShieldCheck size={12} className="text-blue-400" />
