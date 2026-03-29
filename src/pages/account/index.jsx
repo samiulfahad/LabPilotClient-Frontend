@@ -428,11 +428,14 @@ const SessionCard = ({ session, onRevoke, revoking }) => {
 
         {/* Info */}
         <div className="flex-1 min-w-0 pr-16">
-          <p className="text-sm font-bold text-gray-800 truncate">
+          {/* ── Device name — primary identifier ── */}
+          <p className="text-sm font-bold text-gray-800 truncate">{device.deviceName || "Unknown Device"}</p>
+
+          {/* Browser + OS — secondary line */}
+          <p className="text-xs text-gray-500 mt-0.5 truncate">
             {device.browser || "Unknown browser"}
             {device.browserVersion ? ` ${device.browserVersion}` : ""}
-          </p>
-          <p className="text-xs text-gray-500 mt-0.5 truncate">
+            {" · "}
             {device.os || "Unknown OS"}
             {device.osVersion ? ` ${device.osVersion}` : ""}
             {device.deviceType ? ` · ${device.deviceType}` : ""}
@@ -539,7 +542,7 @@ const Account = () => {
   const handleLogoutAll = async () => {
     try {
       setLogoutAll(true);
-      await logout(); // your existing logout action clears everything
+      await logout();
     } finally {
       setLogoutAll(false);
     }

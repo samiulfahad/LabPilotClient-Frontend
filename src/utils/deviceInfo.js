@@ -51,14 +51,57 @@ function detectDeviceType() {
 }
 
 /**
+ * Attempts to extract a human-readable device model from the UA string.
+ *
+ * Results by platform:
+ *  - Android phones  → raw model string from UA e.g. "Pixel 7", "SM-S908B", "Redmi Note 12"
+ *  - iPhone          → "iPhone"
+ *  - iPad            → "iPad"
+ *  - macOS           → "Mac"
+ *  - Windows         → "Windows PC"
+ *  - Linux           → "Linux PC"
+ *
+ * No user prompt required — all info comes from the UA string.
+ */
+function detectDeviceName() {
+  const ua = navigator.userAgent;
+
+  // ── iPhone ────────────────────────────────────────────────────────────────
+  if (/iPhone/.test(ua)) return "iPhone";
+
+  // ── iPad ──────────────────────────────────────────────────────────────────
+  if (/iPad/.test(ua)) return "iPad";
+
+  // ── Android — model string sits between "Android x.x; " and "Build/" or ")" ──
+  // Examples:
+  //   "Mozilla/5.0 (Linux; Android 13; Pixel 7 Build/...)"
+  //   "Mozilla/5.0 (Linux; Android 12; SM-S908B) ..."
+  //   "Mozilla/5.0 (Linux; Android 11; Redmi Note 9 Pro)"
+  const androidModel = ua.match(/Android[\d\s.]+;\s*([^;)]+?)(?:\s+Build|\))/i)?.[1]?.trim();
+  if (androidModel) return androidModel;
+
+  // ── macOS ─────────────────────────────────────────────────────────────────
+  if (/Mac OS X/.test(ua)) return "Mac";
+
+  // ── Windows ───────────────────────────────────────────────────────────────
+  if (/Windows/.test(ua)) return "Windows PC";
+
+  // ── Linux desktop ─────────────────────────────────────────────────────────
+  if (/Linux/.test(ua)) return "Linux PC";
+
+  return "Unknown Device";
+}
+
+/**
  * Collect all device/environment info.
- * @returns {{ browser, browserVersion, os, osVersion, deviceType, screenRes, timezone, language }}
+ * @returns {{ browser, browserVersion, os, osVersion, deviceType, deviceName, screenRes, timezone, language }}
  */
 export function getDeviceInfo() {
   return {
     ...detectBrowser(),
     ...detectOS(),
     deviceType: detectDeviceType(),
+    deviceName: detectDeviceName(),
     screenRes: `${window.screen.width}x${window.screen.height}`,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     language: navigator.language || "",
