@@ -19,6 +19,8 @@ import DeleteInvoices from "./pages/deleteInvoice";
 import CashMemo from "./pages/cashmemo";
 import Commission from "./pages/commission";
 import Help from "./pages/help";
+import Transactions from "./pages/transactions";
+import Profile from "./pages/account";
 
 // ─── Route Wrapper for Protected Pages ──────────────────────────────────────
 const ProtectedRoutes = () => {
@@ -60,6 +62,8 @@ function App() {
         <Route path="/report" element={<Report />} />
         <Route path="/report-upload" element={<ReportUpload />} />
         <Route path="/report-download" element={<ReportDownload />} />
+        <Route path="/transactions" element={<Transactions/> } />
+        <Route path="/me" element={<Profile/> } />
         <Route path="/lab-management" element={<LabManagement />} />
         <Route path="/manage-referrers" element={<ManageReferrers />} />
         <Route path="/manage-staffs" element={<ManageStaffs />} />

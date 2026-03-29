@@ -11,6 +11,8 @@ import {
   HelpCircle,
   Search,
   File,
+  Feather,
+  PersonStanding
 } from "lucide-react";
 
 const menu = [
@@ -20,8 +22,10 @@ const menu = [
   { label: "Delete Invoice", path: "/invoice/delete", icon: Trash2 },
   { label: "Invoice List", path: "/invoice/all", icon: List },
   { label: "Reports", path: "/report", icon: File },
+  { label: "Transactions", path: "/transactions", icon: Feather },
   { label: "Commission", path: "/commission", icon: DollarSign },
   { label: "Billing", path: "/billing", icon: CreditCard },
+  { label: "Profile", path: "/me", icon: PersonStanding },
   { label: "Lab Management", path: "/lab-management", icon: FlaskConical },
   { label: "Help", path: "/help", icon: HelpCircle },
 ];

@@ -6,7 +6,7 @@ const railway = "https://labpilotclient-backend-production.up.railway.app/api/v1
 const local = "http://localhost:3000/api/v1";
 
 const api = axios.create({
-  baseURL: "/api/v1",
+  baseURL: local,
   timeout: 30000, // increased from 10s → 30s to survive Railway cold starts
   withCredentials: true, // CRITICAL: Ensures refresh cookies are sent to the backend
 });

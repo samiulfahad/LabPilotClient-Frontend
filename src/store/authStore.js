@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { jwtDecode } from "jwt-decode";
 import api from "../api/baseAPI";
+import { getDeviceInfo } from "../utils/deviceInfo";
 
 export const useAuthStore = create(
   persist(
@@ -15,14 +16,17 @@ export const useAuthStore = create(
 
       login: async (labKey, phone, password) => {
         try {
+          // getDeviceInfo is now async — await it before sending
+          const device = await getDeviceInfo();
+
           const response = await api.post("/login", {
             labKey: Number(labKey),
             phone,
             password,
+            device,
           });
 
           const { accessToken, lab } = response.data;
-
           const decodedUser = jwtDecode(accessToken);
 
           set({
