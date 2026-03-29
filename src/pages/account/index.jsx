@@ -506,13 +506,14 @@ const SessionCard = ({ session, onRevoke, revoking }) => {
 
 const Account = () => {
   const logout = useAuthStore((s) => s.logout);
+  const logoutAll = useAuthStore((s) => s.logoutAll);
 
   const [account, setAccount] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [loadingAcct, setLoadingAcct] = useState(true);
   const [loadingSess, setLoadingSess] = useState(true);
   const [revoking, setRevoking] = useState(null); // kept for SessionCard API compat
-  const [logoutAll, setLogoutAll] = useState(false); // button spinner
+  const [logoutAllBusy, setLogoutAllBusy] = useState(false); // button spinner
   const [loggingOut, setLoggingOut] = useState(false); // full-screen loading
   const [popup, setPopup] = useState(null);
   const [showPhone, setShowPhone] = useState(false);
@@ -575,11 +576,11 @@ const Account = () => {
   const handleLogoutAllConfirm = async () => {
     setConfirmLogoutAll(false);
     try {
-      setLogoutAll(true);
+      setLogoutAllBusy(true);
       setLoggingOut(true);
-      await logout();
+      await logoutAll(); // ✅ calls POST /logout-all, deletes ALL tokens in DB
     } finally {
-      setLogoutAll(false);
+      setLogoutAllBusy(false);
       setLoggingOut(false);
     }
   };
@@ -765,10 +766,14 @@ const Account = () => {
                 {sessions.length > 1 && (
                   <button
                     onClick={handleLogoutAllRequest}
-                    disabled={logoutAll}
+                    disabled={logoutAllBusy}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-100 hover:border-rose-200 transition-all disabled:opacity-50"
                   >
-                    {logoutAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
+                    {logoutAllBusy ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <LogOut className="w-3.5 h-3.5" />
+                    )}
                     Logout All
                   </button>
                 )}
@@ -885,7 +890,7 @@ const Account = () => {
         title="Logout All Devices"
         description="This will sign you out from all devices, including this one. You will need to log in again."
         confirmLabel="Logout All"
-        loading={logoutAll}
+        loading={logoutAllBusy}
       />
 
       {loggingOut && <LoadingScreen message="Signing you out" />}

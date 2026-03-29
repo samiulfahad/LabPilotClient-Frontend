@@ -24,7 +24,6 @@ export const useAuthStore = create(
           });
 
           const { accessToken, lab } = response.data;
-
           const decodedUser = jwtDecode(accessToken);
 
           set({
@@ -41,11 +40,23 @@ export const useAuthStore = create(
         }
       },
 
+      // ── Logout current device only ─────────────────────────────────────────
       logout: async () => {
         try {
           await api.post("/logout");
         } catch (error) {
           console.error("Logout API failed, but clearing local state anyway", error);
+        } finally {
+          set({ user: null, lab: null, token: null, isAuthenticated: false });
+        }
+      },
+
+      // ── Logout all devices (requires auth, clears all tokens in DB) ────────
+      logoutAll: async () => {
+        try {
+          await api.post("/logout-all");
+        } catch (error) {
+          console.error("Logout-all API failed, but clearing local state anyway", error);
         } finally {
           set({ user: null, lab: null, token: null, isAuthenticated: false });
         }
