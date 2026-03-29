@@ -414,7 +414,6 @@ const SessionCard = ({ session, onRevoke, revoking }) => {
       )}
 
       <div className="flex items-start gap-3">
-        {/* Device icon */}
         <div
           className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
             isCurrent ? "bg-emerald-100" : "bg-gray-100"
@@ -426,44 +425,31 @@ const SessionCard = ({ session, onRevoke, revoking }) => {
           />
         </div>
 
-        {/* Info */}
-        <div className="flex-1 min-w-0 pr-16">
-          {/* ── Device name — primary identifier ── */}
-          <p className="text-sm font-bold text-gray-800 truncate">{device.deviceName || "Unknown Device"}</p>
+        <div className="flex-1 min-w-0 pr-20">
+          <p className="text-sm font-bold text-gray-700 capitalize">{device.deviceType || "unknown"}</p>
 
-          {/* Browser + OS — secondary line */}
-          <p className="text-xs text-gray-500 mt-0.5 truncate">
-            {device.browser || "Unknown browser"}
-            {device.browserVersion ? ` ${device.browserVersion}` : ""}
-            {" · "}
-            {device.os || "Unknown OS"}
-            {device.osVersion ? ` ${device.osVersion}` : ""}
-            {device.deviceType ? ` · ${device.deviceType}` : ""}
-          </p>
-
-          {/* Meta row */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
             {device.timezone && (
-              <span className="flex items-center gap-1 text-[10px] text-gray-400">
+              <span className="flex items-center gap-1 text-[11px] text-gray-500">
                 <Globe className="w-3 h-3" /> {device.timezone}
               </span>
             )}
             {device.ip && device.ip !== "unknown" && (
-              <span className="flex items-center gap-1 text-[10px] text-gray-400">
+              <span className="flex items-center gap-1 text-[11px] text-gray-500">
                 <Wifi className="w-3 h-3" /> {device.ip}
               </span>
             )}
             {lastUsedAt && (
-              <span className="flex items-center gap-1 text-[10px] text-gray-400">
+              <span className="flex items-center gap-1 text-[11px] text-gray-500">
                 <Clock className="w-3 h-3" /> {timeAgo(lastUsedAt)}
               </span>
             )}
           </div>
-          <p className="text-[10px] text-gray-300 mt-1">Logged in {fmtDateTime(createdAt)}</p>
+
+          <p className="text-[10px] text-gray-400 mt-1">Logged in {fmtDateTime(createdAt)}</p>
         </div>
       </div>
 
-      {/* Revoke button — not shown for current session */}
       {!isCurrent && (
         <button
           onClick={() => onRevoke(deviceId)}
