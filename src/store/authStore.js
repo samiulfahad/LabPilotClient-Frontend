@@ -16,17 +16,15 @@ export const useAuthStore = create(
 
       login: async (labKey, phone, password) => {
         try {
-          // getDeviceInfo is now async — await it before sending
-          const device = await getDeviceInfo();
-
           const response = await api.post("/login", {
             labKey: Number(labKey),
             phone,
             password,
-            device,
+            device: getDeviceInfo(),
           });
 
           const { accessToken, lab } = response.data;
+
           const decodedUser = jwtDecode(accessToken);
 
           set({

@@ -428,23 +428,15 @@ const SessionCard = ({ session, onRevoke, revoking }) => {
 
         {/* Info */}
         <div className="flex-1 min-w-0 pr-16">
-          {/* Browser */}
           <p className="text-sm font-bold text-gray-800 truncate">
             {device.browser || "Unknown browser"}
             {device.browserVersion ? ` ${device.browserVersion}` : ""}
           </p>
-
-          {/* OS + device type */}
           <p className="text-xs text-gray-500 mt-0.5 truncate">
             {device.os || "Unknown OS"}
             {device.osVersion ? ` ${device.osVersion}` : ""}
             {device.deviceType ? ` · ${device.deviceType}` : ""}
           </p>
-
-          {/* ── Device model (NEW) ── */}
-          {device.deviceModel && (
-            <p className="text-xs font-semibold text-gray-600 mt-0.5 truncate">{device.deviceModel}</p>
-          )}
 
           {/* Meta row */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
@@ -464,7 +456,6 @@ const SessionCard = ({ session, onRevoke, revoking }) => {
               </span>
             )}
           </div>
-
           <p className="text-[10px] text-gray-300 mt-1">Logged in {fmtDateTime(createdAt)}</p>
         </div>
       </div>
@@ -548,7 +539,7 @@ const Account = () => {
   const handleLogoutAll = async () => {
     try {
       setLogoutAll(true);
-      await logout();
+      await logout(); // your existing logout action clears everything
     } finally {
       setLogoutAll(false);
     }
@@ -566,6 +557,7 @@ const Account = () => {
   const isAdmin = role === "admin" || role === "supportAdmin";
   const activePermCount = PERMISSIONS_META.filter((p) => perms[p.key]).length;
 
+  // Split sessions: current first, then others
   const currentSession = sessions.find((s) => s.isCurrent);
   const otherSessions = sessions.filter((s) => !s.isCurrent);
 
@@ -579,7 +571,7 @@ const Account = () => {
           to   { opacity: 1; transform: translateY(0); }
         }
         .fu  { animation: fadeUp 0.45s cubic-bezier(.22,1,.36,1) both; }
-        .fu1 { animation-delay:  60ms; }
+        .fu1 { animation-delay: 60ms; }
         .fu2 { animation-delay: 120ms; }
         .fu3 { animation-delay: 180ms; }
         .fu4 { animation-delay: 240ms; }
@@ -695,7 +687,7 @@ const Account = () => {
                         {granted ? (
                           <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                         ) : (
-                          <XCircle className="w-4 h-4 text-gray-300    shrink-0" />
+                          <XCircle className="w-4 h-4 text-gray-300 shrink-0" />
                         )}
                       </div>
                     );
