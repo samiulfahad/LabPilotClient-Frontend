@@ -36,12 +36,14 @@ import {
   WifiOff,
   LogOut,
   ShieldAlert,
+  AlertTriangle,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import accountService from "../../api/account";
 import { useAuthStore } from "../../store/authStore";
 import Popup from "../../components/popup";
 import Modal from "../../components/modal";
+import LoadingScreen from "../../components/loadingPage";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -207,6 +209,47 @@ const ErrorBox = ({ msg }) =>
       <p className="text-xs font-medium text-red-600">{msg}</p>
     </div>
   ) : null;
+
+// ─── Confirm Modal ────────────────────────────────────────────────────────────
+
+const ConfirmModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  description,
+  confirmLabel = "Confirm",
+  loading = false,
+}) => (
+  <Modal isOpen={isOpen} onClose={onClose} size="sm">
+    <div className="p-8">
+      <div className="flex flex-col items-center text-center">
+        <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-4 border border-red-100">
+          <AlertTriangle className="w-8 h-8 text-red-500" />
+        </div>
+        <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
+        <p className="text-sm text-gray-500 mb-8 px-2 leading-relaxed">{description}</p>
+        <div className="flex w-full gap-3">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-200 transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Modal>
+);
 
 // ─── Phone Modal ──────────────────────────────────────────────────────────────
 
@@ -415,19 +458,15 @@ const SessionCard = ({ session, onRevoke, revoking }) => {
 
       <div className="flex items-start gap-3">
         <div
-          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-            isCurrent ? "bg-emerald-100" : "bg-gray-100"
-          }`}
+          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isCurrent ? "bg-emerald-100" : "bg-gray-100"}`}
         >
           <DeviceIcon
             type={device.deviceType}
             className={`w-5 h-5 ${isCurrent ? "text-emerald-600" : "text-gray-500"}`}
           />
         </div>
-
         <div className="flex-1 min-w-0 pr-20">
           <p className="text-sm font-bold text-gray-700 capitalize">{device.deviceType || "unknown"}</p>
-
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
             {device.timezone && (
               <span className="flex items-center gap-1 text-[11px] text-gray-500">
@@ -445,7 +484,6 @@ const SessionCard = ({ session, onRevoke, revoking }) => {
               </span>
             )}
           </div>
-
           <p className="text-[10px] text-gray-400 mt-1">Logged in {fmtDateTime(createdAt)}</p>
         </div>
       </div>
@@ -456,12 +494,8 @@ const SessionCard = ({ session, onRevoke, revoking }) => {
           disabled={revoking === deviceId}
           className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-100 hover:border-rose-200 transition-all disabled:opacity-50"
         >
-          {revoking === deviceId ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <LogOut className="w-3.5 h-3.5" />
-          )}
-          {revoking === deviceId ? "Revoking…" : "Revoke Session"}
+          <LogOut className="w-3.5 h-3.5" />
+          Logout
         </button>
       )}
     </div>
@@ -477,11 +511,16 @@ const Account = () => {
   const [sessions, setSessions] = useState([]);
   const [loadingAcct, setLoadingAcct] = useState(true);
   const [loadingSess, setLoadingSess] = useState(true);
-  const [revoking, setRevoking] = useState(null); // deviceId being revoked
-  const [logoutAll, setLogoutAll] = useState(false);
+  const [revoking, setRevoking] = useState(null); // kept for SessionCard API compat
+  const [logoutAll, setLogoutAll] = useState(false); // button spinner
+  const [loggingOut, setLoggingOut] = useState(false); // full-screen loading
   const [popup, setPopup] = useState(null);
   const [showPhone, setShowPhone] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // ── Confirm modal state ──────────────────────────────────────────────────
+  const [confirmRevoke, setConfirmRevoke] = useState(null); // deviceId to revoke, or null
+  const [confirmLogoutAll, setConfirmLogoutAll] = useState(false);
 
   useEffect(() => {
     fetchAccount();
@@ -512,25 +551,36 @@ const Account = () => {
     }
   };
 
-  const handleRevoke = async (deviceId) => {
+  // Called by SessionCard — opens confirm modal instead of acting directly
+  const handleRevokeRequest = (deviceId) => setConfirmRevoke(deviceId);
+
+  const handleRevokeConfirm = async () => {
+    const deviceId = confirmRevoke;
+    setConfirmRevoke(null);
     try {
-      setRevoking(deviceId);
+      setLoggingOut(true);
       await accountService.revokeSession(deviceId);
       setSessions((prev) => prev.filter((s) => s.deviceId !== deviceId));
-      setPopup({ type: "success", message: "Session revoked successfully." });
+      setPopup({ type: "success", message: "Session logged out successfully." });
     } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error ?? "Failed to revoke session." });
+      setPopup({ type: "error", message: err?.response?.data?.error ?? "Failed to logout session." });
     } finally {
-      setRevoking(null);
+      setLoggingOut(false);
     }
   };
 
-  const handleLogoutAll = async () => {
+  // Called by "Logout All" button — opens confirm modal instead of acting directly
+  const handleLogoutAllRequest = () => setConfirmLogoutAll(true);
+
+  const handleLogoutAllConfirm = async () => {
+    setConfirmLogoutAll(false);
     try {
       setLogoutAll(true);
+      setLoggingOut(true);
       await logout();
     } finally {
       setLogoutAll(false);
+      setLoggingOut(false);
     }
   };
 
@@ -546,9 +596,11 @@ const Account = () => {
   const isAdmin = role === "admin" || role === "supportAdmin";
   const activePermCount = PERMISSIONS_META.filter((p) => perms[p.key]).length;
 
-  // Split sessions: current first, then others
   const currentSession = sessions.find((s) => s.isCurrent);
   const otherSessions = sessions.filter((s) => !s.isCurrent);
+
+  // Info about the session being considered for revocation (for modal copy)
+  const revokeTarget = sessions.find((s) => s.deviceId === confirmRevoke);
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
@@ -712,7 +764,7 @@ const Account = () => {
                 </div>
                 {sessions.length > 1 && (
                   <button
-                    onClick={handleLogoutAll}
+                    onClick={handleLogoutAllRequest}
                     disabled={logoutAll}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-100 hover:border-rose-200 transition-all disabled:opacity-50"
                   >
@@ -737,10 +789,10 @@ const Account = () => {
                 ) : (
                   <>
                     {currentSession && (
-                      <SessionCard session={currentSession} onRevoke={handleRevoke} revoking={revoking} />
+                      <SessionCard session={currentSession} onRevoke={handleRevokeRequest} revoking={revoking} />
                     )}
                     {otherSessions.map((s) => (
-                      <SessionCard key={s.deviceId} session={s} onRevoke={handleRevoke} revoking={revoking} />
+                      <SessionCard key={s.deviceId} session={s} onRevoke={handleRevokeRequest} revoking={revoking} />
                     ))}
                   </>
                 )}
@@ -793,6 +845,7 @@ const Account = () => {
         )}
       </div>
 
+      {/* ── Modals ────────────────────────────────────────────────────────── */}
       <PhoneModal
         isOpen={showPhone}
         onClose={() => setShowPhone(false)}
@@ -809,6 +862,33 @@ const Account = () => {
           handleSuccess(m);
         }}
       />
+
+      {/* Revoke single session */}
+      <ConfirmModal
+        isOpen={!!confirmRevoke}
+        onClose={() => setConfirmRevoke(null)}
+        onConfirm={handleRevokeConfirm}
+        title="Logout Device"
+        description={
+          revokeTarget
+            ? `This will sign out the ${revokeTarget.device?.deviceType || "device"} at ${revokeTarget.device?.ip || "unknown IP"}. They will need to log in again.`
+            : "This will sign out the selected device. They will need to log in again."
+        }
+        confirmLabel="Logout"
+      />
+
+      {/* Logout all devices */}
+      <ConfirmModal
+        isOpen={confirmLogoutAll}
+        onClose={() => setConfirmLogoutAll(false)}
+        onConfirm={handleLogoutAllConfirm}
+        title="Logout All Devices"
+        description="This will sign you out from all devices, including this one. You will need to log in again."
+        confirmLabel="Logout All"
+        loading={logoutAll}
+      />
+
+      {loggingOut && <LoadingScreen message="Signing you out" />}
     </section>
   );
 };
