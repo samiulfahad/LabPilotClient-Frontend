@@ -749,8 +749,51 @@ const Account = () => {
               </div>
             )}
 
-            {/* ── Active Sessions ─────────────────────────────────────────── */}
+            {/* ── Account Settings ────────────────────────────────────────── */}
             <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden mb-4 fu fu3">
+              <div className="px-5 pt-5 pb-3">
+                <h3 className="text-sm font-black text-gray-800 flex items-center gap-2">
+                  <Edit3 className="w-4 h-4 text-gray-500" /> Account Settings
+                </h3>
+                <p className="text-xs text-gray-400 mt-0.5">Change your phone number or password</p>
+              </div>
+              <div className="px-4 pb-4 space-y-2">
+                <button
+                  onClick={() => setShowPhone(true)}
+                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 transition-all group text-left"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
+                    <Phone className="w-[18px] h-[18px] text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-800 group-hover:text-blue-700 transition-colors">
+                      Change Phone Number
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">Current: {account.phone}</p>
+                  </div>
+                  <Edit3 className="w-4 h-4 text-gray-300 group-hover:text-blue-400 transition-colors shrink-0" />
+                </button>
+
+                <button
+                  onClick={() => setShowPassword(true)}
+                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all group text-left"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 group-hover:bg-indigo-100 transition-colors">
+                    <KeyRound className="w-[18px] h-[18px] text-indigo-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-800 group-hover:text-indigo-700 transition-colors">
+                      Change Password
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">Keep your account secure</p>
+                  </div>
+                  <Edit3 className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 transition-colors shrink-0" />
+                </button>
+              </div>
+            </div>
+
+            {/* ── Active Sessions ─────────────────────────────────────────── */}
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden fu fu4">
               <div className="px-5 pt-5 pb-3 flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-black text-gray-800 flex items-center gap-2">
@@ -801,49 +844,6 @@ const Account = () => {
                     ))}
                   </>
                 )}
-              </div>
-            </div>
-
-            {/* ── Account Settings ────────────────────────────────────────── */}
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden fu fu4">
-              <div className="px-5 pt-5 pb-3">
-                <h3 className="text-sm font-black text-gray-800 flex items-center gap-2">
-                  <Edit3 className="w-4 h-4 text-gray-500" /> Account Settings
-                </h3>
-                <p className="text-xs text-gray-400 mt-0.5">Change your phone number or password</p>
-              </div>
-              <div className="px-4 pb-4 space-y-2">
-                <button
-                  onClick={() => setShowPhone(true)}
-                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 transition-all group text-left"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
-                    <Phone className="w-[18px] h-[18px] text-blue-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-800 group-hover:text-blue-700 transition-colors">
-                      Change Phone Number
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5 truncate">Current: {account.phone}</p>
-                  </div>
-                  <Edit3 className="w-4 h-4 text-gray-300 group-hover:text-blue-400 transition-colors shrink-0" />
-                </button>
-
-                <button
-                  onClick={() => setShowPassword(true)}
-                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all group text-left"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 group-hover:bg-indigo-100 transition-colors">
-                    <KeyRound className="w-[18px] h-[18px] text-indigo-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-800 group-hover:text-indigo-700 transition-colors">
-                      Change Password
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">Keep your account secure</p>
-                  </div>
-                  <Edit3 className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 transition-colors shrink-0" />
-                </button>
               </div>
             </div>
           </>
