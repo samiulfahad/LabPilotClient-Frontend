@@ -30,7 +30,7 @@ const resetRefreshState = (error = null, token = null) => {
   isRefreshing = false;
 };
 
-// ── Request Interceptor: Attach Access Token ──
+// ── Request interceptor: attach access token ──────────────────────────────
 api.interceptors.request.use(
   (config) => {
     const token = useAuthStore.getState().token;
@@ -42,29 +42,30 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// ── Response Interceptor: Handle 444/445 ──
+// ── Response interceptor ──────────────────────────────────────────────────
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;
 
-    // 445 = refresh token invalid/expired → hard logout, no retry
+    // ── 445: refresh token dead → hard logout, never retry ────────────────
     if (status === 445) {
       resetRefreshState(error);
       useAuthStore.getState().logout();
       return Promise.reject(error);
     }
 
-    // 444 = access token expired → attempt silent refresh
+    // ── 444: access token expired → attempt silent refresh ────────────────
     if (status === 444 && !originalRequest._retry) {
+      // /refresh itself came back 444 — should never happen, treat as fatal
       if (originalRequest.url.includes("/refresh")) {
         resetRefreshState(error);
         useAuthStore.getState().logout();
         return Promise.reject(error);
       }
 
-      // Queue this request if a refresh is already in progress
+      // Another request is already refreshing — queue and wait
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -82,19 +83,22 @@ api.interceptors.response.use(
       try {
         const { data } = await api.post("/refresh");
         const newAccessToken = data.accessToken;
+
         useAuthStore.getState().setToken(newAccessToken);
         resetRefreshState(null, newAccessToken);
+
         originalRequest.headers["Authorization"] = "Bearer " + newAccessToken;
         return api(originalRequest);
       } catch (refreshError) {
-        // 445 from /refresh will trigger the block above on the next tick,
-        // but we drain the queue and logout here too as a safety net
+        // /refresh returned 445 → the 445 block above fires on that response
+        // before this catch runs — but we still drain the queue here to be safe
         resetRefreshState(refreshError);
         useAuthStore.getState().logout();
         return Promise.reject(refreshError);
       }
     }
 
+    // All other errors (400, 403, 500, etc.) pass through untouched
     return Promise.reject(error);
   },
 );
