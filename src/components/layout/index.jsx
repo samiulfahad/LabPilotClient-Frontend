@@ -1,9 +1,3 @@
-// ============================================================================
-// LAYOUT COMPONENT UPDATE - Add print-hide class to navigation elements
-// ============================================================================
-
-// Update your Layout component (src/components/layout/index.jsx) as follows:
-
 import DesktopMenu from "./DesktopMenu";
 import MobileMenu from "./MobileMenu";
 
@@ -42,14 +36,3 @@ const Layout = ({ children }) => {
 };
 
 export default Layout;
-
-// ============================================================================
-// KEY CHANGES:
-// ============================================================================
-// 1. Wrapped MobileMenu in <div className="print:hidden">
-// 2. Wrapped DesktopMenu in <div className="print:hidden">
-// 3. Added print:ml-0 to main content wrapper (removes left margin on print)
-// 4. Added print:pt-0 to main content (removes top padding on print)
-// 5. Added print:max-w-none to content container
-// 6. Added print:hidden to footer element
-// ============================================================================

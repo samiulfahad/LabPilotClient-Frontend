@@ -623,7 +623,6 @@ const Account = () => {
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-5 fu">
           <div>
-            <p className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest mb-0.5">LabPilot</p>
             <h1 className="text-2xl font-black text-gray-900 leading-tight">Account</h1>
           </div>
           <Link
