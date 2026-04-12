@@ -1,10 +1,10 @@
 import axios from "axios";
 import { useAuthStore } from "../store/authStore";
 
-const local = "http://localhost:3000/api/v1";
+const local = "http://localhost:3000/v1";
 
 const api = axios.create({
-  baseURL: 'https://api.labpilotpro.com/api/v1',
+  baseURL: 'https://api.labpilotpro.com/v1',
   timeout: 15000,
   withCredentials: true, // ✅ sends cookies cross-origin
 });
