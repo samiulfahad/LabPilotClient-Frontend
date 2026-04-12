@@ -1,15 +1,10 @@
 import axios from "axios";
 import { useAuthStore } from "../store/authStore";
 
-// ✅ Call Railway directly — no more Vercel proxy
-const BACKEND_URL = import.meta.env.VITE_API_URL || "https://labpilotclient-backend-production.up.railway.app";
-
-const cloud = "https://labpilotclient-backend.onrender.com/api/v1";
-const railway = "https://labpilotclient-backend-production.up.railway.app/api/v1";
 const local = "http://localhost:3000/api/v1";
 
 const api = axios.create({
-  baseURL: railway,
+  baseURL: 'https://api.labpilotpro.com/api/v1',
   timeout: 15000,
   withCredentials: true, // ✅ sends cookies cross-origin
 });
