@@ -11,8 +11,17 @@ import {
   Activity,
   MapPin,
   Phone,
+  Home as HomeIcon,
+  Receipt,
+  FilePlus,
+  LayoutList,
+  FileText,
+  ArrowLeftRight,
+  Percent,
+  CreditCard,
+  UserCircle,
 } from "lucide-react";
-import { useAuthStore } from "../../store/authStore"; // adjust path if needed
+import { useAuthStore } from "../../store/authStore";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 const useClock = () => {
@@ -35,7 +44,7 @@ const getGreeting = () => {
   return "Good evening";
 };
 
-// ─── actions ─────────────────────────────────────────────────────────────────
+// ─── quick-access actions ─────────────────────────────────────────────────────
 const ACTIONS = [
   {
     to: "/invoice/new",
@@ -87,6 +96,22 @@ const ACTIONS = [
   },
 ];
 
+// ─── nav menu ─────────────────────────────────────────────────────────────────
+const NAV_MENU = [
+  { to: "/", icon: HomeIcon, label: "Home", color: "text-indigo-500", bg: "bg-indigo-50" },
+  { to: "/cashmemo", icon: Receipt, label: "Cashmemo", color: "text-amber-600", bg: "bg-amber-50" },
+  { to: "/invoice/new", icon: FilePlus, label: "New Invoice", color: "text-violet-600", bg: "bg-violet-50" },
+  { to: "/invoice/all", icon: LayoutList, label: "Invoice List", color: "text-sky-600", bg: "bg-sky-50" },
+  { to: "/report", icon: FileText, label: "Reports", color: "text-teal-600", bg: "bg-teal-50" },
+  { to: "/transactions", icon: ArrowLeftRight, label: "Transactions", color: "text-blue-600", bg: "bg-blue-50" },
+  { to: "/commission", icon: Percent, label: "Commission", color: "text-pink-600", bg: "bg-pink-50" },
+  { to: "/billing", icon: CreditCard, label: "Billing", color: "text-orange-600", bg: "bg-orange-50" },
+  { to: "/account", icon: UserCircle, label: "Account", color: "text-slate-600", bg: "bg-slate-100" },
+  { to: "/manage-referrers", icon: Users, label: "Referrers", color: "text-fuchsia-600", bg: "bg-fuchsia-50" },
+  { to: "/lab-management", icon: Microscope, label: "Lab Settings", color: "text-gray-600", bg: "bg-gray-100" },
+  { to: "/invoice/delete", icon: ReceiptText, label: "Manage Bills", color: "text-rose-500", bg: "bg-rose-50" },
+];
+
 // ─── Action card ─────────────────────────────────────────────────────────────
 const Card = ({ to, icon: Icon, label, sub, grad, glow, idx }) => (
   <Link
@@ -122,10 +147,8 @@ const Card = ({ to, icon: Icon, label, sub, grad, glow, idx }) => (
 const Home = () => {
   const clock = useClock();
 
-  // Pull live data from Zustand store (auto-hydrated from localStorage)
   const { user, lab } = useAuthStore();
 
-  // ── Derived display values with safe fallbacks ──
   const labName = lab?.name ?? "—";
   const labId = lab?.labKey ?? "—";
   const labAddress = [lab?.contact?.address, lab?.contact?.district].filter(Boolean).join(", ") || "—";
@@ -194,7 +217,6 @@ const Home = () => {
           className="mb-4 bg-white border border-gray-100 rounded-3xl shadow-sm relative overflow-hidden"
           style={{ animation: "cardIn 0.5s cubic-bezier(.22,1,.36,1) 0.05s both" }}
         >
-          {/* decorative corner gradient */}
           <div
             className="absolute top-0 right-0 w-48 h-48 opacity-10 pointer-events-none"
             style={{ background: "radial-gradient(circle at top right, #818cf8, transparent 70%)" }}
@@ -274,6 +296,35 @@ const Home = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {ACTIONS.map((action, idx) => (
             <Card key={action.to} {...action} idx={idx} />
+          ))}
+        </div>
+
+        {/* ══════════════════════════════════════
+            NAVIGATE
+        ══════════════════════════════════════ */}
+        <div
+          className="flex items-center gap-3 mt-6 mb-3"
+          style={{ animation: "cardIn 0.5s cubic-bezier(.22,1,.36,1) 0.35s both" }}
+        >
+          <p className="text-[10.5px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Navigate</p>
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
+
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+          {NAV_MENU.map(({ to, icon: Icon, label, color, bg }, idx) => (
+            <Link
+              key={to}
+              to={to}
+              className="group flex flex-col items-center gap-2 bg-white border border-gray-100 rounded-2xl py-4 px-2 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+              style={{ animation: `cardIn 0.45s cubic-bezier(.22,1,.36,1) ${350 + idx * 40}ms both` }}
+            >
+              <div
+                className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center transition-transform duration-200 group-hover:scale-110`}
+              >
+                <Icon className={`w-[18px] h-[18px] ${color}`} strokeWidth={2} />
+              </div>
+              <span className="text-[10.5px] font-semibold text-gray-600 text-center leading-tight">{label}</span>
+            </Link>
           ))}
         </div>
 
