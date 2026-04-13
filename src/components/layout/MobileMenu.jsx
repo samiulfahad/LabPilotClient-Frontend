@@ -84,7 +84,7 @@ const MobileMenu = () => {
               LabPilot<span className="font-light">Pro</span>
             </span>
             <span className="text-[10px] text-gray-500 font-medium leading-tight truncate">
-              Modern Health Management System
+              Lab Management System
             </span>
           </Link>
 
@@ -133,7 +133,7 @@ const MobileMenu = () => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-white font-semibold text-sm truncate">LabPilot Pro</p>
-                  <p className="text-blue-100/90 text-xs font-medium truncate">Modern Lab Management System</p>
+                  <p className="text-blue-100/90 text-xs font-medium truncate">Lab Management System</p>
                 </div>
               </div>
               <button

@@ -39,7 +39,7 @@ const DesktopMenu = () => {
                 LabPilot<span className="font-light">Pro</span>
               </span>
               <span className="text-[10px] text-slate-500 font-medium leading-tight mt-1">
-                Modern Lab Management System
+                Lab Management System
               </span>
             </div>
           </div>
