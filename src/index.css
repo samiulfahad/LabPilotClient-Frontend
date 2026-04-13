@@ -1,3 +1,7 @@
 @import "tailwindcss";
 
-
+@layer base {
+  html {
+    overflow-y: scroll;
+  }
+}
