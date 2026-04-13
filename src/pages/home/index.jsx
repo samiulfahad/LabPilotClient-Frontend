@@ -12,9 +12,7 @@ import {
   MapPin,
   Phone,
   Home as HomeIcon,
-  Receipt,
   FilePlus,
-  LayoutList,
   FileText,
   ArrowLeftRight,
   Percent,
@@ -57,7 +55,7 @@ const ACTIONS = [
   {
     to: "/invoice/all",
     icon: ReceiptText,
-    label: "Invoices",
+    label: "Invoice List",
     sub: "View & manage records",
     grad: "from-sky-400 to-blue-600",
     glow: "rgba(59,130,246,0.3)",
@@ -71,14 +69,6 @@ const ACTIONS = [
     glow: "rgba(16,185,129,0.3)",
   },
   {
-    to: "/manage-referrers",
-    icon: Users,
-    label: "Referrers",
-    sub: "Doctors & commissions",
-    grad: "from-fuchsia-500 to-pink-600",
-    glow: "rgba(217,70,239,0.3)",
-  },
-  {
     to: "/cashmemo",
     icon: BarChart3,
     label: "Cash Memo",
@@ -87,11 +77,35 @@ const ACTIONS = [
     glow: "rgba(245,158,11,0.3)",
   },
   {
-    to: "/lab-management",
-    icon: Microscope,
-    label: "Lab Settings",
-    sub: "Tests & configuration",
-    grad: "from-slate-500 to-slate-700",
+    to: "/transactions",
+    icon: ArrowLeftRight,
+    label: "Transactions",
+    sub: "Payment records",
+    grad: "from-blue-400 to-cyan-600",
+    glow: "rgba(6,182,212,0.3)",
+  },
+  {
+    to: "/commission",
+    icon: Percent,
+    label: "Commission",
+    sub: "Referral earnings",
+    grad: "from-fuchsia-500 to-pink-600",
+    glow: "rgba(217,70,239,0.3)",
+  },
+  {
+    to: "/billing",
+    icon: CreditCard,
+    label: "Billing",
+    sub: "Payments & dues",
+    grad: "from-rose-400 to-red-600",
+    glow: "rgba(239,68,68,0.3)",
+  },
+  {
+    to: "/account",
+    icon: UserCircle,
+    label: "Account",
+    sub: "Profile & settings",
+    grad: "from-slate-400 to-slate-600",
     glow: "rgba(100,116,139,0.3)",
   },
 ];
@@ -99,14 +113,6 @@ const ACTIONS = [
 // ─── nav menu ─────────────────────────────────────────────────────────────────
 const NAV_MENU = [
   { to: "/", icon: HomeIcon, label: "Home", color: "text-indigo-500", bg: "bg-indigo-50" },
-  { to: "/cashmemo", icon: Receipt, label: "Cashmemo", color: "text-amber-600", bg: "bg-amber-50" },
-  { to: "/invoice/new", icon: FilePlus, label: "New Invoice", color: "text-violet-600", bg: "bg-violet-50" },
-  { to: "/invoice/all", icon: LayoutList, label: "Invoice List", color: "text-sky-600", bg: "bg-sky-50" },
-  { to: "/report", icon: FileText, label: "Reports", color: "text-teal-600", bg: "bg-teal-50" },
-  { to: "/transactions", icon: ArrowLeftRight, label: "Transactions", color: "text-blue-600", bg: "bg-blue-50" },
-  { to: "/commission", icon: Percent, label: "Commission", color: "text-pink-600", bg: "bg-pink-50" },
-  { to: "/billing", icon: CreditCard, label: "Billing", color: "text-orange-600", bg: "bg-orange-50" },
-  { to: "/account", icon: UserCircle, label: "Account", color: "text-slate-600", bg: "bg-slate-100" },
   { to: "/manage-referrers", icon: Users, label: "Referrers", color: "text-fuchsia-600", bg: "bg-fuchsia-50" },
   { to: "/lab-management", icon: Microscope, label: "Lab Settings", color: "text-gray-600", bg: "bg-gray-100" },
   { to: "/invoice/delete", icon: ReceiptText, label: "Manage Bills", color: "text-rose-500", bg: "bg-rose-50" },
@@ -293,7 +299,7 @@ const Home = () => {
           <div className="flex-1 h-px bg-gray-200" />
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {ACTIONS.map((action, idx) => (
             <Card key={action.to} {...action} idx={idx} />
           ))}
@@ -310,7 +316,7 @@ const Home = () => {
           <div className="flex-1 h-px bg-gray-200" />
         </div>
 
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {NAV_MENU.map(({ to, icon: Icon, label, color, bg }, idx) => (
             <Link
               key={to}
