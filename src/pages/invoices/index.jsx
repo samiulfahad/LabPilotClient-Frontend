@@ -68,6 +68,28 @@ const isDelivered = (inv) => inv.delivery?.status === true;
 const getTests = (inv) => inv.tests ?? [];
 const hasReportSchemas = (inv) => getTests(inv).some((t) => t.schemaId);
 
+// ─── FIX: Static Tailwind class maps ─────────────────────────────────────────
+// Dynamic class interpolation (e.g. `bg-${color}-50`) is stripped by Tailwind's
+// purge/JIT compiler at build time because it can't statically analyse template
+// literals. Define all classes explicitly so the compiler sees them.
+const STAT_STYLES = {
+  indigo: {
+    bg: "bg-indigo-50",
+    icon: "text-indigo-600",
+    value: "text-indigo-900",
+  },
+  red: {
+    bg: "bg-red-50",
+    icon: "text-red-400",
+    value: "text-red-500",
+  },
+  green: {
+    bg: "bg-green-50",
+    icon: "text-green-500",
+    value: "text-green-600",
+  },
+};
+
 // ─── Invoice Details Modal ────────────────────────────────────────────────────
 
 const InvoiceDetailsModal = ({
@@ -589,7 +611,7 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 shadow-sm">
             <span className="text-[11px] font-bold text-white">{index + 1}</span>
           </div>
-          {/* FIX: min-w-0 ensures the text column can shrink and truncate properly */}
+          {/* min-w-0 ensures the text column can shrink and truncate properly */}
           <div className="flex-1 min-w-0">
             <p className="font-bold text-gray-900 text-sm leading-tight truncate">{patient.name}</p>
             <p className="text-[11px] text-gray-400 mt-0.5 truncate">
@@ -597,7 +619,7 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
               {invoice.createdBy?.name && <span className="text-gray-300"> · by {invoice.createdBy.name}</span>}
             </p>
           </div>
-          {/* FIX: shrink-0 + max-w cap prevents badges from wrapping oddly on small screens */}
+          {/* shrink-0 prevents badges from pushing out of the row on small screens */}
           <div className="flex items-center gap-1.5 shrink-0">
             {fullyPaid ? (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-50 text-green-700 border border-green-100 text-xs font-medium">
@@ -617,9 +639,9 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
           </div>
         </div>
 
-        {/* Actions — FIX: two-row layout on mobile */}
-        {/* Row 1 (left-aligned): view/navigation chips */}
-        {/* Row 2 (right-aligned): mutating action chips */}
+        {/* Actions — two-row layout on mobile:
+            Row 1 (left-aligned):  view/navigation chips
+            Row 2 (right-aligned): mutating action chips */}
         <div className="px-3 pb-3 space-y-1.5">
           {/* Left chips: Details, Invoice, Reports */}
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -751,9 +773,9 @@ const InvoiceList = () => {
 
   return (
     /*
-     * FIX 1: min-h-screen → min-h-full
-     * The section lives inside Layout's <main> which already grows to fill the
-     * viewport via flex-1. Using min-h-screen here adds an extra full-viewport
+     * FIX: min-h-full instead of min-h-screen.
+     * This section lives inside Layout's <main> which already grows to fill the
+     * viewport via flex-1. Using min-h-screen here would add an extra full-viewport
      * height on top of the fixed mobile navbar offset (pt-16), causing the page
      * to be ~64px taller than the screen and producing a phantom scroll area.
      */
@@ -761,11 +783,8 @@ const InvoiceList = () => {
       {loadingMessage && <LoadingScreen message={loadingMessage} />}
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      {/*
-       * FIX 2: overflow-x-hidden on the inner container
-       * Prevents any chip or badge that briefly exceeds the card width from
-       * creating a horizontal scrollbar on the page.
-       */}
+      {/* overflow-x-hidden prevents any chip/badge that briefly exceeds card width
+          from triggering a horizontal scrollbar on the page */}
       <div className="max-w-5xl mx-auto overflow-x-hidden">
         {/* Header */}
         <div className="flex items-center justify-between mb-2 sm:mb-4">
@@ -818,37 +837,34 @@ const InvoiceList = () => {
             { label: "Loaded", value: total, icon: FileText, color: "indigo" },
             { label: "Due", value: pending, icon: AlertCircle, color: "red" },
             { label: "Paid", value: completed, icon: CheckCircle2, color: "green" },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div
-              key={label}
-              className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center gap-2">
-                <div className={`p-1.5 sm:p-2 bg-${color}-50 rounded-lg shrink-0`}>
-                  <Icon
-                    className={`w-4 h-4 sm:w-5 sm:h-5 text-${color}-${color === "indigo" ? "600" : color === "red" ? "400" : "500"}`}
-                  />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] sm:text-xs text-gray-500 font-medium truncate">{label}</p>
-                  {initialLoading ? (
-                    <div className="h-6 w-8 bg-gray-200 rounded animate-pulse mt-0.5" />
-                  ) : (
-                    /*
-                     * FIX 3: text-xl on mobile (was 2xl) + truncate
-                     * Prevents 3-digit numbers from overflowing the stat card
-                     * on narrow screens (e.g. iPhone SE at 375px).
-                     */
-                    <p
-                      className={`text-xl sm:text-2xl font-bold leading-tight text-${color}-${color === "indigo" ? "900" : color === "red" ? "500" : "600"}`}
-                    >
-                      {value}
-                    </p>
-                  )}
+          ].map(({ label, value, icon: Icon, color }) => {
+            // FIX: Use static class map — Tailwind's compiler cannot analyse
+            // dynamic template literals like `bg-${color}-50` and will purge
+            // those classes in production builds, causing styles to silently vanish.
+            const s = STAT_STYLES[color];
+            return (
+              <div
+                key={label}
+                className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center gap-2">
+                  <div className={`p-1.5 sm:p-2 ${s.bg} rounded-lg shrink-0`}>
+                    <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${s.icon}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs text-gray-500 font-medium truncate">{label}</p>
+                    {initialLoading ? (
+                      <div className="h-6 w-8 bg-gray-200 rounded animate-pulse mt-0.5" />
+                    ) : (
+                      // text-xl on mobile (was 2xl) prevents 3-digit numbers from
+                      // overflowing the stat card on narrow screens (e.g. iPhone SE)
+                      <p className={`text-xl sm:text-2xl font-bold leading-tight ${s.value}`}>{value}</p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Status filter */}
