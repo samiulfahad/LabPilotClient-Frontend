@@ -25,7 +25,9 @@ const DesktopMenu = () => {
         {/* ── Brand Header ─────────────────────────────────────────── */}
         <div className="flex-shrink-0 px-5 py-4 bg-gradient-to-br from-blue-200 to-slate-200 border-b border-slate-200">
           <div className="flex items-center gap-3">
-            
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-500/20 flex-shrink-0">
+              <span className="text-white font-bold text-sm">LP</span>
+            </div>
             <div className="flex flex-col min-w-0">
               <span
                 className="text-slate-900 font-bold text-base leading-none"
@@ -37,7 +39,7 @@ const DesktopMenu = () => {
                 LabPilot<span className="font-light">Pro</span>
               </span>
               <span className="text-[10px] text-slate-500 font-medium leading-tight mt-1">
-                Modern Health Management
+                Modern Health Management System
               </span>
             </div>
           </div>
