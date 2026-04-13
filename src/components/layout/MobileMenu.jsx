@@ -133,7 +133,7 @@ const MobileMenu = () => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-white font-semibold text-sm truncate">LabPilot Pro</p>
-                  <p className="text-blue-100/90 text-xs font-medium truncate">Professional Edition</p>
+                  <p className="text-blue-100/90 text-xs font-medium truncate">Modern Lab Management System</p>
                 </div>
               </div>
               <button
