@@ -18,6 +18,7 @@ import {
   Percent,
   CreditCard,
   UserCircle,
+  Users2,
 } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 
@@ -114,8 +115,8 @@ const ACTIONS = [
 const NAV_MENU = [
   { to: "/", icon: HomeIcon, label: "Home", color: "text-indigo-500", bg: "bg-indigo-50" },
   { to: "/manage-referrers", icon: Users, label: "Referrers", color: "text-fuchsia-600", bg: "bg-fuchsia-50" },
+  { to: "/manage-staffs", icon: Users2, label: "Staffs", color: "text-rose-500", bg: "bg-rose-50" },
   { to: "/lab-management", icon: Microscope, label: "Lab Settings", color: "text-gray-600", bg: "bg-gray-100" },
-  { to: "/invoice/delete", icon: ReceiptText, label: "Manage Bills", color: "text-rose-500", bg: "bg-rose-50" },
 ];
 
 // ─── Action card ─────────────────────────────────────────────────────────────
