@@ -4,16 +4,12 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Eye, Printer, X } from "lucide-react";
 import ReportViewer from "./ReportViewer";
 import reportService from "../../api/report";
+import { useAuthStore } from "../../store/authStore";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
-  /*
-   * The portal div sits as a direct child of <body>, so it is outside
-   * every stacking context created by the React app layout.
-   * z-index here is just a safety net — it is not fighting anything.
-   */
   #ur-portal-root {
     position: fixed;
     top: 0 !important;
@@ -24,7 +20,6 @@ const STYLES = `
     height: 100% !important;
     z-index: 99999 !important;
     overflow: hidden;
-    /* Dynamic viewport height so mobile browser chrome is excluded */
     height: 100dvh !important;
   }
 
@@ -41,15 +36,12 @@ const STYLES = `
   .ur-drawer.closing      { animation: ur-slide-out 0.25s cubic-bezier(0.32, 0, 0.67, 0) forwards; }
   @keyframes ur-slide-out { from { transform: translateX(0); } to { transform: translateX(-100%); } }
 
-  /* ─── Header ─────────────────────────────────────────────────────────────── */
   .ur-drawer-header {
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 8px;
-    /* base height */
     min-height: 56px;
-    /* push content below notch on iOS / Android */
     padding-top: max(12px, env(safe-area-inset-top, 12px));
     padding-bottom: 12px;
     padding-left: 12px;
@@ -57,7 +49,6 @@ const STYLES = `
     background: #0d1117;
     border-bottom: 1px solid rgba(255,255,255,0.06);
     flex-shrink: 0;
-    /* NEVER let content overflow and hide the X button */
     overflow: visible;
   }
 
@@ -69,7 +60,6 @@ const STYLES = `
   }
   .ur-drawer-icon.view { background: rgba(5, 150, 105, 0.25); }
 
-  /* Middle text block — grows to fill space, truncates */
   .ur-drawer-title {
     flex: 1 1 0%;
     min-width: 0;
@@ -88,7 +78,6 @@ const STYLES = `
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 
-  /* Print badge — hidden on small phones so the X is never squeezed out */
   .ur-print-badge {
     display: flex; align-items: center; gap: 5px;
     padding: 3px 8px;
@@ -103,9 +92,6 @@ const STYLES = `
   .ur-print-badge.pad   { background: rgba(124,58,237,0.18); border: 1px solid rgba(124,58,237,0.35); color: #c4b5fd; }
   .ur-print-badge.plain { background: rgba(37,99,235,0.18);  border: 1px solid rgba(37,99,235,0.35);  color: #93c5fd; }
 
-  /* ─── Close / X button ────────────────────────────────────────────────────
-   * Uses explicit px values and !important so nothing in the app can
-   * accidentally override flex sizing and cause it to disappear.          */
   .ur-close-btn {
     display: flex !important;
     align-items: center !important;
@@ -124,7 +110,6 @@ const STYLES = `
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     transition: background 0.15s, border-color 0.15s, color 0.15s;
-    /* make sure icon is centered and visible */
     padding: 0;
     box-sizing: border-box;
   }
@@ -135,7 +120,6 @@ const STYLES = `
     color: #fca5a5 !important;
   }
 
-  /* ─── Scrollable body ───────────────────────────────────────────────────── */
   .ur-drawer-body {
     flex: 1 1 0%;
     min-height: 0;
@@ -148,7 +132,6 @@ const STYLES = `
   .ur-drawer-body::-webkit-scrollbar-track { background: transparent; }
   .ur-drawer-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
-  /* ─── Loading spinner ───────────────────────────────────────────────────── */
   .ur-loading {
     display: flex; align-items: center; justify-content: center;
     padding: 80px 24px; flex-direction: column; gap: 12px;
@@ -162,14 +145,11 @@ const STYLES = `
   @keyframes ur-spin { to { transform: rotate(360deg); } }
 `;
 
-// ─── Portal hook — mounts a <div> directly on <body> ─────────────────────────
-// This escapes EVERY stacking context the React app layout creates, so
-// z-index fights are impossible.
+// ─── Portal hook ──────────────────────────────────────────────────────────────
 function useBodyPortal() {
   const [el, setEl] = useState(null);
 
   useEffect(() => {
-    // Inject stylesheet once
     const styleId = "ur-styles-v4";
     if (!document.getElementById(styleId)) {
       const style = document.createElement("style");
@@ -177,18 +157,15 @@ function useBodyPortal() {
       style.textContent = STYLES;
       document.head.appendChild(style);
     }
-    // Clean up old stylesheet versions
     ["ur-styles-v2", "ur-styles-v3"].forEach((id) => {
       document.getElementById(id)?.remove();
     });
 
-    // Mount portal div as direct child of <body>
     const div = document.createElement("div");
     div.id = "ur-portal-root";
     document.body.appendChild(div);
     setEl(div);
 
-    // Prevent the page behind from scrolling / being interacted with
     const savedOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
@@ -201,12 +178,25 @@ function useBodyPortal() {
   return el;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatDate = (val) => {
   if (!val) return "";
   const d = new Date(val);
   return isNaN(d) ? "" : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
+
+// Map the store's lab shape → ReportViewer's labInfo shape
+function buildLabInfo(storeLab) {
+  if (!storeLab) return null;
+  return {
+    name: storeLab.name ?? "Lab",
+    tagline: storeLab.tagline ?? "",
+    address: [storeLab.contact?.address, storeLab.contact?.district].filter(Boolean).join(", "),
+    email: storeLab.contact?.publicEmail ?? "",
+    phone: storeLab.contact?.primary ?? "",
+    regNo: storeLab.labKey ? String(storeLab.labKey) : "",
+  };
+}
 
 // ─── Error state ──────────────────────────────────────────────────────────────
 function ErrorState({ message, onClose }) {
@@ -282,6 +272,10 @@ export default function ReportDownload() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  // ── Pull lab from Zustand auth store ────────────────────────────────────────
+  const storeLab = useAuthStore((s) => s.lab);
+  const labInfo = buildLabInfo(storeLab);
+
   const invoiceId = searchParams.get("invoiceId");
   const testId = searchParams.get("testId");
   const testName = searchParams.get("testName") ?? "Report";
@@ -294,7 +288,6 @@ export default function ReportDownload() {
   const [error, setError] = useState(null);
   const [closing, setClosing] = useState(false);
 
-  // Portal div mounted directly on <body> — escapes all layout stacking contexts
   const portalEl = useBodyPortal();
 
   useEffect(() => {
@@ -337,31 +330,26 @@ export default function ReportDownload() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Wait until the portal <div> is appended to <body>
   if (!portalEl) return null;
 
   return createPortal(
     <div className={`ur-drawer${closing ? " closing" : ""}`}>
       {/* ── Header ── */}
       <div className="ur-drawer-header">
-        {/* Icon */}
         <div className="ur-drawer-icon view">
           <Eye style={{ width: 15, height: 15, color: "#6ee7b7" }} />
         </div>
 
-        {/* Title — grows, truncates */}
         <div className="ur-drawer-title">
           <h2>View — {testName}</h2>
           <p>{invoiceId ? `Invoice #${invoiceId}` : "Report Details"}</p>
         </div>
 
-        {/* Print badge — hidden on ≤400 px */}
         <div className={`ur-print-badge ${isPad ? "pad" : "plain"}`}>
           <Printer style={{ width: 10, height: 10 }} />
           {isPad ? "Pad" : "Plain A4"}
         </div>
 
-        {/* X — always last, never hidden */}
         <button className="ur-close-btn" onClick={handleClose} title="Close (Esc)" aria-label="Close report">
           <X style={{ width: 18, height: 18, display: "block" }} />
         </button>
@@ -388,7 +376,15 @@ export default function ReportDownload() {
         {!loading && error && <ErrorState message={error} onClose={handleClose} />}
         {!loading && !error && report && (
           <div style={{ padding: "20px 16px" }}>
-            <ReportViewer report={report} patient={patient} printType={printType} invoiceId={invoiceId} />
+            <ReportViewer
+              report={report}
+              patient={patient}
+              printType={printType}
+              invoiceId={invoiceId}
+              //  Pass dynamic lab info; ReportViewer falls back to its own
+              //     LAB_INFO constant if labInfo is null (e.g. store cleared) 
+              {...(labInfo && { labInfo })}
+            />
           </div>
         )}
       </div>

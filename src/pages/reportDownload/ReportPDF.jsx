@@ -1,41 +1,51 @@
-import { Document, Page, Text, View, StyleSheet, Font } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 
 const C = {
+  // blues
+  skyDark: "#0369a1",
+  skyMid: "#0ea5e9",
+  skyLight: "#e0f2fe",
+  skyBorder: "#bae6fd",
+  skyFaint: "#f0f9ff",
+  // neutrals
   dark: "#1e293b",
-  mid: "#334155",
-  light: "#f1f5f9",
-  border: "#e2e8f0",
-  muted: "#94a3b8",
   body: "#374151",
+  muted: "#94a3b8",
+  border: "#e2e8f0",
+  // status
   normal: "#059669",
-  low: "#d97706",
-  high: "#dc2626",
+  low: "#92400e",
+  high: "#b91c1c",
   lowBg: "#fffbeb",
-  highBg: "#fff1f2",
+  highBg: "#fef2f2",
   normBg: "#f0fdf4",
 };
 
 const s = StyleSheet.create({
   page: { fontFamily: "Helvetica", fontSize: 9, color: C.dark, paddingBottom: 80 },
-  // ── lab header ──
-  header: { backgroundColor: C.dark, padding: "12 16", flexDirection: "row", justifyContent: "space-between" },
+
+  // ── lab header (sky gradient simulated with solid skyDark) ──
+  header: { backgroundColor: C.skyDark, padding: "12 16", flexDirection: "row", justifyContent: "space-between" },
   headerLeft: { flexDirection: "row", gap: 10 },
   labName: { fontSize: 13, fontFamily: "Helvetica-Bold", color: "white" },
-  labSub: { fontSize: 8, color: C.muted, marginTop: 2 },
-  labAddr: { fontSize: 7, color: "#64748b", marginTop: 3 },
+  labSub: { fontSize: 8, color: "rgba(255,255,255,0.75)", marginTop: 2 },
+  labAddr: { fontSize: 7, color: "rgba(255,255,255,0.55)", marginTop: 3 },
   headerRight: { alignItems: "flex-end" },
-  headerSmall: { fontSize: 7, color: C.muted, marginBottom: 2 },
+  headerSmall: { fontSize: 7, color: "rgba(255,255,255,0.8)", marginBottom: 2 },
+  headerSmallFaint: { fontSize: 7, color: "rgba(255,255,255,0.5)", marginBottom: 2, fontFamily: "Courier" },
+
   // ── title bar ──
   titleBar: {
-    backgroundColor: C.light,
+    backgroundColor: C.skyLight,
     padding: "7 16",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderBottom: `1 solid ${C.border}`,
+    borderBottom: `1 solid ${C.skyBorder}`,
   },
-  titleText: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#0f172a" },
-  invoiceText: { fontSize: 7, color: C.muted, fontFamily: "Courier" },
+  titleText: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#0c4a6e" },
+  invoiceText: { fontSize: 7, color: C.skyMid, fontFamily: "Courier" },
+
   // ── patient grid ──
   patientRow: { flexDirection: "row", borderBottom: `1 solid ${C.border}` },
   patientCell: { flex: 1, padding: "5 10", backgroundColor: "white", borderRight: `1 solid ${C.border}` },
@@ -49,39 +59,40 @@ const s = StyleSheet.create({
     borderBottom: `1 solid ${C.border}`,
     gap: 8,
   },
+
   // ── summary ──
   summaryBar: {
-    backgroundColor: "#f8fafc",
+    backgroundColor: C.skyFaint,
     padding: "5 16",
     flexDirection: "row",
     gap: 6,
     alignItems: "center",
-    borderBottom: `1 solid ${C.border}`,
+    borderBottom: `1 solid ${C.skyBorder}`,
   },
-  // ── section ──
-  sectionWrap: { marginBottom: 8, border: `1 solid ${C.border}`, borderRadius: 4 },
-  sectionHead: { backgroundColor: C.mid, padding: "6 10", flexDirection: "row", alignItems: "center", gap: 6 },
-  sectionBadge: {
-    width: 16,
-    height: 16,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 3,
+
+  // ── section — no badge, name only ──
+  sectionWrap: { marginBottom: 8, border: `1 solid ${C.skyBorder}`, borderRadius: 4 },
+  sectionHead: {
+    backgroundColor: C.skyMid, // solid sky blue (react-pdf can't do gradients)
+    padding: "6 12",
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
   },
-  sectionBadgeTxt: { fontSize: 7, fontFamily: "Helvetica-Bold", color: "white" },
-  sectionName: { flex: 1, fontSize: 9, fontFamily: "Helvetica-Bold", color: "white" },
-  sectionCount: { fontSize: 7, color: C.muted },
+  sectionName: { fontSize: 9, fontFamily: "Helvetica-Bold", color: "white" },
+  sectionCount: { fontSize: 7, color: "rgba(255,255,255,0.75)" },
+
   // ── table ──
   tableHead: { flexDirection: "row", backgroundColor: "#f8fafc", borderBottom: `1 solid ${C.border}`, padding: "3 0" },
   th: { fontSize: 7, fontFamily: "Helvetica-Bold", color: "#6b7280", textTransform: "uppercase", paddingHorizontal: 8 },
-  tableRow: { flexDirection: "row", borderBottom: `1 solid #f1f5f9`, paddingVertical: 5 },
+  tableRow: { flexDirection: "row", borderBottom: `1 solid ${C.border}`, paddingVertical: 5 },
   td: { fontSize: 9, paddingHorizontal: 8, color: C.body },
   tdBold: { fontSize: 9, paddingHorizontal: 8, fontFamily: "Helvetica-Bold" },
   tdUnit: { fontSize: 7.5, paddingHorizontal: 8, color: "#64748b", textTransform: "uppercase" },
   tdMuted: { fontSize: 8, paddingHorizontal: 8, color: "#6b7280" },
-  pill: { borderRadius: 99, paddingHorizontal: 5, paddingVertical: 1.5, fontSize: 7, fontFamily: "Helvetica-Bold" },
-  // ── footer (fixed at bottom of every page) ──
+  pill: { borderRadius: 99, paddingHorizontal: 5, paddingVertical: 1.5 },
+
+  // ── footer ──
   footer: { position: "absolute", bottom: 0, left: 0, right: 0, padding: "10 16", borderTop: `1 solid ${C.border}` },
   sigRow: { flexDirection: "row", marginBottom: 10 },
   sigBox: { flex: 1 },
@@ -96,62 +107,77 @@ function parseRange(ref) {
   if (!m) return null;
   return { min: parseFloat(m[1]), max: parseFloat(m[2]) };
 }
-function getStatus(value, ref) {
+
+function fmt(num) {
+  return num
+    .toFixed(3)
+    .replace(/\.?0+$/, "")
+    .replace(/^0\./, ".");
+}
+function fmtLow(num) {
+  return num.toFixed(3).replace(/\.?0+$/, "");
+}
+
+function getStatusInfo(value, ref) {
   const n = parseFloat(value);
   if (isNaN(n) || !ref) return null;
   const r = parseRange(ref);
   if (!r) return null;
-  if (n < r.min) return "low";
-  if (n > r.max) return "high";
-  return "normal";
+  if (n > r.max) return { status: "high", label: `Higher (${fmt(n / r.max)}x)` };
+  if (n < r.min) {
+    if (r.min === 0) return { status: "low", label: "Low" };
+    return { status: "low", label: `Lower (${fmtLow(n / r.min)}x)` };
+  }
+  return { status: "normal", label: "Normal" };
 }
+
 function isResultField(field) {
   if (!field || typeof field !== "object") return false;
   return Boolean(field.referenceRange) || Boolean(field.unit);
 }
 
-/** Strip meta keys (__showTitle) from section data before rendering. */
 function getSectionEntries(sectionData) {
   return Object.entries(sectionData).filter(([key]) => key !== "__showTitle");
 }
 
-function Pill({ status }) {
-  if (!status) return null;
-  const cfg = {
-    normal: { label: "Normal", bg: C.normBg, color: C.normal },
-    low: { label: "Low", bg: C.lowBg, color: C.low },
-    high: { label: "High", bg: C.highBg, color: C.high },
-  }[status];
-  if (!cfg) return null;
+const ROW_COLORS = {
+  high: { bg: C.highBg, val: C.high },
+  low: { bg: C.lowBg, val: C.low },
+  normal: { bg: C.normBg, val: C.dark },
+};
+
+const PILL_COLORS = {
+  high: { bg: C.highBg, color: C.high, border: "#fca5a5" },
+  low: { bg: C.lowBg, color: C.low, border: "#fcd34d" },
+  normal: { bg: C.normBg, color: C.normal, border: "#6ee7b7" },
+};
+
+function Pill({ info }) {
+  if (!info) return null;
+  const pc = PILL_COLORS[info.status];
+  if (!pc) return null;
   return (
-    <View style={[s.pill, { backgroundColor: cfg.bg }]}>
-      <Text style={{ color: cfg.color, fontSize: 7, fontFamily: "Helvetica-Bold" }}>{cfg.label}</Text>
+    <View style={[s.pill, { backgroundColor: pc.bg, borderWidth: 0.5, borderColor: pc.border }]}>
+      <Text style={{ color: pc.color, fontSize: 7, fontFamily: "Helvetica-Bold" }}>{info.label}</Text>
     </View>
   );
 }
 
-/**
- * PDFSection
- * showHeader: when false the dark title bar is omitted.
- */
-function PDFSection({ sectionName, sectionData, index, showHeader }) {
+// ── PDF Section — name only, no badge/letter ──────────────────────────────────
+function PDFSection({ sectionName, sectionData, showHeader }) {
   const entries = getSectionEntries(sectionData);
   const resultEntries = entries.filter(([, v]) => isResultField(v));
   const plainEntries = entries.filter(([, v]) => !isResultField(v));
   const hasUnits = resultEntries.some(([, v]) => Boolean(v.unit));
 
   const W = hasUnits
-    ? { param: "34%", result: "14%", unit: "12%", ref: "22%", status: "18%" }
-    : { param: "36%", result: "18%", ref: "28%", status: "18%" };
+    ? { param: "32%", result: "13%", unit: "11%", ref: "22%", status: "22%" }
+    : { param: "34%", result: "16%", ref: "26%", status: "24%" };
 
   return (
     <View style={s.sectionWrap}>
-      {/* Header — conditionally rendered */}
       {showHeader && (
         <View style={s.sectionHead}>
-          <View style={s.sectionBadge}>
-            <Text style={s.sectionBadgeTxt}>{String.fromCharCode(65 + index)}</Text>
-          </View>
           <Text style={s.sectionName}>{sectionName}</Text>
           <Text style={s.sectionCount}>
             {entries.length} parameter{entries.length !== 1 ? "s" : ""}
@@ -159,7 +185,6 @@ function PDFSection({ sectionName, sectionData, index, showHeader }) {
         </View>
       )}
 
-      {/* Result table */}
       {resultEntries.length > 0 && (
         <View>
           <View style={s.tableHead}>
@@ -169,20 +194,22 @@ function PDFSection({ sectionName, sectionData, index, showHeader }) {
             <Text style={[s.th, { width: W.ref }]}>Ref. Range</Text>
             <Text style={[s.th, { width: W.status }]}>Status</Text>
           </View>
+
           {resultEntries.map(([name, field]) => {
             const value = String(field.value ?? "");
             const unit = field.unit || "";
             const ref = field.referenceRange || "";
-            const status = getStatus(value, ref);
-            const isAb = status === "low" || status === "high";
+            const info = getStatusInfo(value, ref);
+            const rc = info ? (ROW_COLORS[info.status] ?? {}) : {};
+
             return (
-              <View key={name} style={[s.tableRow, { backgroundColor: isAb ? C.highBg : "white" }]}>
+              <View key={name} style={[s.tableRow, { backgroundColor: rc.bg ?? "white" }]}>
                 <Text style={[s.td, { width: W.param }]}>{name}</Text>
-                <Text style={[s.tdBold, { width: W.result, color: isAb ? C.high : C.dark }]}>{value}</Text>
+                <Text style={[s.tdBold, { width: W.result, color: rc.val ?? C.dark }]}>{value}</Text>
                 {hasUnits && <Text style={[s.tdUnit, { width: W.unit }]}>{unit || "—"}</Text>}
                 <Text style={[s.tdMuted, { width: W.ref }]}>{ref || "—"}</Text>
-                <View style={{ width: W.status, justifyContent: "center" }}>
-                  <Pill status={status} />
+                <View style={{ width: W.status, justifyContent: "center", paddingHorizontal: 6 }}>
+                  <Pill info={info} />
                 </View>
               </View>
             );
@@ -190,7 +217,6 @@ function PDFSection({ sectionName, sectionData, index, showHeader }) {
         </View>
       )}
 
-      {/* Plain rows */}
       {plainEntries.length > 0 && (
         <View style={{ borderTop: resultEntries.length > 0 ? `1 solid ${C.border}` : undefined }}>
           {plainEntries.map(([name, field]) => {
@@ -220,10 +246,11 @@ export function ReportPDFDocument({ report, reportName, shortId, patient, labInf
   sections.forEach(([, sec]) => {
     getSectionEntries(sec).forEach(([, field]) => {
       if (!isResultField(field)) return;
-      const st = getStatus(field.value, field.referenceRange);
-      if (st === "normal") normal++;
-      else if (st === "low") low++;
-      else if (st === "high") high++;
+      const info = getStatusInfo(field.value, field.referenceRange);
+      if (!info) return;
+      if (info.status === "normal") normal++;
+      else if (info.status === "low") low++;
+      else if (info.status === "high") high++;
     });
   });
   const total = normal + low + high;
@@ -232,36 +259,36 @@ export function ReportPDFDocument({ report, reportName, shortId, patient, labInf
     { label: "Patient Name", value: patient.name },
     { label: "Age / Gender", value: [patient.age, patient.gender].filter(Boolean).join(" · ") },
     { label: "Contact", value: patient.contact },
-    { label: "Sample Date", value: patient.sampleDate },
-    { label: "Report Date", value: patient.reportDate },
+    ...(patient.sampleDate ? [{ label: "Sample Date", value: patient.sampleDate }] : []),
+    ...(patient.reportDate ? [{ label: "Report Date", value: patient.reportDate }] : []),
   ];
 
   return (
     <Document>
       <Page size="A4" style={s.page}>
-        {/* Lab header */}
+        {/* ── Lab header (sky blue) ── */}
         <View style={s.header}>
           <View style={s.headerLeft}>
             <View>
               <Text style={s.labName}>{labInfo.name}</Text>
-              <Text style={s.labSub}>{labInfo.tagline}</Text>
+              {labInfo.tagline ? <Text style={s.labSub}>{labInfo.tagline}</Text> : null}
               <Text style={s.labAddr}>{labInfo.address}</Text>
             </View>
           </View>
           <View style={s.headerRight}>
             <Text style={s.headerSmall}>{labInfo.phone}</Text>
-            <Text style={s.headerSmall}>{labInfo.email}</Text>
-            <Text style={s.headerSmall}>Reg: {labInfo.regNo}</Text>
+            {labInfo.email ? <Text style={s.headerSmall}>{labInfo.email}</Text> : null}
+            {labInfo.regNo ? <Text style={s.headerSmallFaint}>Lab Key: {labInfo.regNo}</Text> : null}
           </View>
         </View>
 
-        {/* Title bar */}
+        {/* ── Title bar ── */}
         <View style={s.titleBar}>
           <Text style={s.titleText}>{reportName}</Text>
           {shortId ? <Text style={s.invoiceText}>Invoice No: {shortId}</Text> : null}
         </View>
 
-        {/* Patient grid */}
+        {/* ── Patient grid ── */}
         <View style={s.patientRow}>
           {mainFields.map(({ label, value }) => (
             <View key={label} style={s.patientCell}>
@@ -275,30 +302,29 @@ export function ReportPDFDocument({ report, reportName, shortId, patient, labInf
           <Text style={[s.cellValue, { fontSize: 9 }]}>{patient.referredBy || "—"}</Text>
         </View>
 
-        {/* Summary */}
+        {/* ── Summary strip ── */}
         {total > 0 && (
           <View style={s.summaryBar}>
-            <Text style={{ fontSize: 8, color: "#64748b" }}>{total} parameters:</Text>
+            <Text style={{ fontSize: 8, color: C.skyDark }}>{total} parameters:</Text>
             <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: C.normal }}>{normal} Normal</Text>
             {low > 0 && <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: C.low }}>{low} Low</Text>}
             {high > 0 && <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: C.high }}>{high} High</Text>}
           </View>
         )}
 
-        {/* Sections */}
+        {/* ── Sections ── */}
         <View style={{ padding: "10 14" }}>
-          {sections.map(([sectionName, sectionData], i) => (
+          {sections.map(([sectionName, sectionData]) => (
             <PDFSection
               key={sectionName}
               sectionName={sectionName}
               sectionData={sectionData}
-              index={i}
               showHeader={sectionData.__showTitle !== false}
             />
           ))}
         </View>
 
-        {/* Footer — fixed at bottom of every A4 page */}
+        {/* ── Footer ── */}
         <View style={s.footer} fixed>
           <View style={s.sigRow}>
             <View style={[s.sigBox, { marginRight: 40 }]}>
