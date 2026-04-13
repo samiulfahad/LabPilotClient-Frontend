@@ -641,7 +641,7 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
 
         {/* Actions — single centered row, wraps naturally on small screens */}
         <div className="px-3 pb-3">
-          <div className="flex items-center gap-1.5 flex-wrap justify-center">
+          <div className="flex items-center gap-1.5 flex-wrap justify-start">
             <ActionChip
               onClick={() => setViewingDetails(true)}
               icon={Eye}
