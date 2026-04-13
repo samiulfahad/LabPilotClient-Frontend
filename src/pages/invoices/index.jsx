@@ -61,7 +61,7 @@ const formatDateTime = (ts) => {
 const getDue = (inv) => Math.max(0, (inv.amount?.final ?? 0) - (inv.amount?.paid ?? 0));
 const isFullyPaid = (inv) => getDue(inv) === 0;
 
-// NEW: delivery field is now nested under delivery.status
+// delivery field is nested under delivery.status
 const isDelivered = (inv) => inv.delivery?.status === true;
 
 // Safe tests accessor — list projection only returns tests.schemaId
@@ -99,7 +99,6 @@ const InvoiceDetailsModal = ({
     fetchInvoice();
   }, [isOpen, invoiceId]);
 
-  // Use full invoice data when available, fall back to list row
   const rowHasReports = hasReportSchemas(invoiceRow ?? {});
   const due = invoice ? getDue(invoice) : 0;
   const fullyPaid = invoice ? due === 0 : false;
@@ -110,7 +109,6 @@ const InvoiceDetailsModal = ({
   const referrer = invoice?.referrer ?? null;
   const amount = invoice?.amount ?? null;
 
-  // createdBy info from full invoice
   const createdBy = invoice?.createdBy ?? null;
   const deliveredBy = invoice?.delivery?.by ?? null;
 
@@ -514,8 +512,8 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
 
   const due = getDue(invoice);
   const fullyPaid = isFullyPaid(invoice);
-  const delivered = isDelivered(invoice); // ← use helper, reads delivery.status
-  const hasReports = hasReportSchemas(invoice); // ← safe, handles missing tests
+  const delivered = isDelivered(invoice);
+  const hasReports = hasReportSchemas(invoice);
   const patient = invoice.patient;
 
   const handleConfirmDelivery = async () => {
@@ -591,6 +589,7 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 shadow-sm">
             <span className="text-[11px] font-bold text-white">{index + 1}</span>
           </div>
+          {/* FIX: min-w-0 ensures the text column can shrink and truncate properly */}
           <div className="flex-1 min-w-0">
             <p className="font-bold text-gray-900 text-sm leading-tight truncate">{patient.name}</p>
             <p className="text-[11px] text-gray-400 mt-0.5 truncate">
@@ -598,13 +597,14 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
               {invoice.createdBy?.name && <span className="text-gray-300"> · by {invoice.createdBy.name}</span>}
             </p>
           </div>
+          {/* FIX: shrink-0 + max-w cap prevents badges from wrapping oddly on small screens */}
           <div className="flex items-center gap-1.5 shrink-0">
             {fullyPaid ? (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-50 text-green-700 border border-green-100 text-xs font-medium">
                 <CheckCircle2 className="w-3 h-3" /> Paid
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-50 text-red-600 border border-red-100 text-xs font-medium">
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-50 text-red-600 border border-red-100 text-xs font-medium whitespace-nowrap">
                 <Wallet className="w-3 h-3" />৳{due.toLocaleString()}
               </span>
             )}
@@ -617,52 +617,60 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="px-3 pb-3 flex items-center gap-1.5 flex-wrap">
-          <ActionChip
-            onClick={() => setViewingDetails(true)}
-            icon={Eye}
-            label="Details"
-            className="text-violet-700 bg-violet-50 hover:bg-violet-100 border-violet-100"
-          />
-          <LinkChip
-            to={`/invoice/print/${invoice.invoiceId}`}
-            icon={FileText}
-            label="Invoice"
-            className="text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border-indigo-100"
-          />
-          {hasReports && (
+        {/* Actions — FIX: two-row layout on mobile */}
+        {/* Row 1 (left-aligned): view/navigation chips */}
+        {/* Row 2 (right-aligned): mutating action chips */}
+        <div className="px-3 pb-3 space-y-1.5">
+          {/* Left chips: Details, Invoice, Reports */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <ActionChip
+              onClick={() => setViewingDetails(true)}
+              icon={Eye}
+              label="Details"
+              className="text-violet-700 bg-violet-50 hover:bg-violet-100 border-violet-100"
+            />
             <LinkChip
-              to="/report"
-              state={{ invoiceId: invoice.invoiceId }}
-              icon={FlaskConical}
-              label="Reports"
-              className="text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 border-transparent shadow-sm"
+              to={`/invoice/print/${invoice.invoiceId}`}
+              icon={FileText}
+              label="Invoice"
+              className="text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border-indigo-100"
             />
-          )}
-          <div className="flex-1" />
-          <ActionChip
-            onClick={() => setEditingPatient(true)}
-            icon={Pencil}
-            label="Edit"
-            className="text-gray-600 bg-gray-100 hover:bg-gray-200 border-gray-200"
-          />
-          {!fullyPaid && (
+            {hasReports && (
+              <LinkChip
+                to="/report"
+                state={{ invoiceId: invoice.invoiceId }}
+                icon={FlaskConical}
+                label="Reports"
+                className="text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 border-transparent shadow-sm"
+              />
+            )}
+          </div>
+
+          {/* Right chips: Edit, Collect, Deliver */}
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
             <ActionChip
-              onClick={() => setCollectingDue(true)}
-              icon={Banknote}
-              label="Collect"
-              className="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
+              onClick={() => setEditingPatient(true)}
+              icon={Pencil}
+              label="Edit"
+              className="text-gray-600 bg-gray-100 hover:bg-gray-200 border-gray-200"
             />
-          )}
-          {!delivered && (
-            <ActionChip
-              onClick={() => setConfirming(true)}
-              icon={PackageCheck}
-              label="Deliver"
-              className="text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-100"
-            />
-          )}
+            {!fullyPaid && (
+              <ActionChip
+                onClick={() => setCollectingDue(true)}
+                icon={Banknote}
+                label="Collect"
+                className="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
+              />
+            )}
+            {!delivered && (
+              <ActionChip
+                onClick={() => setConfirming(true)}
+                icon={PackageCheck}
+                label="Deliver"
+                className="text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-100"
+              />
+            )}
+          </div>
         </div>
       </div>
     </>
@@ -716,7 +724,6 @@ const InvoiceList = () => {
     loadInvoices(null, true, range);
   };
 
-  // Safe: invoices is always an array (initialized as [])
   const total = invoices.length;
   const pending = invoices.filter((inv) => !isFullyPaid(inv)).length;
   const completed = invoices.filter((inv) => isFullyPaid(inv)).length;
@@ -728,7 +735,7 @@ const InvoiceList = () => {
         ? invoices.filter((inv) => isFullyPaid(inv))
         : invoices;
 
-  // Optimistic updates — delivery now lives under delivery.status
+  // Optimistic updates
   const handleDelivered = (id) =>
     setInvoices((prev) =>
       prev.map((inv) => (inv.invoiceId === id ? { ...inv, delivery: { ...inv.delivery, status: true } } : inv)),
@@ -743,22 +750,34 @@ const InvoiceList = () => {
     setInvoices((prev) => prev.map((inv) => (inv.invoiceId === id ? { ...inv, ...fields } : inv)));
 
   return (
-    <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
+    /*
+     * FIX 1: min-h-screen → min-h-full
+     * The section lives inside Layout's <main> which already grows to fill the
+     * viewport via flex-1. Using min-h-screen here adds an extra full-viewport
+     * height on top of the fixed mobile navbar offset (pt-16), causing the page
+     * to be ~64px taller than the screen and producing a phantom scroll area.
+     */
+    <section className="min-h-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
       {loadingMessage && <LoadingScreen message={loadingMessage} />}
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      <div className="max-w-5xl mx-auto">
+      {/*
+       * FIX 2: overflow-x-hidden on the inner container
+       * Prevents any chip or badge that briefly exceeds the card width from
+       * creating a horizontal scrollbar on the page.
+       */}
+      <div className="max-w-5xl mx-auto overflow-x-hidden">
         {/* Header */}
         <div className="flex items-center justify-between mb-2 sm:mb-4">
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <FileText className="w-7 h-7 sm:w-8 sm:h-8 text-indigo-600" /> Invoices
+              <FileText className="w-7 h-7 sm:w-8 sm:h-8 text-indigo-600 shrink-0" /> Invoices
             </h1>
             <p className="text-sm text-gray-600 mt-1 hidden sm:flex items-center gap-1.5">
               <Activity className="w-4 h-4 text-indigo-500" /> Manage invoices & upload reports
             </p>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <Link
               to="/lab-management"
               className="px-2 md:px-4 py-2.5 rounded-xl border border-gray-200 bg-white/50 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center gap-2 text-sm font-medium shadow-sm"
@@ -794,7 +813,7 @@ const InvoiceList = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-4">
           {[
             { label: "Loaded", value: total, icon: FileText, color: "indigo" },
             { label: "Due", value: pending, icon: AlertCircle, color: "red" },
@@ -805,18 +824,23 @@ const InvoiceList = () => {
               className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
             >
               <div className="flex items-center gap-2">
-                <div className={`p-2 bg-${color}-50 rounded-lg`}>
+                <div className={`p-1.5 sm:p-2 bg-${color}-50 rounded-lg shrink-0`}>
                   <Icon
-                    className={`w-5 h-5 text-${color}-${color === "indigo" ? "600" : color === "red" ? "400" : "500"}`}
+                    className={`w-4 h-4 sm:w-5 sm:h-5 text-${color}-${color === "indigo" ? "600" : color === "red" ? "400" : "500"}`}
                   />
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500 font-medium">{label}</p>
+                <div className="min-w-0">
+                  <p className="text-[10px] sm:text-xs text-gray-500 font-medium truncate">{label}</p>
                   {initialLoading ? (
-                    <div className="h-7 w-10 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-6 w-8 bg-gray-200 rounded animate-pulse mt-0.5" />
                   ) : (
+                    /*
+                     * FIX 3: text-xl on mobile (was 2xl) + truncate
+                     * Prevents 3-digit numbers from overflowing the stat card
+                     * on narrow screens (e.g. iPhone SE at 375px).
+                     */
                     <p
-                      className={`text-2xl font-bold text-${color}-${color === "indigo" ? "900" : color === "red" ? "500" : "600"}`}
+                      className={`text-xl sm:text-2xl font-bold leading-tight text-${color}-${color === "indigo" ? "900" : color === "red" ? "500" : "600"}`}
                     >
                       {value}
                     </p>
@@ -828,8 +852,8 @@ const InvoiceList = () => {
         </div>
 
         {/* Status filter */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-          <div className="flex flex-wrap items-center gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4 mb-6">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             <span className="text-sm font-semibold text-gray-700">Filter:</span>
             <div className="flex rounded-lg bg-gray-100 p-1">
               {[
@@ -848,7 +872,7 @@ const InvoiceList = () => {
               ))}
             </div>
             {statusFilter !== "all" && (
-              <p className="text-xs text-gray-400 ml-auto">
+              <p className="text-xs text-gray-400 w-full sm:w-auto sm:ml-auto">
                 Filtering loaded invoices only.{" "}
                 {hasMore && <span className="text-indigo-400">Load more to filter further.</span>}
               </p>
@@ -1010,14 +1034,20 @@ const SkeletonInvoice = () => (
   <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 animate-pulse">
     <div className="flex items-center justify-between gap-3">
       <div className="w-8 h-8 rounded-lg bg-gray-200 shrink-0" />
-      <div className="flex-1 space-y-2">
+      <div className="flex-1 space-y-2 min-w-0">
         <div className="h-4 bg-gray-200 rounded w-1/3" />
         <div className="h-3 bg-gray-100 rounded w-1/2" />
       </div>
-      <div className="flex gap-2">
-        <div className="h-7 w-16 bg-gray-200 rounded-lg" />
-        <div className="h-7 w-16 bg-gray-200 rounded-lg" />
+      <div className="flex gap-2 shrink-0">
+        <div className="h-7 w-14 bg-gray-200 rounded-lg" />
+        <div className="h-7 w-14 bg-gray-200 rounded-lg" />
       </div>
+    </div>
+    <div className="mt-3 flex gap-2">
+      <div className="h-7 w-16 bg-gray-100 rounded-xl" />
+      <div className="h-7 w-16 bg-gray-100 rounded-xl" />
+      <div className="flex-1" />
+      <div className="h-7 w-14 bg-gray-100 rounded-xl" />
     </div>
   </div>
 );
