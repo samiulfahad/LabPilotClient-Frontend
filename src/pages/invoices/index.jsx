@@ -616,7 +616,9 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
             <p className="font-bold text-gray-900 text-sm leading-tight truncate">{patient.name}</p>
             <p className="text-[11px] text-gray-400 mt-0.5 truncate">
               #{invoice.invoiceId} · {date} · {time}
-              {invoice.createdBy?.name && <span className="text-gray-300"> · by {invoice.createdBy.name}</span>}
+              {invoice.createdBy?.name && (
+                <span className="text-gray-300 hidden sm:inline"> · by {invoice.createdBy.name}</span>
+              )}
             </p>
           </div>
           {/* shrink-0 prevents badges from pushing out of the row on small screens */}
