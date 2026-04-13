@@ -69,9 +69,6 @@ const getTests = (inv) => inv.tests ?? [];
 const hasReportSchemas = (inv) => getTests(inv).some((t) => t.schemaId);
 
 // ─── FIX: Static Tailwind class maps ─────────────────────────────────────────
-// Dynamic class interpolation (e.g. `bg-${color}-50`) is stripped by Tailwind's
-// purge/JIT compiler at build time because it can't statically analyse template
-// literals. Define all classes explicitly so the compiler sees them.
 const STAT_STYLES = {
   indigo: {
     bg: "bg-indigo-50",
@@ -616,6 +613,7 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
             <p className="font-bold text-gray-900 text-sm leading-tight truncate">{patient.name}</p>
             <p className="text-[11px] text-gray-400 mt-0.5 truncate">
               #{invoice.invoiceId} · {date} · {time}
+              {/* FIX: hidden on mobile, visible on sm+ to prevent overflow */}
               {invoice.createdBy?.name && (
                 <span className="text-gray-300 hidden sm:inline"> · by {invoice.createdBy.name}</span>
               )}
@@ -641,12 +639,9 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
           </div>
         </div>
 
-        {/* Actions — two-row layout on mobile:
-            Row 1 (left-aligned):  view/navigation chips
-            Row 2 (right-aligned): mutating action chips */}
-        <div className="px-3 pb-3 space-y-1.5">
-          {/* Left chips: Details, Invoice, Reports */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+        {/* Actions — single centered row, wraps naturally on small screens */}
+        <div className="px-3 pb-3">
+          <div className="flex items-center gap-1.5 flex-wrap justify-center">
             <ActionChip
               onClick={() => setViewingDetails(true)}
               icon={Eye}
@@ -668,10 +663,6 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
                 className="text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 border-transparent shadow-sm"
               />
             )}
-          </div>
-
-          {/* Right chips: Edit, Collect, Deliver */}
-          <div className="flex items-center gap-1.5 flex-wrap justify-end">
             <ActionChip
               onClick={() => setEditingPatient(true)}
               icon={Pencil}
@@ -774,19 +765,10 @@ const InvoiceList = () => {
     setInvoices((prev) => prev.map((inv) => (inv.invoiceId === id ? { ...inv, ...fields } : inv)));
 
   return (
-    /*
-     * FIX: min-h-full instead of min-h-screen.
-     * This section lives inside Layout's <main> which already grows to fill the
-     * viewport via flex-1. Using min-h-screen here would add an extra full-viewport
-     * height on top of the fixed mobile navbar offset (pt-16), causing the page
-     * to be ~64px taller than the screen and producing a phantom scroll area.
-     */
     <section className="min-h-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
       {loadingMessage && <LoadingScreen message={loadingMessage} />}
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      {/* overflow-x-hidden prevents any chip/badge that briefly exceeds card width
-          from triggering a horizontal scrollbar on the page */}
       <div className="max-w-5xl mx-auto overflow-x-hidden">
         {/* Header */}
         <div className="flex items-center justify-between mb-2 sm:mb-4">
@@ -840,9 +822,6 @@ const InvoiceList = () => {
             { label: "Due", value: pending, icon: AlertCircle, color: "red" },
             { label: "Paid", value: completed, icon: CheckCircle2, color: "green" },
           ].map(({ label, value, icon: Icon, color }) => {
-            // FIX: Use static class map — Tailwind's compiler cannot analyse
-            // dynamic template literals like `bg-${color}-50` and will purge
-            // those classes in production builds, causing styles to silently vanish.
             const s = STAT_STYLES[color];
             return (
               <div
@@ -858,8 +837,6 @@ const InvoiceList = () => {
                     {initialLoading ? (
                       <div className="h-6 w-8 bg-gray-200 rounded animate-pulse mt-0.5" />
                     ) : (
-                      // text-xl on mobile (was 2xl) prevents 3-digit numbers from
-                      // overflowing the stat card on narrow screens (e.g. iPhone SE)
                       <p className={`text-xl sm:text-2xl font-bold leading-tight ${s.value}`}>{value}</p>
                     )}
                   </div>
@@ -1061,10 +1038,10 @@ const SkeletonInvoice = () => (
         <div className="h-7 w-14 bg-gray-200 rounded-lg" />
       </div>
     </div>
-    <div className="mt-3 flex gap-2">
+    <div className="mt-3 flex gap-2 justify-center">
       <div className="h-7 w-16 bg-gray-100 rounded-xl" />
       <div className="h-7 w-16 bg-gray-100 rounded-xl" />
-      <div className="flex-1" />
+      <div className="h-7 w-16 bg-gray-100 rounded-xl" />
       <div className="h-7 w-14 bg-gray-100 rounded-xl" />
     </div>
   </div>
