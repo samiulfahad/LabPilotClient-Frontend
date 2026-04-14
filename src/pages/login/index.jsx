@@ -260,7 +260,7 @@ export default function Login() {
         phone: resetPhone,
         labKey: Number(resetLabKey),
       });
-      setResendTimer(60);
+      setResendTimer(120);
       setView("otp");
     } catch (err) {
       const msg = err?.response?.data?.error;
@@ -279,7 +279,7 @@ export default function Login() {
         phone: resetPhone,
         labKey: Number(resetLabKey),
       });
-      setResendTimer(60);
+      setResendTimer(120);
       setOtp("");
     } catch (err) {
       const msg = err?.response?.data?.error;
