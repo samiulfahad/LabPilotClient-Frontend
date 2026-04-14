@@ -1,104 +1,122 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 
 const C = {
-  // blues
-  skyDark: "#0369a1",
-  skyMid: "#0ea5e9",
-  skyLight: "#e0f2fe",
-  skyBorder: "#bae6fd",
-  skyFaint: "#f0f9ff",
-  // neutrals
-  dark: "#1e293b",
+  dark: "#0f172a",
+  slate700: "#334155",
+  slate600: "#475569",
+  slate400: "#94a3b8",
+  slate200: "#e2e8f0",
+  slate100: "#f1f5f9",
+  slate50: "#f8fafc",
   body: "#374151",
-  muted: "#94a3b8",
-  border: "#e2e8f0",
-  // status
-  normal: "#059669",
+  normal: "#166534",
   low: "#92400e",
-  high: "#b91c1c",
+  high: "#991b1b",
   lowBg: "#fffbeb",
   highBg: "#fef2f2",
   normBg: "#f0fdf4",
+  lowBdr: "#fde68a",
+  highBdr: "#fecaca",
+  normBdr: "#bbf7d0",
 };
 
 const s = StyleSheet.create({
   page: { fontFamily: "Helvetica", fontSize: 9, color: C.dark, paddingBottom: 80 },
 
-  // ── lab header (sky gradient simulated with solid skyDark) ──
-  header: { backgroundColor: C.skyDark, padding: "12 16", flexDirection: "row", justifyContent: "space-between" },
-  headerLeft: { flexDirection: "row", gap: 10 },
-  labName: { fontSize: 13, fontFamily: "Helvetica-Bold", color: "white" },
-  labSub: { fontSize: 8, color: "rgba(255,255,255,0.75)", marginTop: 2 },
-  labAddr: { fontSize: 7, color: "rgba(255,255,255,0.55)", marginTop: 3 },
+  header: {
+    borderBottom: `2 solid ${C.dark}`,
+    padding: "12 16",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    backgroundColor: "white",
+  },
+  labName: { fontSize: 14, fontFamily: "Helvetica-Bold", color: C.dark },
+  labSub: { fontSize: 7.5, color: C.slate400, marginTop: 2, textTransform: "uppercase", letterSpacing: 1 },
+  labAddr: { fontSize: 7, color: C.slate400, marginTop: 4 },
   headerRight: { alignItems: "flex-end" },
-  headerSmall: { fontSize: 7, color: "rgba(255,255,255,0.8)", marginBottom: 2 },
-  headerSmallFaint: { fontSize: 7, color: "rgba(255,255,255,0.5)", marginBottom: 2, fontFamily: "Courier" },
+  headerContact: { fontSize: 8, color: C.slate600, marginBottom: 2 },
+  headerReg: { fontSize: 7, color: C.slate400, fontFamily: "Courier" },
 
-  // ── title bar ──
   titleBar: {
-    backgroundColor: C.skyLight,
+    backgroundColor: C.slate50,
     padding: "7 16",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderBottom: `1 solid ${C.skyBorder}`,
+    borderBottom: `1 solid ${C.slate200}`,
   },
-  titleText: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#0c4a6e" },
-  invoiceText: { fontSize: 7, color: C.skyMid, fontFamily: "Courier" },
+  titleText: { fontSize: 11, fontFamily: "Helvetica-Bold", color: C.dark },
+  invoiceText: { fontSize: 7.5, color: C.slate600, fontFamily: "Courier", fontFamily: "Helvetica-Bold" },
 
-  // ── patient grid ──
-  patientRow: { flexDirection: "row", borderBottom: `1 solid ${C.border}` },
-  patientCell: { flex: 1, padding: "5 10", backgroundColor: "white", borderRight: `1 solid ${C.border}` },
-  cellLabel: { fontSize: 6.5, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 },
-  cellValue: { fontSize: 9, fontFamily: "Helvetica-Bold", color: C.dark },
+  patientRow: { flexDirection: "row", borderBottom: `1 solid ${C.slate200}` },
+  patientCell: { flex: 1, padding: "6 10", backgroundColor: "white", borderRight: `1 solid ${C.slate200}` },
+  cellLabel: { fontSize: 6.5, color: C.slate400, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 2.5 },
+  cellValue: { fontSize: 9.5, fontFamily: "Helvetica-Bold", color: C.dark },
+
   referredRow: {
     flexDirection: "row",
     alignItems: "center",
-    padding: "4 10",
-    backgroundColor: "white",
-    borderBottom: `1 solid ${C.border}`,
+    padding: "5 10",
+    backgroundColor: "#fafafa",
+    borderBottom: `1 solid ${C.slate200}`,
     gap: 8,
   },
 
-  // ── summary ──
   summaryBar: {
-    backgroundColor: C.skyFaint,
+    backgroundColor: C.slate50,
     padding: "5 16",
     flexDirection: "row",
-    gap: 6,
+    gap: 8,
     alignItems: "center",
-    borderBottom: `1 solid ${C.skyBorder}`,
+    borderBottom: `1 solid ${C.slate200}`,
   },
 
-  // ── section — no badge, name only ──
-  sectionWrap: { marginBottom: 8, border: `1 solid ${C.skyBorder}`, borderRadius: 4 },
+  sectionWrap: { marginBottom: 8, border: `1 solid ${C.slate200}` },
   sectionHead: {
-    backgroundColor: C.skyMid, // solid sky blue (react-pdf can't do gradients)
+    backgroundColor: C.slate700,
     padding: "6 12",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   sectionName: { fontSize: 9, fontFamily: "Helvetica-Bold", color: "white" },
-  sectionCount: { fontSize: 7, color: "rgba(255,255,255,0.75)" },
+  sectionCount: { fontSize: 7, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5 },
 
-  // ── table ──
-  tableHead: { flexDirection: "row", backgroundColor: "#f8fafc", borderBottom: `1 solid ${C.border}`, padding: "3 0" },
-  th: { fontSize: 7, fontFamily: "Helvetica-Bold", color: "#6b7280", textTransform: "uppercase", paddingHorizontal: 8 },
-  tableRow: { flexDirection: "row", borderBottom: `1 solid ${C.border}`, paddingVertical: 5 },
+  tableHead: {
+    flexDirection: "row",
+    backgroundColor: C.slate50,
+    borderBottom: `1 solid ${C.slate200}`,
+    padding: "3 0",
+  },
+  th: {
+    fontSize: 7,
+    fontFamily: "Helvetica-Bold",
+    color: "#6b7280",
+    textTransform: "uppercase",
+    paddingHorizontal: 8,
+    letterSpacing: 0.3,
+  },
+  tableRow: { flexDirection: "row", borderBottom: `1 solid ${C.slate100}`, paddingVertical: 5 },
   td: { fontSize: 9, paddingHorizontal: 8, color: C.body },
   tdBold: { fontSize: 9, paddingHorizontal: 8, fontFamily: "Helvetica-Bold" },
-  tdUnit: { fontSize: 7.5, paddingHorizontal: 8, color: "#64748b", textTransform: "uppercase" },
-  tdMuted: { fontSize: 8, paddingHorizontal: 8, color: "#6b7280" },
-  pill: { borderRadius: 99, paddingHorizontal: 5, paddingVertical: 1.5 },
+  tdMono: { fontSize: 9, paddingHorizontal: 8, fontFamily: "Courier", color: C.slate600 },
+  tdUnit: { fontSize: 7.5, paddingHorizontal: 8, color: C.slate400, textTransform: "uppercase" },
+  pill: { paddingHorizontal: 5, paddingVertical: 1.5 },
 
-  // ── footer ──
-  footer: { position: "absolute", bottom: 0, left: 0, right: 0, padding: "10 16", borderTop: `1 solid ${C.border}` },
-  sigRow: { flexDirection: "row", marginBottom: 10 },
+  footer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: "10 16",
+    borderTop: `1 solid ${C.slate200}`,
+    backgroundColor: "white",
+  },
+  sigRow: { flexDirection: "row", marginBottom: 8 },
   sigBox: { flex: 1 },
-  sigLine: { borderBottom: "1 dashed #cbd5e1", height: 24, marginBottom: 3 },
-  sigLabel: { fontSize: 7, color: C.muted },
-  footerNote: { fontSize: 7, color: C.muted, textAlign: "center", marginTop: 4 },
+  sigLine: { borderBottom: "1 dashed #cbd5e1", height: 22, marginBottom: 3 },
+  sigLabel: { fontSize: 7, color: C.slate400 },
+  footerNote: { fontSize: 7, color: C.slate400, textAlign: "center", marginTop: 4 },
 });
 
 function parseRange(ref) {
@@ -141,15 +159,15 @@ function getSectionEntries(sectionData) {
 }
 
 const ROW_COLORS = {
-  high: { bg: C.highBg, val: C.high },
-  low: { bg: C.lowBg, val: C.low },
-  normal: { bg: C.normBg, val: C.dark },
+  high: { bg: "#fff8f8", val: C.high },
+  low: { bg: "#fffdf5", val: C.low },
+  normal: { bg: "white", val: C.dark },
 };
 
 const PILL_COLORS = {
-  high: { bg: C.highBg, color: C.high, border: "#fca5a5" },
-  low: { bg: C.lowBg, color: C.low, border: "#fcd34d" },
-  normal: { bg: C.normBg, color: C.normal, border: "#6ee7b7" },
+  high: { bg: C.highBg, color: C.high, border: C.highBdr },
+  low: { bg: C.lowBg, color: C.low, border: C.lowBdr },
+  normal: { bg: C.normBg, color: C.normal, border: C.normBdr },
 };
 
 function Pill({ info }) {
@@ -163,7 +181,6 @@ function Pill({ info }) {
   );
 }
 
-// ── PDF Section — name only, no badge/letter ──────────────────────────────────
 function PDFSection({ sectionName, sectionData, showHeader }) {
   const entries = getSectionEntries(sectionData);
   const resultEntries = entries.filter(([, v]) => isResultField(v));
@@ -171,7 +188,7 @@ function PDFSection({ sectionName, sectionData, showHeader }) {
   const hasUnits = resultEntries.some(([, v]) => Boolean(v.unit));
 
   const W = hasUnits
-    ? { param: "32%", result: "13%", unit: "11%", ref: "22%", status: "22%" }
+    ? { param: "32%", result: "13%", unit: "10%", ref: "22%", status: "23%" }
     : { param: "34%", result: "16%", ref: "26%", status: "24%" };
 
   return (
@@ -194,20 +211,17 @@ function PDFSection({ sectionName, sectionData, showHeader }) {
             <Text style={[s.th, { width: W.ref }]}>Ref. Range</Text>
             <Text style={[s.th, { width: W.status }]}>Status</Text>
           </View>
-
           {resultEntries.map(([name, field]) => {
             const value = String(field.value ?? "");
-            const unit = field.unit || "";
             const ref = field.referenceRange || "";
             const info = getStatusInfo(value, ref);
             const rc = info ? (ROW_COLORS[info.status] ?? {}) : {};
-
             return (
               <View key={name} style={[s.tableRow, { backgroundColor: rc.bg ?? "white" }]}>
                 <Text style={[s.td, { width: W.param }]}>{name}</Text>
                 <Text style={[s.tdBold, { width: W.result, color: rc.val ?? C.dark }]}>{value}</Text>
-                {hasUnits && <Text style={[s.tdUnit, { width: W.unit }]}>{unit || "—"}</Text>}
-                <Text style={[s.tdMuted, { width: W.ref }]}>{ref || "—"}</Text>
+                {hasUnits && <Text style={[s.tdUnit, { width: W.unit }]}>{field.unit || "—"}</Text>}
+                <Text style={[s.tdMono, { width: W.ref }]}>{ref || "—"}</Text>
                 <View style={{ width: W.status, justifyContent: "center", paddingHorizontal: 6 }}>
                   <Pill info={info} />
                 </View>
@@ -218,12 +232,12 @@ function PDFSection({ sectionName, sectionData, showHeader }) {
       )}
 
       {plainEntries.length > 0 && (
-        <View style={{ borderTop: resultEntries.length > 0 ? `1 solid ${C.border}` : undefined }}>
+        <View style={{ borderTop: resultEntries.length > 0 ? `1 solid ${C.slate200}` : undefined }}>
           {plainEntries.map(([name, field]) => {
             const val = Array.isArray(field.value) ? field.value.join(", ") : String(field.value ?? "—");
             return (
               <View key={name} style={[s.tableRow, { backgroundColor: "white" }]}>
-                <Text style={[s.tdMuted, { width: "38%" }]}>{name}</Text>
+                <Text style={[s.td, { width: "38%", color: C.slate400 }]}>{name}</Text>
                 <Text style={[s.tdBold, { flex: 1 }]}>{val || "—"}</Text>
               </View>
             );
@@ -266,29 +280,27 @@ export function ReportPDFDocument({ report, reportName, shortId, patient, labInf
   return (
     <Document>
       <Page size="A4" style={s.page}>
-        {/* ── Lab header (sky blue) ── */}
+        {/* Lab header — flat */}
         <View style={s.header}>
-          <View style={s.headerLeft}>
-            <View>
-              <Text style={s.labName}>{labInfo.name}</Text>
-              {labInfo.tagline ? <Text style={s.labSub}>{labInfo.tagline}</Text> : null}
-              <Text style={s.labAddr}>{labInfo.address}</Text>
-            </View>
+          <View>
+            <Text style={s.labName}>{labInfo.name}</Text>
+            {labInfo.tagline ? <Text style={s.labSub}>{labInfo.tagline}</Text> : null}
+            <Text style={s.labAddr}>{labInfo.address}</Text>
           </View>
           <View style={s.headerRight}>
-            <Text style={s.headerSmall}>{labInfo.phone}</Text>
-            {labInfo.email ? <Text style={s.headerSmall}>{labInfo.email}</Text> : null}
-            {labInfo.regNo ? <Text style={s.headerSmallFaint}>Registration No.: {labInfo.regNo}</Text> : null}
+            <Text style={s.headerContact}>{labInfo.phone}</Text>
+            {labInfo.email ? <Text style={s.headerContact}>{labInfo.email}</Text> : null}
+            {labInfo.regNo ? <Text style={s.headerReg}>Reg: {labInfo.regNo}</Text> : null}
           </View>
         </View>
 
-        {/* ── Title bar ── */}
+        {/* Title bar */}
         <View style={s.titleBar}>
           <Text style={s.titleText}>{reportName}</Text>
-          {shortId ? <Text style={s.invoiceText}>Invoice No: {shortId}</Text> : null}
+          {shortId ? <Text style={s.invoiceText}>Invoice: {shortId}</Text> : null}
         </View>
 
-        {/* ── Patient grid ── */}
+        {/* Patient grid */}
         <View style={s.patientRow}>
           {mainFields.map(({ label, value }) => (
             <View key={label} style={s.patientCell}>
@@ -302,17 +314,17 @@ export function ReportPDFDocument({ report, reportName, shortId, patient, labInf
           <Text style={[s.cellValue, { fontSize: 9 }]}>{patient.referredBy || "—"}</Text>
         </View>
 
-        {/* ── Summary strip ── */}
+        {/* Summary */}
         {total > 0 && (
           <View style={s.summaryBar}>
-            <Text style={{ fontSize: 8, color: C.skyDark }}>{total} parameters:</Text>
+            <Text style={{ fontSize: 8, color: C.slate600, fontFamily: "Helvetica-Bold" }}>{total} parameters:</Text>
             <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: C.normal }}>{normal} Normal</Text>
             {low > 0 && <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: C.low }}>{low} Low</Text>}
             {high > 0 && <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: C.high }}>{high} High</Text>}
           </View>
         )}
 
-        {/* ── Sections ── */}
+        {/* Sections */}
         <View style={{ padding: "10 14" }}>
           {sections.map(([sectionName, sectionData]) => (
             <PDFSection
@@ -324,7 +336,7 @@ export function ReportPDFDocument({ report, reportName, shortId, patient, labInf
           ))}
         </View>
 
-        {/* ── Footer ── */}
+        {/* Footer */}
         <View style={s.footer} fixed>
           <View style={s.sigRow}>
             <View style={[s.sigBox, { marginRight: 40 }]}>

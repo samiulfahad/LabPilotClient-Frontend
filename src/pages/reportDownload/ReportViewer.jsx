@@ -88,20 +88,17 @@ function getSectionEntries(sectionData) {
   return Object.entries(sectionData).filter(([key]) => key !== "__showTitle");
 }
 
-// ── Status pill ───────────────────────────────────────────────────────────────
 function StatusPill({ value, ref }) {
   const info = getStatusInfo(value, ref);
   if (!info) return <span className="text-xs text-slate-300">—</span>;
-
   const cfg = {
-    normal: { cls: "bg-emerald-100 text-emerald-800 border-emerald-300", Icon: CheckCircle2 },
-    low: { cls: "bg-amber-100  text-amber-800  border-amber-300", Icon: TrendingDown },
-    high: { cls: "bg-red-100    text-red-800    border-red-300", Icon: TrendingUp },
+    normal: { cls: "bg-emerald-50 text-emerald-700 border-emerald-200", Icon: CheckCircle2 },
+    low: { cls: "bg-amber-50 text-amber-700 border-amber-200", Icon: TrendingDown },
+    high: { cls: "bg-red-50 text-red-700 border-red-200", Icon: TrendingUp },
   }[info.status];
-
   return (
     <span
-      className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${cfg.cls}`}
+      className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 border whitespace-nowrap ${cfg.cls}`}
     >
       <cfg.Icon className="w-2.5 h-2.5 flex-shrink-0" />
       {info.label}
@@ -110,9 +107,9 @@ function StatusPill({ value, ref }) {
 }
 
 const ROW_STYLE = {
-  high: { row: "bg-red-50", value: "text-red-700" },
-  low: { row: "bg-amber-50", value: "text-amber-800" },
-  normal: { row: "bg-emerald-50/50", value: "text-slate-900" },
+  high: { row: "bg-red-50/40", value: "text-red-700" },
+  low: { row: "bg-amber-50/40", value: "text-amber-800" },
+  normal: { row: "", value: "text-slate-900" },
 };
 
 function ResultRow({ name, field, hasUnits }) {
@@ -121,22 +118,21 @@ function ResultRow({ name, field, hasUnits }) {
   const ref = field.referenceRange || "";
   const info = getStatusInfo(value, ref);
   const style = info ? (ROW_STYLE[info.status] ?? {}) : {};
-
   return (
     <tr className={style.row ?? ""}>
-      <td className="pl-4 pr-3 py-2.5 text-sm text-slate-700 border-b border-slate-100">{name}</td>
+      <td className="pl-4 pr-3 py-2.5 text-sm text-slate-600 border-b border-slate-100">{name}</td>
       <td
         className={`px-3 py-2.5 text-sm font-bold tabular-nums border-b border-slate-100 ${style.value ?? "text-slate-900"}`}
       >
         {value}
       </td>
       {hasUnits && (
-        <td className="px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase border-b border-slate-100">
-          {unit || <span className="text-slate-300">—</span>}
+        <td className="px-3 py-2.5 text-[10px] font-semibold text-slate-400 uppercase border-b border-slate-100">
+          {unit || <span className="text-slate-200">—</span>}
         </td>
       )}
-      <td className="px-3 py-2.5 text-xs text-slate-500 border-b border-slate-100 tabular-nums">
-        {ref || <span className="text-slate-300">—</span>}
+      <td className="px-3 py-2.5 text-xs text-slate-400 border-b border-slate-100 tabular-nums font-mono">
+        {ref || <span className="text-slate-200">—</span>}
       </td>
       <td className="px-3 pr-4 py-2.5 border-b border-slate-100">
         <StatusPill value={value} ref={ref} />
@@ -148,16 +144,15 @@ function ResultRow({ name, field, hasUnits }) {
 function PlainRow({ name, field, colSpan }) {
   const val = Array.isArray(field.value) ? field.value.join(", ") : String(field.value ?? "—");
   return (
-    <tr className="odd:bg-white even:bg-slate-50/30">
-      <td className="pl-4 pr-3 py-2.5 text-sm text-slate-500 border-b border-slate-100">{name}</td>
-      <td className="px-3 pr-4 py-2.5 text-sm font-semibold text-slate-800 border-b border-slate-100" colSpan={colSpan}>
+    <tr className="odd:bg-white even:bg-slate-50/50">
+      <td className="pl-4 pr-3 py-2.5 text-sm text-slate-400 border-b border-slate-100">{name}</td>
+      <td className="px-3 pr-4 py-2.5 text-sm font-semibold text-slate-700 border-b border-slate-100" colSpan={colSpan}>
         {val || "—"}
       </td>
     </tr>
   );
 }
 
-// ── Section — no badge/letter, just the name ──────────────────────────────────
 function Section({ sectionName, sectionData, showHeader }) {
   const [collapsed, setCollapsed] = useState(false);
   const entries = getSectionEntries(sectionData);
@@ -171,21 +166,21 @@ function Section({ sectionName, sectionData, showHeader }) {
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="pl-4 pr-3 py-1.5 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider w-[34%]">
+              <th className="pl-4 pr-3 py-2 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[34%]">
                 Parameter
               </th>
-              <th className="px-3 py-1.5 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider w-[16%]">
+              <th className="px-3 py-2 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[16%]">
                 Result
               </th>
               {hasUnits && (
-                <th className="px-3 py-1.5 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider w-[12%]">
+                <th className="px-3 py-2 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[12%]">
                   Unit
                 </th>
               )}
-              <th className="px-3 py-1.5 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider w-[24%]">
+              <th className="px-3 py-2 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[24%]">
                 Ref. Range
               </th>
-              <th className="px-3 pr-4 py-1.5 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider w-[18%]">
+              <th className="px-3 pr-4 py-2 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider w-[18%]">
                 Status
               </th>
             </tr>
@@ -210,25 +205,23 @@ function Section({ sectionName, sectionData, showHeader }) {
   );
 
   if (!showHeader) {
-    return <div className="rounded-lg overflow-hidden border border-sky-100 mb-2.5">{tableBody}</div>;
+    return <div className="overflow-hidden border border-slate-200 mb-2">{tableBody}</div>;
   }
 
   return (
-    <div className="rounded-lg overflow-hidden border border-sky-100 mb-2.5 shadow-sm">
-      {/* ── Section header: sky blue, name only, no badge ── */}
+    <div className="overflow-hidden border border-slate-200 mb-2">
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
-        className="w-full flex items-center justify-between px-4 py-2.5 text-left transition-colors"
-        style={{ background: "linear-gradient(90deg, #0ea5e9 0%, #38bdf8 100%)" }}
+        className="w-full flex items-center justify-between px-4 py-2.5 text-left bg-slate-700 hover:bg-slate-600 transition-colors"
       >
         <span className="text-sm font-semibold text-white tracking-wide">{sectionName}</span>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-sky-100 font-medium">
-            {entries.length} parameter{entries.length !== 1 ? "s" : ""}
+          <span className="text-[10px] text-slate-300 font-medium">
+            {entries.length} param{entries.length !== 1 ? "s" : ""}
           </span>
           <ChevronDown
-            className={`w-3.5 h-3.5 text-sky-100 transition-transform flex-shrink-0 ${collapsed ? "" : "rotate-180"}`}
+            className={`w-3.5 h-3.5 text-slate-300 transition-transform flex-shrink-0 ${collapsed ? "" : "rotate-180"}`}
           />
         </div>
       </button>
@@ -254,7 +247,7 @@ function SummaryStrip({ sections }) {
   if (total === 0) return null;
   return (
     <div className="flex items-center gap-1 text-xs">
-      <ClipboardList className="w-3 h-3 text-sky-400 mr-1 flex-shrink-0" />
+      <ClipboardList className="w-3 h-3 text-slate-400 mr-1 flex-shrink-0" />
       <span className="text-slate-500 font-medium">{total} parameters:</span>
       <span className="font-bold text-emerald-600 ml-1">{normal} Normal</span>
       {low > 0 && (
@@ -282,17 +275,15 @@ function PatientGrid({ patient }) {
     ...(patient.reportDate ? [{ label: "Report Date", value: patient.reportDate, Icon: Calendar }] : []),
   ];
   const colCount = allFields.length;
-
   const Cell = ({ label, value, Icon }) => (
-    <div className="bg-white px-3 py-2">
-      <div className="flex items-center gap-1 mb-0.5">
-        <Icon className="w-2.5 h-2.5 text-sky-400 flex-shrink-0" />
+    <div className="bg-white px-3 py-2.5">
+      <div className="flex items-center gap-1 mb-1">
+        <Icon className="w-2.5 h-2.5 text-slate-400 flex-shrink-0" />
         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
       </div>
       <p className="text-xs font-semibold text-slate-800 truncate">{value || "—"}</p>
     </div>
   );
-
   return (
     <div className="border-b border-slate-200">
       <div
@@ -303,8 +294,8 @@ function PatientGrid({ patient }) {
           <Cell key={f.label} {...f} />
         ))}
       </div>
-      <div className="bg-white px-3 py-1.5 flex items-center gap-3">
-        <Stethoscope className="w-2.5 h-2.5 text-sky-400 flex-shrink-0" />
+      <div className="bg-white px-3 py-2 flex items-center gap-3">
+        <Stethoscope className="w-2.5 h-2.5 text-slate-400 flex-shrink-0" />
         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Referred By</span>
         <span className="text-xs font-semibold text-slate-800">{patient.referredBy || "—"}</span>
       </div>
@@ -312,7 +303,7 @@ function PatientGrid({ patient }) {
   );
 }
 
-// ── Print HTML builder ────────────────────────────────────────────────────────
+// ── Print HTML builder — flat, no gradients, no rounded corners ──────────────
 function buildPrintHTML({ reportName, shortId, patient, labInfo, sections, printType }) {
   const isPad = printType === "PAD";
 
@@ -328,21 +319,22 @@ function buildPrintHTML({ reportName, shortId, patient, labInfo, sections, print
         .toFixed(3)
         .replace(/\.?0+$/, "")
         .replace(/^0\./, ".");
-    const fmtLow = (x) => x.toFixed(3).replace(/\.?0+$/, "");
+    const fmtL = (x) => x.toFixed(3).replace(/\.?0+$/, "");
     if (n > max) return { status: "high", label: `Higher (${fmt(n / max)}x)` };
     if (n < min) {
       if (min === 0) return { status: "low", label: "Low" };
-      return { status: "low", label: `Lower (${fmtLow(n / min)}x)` };
+      return { status: "low", label: `Lower (${fmtL(n / min)}x)` };
     }
     return { status: "normal", label: "Normal" };
   };
 
-  const pillColor = (s) => ({ normal: "#059669", low: "#92400e", high: "#b91c1c" })[s] || "#94a3b8";
+  const pillColor = (s) => ({ normal: "#166534", low: "#92400e", high: "#991b1b" })[s] || "#64748b";
   const pillBg = (s) => ({ normal: "#f0fdf4", low: "#fffbeb", high: "#fef2f2" })[s] || "white";
-  const rowBg = (s) => ({ normal: "#f0fdf4", low: "#fffbeb", high: "#fef2f2" })[s] || "white";
-  const valColor = (s) => ({ normal: "#111827", low: "#92400e", high: "#b91c1c" })[s] || "#111827";
+  const pillBdr = (s) => ({ normal: "#bbf7d0", low: "#fde68a", high: "#fecaca" })[s] || "#e2e8f0";
+  const rowBg = (s) => ({ normal: "white", low: "#fffdf5", high: "#fff8f8" })[s] || "white";
+  const valColor = (s) => ({ normal: "#111827", low: "#92400e", high: "#991b1b" })[s] || "#111827";
 
-  const renderSection = (sectionName, sectionData, index) => {
+  const renderSection = (sectionName, sectionData) => {
     const showHeader = sectionData.__showTitle !== false;
     const entries = getSectionEntries(sectionData);
     const resultEntries = entries.filter(([, v]) => isResultField(v));
@@ -350,23 +342,21 @@ function buildPrintHTML({ reportName, shortId, patient, labInfo, sections, print
     const hasUnits = resultEntries.some(([, v]) => Boolean(v.unit));
 
     const unitHeader = hasUnits
-      ? `<th style="padding:5px 12px;text-align:left;font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:12%;">Unit</th>`
+      ? `<th style="padding:5px 10px;text-align:left;font-size:8.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:11%;">Unit</th>`
       : "";
 
     const resultRows = resultEntries
       .map(([name, field]) => {
-        const unit = field.unit || "";
         const ref = field.referenceRange || "";
         const info = statusInfo(field.value, ref);
         const s = info ? info.status : null;
-        const label = info ? info.label : "—";
         return `<tr style="background:${rowBg(s)};">
-        <td style="padding:7px 12px;font-size:12px;color:#374151;border-bottom:1px solid #e2e8f0;">${name}</td>
-        <td style="padding:7px 12px;font-size:12px;font-weight:700;color:${valColor(s)};border-bottom:1px solid #e2e8f0;">${field.value}</td>
-        ${hasUnits ? `<td style="padding:7px 12px;font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">${unit || "—"}</td>` : ""}
-        <td style="padding:7px 12px;font-size:11px;color:#6b7280;border-bottom:1px solid #e2e8f0;">${ref || "—"}</td>
-        <td style="padding:7px 12px;border-bottom:1px solid #e2e8f0;">
-          <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:99px;background:${pillBg(s)};color:${pillColor(s)};border:1px solid ${pillColor(s)}55;">${label}</span>
+        <td style="padding:6px 10px;font-size:11.5px;color:#374151;border-bottom:1px solid #f1f5f9;">${name}</td>
+        <td style="padding:6px 10px;font-size:11.5px;font-weight:700;color:${valColor(s)};border-bottom:1px solid #f1f5f9;font-family:monospace;">${field.value}</td>
+        ${hasUnits ? `<td style="padding:6px 10px;font-size:9px;font-weight:600;color:#64748b;text-transform:uppercase;border-bottom:1px solid #f1f5f9;">${field.unit || "—"}</td>` : ""}
+        <td style="padding:6px 10px;font-size:10.5px;color:#6b7280;border-bottom:1px solid #f1f5f9;font-family:monospace;">${ref || "—"}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">
+          <span style="font-size:8.5px;font-weight:700;padding:2px 7px;background:${pillBg(s)};color:${pillColor(s)};border:1px solid ${pillBdr(s)};">${info ? info.label : "—"}</span>
         </td>
       </tr>`;
       })
@@ -375,15 +365,14 @@ function buildPrintHTML({ reportName, shortId, patient, labInfo, sections, print
     const plainRows = plainEntries
       .map(([name, field]) => {
         const val = Array.isArray(field.value) ? field.value.join(", ") : String(field.value ?? "—");
-        return `<tr style="background:white;"><td style="padding:7px 12px;font-size:12px;color:#6b7280;border-bottom:1px solid #e2e8f0;">${name}</td><td style="padding:7px 12px;font-size:12px;font-weight:600;color:#111827;border-bottom:1px solid #e2e8f0;" colspan="${hasUnits ? 4 : 3}">${val || "—"}</td></tr>`;
+        return `<tr><td style="padding:6px 10px;font-size:11px;color:#94a3b8;border-bottom:1px solid #f1f5f9;">${name}</td><td style="padding:6px 10px;font-size:11px;font-weight:600;color:#1e293b;border-bottom:1px solid #f1f5f9;" colspan="${hasUnits ? 4 : 3}">${val || "—"}</td></tr>`;
       })
       .join("");
 
-    // Section header: sky gradient, name only — no badge/letter
     const headerHTML = showHeader
-      ? `<div style="background:linear-gradient(90deg,#0ea5e9 0%,#38bdf8 100%);padding:8px 14px;display:flex;align-items:center;justify-content:space-between;">
-           <span style="color:white;font-size:12px;font-weight:600;">${sectionName}</span>
-           <span style="color:rgba(255,255,255,0.75);font-size:9px;">${entries.length} parameter${entries.length !== 1 ? "s" : ""}</span>
+      ? `<div style="background:#334155;padding:7px 12px;display:flex;align-items:center;justify-content:space-between;">
+           <span style="color:white;font-size:11.5px;font-weight:700;letter-spacing:0.01em;">${sectionName}</span>
+           <span style="color:rgba(255,255,255,0.5);font-size:8px;text-transform:uppercase;letter-spacing:0.05em;">${entries.length} parameter${entries.length !== 1 ? "s" : ""}</span>
          </div>`
       : "";
 
@@ -391,11 +380,11 @@ function buildPrintHTML({ reportName, shortId, patient, labInfo, sections, print
       resultEntries.length > 0
         ? `<table style="width:100%;border-collapse:collapse;">
           <thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
-            <th style="padding:5px 12px;text-align:left;font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:34%;">Parameter</th>
-            <th style="padding:5px 12px;text-align:left;font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:16%;">Result</th>
+            <th style="padding:5px 10px;text-align:left;font-size:8.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:33%;">Parameter</th>
+            <th style="padding:5px 10px;text-align:left;font-size:8.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:15%;">Result</th>
             ${unitHeader}
-            <th style="padding:5px 12px;text-align:left;font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:24%;">Ref. Range</th>
-            <th style="padding:5px 12px;text-align:left;font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:18%;">Status</th>
+            <th style="padding:5px 10px;text-align:left;font-size:8.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:23%;">Ref. Range</th>
+            <th style="padding:5px 10px;text-align:left;font-size:8.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;width:18%;">Status</th>
           </tr></thead>
           <tbody>${resultRows}</tbody>
         </table>`
@@ -406,7 +395,7 @@ function buildPrintHTML({ reportName, shortId, patient, labInfo, sections, print
         ? `<table style="width:100%;border-collapse:collapse;${resultEntries.length > 0 ? "border-top:1px solid #e2e8f0;" : ""}"><tbody>${plainRows}</tbody></table>`
         : "";
 
-    return `<div style="border:1px solid #bae6fd;border-radius:8px;overflow:hidden;margin-bottom:10px;">${headerHTML}${resultTable}${plainTable}</div>`;
+    return `<div style="border:1px solid #e2e8f0;margin-bottom:10px;page-break-inside:avoid;">${headerHTML}${resultTable}${plainTable}</div>`;
   };
 
   const mainFields = [
@@ -420,7 +409,10 @@ function buildPrintHTML({ reportName, shortId, patient, labInfo, sections, print
   const mainCells = mainFields
     .map(
       ({ label, value }) =>
-        `<td style="padding:6px 12px;background:white;vertical-align:top;border-right:1px solid #e2e8f0;width:${colPct}%;"><div style="font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">${label}</div><div style="font-size:11px;font-weight:600;color:#1e293b;margin-top:2px;">${value || "—"}</div></td>`,
+        `<td style="padding:8px 12px;background:white;vertical-align:top;border-right:1px solid #e2e8f0;width:${colPct}%;">
+       <div style="font-size:7.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">${label}</div>
+       <div style="font-size:11px;font-weight:600;color:#1e293b;">${value || "—"}</div>
+     </td>`,
     )
     .join("");
 
@@ -438,27 +430,76 @@ function buildPrintHTML({ reportName, shortId, patient, labInfo, sections, print
   });
   const total = normal + low + high;
 
-  // Lab header: sky-blue gradient for Plain, blank spacer for PAD
   const topBlock = isPad
-    ? `<div style="height:1.5in;background:white;"></div>`
-    : `<div style="background:linear-gradient(135deg,#0369a1 0%,#0ea5e9 55%,#38bdf8 100%);padding:16px 20px;display:flex;align-items:flex-start;justify-content:space-between;border-radius:10px 10px 0 0;">
-         <div>
-           <div style="font-size:16px;font-weight:800;color:white;letter-spacing:-0.02em;">${labInfo.name}</div>
-           ${labInfo.tagline ? `<div style="font-size:10px;color:rgba(255,255,255,0.75);margin-top:3px;">${labInfo.tagline}</div>` : ""}
-           <div style="font-size:9px;color:rgba(255,255,255,0.6);margin-top:5px;">📍 ${labInfo.address}</div>
-         </div>
-         <div style="text-align:right;">
-           <div style="font-size:9px;color:rgba(255,255,255,0.8);">📞 ${labInfo.phone}</div>
-           ${labInfo.email ? `<div style="font-size:9px;color:rgba(255,255,255,0.8);margin-top:2px;">✉ ${labInfo.email}</div>` : ""}
-           ${labInfo.regNo ? `<div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:4px;font-family:monospace;">Registration No.: ${labInfo.regNo}</div>` : ""}
-         </div>
-       </div>`;
+    ? `<div style="height:1.5in;"></div>`
+    : `<table style="width:100%;border-collapse:collapse;border-bottom:2px solid #0f172a;margin-bottom:0;">
+         <tr>
+           <td style="padding:14px 16px;vertical-align:top;">
+             <div style="font-size:17px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">${labInfo.name}</div>
+             ${labInfo.tagline ? `<div style="font-size:9px;color:#64748b;margin-top:3px;letter-spacing:0.04em;text-transform:uppercase;">${labInfo.tagline}</div>` : ""}
+             <div style="font-size:9px;color:#94a3b8;margin-top:5px;">${labInfo.address}</div>
+           </td>
+           <td style="padding:14px 16px;vertical-align:top;text-align:right;">
+             <div style="font-size:9px;color:#475569;font-weight:600;">${labInfo.phone}</div>
+             ${labInfo.email ? `<div style="font-size:9px;color:#475569;margin-top:2px;">${labInfo.email}</div>` : ""}
+             ${labInfo.regNo ? `<div style="font-size:8px;color:#94a3b8;margin-top:4px;font-family:monospace;">Reg: ${labInfo.regNo}</div>` : ""}
+           </td>
+         </tr>
+       </table>`;
 
   const footerBlock = isPad
     ? ""
-    : `<div class="footer-fixed"><table style="width:100%;max-width:680px;margin:0 auto 8px;"><tr><td style="width:45%;padding-right:20px;"><div style="height:30px;border-bottom:1px dashed #cbd5e1;"></div><div style="font-size:9px;color:#94a3b8;margin-top:3px;">Pathologist Signature &amp; Seal</div></td><td style="width:10%;"></td><td style="width:45%;padding-left:20px;"><div style="height:30px;border-bottom:1px dashed #cbd5e1;"></div><div style="font-size:9px;color:#94a3b8;margin-top:3px;text-align:right;">Authorized Signatory</div></td></tr></table><div style="font-size:9px;color:#94a3b8;text-align:center;max-width:680px;margin:0 auto;">For qualified medical professionals only. Interpret results in full clinical context. · ${labInfo.name} · ${labInfo.phone}</div></div>`;
+    : `<div class="print-footer">
+         <table style="width:100%;"><tr>
+           <td style="width:45%;padding-right:20px;"><div style="height:28px;border-bottom:1px solid #cbd5e1;"></div><div style="font-size:8px;color:#94a3b8;margin-top:3px;">Pathologist Signature &amp; Seal</div></td>
+           <td style="width:10%;"></td>
+           <td style="width:45%;padding-left:20px;"><div style="height:28px;border-bottom:1px solid #cbd5e1;"></div><div style="font-size:8px;color:#94a3b8;margin-top:3px;text-align:right;">Authorized Signatory</div></td>
+         </tr></table>
+         <div style="font-size:8px;color:#94a3b8;text-align:center;margin-top:10px;">For qualified medical professionals only. Interpret results in full clinical context. · ${labInfo.name} · ${labInfo.phone}</div>
+       </div>`;
 
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><title>${reportName}</title><style>* { box-sizing:border-box;margin:0;padding:0 } body { font-family:'Segoe UI',Arial,sans-serif;background:white;color:#1e293b;-webkit-print-color-adjust:exact;print-color-adjust:exact } @page { size:A4;margin:14mm } @media print { .footer-fixed { position:fixed;bottom:0;left:0;right:0;padding:10px 20px;background:white;border-top:1px solid #f1f5f9; } }</style></head><body><div style="max-width:680px;margin:0 auto;padding-bottom:${isPad ? "20px" : "90px"};">${topBlock}<div style="background:#e0f2fe;padding:8px 20px;display:flex;align-items:center;justify-content:space-between;border-left:1px solid #bae6fd;border-right:1px solid #bae6fd;border-bottom:1px solid #bae6fd;"><div style="font-size:14px;font-weight:700;color:#0c4a6e;">${reportName}</div>${shortId ? `<div style="font-size:9px;color:#0369a1;font-family:monospace;">Invoice No: ${shortId}</div>` : ""}</div><table style="width:100%;border-collapse:collapse;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;"><tr style="border-bottom:1px solid #e2e8f0;">${mainCells}</tr><tr><td colspan="5" style="padding:5px 12px;background:white;"><span style="font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-right:10px;">Referred By</span><span style="font-size:11px;font-weight:600;color:#1e293b;">${patient.referredBy || "—"}</span></td></tr></table>${total > 0 ? `<div style="background:#f0f9ff;padding:7px 20px;border-left:1px solid #bae6fd;border-right:1px solid #bae6fd;border-bottom:1px solid #bae6fd;font-size:11px;display:flex;gap:6px;"><span style="color:#0369a1;">${total} parameters:</span><span style="font-weight:700;color:#059669;">${normal} Normal</span>${low > 0 ? `<span>·</span><span style="font-weight:700;color:#d97706;">${low} Low</span>` : ""}${high > 0 ? `<span>·</span><span style="font-weight:700;color:#dc2626;">${high} High</span>` : ""}</div>` : ""}<div style="padding:14px 20px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">${sections.map(([name, data], i) => renderSection(name, data, i)).join("")}</div></div>${footerBlock}</body></html>`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><title>${reportName}</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Segoe UI',Arial,sans-serif; background:white; color:#1e293b; -webkit-print-color-adjust:exact; print-color-adjust:exact; font-size:12px; }
+  @page { size:A4; margin:16mm 16mm 22mm 16mm; }
+  @media print {
+    .print-footer { position:fixed; bottom:0; left:0; right:0; padding:10px 16mm; background:white; border-top:1px solid #e2e8f0; }
+    body { padding-bottom:0; }
+  }
+  @media screen {
+    body { padding:20px; max-width:720px; margin:0 auto; }
+    .print-footer { margin-top:30px; padding-top:16px; border-top:1px solid #e2e8f0; }
+  }
+</style>
+</head><body>
+  ${topBlock}
+  <div style="background:#f8fafc;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;border-top:1px solid #e2e8f0;margin-bottom:0;">
+    <div style="font-size:13px;font-weight:700;color:#0f172a;">${reportName}</div>
+    ${shortId ? `<div style="font-size:8.5px;color:#64748b;font-family:monospace;font-weight:600;">Invoice: ${shortId}</div>` : ""}
+  </div>
+  <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-top:none;">
+    <tr style="border-bottom:1px solid #e2e8f0;">${mainCells}</tr>
+    <tr><td colspan="5" style="padding:6px 12px;background:#fafafa;">
+      <span style="font-size:7.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-right:10px;">Referred By</span>
+      <span style="font-size:11px;font-weight:600;color:#1e293b;">${patient.referredBy || "—"}</span>
+    </td></tr>
+  </table>
+  ${
+    total > 0
+      ? `<div style="background:#f8fafc;padding:6px 16px;border:1px solid #e2e8f0;border-top:none;font-size:10.5px;display:flex;gap:8px;align-items:center;">
+    <span style="color:#475569;font-weight:600;">${total} parameters:</span>
+    <span style="font-weight:700;color:#166534;">${normal} Normal</span>
+    ${low > 0 ? `<span style="color:#e2e8f0;">·</span><span style="font-weight:700;color:#92400e;">${low} Low</span>` : ""}
+    ${high > 0 ? `<span style="color:#e2e8f0;">·</span><span style="font-weight:700;color:#991b1b;">${high} High</span>` : ""}
+  </div>`
+      : ""
+  }
+  <div style="margin-top:14px;">
+    ${sections.map(([name, data]) => renderSection(name, data)).join("")}
+  </div>
+  ${footerBlock}
+</body></html>`;
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
@@ -575,17 +616,16 @@ function ReportViewer({
     dlStatus === "loading" ? (
       <Loader2 className="w-3.5 h-3.5 animate-spin" />
     ) : dlStatus === "done" ? (
-      <Check className="w-3.5 h-3.5 text-emerald-400" />
+      <Check className="w-3.5 h-3.5" />
     ) : (
       <Download className="w-3.5 h-3.5" />
     );
   const dlLabel = dlStatus === "loading" ? "Generating…" : dlStatus === "done" ? "Downloaded!" : "Download PDF";
-
   const shIcon =
     shareStatus === "loading" ? (
       <Loader2 className="w-3.5 h-3.5 animate-spin" />
     ) : shareStatus === "copied" || shareStatus === "done" ? (
-      <Check className="w-3.5 h-3.5 text-emerald-500" />
+      <Check className="w-3.5 h-3.5" />
     ) : (
       <Share2 className="w-3.5 h-3.5" />
     );
@@ -600,18 +640,18 @@ function ReportViewer({
 
   return (
     <div className="max-w-2xl mx-auto font-sans">
-      {/* ── Action buttons ── */}
+      {/* Action buttons */}
       <div className="flex items-center justify-end gap-2 mb-3">
         <button
           onClick={handleShare}
           disabled={shareStatus === "loading"}
-          className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:border-slate-400 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:border-slate-400 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {shIcon} {shLabel}
         </button>
         <button
           onClick={handlePrint}
-          className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:border-slate-400 transition-all"
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:border-slate-400 transition-all"
         >
           <Printer className="w-3.5 h-3.5" />
           {isPad ? "Print (Pad)" : "Print (Plain A4)"}
@@ -619,87 +659,65 @@ function ReportViewer({
         <button
           onClick={handleDownload}
           disabled={dlStatus === "loading"}
-          className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white rounded-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-          style={{ background: "linear-gradient(90deg,#0369a1,#0ea5e9)" }}
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {dlIcon} {dlLabel}
         </button>
       </div>
 
-      {/* ── Report card ── */}
-      <div className="bg-white border border-sky-100 rounded-xl overflow-hidden shadow-sm">
-        {/* ── Lab header: sky-blue gradient ── */}
+      {/* Report card */}
+      <div className="bg-white border border-slate-200 overflow-hidden">
+        {/* Lab header — flat, no gradient */}
         {!isPad && (
-          <div
-            className="px-5 py-4 flex items-start justify-between gap-4"
-            style={{ background: "linear-gradient(135deg,#0369a1 0%,#0ea5e9 55%,#38bdf8 100%)" }}
-          >
+          <div className="px-5 py-4 flex items-start justify-between gap-4 border-b-2 border-slate-800 bg-white">
             <div className="flex items-start gap-3">
-              <div
-                className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-                style={{ background: "rgba(255,255,255,0.18)" }}
-              >
+              <div className="w-9 h-9 bg-slate-800 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <FlaskConical className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-sm font-extrabold text-white tracking-tight">{labInfo.name}</p>
+                <p className="text-sm font-extrabold text-slate-900 tracking-tight">{labInfo.name}</p>
                 {labInfo.tagline && (
-                  <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.75)" }}>
-                    {labInfo.tagline}
-                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-widest">{labInfo.tagline}</p>
                 )}
                 <div className="flex items-center gap-1 mt-1.5">
-                  <MapPin className="w-2.5 h-2.5 flex-shrink-0" style={{ color: "rgba(255,255,255,0.55)" }} />
-                  <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.6)" }}>
-                    {labInfo.address}
-                  </p>
+                  <MapPin className="w-2.5 h-2.5 text-slate-400 flex-shrink-0" />
+                  <p className="text-[10px] text-slate-400">{labInfo.address}</p>
                 </div>
               </div>
             </div>
             <div className="text-right flex-shrink-0 space-y-1">
               <div className="flex items-center justify-end gap-1">
-                <Phone className="w-2.5 h-2.5" style={{ color: "rgba(255,255,255,0.55)" }} />
-                <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.8)" }}>
-                  {labInfo.phone}
-                </p>
+                <Phone className="w-2.5 h-2.5 text-slate-400" />
+                <p className="text-[10px] text-slate-500">{labInfo.phone}</p>
               </div>
               {labInfo.email && (
                 <div className="flex items-center justify-end gap-1">
-                  <Mail className="w-2.5 h-2.5" style={{ color: "rgba(255,255,255,0.55)" }} />
-                  <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.8)" }}>
-                    {labInfo.email}
-                  </p>
+                  <Mail className="w-2.5 h-2.5 text-slate-400" />
+                  <p className="text-[10px] text-slate-500">{labInfo.email}</p>
                 </div>
               )}
-              {labInfo.regNo && (
-                <p className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.5)" }}>
-                  Registration No: {labInfo.regNo}
-                </p>
-              )}
+              {labInfo.regNo && <p className="text-[9px] font-mono text-slate-400">Reg: {labInfo.regNo}</p>}
             </div>
           </div>
         )}
 
-        {/* ── Report title bar: sky-tinted ── */}
-        <div
-          className="flex items-center justify-between px-5 py-2.5 border-b border-sky-100"
-          style={{ background: "#e0f2fe" }}
-        >
+        {/* Report title bar */}
+        <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-200 bg-slate-50">
           <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-sky-500 flex-shrink-0" />
-            <h2 className="text-sm font-bold text-sky-900">{resolvedReportName}</h2>
+            <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
+            <h2 className="text-sm font-bold text-slate-800">{resolvedReportName}</h2>
           </div>
-          {shortId && <p className="text-[10px] text-sky-500 font-mono">Invoice No: {shortId}</p>}
+          {shortId && <p className="text-[10px] text-slate-400 font-mono font-semibold">Invoice: {shortId}</p>}
         </div>
 
         <PatientGrid patient={resolvedPatient} />
 
-        {/* ── Summary strip: sky-tinted ── */}
-        <div className="px-5 py-2 border-b border-sky-100" style={{ background: "#f0f9ff" }}>
+        {/* Summary strip */}
+        <div className="px-5 py-2 border-b border-slate-200 bg-slate-50">
           <SummaryStrip sections={sections} />
         </div>
 
-        {/* ── Sections ── */}
+        {/* Sections */}
         <div className="px-5 pt-4 pb-4">
           {sections.map(([sectionName, sectionData]) => (
             <Section
@@ -712,9 +730,9 @@ function ReportViewer({
         </div>
       </div>
 
-      {/* ── Footer signatures ── */}
+      {/* Footer signatures */}
       {!isPad && (
-        <div className="mt-8 pt-6 border-t border-sky-100">
+        <div className="mt-8 pt-6 border-t border-slate-200">
           <div className="grid grid-cols-2 gap-8 mb-5">
             <div>
               <div className="h-10 border-b border-dashed border-slate-300" />
