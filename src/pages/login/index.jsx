@@ -214,10 +214,20 @@ export default function Login() {
   const [showNewPw, setShowNewPw] = useState(false);
   const [otpError, setOtpError] = useState("");
 
+  // Resend timer
+  const [resendTimer, setResendTimer] = useState(0);
+
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 60);
     return () => clearTimeout(t);
   }, []);
+
+  // Tick the resend countdown
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+    const id = setTimeout(() => setResendTimer((t) => t - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendTimer]);
 
   // ── Login ──
   const validateLogin = () => {
@@ -250,10 +260,30 @@ export default function Login() {
         phone: resetPhone,
         labKey: Number(resetLabKey),
       });
+      setResendTimer(60);
       setView("otp");
     } catch (err) {
       const msg = err?.response?.data?.error;
       setResetError(msg || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Resend OTP ──
+  const handleResendOtp = async () => {
+    setOtpError("");
+    setLoading(true);
+    try {
+      await api.post("/forgot-password", {
+        phone: resetPhone,
+        labKey: Number(resetLabKey),
+      });
+      setResendTimer(60);
+      setOtp("");
+    } catch (err) {
+      const msg = err?.response?.data?.error;
+      setOtpError(msg || "Failed to resend OTP.");
     } finally {
       setLoading(false);
     }
@@ -289,6 +319,7 @@ export default function Login() {
     setNewPassword("");
     setResetError("");
     setOtpError("");
+    setResendTimer(0);
   };
 
   const inputBase =
@@ -557,6 +588,27 @@ export default function Login() {
                     {otpError}
                   </div>
                 )}
+
+                {/* ── Resend OTP ── */}
+                <div className="flex items-center justify-center gap-2 text-sm">
+                  {resendTimer > 0 ? (
+                    <span className="text-gray-400">
+                      Resend OTP in{" "}
+                      <span className="font-bold tabular-nums text-blue-500">
+                        {String(Math.floor(resendTimer / 60)).padStart(2, "0")}:
+                        {String(resendTimer % 60).padStart(2, "0")}
+                      </span>
+                    </span>
+                  ) : (
+                    <button
+                      onClick={handleResendOtp}
+                      disabled={loading}
+                      className="text-blue-600 font-semibold hover:underline disabled:opacity-50 transition-opacity"
+                    >
+                      Resend OTP
+                    </button>
+                  )}
+                </div>
 
                 <button
                   onClick={handleResetPassword}
