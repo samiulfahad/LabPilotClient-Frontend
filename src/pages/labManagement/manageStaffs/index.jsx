@@ -71,6 +71,16 @@ const SkeletonStaff = () => (
   </div>
 );
 
+const SectionHeader = ({ title, count, colorClass }) => (
+  <div className="flex items-center gap-3 mb-3">
+    <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{title}</h2>
+    <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${colorClass}`}>
+      {count} {count === 1 ? title.slice(0, -1).toLowerCase() : title.toLowerCase()}
+    </span>
+    <div className="flex-1 h-px bg-gray-200" />
+  </div>
+);
+
 const ManageStaff = () => {
   const [staff, setStaff] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -123,6 +133,9 @@ const ManageStaff = () => {
       return true;
     });
   }, [staff, permissionFilter, statusFilter, searchQuery]);
+
+  const admins = useMemo(() => filteredStaff.filter((s) => s.role === "admin"), [filteredStaff]);
+  const staffMembers = useMemo(() => filteredStaff.filter((s) => s.role === "staff"), [filteredStaff]);
 
   const handleFormChange = (field, value) => setFormData((prev) => ({ ...prev, [field]: value }));
   const handleClose = () => {
@@ -198,6 +211,49 @@ const ManageStaff = () => {
       setLoadingMessage("Processing request");
     }
   };
+
+  const renderStaffCard = (item) => (
+    <Staff
+      key={item._id}
+      input={item}
+      onEdit={() => {
+        setFormData({
+          name: item.name || "",
+          email: item.email || "",
+          phone: item.phone || "",
+          permissions: item.permissions || initialData.permissions,
+          isActive: item.isActive ?? true,
+          type: "editStaff",
+          _id: item._id,
+        });
+        setIsModalOpen(true);
+      }}
+      onDelete={() =>
+        setPopup({
+          type: "warning",
+          message: `Are you sure you want to delete ${item.name}?`,
+          action: "delete",
+          _id: item._id,
+        })
+      }
+      onDeactivate={() =>
+        setPopup({
+          type: "warning",
+          message: `Are you sure you want to deactivate ${item.name}?`,
+          action: "deactivate",
+          _id: item._id,
+        })
+      }
+      onActivate={() =>
+        setPopup({
+          type: "warning",
+          message: `Are you sure you want to activate ${item.name}?`,
+          action: "activate",
+          _id: item._id,
+        })
+      }
+    />
+  );
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
@@ -403,49 +459,44 @@ const ManageStaff = () => {
             )}
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredStaff.map((item) => (
-              <Staff
-                key={item._id}
-                input={item}
-                onEdit={() => {
-                  setFormData({
-                    name: item.name || "",
-                    email: item.email || "",
-                    phone: item.phone || "",
-                    permissions: item.permissions || initialData.permissions,
-                    isActive: item.isActive ?? true,
-                    type: "editStaff",
-                    _id: item._id,
-                  });
-                  setIsModalOpen(true);
-                }}
-                onDelete={() =>
-                  setPopup({
-                    type: "warning",
-                    message: `Are you sure you want to delete ${item.name}?`,
-                    action: "delete",
-                    _id: item._id,
-                  })
-                }
-                onDeactivate={() =>
-                  setPopup({
-                    type: "warning",
-                    message: `Are you sure you want to deactivate ${item.name}?`,
-                    action: "deactivate",
-                    _id: item._id,
-                  })
-                }
-                onActivate={() =>
-                  setPopup({
-                    type: "warning",
-                    message: `Are you sure you want to activate ${item.name}?`,
-                    action: "activate",
-                    _id: item._id,
-                  })
-                }
-              />
-            ))}
+          <div className="space-y-8">
+            {/* Admins Section */}
+            {admins.length > 0 && (
+              <div>
+                <SectionHeader
+                  title="Admins"
+                  count={admins.length}
+                  colorClass="bg-purple-50 text-purple-700 border-purple-200"
+                />
+                <div className="space-y-3">{admins.map(renderStaffCard)}</div>
+              </div>
+            )}
+
+            {/* Staff Section */}
+            {staffMembers.length > 0 && (
+              <div>
+                <SectionHeader
+                  title="Staff"
+                  count={staffMembers.length}
+                  colorClass="bg-indigo-50 text-indigo-700 border-indigo-200"
+                />
+                <div className="space-y-3">{staffMembers.map(renderStaffCard)}</div>
+              </div>
+            )}
+
+            {/* Fallback: entries with no role or unknown role */}
+            {filteredStaff.filter((s) => s.role !== "admin" && s.role !== "staff").length > 0 && (
+              <div>
+                <SectionHeader
+                  title="Others"
+                  count={filteredStaff.filter((s) => s.role !== "admin" && s.role !== "staff").length}
+                  colorClass="bg-gray-100 text-gray-600 border-gray-200"
+                />
+                <div className="space-y-3">
+                  {filteredStaff.filter((s) => s.role !== "admin" && s.role !== "staff").map(renderStaffCard)}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
