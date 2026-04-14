@@ -37,6 +37,7 @@ import {
   LogOut,
   ShieldAlert,
   AlertTriangle,
+  Mail,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import accountService from "../../api/account";
@@ -433,6 +434,98 @@ const PasswordModal = ({ isOpen, onClose, onSuccess }) => {
   );
 };
 
+// ─── Email Modal ──────────────────────────────────────────────────────────────
+
+const EmailModal = ({ isOpen, onClose, onSuccess, currentEmail }) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const reset = () => {
+    setEmail("");
+    setPassword("");
+    setError("");
+  };
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
+
+  const handleSubmit = async () => {
+    setError("");
+    const trimmed = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return setError("Enter a valid email address");
+    if (!password) return setError("Current password is required");
+    try {
+      setLoading(true);
+      await accountService.changeEmail({ email: trimmed, currentPassword: password });
+      reset();
+      onSuccess(currentEmail ? "Email updated successfully!" : "Email added successfully!");
+    } catch (err) {
+      setError(err?.response?.data?.error ?? "Failed to update email");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} size="sm">
+      <div className="p-6">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+            <Mail className="w-5 h-5 text-emerald-600" />
+          </div>
+          <div>
+            <h3 className="text-base font-black text-gray-900">{currentEmail ? "Change Email" : "Add Email"}</h3>
+            <p className="text-xs text-gray-500">Confirm with your current password</p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+              {currentEmail ? "New Email Address" : "Email Address"}
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white"
+              />
+            </div>
+          </div>
+          <PasswordInput
+            label="Current Password"
+            value={password}
+            onChange={setPassword}
+            placeholder="Enter current password"
+          />
+          <ErrorBox msg={error} />
+        </div>
+        <div className="flex gap-3 mt-5">
+          <button
+            onClick={handleClose}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 transition-all flex items-center justify-center gap-2 shadow-sm shadow-emerald-200"
+          >
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {loading ? "Saving…" : currentEmail ? "Update Email" : "Add Email"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 // ─── Session Card ─────────────────────────────────────────────────────────────
 
 const SessionCard = ({ session, onRevoke, revoking }) => {
@@ -512,15 +605,16 @@ const Account = () => {
   const [sessions, setSessions] = useState([]);
   const [loadingAcct, setLoadingAcct] = useState(true);
   const [loadingSess, setLoadingSess] = useState(true);
-  const [revoking, setRevoking] = useState(null); // kept for SessionCard API compat
-  const [logoutAllBusy, setLogoutAllBusy] = useState(false); // button spinner
-  const [loggingOut, setLoggingOut] = useState(false); // full-screen loading
+  const [revoking, setRevoking] = useState(null);
+  const [logoutAllBusy, setLogoutAllBusy] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [popup, setPopup] = useState(null);
   const [showPhone, setShowPhone] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
 
   // ── Confirm modal state ──────────────────────────────────────────────────
-  const [confirmRevoke, setConfirmRevoke] = useState(null); // deviceId to revoke, or null
+  const [confirmRevoke, setConfirmRevoke] = useState(null);
   const [confirmLogoutAll, setConfirmLogoutAll] = useState(false);
 
   useEffect(() => {
@@ -552,7 +646,6 @@ const Account = () => {
     }
   };
 
-  // Called by SessionCard — opens confirm modal instead of acting directly
   const handleRevokeRequest = (deviceId) => setConfirmRevoke(deviceId);
 
   const handleRevokeConfirm = async () => {
@@ -570,7 +663,6 @@ const Account = () => {
     }
   };
 
-  // Called by "Logout All" button — opens confirm modal instead of acting directly
   const handleLogoutAllRequest = () => setConfirmLogoutAll(true);
 
   const handleLogoutAllConfirm = async () => {
@@ -578,7 +670,7 @@ const Account = () => {
     try {
       setLogoutAllBusy(true);
       setLoggingOut(true);
-      await logoutAll(); // ✅ calls POST /logout-all, deletes ALL tokens in DB
+      await logoutAll();
     } finally {
       setLogoutAllBusy(false);
       setLoggingOut(false);
@@ -599,8 +691,6 @@ const Account = () => {
 
   const currentSession = sessions.find((s) => s.isCurrent);
   const otherSessions = sessions.filter((s) => !s.isCurrent);
-
-  // Info about the session being considered for revocation (for modal copy)
   const revokeTarget = sessions.find((s) => s.deviceId === confirmRevoke);
 
   return (
@@ -675,10 +765,15 @@ const Account = () => {
                         <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span className="text-sm font-semibold text-gray-700">{account.phone}</span>
                       </div>
-                      {account.email && (
+                      {account.email ? (
                         <div className="flex items-center gap-2">
-                          <BadgeCheck className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                           <span className="text-sm text-gray-600">{account.email}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                          <span className="text-sm text-gray-400 italic">No email set</span>
                         </div>
                       )}
                     </div>
@@ -754,9 +849,10 @@ const Account = () => {
                 <h3 className="text-sm font-black text-gray-800 flex items-center gap-2">
                   <Edit3 className="w-4 h-4 text-gray-500" /> Account Settings
                 </h3>
-                <p className="text-xs text-gray-400 mt-0.5">Change your phone number or password</p>
+                <p className="text-xs text-gray-400 mt-0.5">Change your contact details or password</p>
               </div>
               <div className="px-4 pb-4 space-y-2">
+                {/* Phone */}
                 <button
                   onClick={() => setShowPhone(true)}
                   className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 transition-all group text-left"
@@ -773,6 +869,26 @@ const Account = () => {
                   <Edit3 className="w-4 h-4 text-gray-300 group-hover:text-blue-400 transition-colors shrink-0" />
                 </button>
 
+                {/* Email */}
+                <button
+                  onClick={() => setShowEmail(true)}
+                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all group text-left"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
+                    <Mail className="w-[18px] h-[18px] text-emerald-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-800 group-hover:text-emerald-700 transition-colors">
+                      {account.email ? "Change Email" : "Add Email"}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">
+                      {account.email ? `Current: ${account.email}` : "No email address set"}
+                    </p>
+                  </div>
+                  <Edit3 className="w-4 h-4 text-gray-300 group-hover:text-emerald-400 transition-colors shrink-0" />
+                </button>
+
+                {/* Password */}
                 <button
                   onClick={() => setShowPassword(true)}
                   className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all group text-left"
@@ -855,6 +971,15 @@ const Account = () => {
         onClose={() => setShowPhone(false)}
         onSuccess={(m) => {
           setShowPhone(false);
+          handleSuccess(m);
+        }}
+      />
+      <EmailModal
+        isOpen={showEmail}
+        onClose={() => setShowEmail(false)}
+        currentEmail={account?.email}
+        onSuccess={(m) => {
+          setShowEmail(false);
           handleSuccess(m);
         }}
       />
