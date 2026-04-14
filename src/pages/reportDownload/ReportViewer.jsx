@@ -186,7 +186,7 @@ function Section({ sectionName, sectionData, showHeader }) {
                 Ref. Range
               </th>
               <th className="px-3 pr-4 py-1.5 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider w-[18%]">
-                Status (1 is base)
+                Status
               </th>
             </tr>
           </thead>
