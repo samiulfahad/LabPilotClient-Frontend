@@ -278,7 +278,7 @@ export function ReportPDFDocument({ report, reportName, shortId, patient, labInf
           <View style={s.headerRight}>
             <Text style={s.headerSmall}>{labInfo.phone}</Text>
             {labInfo.email ? <Text style={s.headerSmall}>{labInfo.email}</Text> : null}
-            {labInfo.regNo ? <Text style={s.headerSmallFaint}>Lab Key: {labInfo.regNo}</Text> : null}
+            {labInfo.regNo ? <Text style={s.headerSmallFaint}>Registration No.: {labInfo.regNo}</Text> : null}
           </View>
         </View>
 

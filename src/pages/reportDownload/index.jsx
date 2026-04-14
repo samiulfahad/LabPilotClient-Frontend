@@ -194,7 +194,7 @@ function buildLabInfo(storeLab) {
     address: [storeLab.contact?.address, storeLab.contact?.district].filter(Boolean).join(", "),
     email: storeLab.contact?.publicEmail ?? "",
     phone: storeLab.contact?.primary ?? "",
-    regNo: storeLab.labKey ? String(storeLab.labKey) : "",
+    regNo: storeLab.registrationNumber ? String(storeLab.registrationNumber) : "",
   };
 }
 
