@@ -4,7 +4,7 @@ import { useAuthStore } from "../store/authStore";
 const local = "http://localhost:3000/v1";
 const cloud = 'https://api.labpilotpro.com/v1'
 const api = axios.create({
-  baseURL: local,
+  baseURL: cloud,
   timeout: 15000,
   withCredentials: true, // ✅ sends cookies cross-origin
 });
