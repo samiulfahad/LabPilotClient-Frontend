@@ -450,7 +450,7 @@ function buildPrintHTML({ reportName, shortId, patient, labInfo, sections, print
          <div style="text-align:right;">
            <div style="font-size:9px;color:rgba(255,255,255,0.8);">📞 ${labInfo.phone}</div>
            ${labInfo.email ? `<div style="font-size:9px;color:rgba(255,255,255,0.8);margin-top:2px;">✉ ${labInfo.email}</div>` : ""}
-           ${labInfo.regNo ? `<div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:4px;font-family:monospace;">Lab Key: ${labInfo.regNo}</div>` : ""}
+           ${labInfo.regNo ? `<div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:4px;font-family:monospace;">Registration No.: ${labInfo.regNo}</div>` : ""}
          </div>
        </div>`;
 
@@ -673,7 +673,7 @@ function ReportViewer({
               )}
               {labInfo.regNo && (
                 <p className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.5)" }}>
-                  Lab Key: {labInfo.regNo}
+                  Registration No: {labInfo.regNo}
                 </p>
               )}
             </div>
