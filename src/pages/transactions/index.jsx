@@ -22,7 +22,7 @@ import { Link } from "react-router-dom";
 import TimeFrame from "../../components/timeFrame";
 import transactionService from "../../api/transaction";
 import Popup from "../../components/popup";
-import { useAuthStore } from "../../store/authStore"; // ✅ import auth store
+import { useAuthStore } from "../../store/authStore";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -251,7 +251,7 @@ const StaffCard = ({ member: m, idx }) => {
             icon={ReceiptText}
           />
           <StatPill
-            label="Received"
+            label="Paid"
             value={`৳${fmt(m.totalPaid)}`}
             bg="bg-emerald-50 border border-emerald-100"
             labelColor="text-emerald-500"
@@ -317,8 +317,8 @@ const StaffCard = ({ member: m, idx }) => {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const Transactions = () => {
-  const user = useAuthStore((state) => state.user); // ✅ get user from store
-  const isStaff = user?.role === "staff"; // ✅ derive role
+  const user = useAuthStore((state) => state.user);
+  const isStaff = user?.role === "staff";
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -381,28 +381,26 @@ const Transactions = () => {
           <TimeFrame onFetchData={handleFetchData} />
         </div>
 
-        {/* ── Summary Banner ──────────────────────────────────────────────── */}
-        {!loading && (
+        {/* ── Summary Banner — admin only ──────────────────────────────────── */}
+        {!loading && !isStaff && (
           <div
             className="grid grid-cols-2 gap-3 mb-5"
             style={{ animation: "cardIn 0.4s cubic-bezier(.22,1,.36,1) both" }}
           >
-            {/* ✅ Hero card — hidden for staff role */}
-            {!isStaff && (
-              <div className="col-span-2 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl px-4 py-4 shadow-lg shadow-indigo-200/40 flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <BadgeDollarSign className="w-3.5 h-3.5 text-indigo-200" />
-                    <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">Total Collected</p>
-                  </div>
-                  <p className="text-3xl font-black text-white">৳{fmt(d.totals.totalCollected)}</p>
+            {/* Total collected — hero card */}
+            <div className="col-span-2 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl px-4 py-4 shadow-lg shadow-indigo-200/40 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <BadgeDollarSign className="w-3.5 h-3.5 text-indigo-200" />
+                  <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">Total Collected</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-1">Staff Active</p>
-                  <p className="text-3xl font-black text-white">{d.staff.length}</p>
-                </div>
+                <p className="text-3xl font-black text-white">৳{fmt(d.totals.totalCollected)}</p>
               </div>
-            )}
+              <div className="text-right">
+                <p className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-1">Staff Active</p>
+                <p className="text-3xl font-black text-white">{d.staff.length}</p>
+              </div>
+            </div>
 
             {/* Total billed */}
             <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3.5 shadow-sm">
@@ -414,7 +412,7 @@ const Transactions = () => {
               <p className="text-[10px] font-bold text-gray-400 mt-1">৳{fmt(d.totals.totalFinal)} billed</p>
             </div>
 
-            {/* Due */}
+            {/* Outstanding Due */}
             <div
               className={`rounded-2xl px-4 py-3.5 shadow-sm border ${d.totals.totalDue > 0 ? "bg-rose-50 border-rose-100" : "bg-white border-gray-100"}`}
             >
