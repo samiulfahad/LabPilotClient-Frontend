@@ -251,7 +251,7 @@ const StaffCard = ({ member: m, idx }) => {
             icon={ReceiptText}
           />
           <StatPill
-            label="Received"
+            label="Paid"
             value={`৳${fmt(m.totalPaid)}`}
             bg="bg-emerald-50 border border-emerald-100"
             labelColor="text-emerald-500"
