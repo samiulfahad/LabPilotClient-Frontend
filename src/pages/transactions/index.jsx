@@ -20,8 +20,9 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../components/timeFrame";
-import transactionService from "../../api/transaction"; // create this like commissionService
+import transactionService from "../../api/transaction";
 import Popup from "../../components/popup";
+import { useAuthStore } from "../../store/authStore"; // ✅ import auth store
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -316,6 +317,9 @@ const StaffCard = ({ member: m, idx }) => {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const Transactions = () => {
+  const user = useAuthStore((state) => state.user); // ✅ get user from store
+  const isStaff = user?.role === "staff"; // ✅ derive role
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
@@ -383,20 +387,22 @@ const Transactions = () => {
             className="grid grid-cols-2 gap-3 mb-5"
             style={{ animation: "cardIn 0.4s cubic-bezier(.22,1,.36,1) both" }}
           >
-            {/* Total collected — hero card */}
-            <div className="col-span-2 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl px-4 py-4 shadow-lg shadow-indigo-200/40 flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <BadgeDollarSign className="w-3.5 h-3.5 text-indigo-200" />
-                  <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">Total Collected</p>
+            {/* ✅ Hero card — hidden for staff role */}
+            {!isStaff && (
+              <div className="col-span-2 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl px-4 py-4 shadow-lg shadow-indigo-200/40 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <BadgeDollarSign className="w-3.5 h-3.5 text-indigo-200" />
+                    <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">Total Collected</p>
+                  </div>
+                  <p className="text-3xl font-black text-white">৳{fmt(d.totals.totalCollected)}</p>
                 </div>
-                <p className="text-3xl font-black text-white">৳{fmt(d.totals.totalCollected)}</p>
+                <div className="text-right">
+                  <p className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-1">Staff Active</p>
+                  <p className="text-3xl font-black text-white">{d.staff.length}</p>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-1">Staff Active</p>
-                <p className="text-3xl font-black text-white">{d.staff.length}</p>
-              </div>
-            </div>
+            )}
 
             {/* Total billed */}
             <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3.5 shadow-sm">
