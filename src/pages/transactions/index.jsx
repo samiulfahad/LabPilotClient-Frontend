@@ -227,7 +227,7 @@ const StaffCard = ({ member: m, idx }) => {
 
           {/* Big collected figure */}
           <div className="text-right shrink-0">
-            <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest leading-none">Collected</p>
+            <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest leading-none">Counter Balance</p>
             <p className="text-xl font-black text-indigo-700 leading-tight mt-0.5">৳{fmt(m.totalCollected)}</p>
           </div>
         </div>
