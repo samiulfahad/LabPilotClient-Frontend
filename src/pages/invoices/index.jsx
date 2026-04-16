@@ -89,7 +89,7 @@ const STAT_STYLES = {
 
 // ─── Invoice Details Modal ────────────────────────────────────────────────────
 
-const InvoiceDetailsModal = ({
+export const InvoiceDetailsModal = ({
   invoiceId,
   isOpen,
   onClose,
@@ -396,7 +396,7 @@ const InvoiceDetailsModal = ({
 
 // ─── Edit Patient Modal ───────────────────────────────────────────────────────
 
-const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingChange, onError }) => {
+export const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingChange, onError }) => {
   const [form, setForm] = useState({ name: "", gender: "", age: "", contactNumber: "" });
 
   useEffect(() => {

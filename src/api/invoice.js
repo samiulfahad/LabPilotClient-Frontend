@@ -25,6 +25,8 @@ const invoiceService = {
     if (endDate) params.append("endDate", endDate);
     return api.get(`/invoice/deleted?${params}`);
   },
+
+  searchInvoices: (query) => api.get(`/invoice/search?q=${encodeURIComponent(query)}`),
 };
 
 export default invoiceService;

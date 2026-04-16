@@ -21,6 +21,7 @@ import Commission from "./pages/commission";
 import Help from "./pages/help";
 import Transactions from "./pages/transactions";
 import Account from "./pages/account";
+import SearchInvoice from "./pages/search";
 
 // ─── Route Wrapper for Protected Pages ──────────────────────────────────────
 const ProtectedRoutes = () => {
@@ -54,6 +55,7 @@ function App() {
       <Route element={<ProtectedRoutes />}>
         <Route path="/" element={<Home />} />
         <Route path="/cashmemo" element={<CashMemo />} />
+        <Route path="/search-invoice" element={<SearchInvoice />} />
         <Route path="/commission" element={<Commission />} />
         <Route path="/invoice/new" element={<CreateInvoice />} />
         <Route path="/invoice/print/:invoiceId" element={<PrintInvoice />} />
