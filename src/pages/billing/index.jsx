@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Loader2,
 } from "lucide-react";
+import billingService from "../../api/billing";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -40,18 +41,6 @@ const fmtMonth = (ts) => {
     month: "long",
   });
 };
-
-// ─── API calls ───────────────────────────────────────────────────────────────
-
-const apiFetch = (url, opts = {}) =>
-  fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    ...opts,
-  }).then((r) => {
-    if (!r.ok) return r.json().then((e) => Promise.reject(e));
-    return r.json();
-  });
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
@@ -196,7 +185,7 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
     setPaying(true);
     setPayError(null);
     try {
-      await apiFetch(`/billing/pay/${bill.id}`, { method: "POST" });
+      await billingService.pay(bill.id);
       onPaySuccess();
     } catch (e) {
       setPayError(e?.error || "Payment failed. Please try again.");
@@ -469,7 +458,7 @@ const Billing = () => {
   const loadStatus = useCallback(async () => {
     setError(null);
     try {
-      const data = await apiFetch("/billing/status");
+      const data = await billingService.getStatus();
       setStatus(data);
     } catch {
       setError("Failed to load billing status.");
@@ -481,7 +470,7 @@ const Billing = () => {
   const loadHistory = useCallback(async () => {
     setHistLoading(true);
     try {
-      const data = await apiFetch("/billing/history");
+      const data = await billingService.getHistory();
       setHistory(data.bills ?? []);
     } catch {
       // history failing is non-fatal
