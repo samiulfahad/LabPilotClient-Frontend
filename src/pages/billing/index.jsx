@@ -2,155 +2,118 @@ import { useState, useEffect, useCallback } from "react";
 import {
   CreditCard,
   Clock,
-  CheckCircle2,
   AlertTriangle,
-  AlertCircle,
+  CheckCircle2,
   RefreshCw,
-  ChevronDown,
-  ChevronUp,
-  Receipt,
-  Calendar,
   FileText,
   TrendingUp,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
   Loader2,
 } from "lucide-react";
 import billingService from "../../api/billing";
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
 
-const fmt = (n) =>
-  new Intl.NumberFormat("en-BD", {
-    style: "currency",
-    currency: "BDT",
-    minimumFractionDigits: 2,
-  }).format(n ?? 0);
+const fmt = {
+  currency: (amount) =>
+    new Intl.NumberFormat("en-BD", {
+      style: "currency",
+      currency: "BDT",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount ?? 0),
 
-const fmtDate = (ts) => {
-  if (!ts) return "—";
-  return new Date(ts).toLocaleDateString("en-BD", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  date: (ts) =>
+    ts
+      ? new Date(ts).toLocaleDateString("en-BD", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
+      : "—",
+
+  period: (ts) =>
+    ts
+      ? new Date(ts).toLocaleDateString("en-BD", {
+          year: "numeric",
+          month: "long",
+        })
+      : "—",
+
+  datetime: (ts) =>
+    ts
+      ? new Date(ts).toLocaleString("en-BD", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "—",
 };
 
-const fmtMonth = (ts) => {
-  if (!ts) return "—";
-  return new Date(ts).toLocaleDateString("en-BD", {
-    year: "numeric",
-    month: "long",
-  });
-};
-
-// ─── Status Badge ─────────────────────────────────────────────────────────────
+// ─── Status Badge ────────────────────────────────────────────────────────────
 
 const StatusBadge = ({ status, isOverdue }) => {
   if (status === "paid")
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-        <CheckCircle2 className="w-3 h-3" /> Paid
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+        <CheckCircle2 className="w-3 h-3" />
+        Paid
       </span>
     );
   if (isOverdue)
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-        <AlertTriangle className="w-3 h-3" /> Overdue
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+        <AlertTriangle className="w-3 h-3" />
+        Overdue
       </span>
     );
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-      <Clock className="w-3 h-3" /> Unpaid
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+      <Clock className="w-3 h-3" />
+      Unpaid
     </span>
   );
 };
 
-// ─── Breakdown Table ──────────────────────────────────────────────────────────
+// ─── Breakdown Accordion ─────────────────────────────────────────────────────
 
-const BreakdownTable = ({ breakdown, invoiceCount, totalAmount }) => {
-  if (!breakdown || !Object.keys(breakdown).length) return null;
+const BreakdownAccordion = ({ breakdown }) => {
+  const [open, setOpen] = useState(false);
+  if (!breakdown || Object.keys(breakdown).length === 0) return null;
 
-  const { monthlyFee = 0, perInvoiceFee = 0, commission = 0, perInvoiceNet = 0 } = breakdown;
-  const count = invoiceCount ?? 0;
-
-  const invoiceGross = perInvoiceFee * count;
-  const commissionTotal = commission * count;
-  const invoiceNet = perInvoiceNet * count;
+  const rows = [
+    { label: "Monthly fee", value: breakdown.monthlyFee },
+    { label: "Per-invoice fees", value: breakdown.perInvoiceFees },
+    { label: "Commission deductions", value: breakdown.commissionDeductions },
+    { label: "Other charges", value: breakdown.otherCharges },
+  ].filter((r) => r.value != null && r.value !== 0);
 
   return (
-    <div className="mt-3 rounded-xl border border-gray-200 overflow-hidden text-sm">
-      {/* ── Section header ── */}
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-2.5 flex items-center justify-between">
-        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Charge Breakdown</span>
-        <span className="text-xs text-gray-400">
-          {count} invoice{count !== 1 ? "s" : ""} this month
+    <div className="mt-3 border border-gray-200/80 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-blue-500" />
+          View charge breakdown
         </span>
-      </div>
+        {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+      </button>
 
-      {/* ── Per-invoice calculation ── */}
-      <div className="bg-white px-4 py-3 border-b border-gray-100">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">Per Invoice Charges</p>
-
-        {/* Invoice fee row */}
-        <div className="flex items-center justify-between py-1.5">
-          <div className="flex items-center gap-2 text-gray-700">
-            <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
-            Invoice fee
-            <span className="text-xs text-gray-400 bg-gray-100 rounded-md px-1.5 py-0.5 font-mono">
-              ৳{perInvoiceFee} × {count}
-            </span>
-          </div>
-          <span className="font-semibold text-gray-900">৳{invoiceGross.toLocaleString()}</span>
+      {open && (
+        <div className="border-t border-gray-200/80 divide-y divide-gray-100">
+          {rows.map((r) => (
+            <div key={r.label} className="flex justify-between px-4 py-2.5 text-sm">
+              <span className="text-gray-500">{r.label}</span>
+              <span className="font-medium text-gray-800">{fmt.currency(r.value)}</span>
+            </div>
+          ))}
         </div>
-
-        {/* Commission deduction row */}
-        <div className="flex items-center justify-between py-1.5">
-          <div className="flex items-center gap-2 text-red-600">
-            <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
-            Commission deducted
-            <span className="text-xs text-red-400 bg-red-50 rounded-md px-1.5 py-0.5 font-mono">
-              ৳{commission} × {count}
-            </span>
-          </div>
-          <span className="font-semibold text-red-600">− ৳{commissionTotal.toLocaleString()}</span>
-        </div>
-
-        {/* Net invoice charge */}
-        <div className="mt-2 pt-2 border-t border-dashed border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-gray-600">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
-            Net invoice charge
-            <span className="text-xs text-gray-400 bg-gray-100 rounded-md px-1.5 py-0.5 font-mono">
-              ৳{perInvoiceNet} × {count}
-            </span>
-          </div>
-          <span className="font-semibold text-emerald-700">৳{invoiceNet.toLocaleString()}</span>
-        </div>
-      </div>
-
-      {/* ── Monthly fee ── */}
-      <div className="bg-white px-4 py-3 border-b border-gray-100">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">Monthly Fixed Fee</p>
-        <div className="flex items-center justify-between py-1.5">
-          <div className="flex items-center gap-2 text-gray-700">
-            <span className="w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0" />
-            Subscription fee
-          </div>
-          <span className="font-semibold text-gray-900">৳{monthlyFee.toLocaleString()}</span>
-        </div>
-      </div>
-
-      {/* ── Total ── */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</p>
-          <p className="text-[10px] text-gray-400 mt-0.5">
-            Monthly fee ৳{monthlyFee.toLocaleString()} + Net invoices ৳{invoiceNet.toLocaleString()}
-          </p>
-        </div>
-        <span className="text-lg font-bold text-blue-700">
-          ৳{(totalAmount ?? monthlyFee + invoiceNet).toLocaleString()}
-        </span>
-      </div>
+      )}
     </div>
   );
 };
@@ -159,20 +122,17 @@ const BreakdownTable = ({ breakdown, invoiceCount, totalAmount }) => {
 
 const CurrentBillCard = ({ status, onPaySuccess }) => {
   const [paying, setPaying] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [payError, setPayError] = useState(null);
+  const [error, setError] = useState(null);
 
-  if (!status) return null;
-
-  if (!status.hasUnpaidBill) {
+  if (!status?.hasUnpaidBill) {
     return (
-      <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-6 flex items-center gap-4">
-        <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-          <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+      <div className="bg-green-50 border border-green-200 rounded-2xl p-6 flex items-start gap-4">
+        <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0 border border-green-200">
+          <CheckCircle2 className="w-6 h-6 text-green-600" />
         </div>
         <div>
-          <p className="font-semibold text-emerald-900">All Clear!</p>
-          <p className="text-sm text-emerald-700 mt-0.5">No outstanding bills. You're fully up to date.</p>
+          <h3 className="text-base font-semibold text-green-800">No outstanding balance</h3>
+          <p className="text-sm text-green-700 mt-1">Your account is up to date. All bills have been paid.</p>
         </div>
       </div>
     );
@@ -181,14 +141,13 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
   const { bill, isOverdue } = status;
 
   const handlePay = async () => {
-    if (!window.confirm("Mark this bill as paid?")) return;
     setPaying(true);
-    setPayError(null);
+    setError(null);
     try {
       await billingService.pay(bill.id);
       onPaySuccess();
-    } catch (e) {
-      setPayError(e?.error || "Payment failed. Please try again.");
+    } catch (err) {
+      setError(err?.response?.data?.error || "Payment failed. Please try again.");
     } finally {
       setPaying(false);
     }
@@ -197,101 +156,87 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
   return (
     <div
       className={`rounded-2xl border p-6 ${
-        isOverdue
-          ? "border-red-200 bg-gradient-to-br from-red-50 to-rose-50"
-          : "border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50"
+        isOverdue ? "bg-red-50/60 border-red-200" : "bg-amber-50/60 border-amber-200"
       }`}
     >
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-4 mb-5">
+        <div className="flex items-start gap-3">
           <div
-            className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-              isOverdue ? "bg-red-100" : "bg-amber-100"
+            className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 border ${
+              isOverdue ? "bg-red-100 border-red-200" : "bg-amber-100 border-amber-200"
             }`}
           >
             {isOverdue ? (
               <AlertTriangle className="w-6 h-6 text-red-600" />
             ) : (
-              <AlertCircle className="w-6 h-6 text-amber-600" />
+              <Clock className="w-6 h-6 text-amber-600" />
             )}
           </div>
           <div>
-            <p className={`font-bold text-lg ${isOverdue ? "text-red-900" : "text-amber-900"}`}>
-              {isOverdue ? "Overdue Bill" : "Pending Bill"}
-            </p>
-            <p className={`text-sm mt-0.5 ${isOverdue ? "text-red-700" : "text-amber-700"}`}>
-              {fmtMonth(bill.billingPeriod)}
+            <h3 className={`text-base font-semibold ${isOverdue ? "text-red-800" : "text-amber-800"}`}>
+              {isOverdue ? "Payment Overdue" : "Payment Due"}
+            </h3>
+            <p className={`text-sm mt-0.5 ${isOverdue ? "text-red-600" : "text-amber-600"}`}>
+              Billing period: {fmt.period(bill.billingPeriod)}
             </p>
           </div>
         </div>
         <StatusBadge status="unpaid" isOverdue={isOverdue} />
       </div>
 
-      {/* Amounts */}
-      <div className="mt-5 flex flex-wrap gap-6">
-        <div>
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Due</p>
-          <p className={`text-3xl font-bold mt-1 ${isOverdue ? "text-red-700" : "text-amber-700"}`}>
-            {fmt(bill.amount)}
+      {/* Amount + Meta */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+        <div className="bg-white/70 rounded-xl border border-white/80 px-4 py-3">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Amount Due</p>
+          <p className="text-xl font-bold text-gray-900">{fmt.currency(bill.amount)}</p>
+        </div>
+        <div className="bg-white/70 rounded-xl border border-white/80 px-4 py-3">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Due Date</p>
+          <p className={`text-sm font-semibold ${isOverdue ? "text-red-700" : "text-gray-800"}`}>
+            {fmt.date(bill.dueDate)}
           </p>
         </div>
-        <div>
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Due Date</p>
-          <p className="text-base font-semibold text-gray-800 mt-1">{fmtDate(bill.dueDate)}</p>
-        </div>
-        <div>
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Invoices</p>
-          <p className="text-base font-semibold text-gray-800 mt-1">{bill.invoiceCount ?? "—"}</p>
+        <div className="bg-white/70 rounded-xl border border-white/80 px-4 py-3">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Invoices</p>
+          <p className="text-sm font-semibold text-gray-800">{bill.invoiceCount ?? 0} invoices</p>
         </div>
       </div>
 
-      {/* Breakdown toggle */}
-      {bill.breakdown && Object.keys(bill.breakdown).length > 0 && (
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          {expanded ? "Hide" : "Show"} Breakdown
-        </button>
-      )}
-      {expanded && (
-        <BreakdownTable breakdown={bill.breakdown} invoiceCount={bill.invoiceCount} totalAmount={bill.amount} />
-      )}
+      {/* Breakdown */}
+      <BreakdownAccordion breakdown={bill.breakdown} />
 
-      {/* Pay error */}
-      {payError && (
-        <div className="mt-3 flex items-center gap-2 text-sm text-red-700 bg-red-100 border border-red-200 rounded-xl px-4 py-2.5">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          {payError}
+      {/* Error */}
+      {error && (
+        <div className="mt-3 flex items-center gap-2 text-sm text-red-700 bg-red-100 border border-red-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
         </div>
       )}
 
-      {/* Pay button */}
-      <div className="mt-5">
-        <button
-          onClick={handlePay}
-          disabled={paying}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200 transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {paying ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Processing…
-            </>
-          ) : (
-            <>
-              <CreditCard className="w-4 h-4" /> Mark as Paid
-            </>
-          )}
-        </button>
-        <p className="text-xs text-gray-400 mt-2">Payment gateway integration coming soon.</p>
-      </div>
+      {/* Pay Button */}
+      <button
+        onClick={handlePay}
+        disabled={paying}
+        className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all active:scale-[0.98] shadow-lg shadow-blue-200"
+      >
+        {paying ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Processing...
+          </>
+        ) : (
+          <>
+            <CreditCard className="w-4 h-4" />
+            Mark as Paid — {fmt.currency(bill.amount)}
+          </>
+        )}
+      </button>
     </div>
   );
 };
 
-// ─── Desktop History Row ──────────────────────────────────────────────────────
+// ─── History Row ─────────────────────────────────────────────────────────────
 
 const HistoryRow = ({ bill }) => {
   const [expanded, setExpanded] = useState(false);
@@ -299,150 +244,94 @@ const HistoryRow = ({ bill }) => {
 
   return (
     <>
-      <tr className="border-b border-gray-100 hover:bg-gray-50/60 transition-colors">
-        <td className="px-5 py-4">
-          <div className="font-medium text-gray-900 text-sm">{fmtMonth(bill.billingPeriodStart)}</div>
-          <div className="text-xs text-gray-400 mt-0.5">
-            {fmtDate(bill.billingPeriodStart)} — {fmtDate(bill.billingPeriodEnd)}
+      <tr className="hover:bg-gray-50/80 transition-colors cursor-pointer" onClick={() => setExpanded((v) => !v)}>
+        <td className="px-4 py-3.5 text-sm text-gray-700 whitespace-nowrap">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+            {fmt.period(bill.billingPeriodStart)}
           </div>
         </td>
-        <td className="px-5 py-4 text-sm font-semibold text-gray-900">{fmt(bill.totalAmount)}</td>
-        <td className="px-5 py-4">
+        <td className="px-4 py-3.5 text-sm font-semibold text-gray-900 whitespace-nowrap">
+          {fmt.currency(bill.totalAmount)}
+        </td>
+        <td className="px-4 py-3.5 whitespace-nowrap">
           <StatusBadge status={bill.status} isOverdue={isOverdue} />
         </td>
-        <td className="px-5 py-4 text-sm text-gray-600">{fmtDate(bill.dueDate)}</td>
-        <td className="px-5 py-4 text-sm text-gray-600">
-          {bill.status === "paid" ? (
-            <div>
-              <div>{fmtDate(bill.paidAt)}</div>
-              {bill.paidBy?.name && <div className="text-xs text-gray-400 mt-0.5">by {bill.paidBy.name}</div>}
-            </div>
-          ) : (
-            "—"
-          )}
+        <td className="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap hidden sm:table-cell">
+          {fmt.date(bill.dueDate)}
         </td>
-        <td className="px-5 py-4 text-center text-sm text-gray-500">{bill.invoiceCount ?? "—"}</td>
-        <td className="px-5 py-4">
-          {bill.breakdown && Object.keys(bill.breakdown).length > 0 && (
-            <button
-              onClick={() => setExpanded((v) => !v)}
-              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
-            >
-              {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              Details
-            </button>
+        <td className="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap hidden md:table-cell">
+          {bill.invoiceCount ?? 0}
+        </td>
+        <td className="px-4 py-3.5 text-center">
+          {expanded ? (
+            <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-gray-400 mx-auto" />
           )}
         </td>
       </tr>
+
       {expanded && (
-        <tr className="bg-gray-50/80 border-b border-gray-100">
-          <td colSpan={7} className="px-5 py-3">
-            <BreakdownTable
-              breakdown={bill.breakdown}
-              invoiceCount={bill.invoiceCount}
-              totalAmount={bill.totalAmount}
-            />
+        <tr className="bg-gray-50/60">
+          <td colSpan={6} className="px-4 pb-4 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              {bill.breakdown && Object.keys(bill.breakdown).length > 0 && (
+                <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden">
+                  <p className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
+                    Charge breakdown
+                  </p>
+                  {[
+                    { label: "Monthly fee", value: bill.breakdown.monthlyFee },
+                    { label: "Per-invoice fees", value: bill.breakdown.perInvoiceFees },
+                    { label: "Commission deductions", value: bill.breakdown.commissionDeductions },
+                    { label: "Other charges", value: bill.breakdown.otherCharges },
+                  ]
+                    .filter((r) => r.value != null && r.value !== 0)
+                    .map((r) => (
+                      <div
+                        key={r.label}
+                        className="flex justify-between px-4 py-2 border-b border-gray-50 last:border-b-0"
+                      >
+                        <span className="text-gray-500">{r.label}</span>
+                        <span className="font-medium text-gray-800">{fmt.currency(r.value)}</span>
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden">
+                <p className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
+                  Details
+                </p>
+                <div className="divide-y divide-gray-50">
+                  <div className="flex justify-between px-4 py-2">
+                    <span className="text-gray-500">Period</span>
+                    <span className="font-medium text-gray-800">
+                      {fmt.date(bill.billingPeriodStart)} – {fmt.date(bill.billingPeriodEnd)}
+                    </span>
+                  </div>
+                  {bill.status === "paid" && (
+                    <>
+                      <div className="flex justify-between px-4 py-2">
+                        <span className="text-gray-500">Paid at</span>
+                        <span className="font-medium text-gray-800">{fmt.datetime(bill.paidAt)}</span>
+                      </div>
+                      {bill.paidBy?.name && (
+                        <div className="flex justify-between px-4 py-2">
+                          <span className="text-gray-500">Paid by</span>
+                          <span className="font-medium text-gray-800">{bill.paidBy.name}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
           </td>
         </tr>
       )}
     </>
-  );
-};
-
-// ─── Mobile History Card ──────────────────────────────────────────────────────
-
-const HistoryCard = ({ bill }) => {
-  const [expanded, setExpanded] = useState(false);
-  const isOverdue = bill.status === "unpaid" && Date.now() > bill.dueDate;
-
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="font-semibold text-gray-900 text-sm">{fmtMonth(bill.billingPeriodStart)}</p>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {fmtDate(bill.billingPeriodStart)} — {fmtDate(bill.billingPeriodEnd)}
-          </p>
-        </div>
-        <StatusBadge status={bill.status} isOverdue={isOverdue} />
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <div>
-          <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Amount</p>
-          <p className="text-sm font-bold text-gray-900 mt-0.5">{fmt(bill.totalAmount)}</p>
-        </div>
-        <div>
-          <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Due Date</p>
-          <p className="text-sm text-gray-700 mt-0.5">{fmtDate(bill.dueDate)}</p>
-        </div>
-        <div>
-          <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Invoices</p>
-          <p className="text-sm text-gray-700 mt-0.5">{bill.invoiceCount ?? "—"}</p>
-        </div>
-        {bill.status === "paid" && (
-          <div>
-            <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Paid On</p>
-            <p className="text-sm text-gray-700 mt-0.5">{fmtDate(bill.paidAt)}</p>
-          </div>
-        )}
-      </div>
-
-      {bill.breakdown && Object.keys(bill.breakdown).length > 0 && (
-        <>
-          <button
-            onClick={() => setExpanded((v) => !v)}
-            className="mt-3 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
-          >
-            {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            {expanded ? "Hide" : "Show"} Breakdown
-          </button>
-          {expanded && (
-            <BreakdownTable
-              breakdown={bill.breakdown}
-              invoiceCount={bill.invoiceCount}
-              totalAmount={bill.totalAmount}
-            />
-          )}
-        </>
-      )}
-    </div>
-  );
-};
-
-// ─── Stats Strip ──────────────────────────────────────────────────────────────
-
-const StatsStrip = ({ bills }) => {
-  const paid = bills.filter((b) => b.status === "paid");
-  const totalPaid = paid.reduce((s, b) => s + (b.totalAmount ?? 0), 0);
-  const unpaidCount = bills.filter((b) => b.status === "unpaid").length;
-
-  const stats = [
-    { label: "Total Bills", value: bills.length, icon: FileText, color: "blue" },
-    { label: "Paid", value: paid.length, icon: CheckCircle2, color: "emerald" },
-    { label: "Unpaid", value: unpaidCount, icon: Clock, color: "amber" },
-    { label: "Total Paid", value: fmt(totalPaid), icon: TrendingUp, color: "indigo" },
-  ];
-
-  const colorMap = {
-    blue: "bg-blue-50 text-blue-600",
-    emerald: "bg-emerald-50 text-emerald-600",
-    amber: "bg-amber-50 text-amber-600",
-    indigo: "bg-indigo-50 text-indigo-600",
-  };
-
-  return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {stats.map(({ label, value, icon: Icon, color }) => (
-        <div key={label} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${colorMap[color]}`}>
-            <Icon className="w-5 h-5" />
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-          <p className="text-xs text-gray-500 font-medium mt-1">{label}</p>
-        </div>
-      ))}
-    </div>
   );
 };
 
@@ -451,157 +340,182 @@ const StatsStrip = ({ bills }) => {
 const Billing = () => {
   const [status, setStatus] = useState(null);
   const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [histLoading, setHistLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loadingStatus, setLoadingStatus] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [statusError, setStatusError] = useState(null);
+  const [historyError, setHistoryError] = useState(null);
 
-  const loadStatus = useCallback(async () => {
-    setError(null);
+  const fetchStatus = useCallback(async () => {
+    setLoadingStatus(true);
+    setStatusError(null);
     try {
-      const data = await billingService.getStatus();
-      setStatus(data);
+      const res = await billingService.getStatus();
+      setStatus(res.data);
     } catch {
-      setError("Failed to load billing status.");
+      setStatusError("Failed to load billing status.");
     } finally {
-      setLoading(false);
+      setLoadingStatus(false);
     }
   }, []);
 
-  const loadHistory = useCallback(async () => {
-    setHistLoading(true);
+  const fetchHistory = useCallback(async () => {
+    setLoadingHistory(true);
+    setHistoryError(null);
     try {
-      const data = await billingService.getHistory();
-      setHistory(data.bills ?? []);
+      const res = await billingService.getHistory();
+      setHistory(res.data.bills ?? []);
     } catch {
-      // history failing is non-fatal
+      setHistoryError("Failed to load billing history.");
     } finally {
-      setHistLoading(false);
+      setLoadingHistory(false);
     }
   }, []);
 
   useEffect(() => {
-    loadStatus();
-    loadHistory();
-  }, [loadStatus, loadHistory]);
+    fetchStatus();
+    fetchHistory();
+  }, [fetchStatus, fetchHistory]);
 
   const handlePaySuccess = () => {
-    setLoading(true);
-    loadStatus();
-    loadHistory();
+    fetchStatus();
+    fetchHistory();
   };
 
-  const handleRefresh = () => {
-    setLoading(true);
-    loadStatus();
-    loadHistory();
-  };
+  // ── Summary stats from history ────────────────────────────────────────────
+  const totalPaid = history.filter((b) => b.status === "paid").reduce((s, b) => s + (b.totalAmount ?? 0), 0);
+
+  const totalUnpaid = history.filter((b) => b.status === "unpaid").reduce((s, b) => s + (b.totalAmount ?? 0), 0);
+
+  const paidCount = history.filter((b) => b.status === "paid").length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-indigo-50/30">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* ── Page Header ─────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-500/20">
-                <Receipt className="w-5 h-5 text-white" />
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">Billing</h1>
-            </div>
-            <p className="text-sm text-gray-500 ml-[52px]">Manage your lab's monthly bills and payment history</p>
-          </div>
-          <button
-            onClick={handleRefresh}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 shadow-sm transition-all"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading || histLoading ? "animate-spin" : ""}`} />
-            Refresh
-          </button>
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
+      {/* ── Page Header ──────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 leading-tight">Billing</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Manage your subscription payments and view billing history</p>
         </div>
+        <button
+          onClick={() => {
+            fetchStatus();
+            fetchHistory();
+          }}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl border border-gray-200/80 transition-all"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+          Refresh
+        </button>
+      </div>
 
-        {/* ── Error ───────────────────────────────────────────────── */}
-        {error && (
-          <div className="mb-6 flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl px-5 py-4 text-sm">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            {error}
+      {/* ── Summary Stats ────────────────────────────────────────────────── */}
+      {!loadingHistory && history.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+          <div className="bg-gray-50 border border-gray-200/80 rounded-xl px-4 py-3">
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Paid</p>
+            <p className="text-lg font-bold text-green-700">{fmt.currency(totalPaid)}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{paidCount} bills settled</p>
+          </div>
+          <div className="bg-gray-50 border border-gray-200/80 rounded-xl px-4 py-3">
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Outstanding</p>
+            <p className={`text-lg font-bold ${totalUnpaid > 0 ? "text-red-600" : "text-gray-800"}`}>
+              {fmt.currency(totalUnpaid)}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">{history.filter((b) => b.status === "unpaid").length} unpaid</p>
+          </div>
+          <div className="bg-gray-50 border border-gray-200/80 rounded-xl px-4 py-3 col-span-2 sm:col-span-1">
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">History</p>
+            <p className="text-lg font-bold text-gray-800">{history.length}</p>
+            <p className="text-xs text-gray-400 mt-0.5">months on record</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Current Bill ─────────────────────────────────────────────────── */}
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+          <CreditCard className="w-4 h-4 text-blue-500" />
+          Current Bill
+        </h2>
+
+        {loadingStatus ? (
+          <div className="flex items-center justify-center py-12 bg-gray-50 rounded-2xl border border-gray-200/80">
+            <Loader2 className="w-5 h-5 animate-spin text-blue-500 mr-2" />
+            <span className="text-sm text-gray-500">Loading billing status...</span>
+          </div>
+        ) : statusError ? (
+          <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
+            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-red-800">{statusError}</p>
+              <button onClick={fetchStatus} className="text-xs text-red-600 hover:underline mt-0.5">
+                Try again
+              </button>
+            </div>
+          </div>
+        ) : (
+          <CurrentBillCard status={status} onPaySuccess={handlePaySuccess} />
+        )}
+      </div>
+
+      {/* ── Billing History ───────────────────────────────────────────────── */}
+      <div>
+        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+          <FileText className="w-4 h-4 text-blue-500" />
+          Billing History
+          {!loadingHistory && (
+            <span className="ml-1 text-xs font-normal text-gray-400 normal-case">(last 24 months)</span>
+          )}
+        </h2>
+
+        {loadingHistory ? (
+          <div className="flex items-center justify-center py-12 bg-gray-50 rounded-2xl border border-gray-200/80">
+            <Loader2 className="w-5 h-5 animate-spin text-blue-500 mr-2" />
+            <span className="text-sm text-gray-500">Loading history...</span>
+          </div>
+        ) : historyError ? (
+          <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
+            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-red-800">{historyError}</p>
+              <button onClick={fetchHistory} className="text-xs text-red-600 hover:underline mt-0.5">
+                Try again
+              </button>
+            </div>
+          </div>
+        ) : history.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-14 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+            <FileText className="w-8 h-8 text-gray-300 mb-3" />
+            <p className="text-sm font-medium text-gray-500">No billing history yet</p>
+            <p className="text-xs text-gray-400 mt-1">Bills will appear here once generated</p>
+          </div>
+        ) : (
+          <div className="border border-gray-200/80 rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50/80 border-b border-gray-200/80">
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Period</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Amount</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">
+                      Due Date
+                    </th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">
+                      Invoices
+                    </th>
+                    <th className="px-4 py-3 w-8" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {history.map((bill) => (
+                    <HistoryRow key={bill._id} bill={bill} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
-
-        {/* ── Current Bill ─────────────────────────────────────────── */}
-        <section className="mb-8">
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
-            <CreditCard className="w-4 h-4" /> Current Bill
-          </h2>
-          {loading ? (
-            <div className="rounded-2xl border border-gray-200 bg-white p-8 flex items-center justify-center gap-3 text-gray-400">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="text-sm">Loading billing status…</span>
-            </div>
-          ) : (
-            <CurrentBillCard status={status} onPaySuccess={handlePaySuccess} />
-          )}
-        </section>
-
-        {/* ── Overview Stats ────────────────────────────────────────── */}
-        {!histLoading && history.length > 0 && (
-          <section className="mb-8">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" /> Overview — Last {history.length} months
-            </h2>
-            <StatsStrip bills={history} />
-          </section>
-        )}
-
-        {/* ── Billing History ──────────────────────────────────────── */}
-        <section>
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
-            <Calendar className="w-4 h-4" /> Billing History
-          </h2>
-
-          {histLoading ? (
-            <div className="rounded-2xl border border-gray-200 bg-white p-8 flex items-center justify-center gap-3 text-gray-400">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="text-sm">Loading history…</span>
-            </div>
-          ) : history.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
-              <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-sm font-medium text-gray-400">No billing history yet</p>
-            </div>
-          ) : (
-            <>
-              {/* Desktop table */}
-              <div className="hidden md:block rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      {["Billing Period", "Amount", "Status", "Due Date", "Paid On", "Invoices", ""].map((h) => (
-                        <th
-                          key={h}
-                          className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide"
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {history.map((bill) => (
-                      <HistoryRow key={bill._id} bill={bill} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile cards */}
-              <div className="md:hidden space-y-3">
-                {history.map((bill) => (
-                  <HistoryCard key={bill._id} bill={bill} />
-                ))}
-              </div>
-            </>
-          )}
-        </section>
       </div>
     </div>
   );
