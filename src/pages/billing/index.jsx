@@ -52,6 +52,102 @@ const fmt = {
       : "—",
 };
 
+// ─── Skeleton primitives ──────────────────────────────────────────────────────
+
+const Sk = ({ className = "" }) => <div className={`animate-pulse rounded-lg bg-gray-200/80 ${className}`} />;
+
+const StatusCardSkeleton = () => (
+  <div className="rounded-2xl border border-gray-200/80 bg-gray-50/60 p-6">
+    <div className="flex items-start justify-between gap-4 mb-5">
+      <div className="flex items-start gap-3">
+        <Sk className="w-12 h-12 rounded-xl flex-shrink-0" />
+        <div className="space-y-2 pt-1">
+          <Sk className="h-4 w-32" />
+          <Sk className="h-3 w-44" />
+        </div>
+      </div>
+      <Sk className="h-6 w-16 rounded-lg" />
+    </div>
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="bg-white/70 rounded-xl border border-white/80 px-4 py-3 space-y-2">
+          <Sk className="h-2.5 w-16" />
+          <Sk className="h-6 w-24" />
+        </div>
+      ))}
+    </div>
+    <Sk className="h-11 w-full rounded-xl mt-4" />
+  </div>
+);
+
+const StatsSkeleton = () => (
+  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+    {[...Array(3)].map((_, i) => (
+      <div
+        key={i}
+        className={`bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm space-y-2 ${
+          i === 2 ? "col-span-2 sm:col-span-1" : ""
+        }`}
+      >
+        <Sk className="h-2.5 w-16" />
+        <Sk className="h-6 w-20" />
+        <Sk className="h-2.5 w-24" />
+      </div>
+    ))}
+  </div>
+);
+
+const TableSkeleton = () => (
+  <div className="border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
+    <div className="overflow-x-auto">
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr className="bg-gray-50/80 border-b border-gray-200/80">
+            {["Period", "Amount", "Status", "Due Date", "Invoices"].map((h, i) => (
+              <th
+                key={h}
+                className={`px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide ${
+                  i === 3 ? "hidden sm:table-cell" : i === 4 ? "hidden md:table-cell" : ""
+                }`}
+              >
+                {h}
+              </th>
+            ))}
+            <th className="px-4 py-3 w-8" />
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {[...Array(5)].map((_, i) => (
+            <tr key={i} className="animate-pulse">
+              <td className="px-4 py-3.5">
+                <div className="flex items-center gap-2">
+                  <Sk className="w-3.5 h-3.5 rounded-md flex-shrink-0" />
+                  <Sk className="h-3.5 w-24" />
+                </div>
+              </td>
+              <td className="px-4 py-3.5">
+                <Sk className="h-3.5 w-20" />
+              </td>
+              <td className="px-4 py-3.5">
+                <Sk className="h-6 w-16 rounded-lg" />
+              </td>
+              <td className="px-4 py-3.5 hidden sm:table-cell">
+                <Sk className="h-3.5 w-24" />
+              </td>
+              <td className="px-4 py-3.5 hidden md:table-cell">
+                <Sk className="h-3.5 w-10" />
+              </td>
+              <td className="px-4 py-3.5 text-center">
+                <Sk className="w-4 h-4 rounded mx-auto" />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
 const StatusBadge = ({ status, isOverdue }) => {
@@ -158,7 +254,6 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
         isOverdue ? "bg-red-50/60 border-red-200" : "bg-amber-50/60 border-amber-200"
       }`}
     >
-      {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-5">
         <div className="flex items-start gap-3">
           <div
@@ -184,7 +279,6 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
         <StatusBadge status="unpaid" isOverdue={isOverdue} />
       </div>
 
-      {/* Amount + Meta */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
         <div className="bg-white/70 rounded-xl border border-white/80 px-4 py-3">
           <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Amount Due</p>
@@ -202,10 +296,8 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
         </div>
       </div>
 
-      {/* Breakdown */}
       <BreakdownAccordion breakdown={bill.breakdown} />
 
-      {/* Error */}
       {error && (
         <div className="mt-3 flex items-center gap-2 text-sm text-red-700 bg-red-100 border border-red-200 rounded-xl px-4 py-3">
           <AlertTriangle className="w-4 h-4 flex-shrink-0" />
@@ -213,7 +305,6 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
         </div>
       )}
 
-      {/* Pay Button */}
       <button
         onClick={handlePay}
         disabled={paying}
@@ -282,18 +373,9 @@ const HistoryRow = ({ bill }) => {
                   </p>
                   {[
                     { label: "Monthly fee", value: bill.breakdown.monthlyFee },
-                    {
-                      label: "Per-invoice fee (patient charge)",
-                      value: bill.breakdown.perInvoiceFee,
-                    },
-                    {
-                      label: "Commission per invoice",
-                      value: bill.breakdown.commission,
-                    },
-                    {
-                      label: "Net per invoice (software)",
-                      value: bill.breakdown.perInvoiceNet,
-                    },
+                    { label: "Per-invoice fee (patient charge)", value: bill.breakdown.perInvoiceFee },
+                    { label: "Commission per invoice", value: bill.breakdown.commission },
+                    { label: "Net per invoice (software)", value: bill.breakdown.perInvoiceNet },
                   ]
                     .filter((r) => r.value != null && r.value !== 0)
                     .map((r) => (
@@ -417,7 +499,9 @@ const Billing = () => {
         </div>
 
         {/* ── Summary Stats ─────────────────────────────────────────────── */}
-        {!loadingHistory && history.length > 0 && (
+        {loadingHistory ? (
+          <StatsSkeleton />
+        ) : history.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
             <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm">
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Paid</p>
@@ -439,7 +523,7 @@ const Billing = () => {
               <p className="text-xs text-gray-400 mt-0.5">months on record</p>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* ── Current Bill ──────────────────────────────────────────────── */}
         <div className="mb-6">
@@ -449,10 +533,7 @@ const Billing = () => {
           </h2>
 
           {loadingStatus ? (
-            <div className="flex items-center justify-center py-12 bg-gray-50 rounded-2xl border border-gray-200/80">
-              <Loader2 className="w-5 h-5 animate-spin text-blue-500 mr-2" />
-              <span className="text-sm text-gray-500">Loading billing status...</span>
-            </div>
+            <StatusCardSkeleton />
           ) : statusError ? (
             <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
               <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
@@ -479,10 +560,7 @@ const Billing = () => {
           </h2>
 
           {loadingHistory ? (
-            <div className="flex items-center justify-center py-12 bg-gray-50 rounded-2xl border border-gray-200/80">
-              <Loader2 className="w-5 h-5 animate-spin text-blue-500 mr-2" />
-              <span className="text-sm text-gray-500">Loading history...</span>
-            </div>
+            <TableSkeleton />
           ) : historyError ? (
             <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
               <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
