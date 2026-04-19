@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import billingService from "../../api/billing";
 
-
 const fmt = {
   currency: (amount) =>
     new Intl.NumberFormat("en-BD", {
@@ -86,8 +85,15 @@ const BreakdownAccordion = ({ breakdown }) => {
 
   const rows = [
     { label: "Monthly fee", value: breakdown.monthlyFee },
-    { label: "Per-invoice fees", value: breakdown.perInvoiceFees },
-    { label: "Commission deductions", value: breakdown.commissionDeductions },
+    {
+      label: `Per-invoice fee × ${invoiceCount} @ ৳${breakdown.perInvoiceFee}`,
+      value: breakdown.perInvoiceFee * invoiceCount,
+    },
+    {
+      label: `Lab commission × ${invoiceCount} @ ৳${breakdown.commission}`,
+      value: -(breakdown.commission * invoiceCount),
+    },
+    { label: "Net per invoice (software share)", value: breakdown.perInvoiceNet },
     { label: "Other charges", value: breakdown.otherCharges },
   ].filter((r) => r.value != null && r.value !== 0);
 
