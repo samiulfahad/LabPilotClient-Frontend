@@ -16,6 +16,9 @@ import {
   Wallet,
   ArrowUpRight,
   Sparkles,
+  TrendingUp,
+  Shield,
+  Activity,
 } from "lucide-react";
 import billingService from "../../api/billing";
 
@@ -62,69 +65,66 @@ const fmt = {
 // ─── Skeleton primitives ──────────────────────────────────────────────────────
 
 const Shimmer = ({ className = "" }) => (
-  <div
-    className={`animate-pulse bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100 bg-[length:400%_100%] rounded-lg ${className}`}
-    style={{ animation: "shimmer 1.6s ease-in-out infinite", backgroundSize: "400% 100%" }}
-  />
+  <div className={`animate-pulse bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100 rounded-lg ${className}`} />
 );
 
 const StatusBillSkeleton = () => (
-  <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm space-y-4">
+  <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm space-y-5">
     <div className="flex items-start justify-between">
-      <div className="flex items-start gap-3">
-        <Shimmer className="w-12 h-12 rounded-xl" />
-        <div className="space-y-2">
-          <Shimmer className="w-36 h-4" />
-          <Shimmer className="w-24 h-3" />
+      <div className="flex items-start gap-4">
+        <Shimmer className="w-14 h-14 rounded-2xl" />
+        <div className="space-y-2 pt-1">
+          <Shimmer className="w-40 h-4" />
+          <Shimmer className="w-28 h-3" />
         </div>
       </div>
-      <Shimmer className="w-20 h-7 rounded-full" />
+      <Shimmer className="w-24 h-7 rounded-full" />
     </div>
-    <div className="grid grid-cols-3 gap-3 pt-2">
+    <div className="grid grid-cols-3 gap-3">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="border border-slate-100 rounded-xl p-3 space-y-2">
+        <div key={i} className="border border-slate-100 rounded-xl p-4 space-y-2">
           <Shimmer className="w-16 h-2.5" />
           <Shimmer className="w-24 h-5" />
         </div>
       ))}
     </div>
-    <Shimmer className="w-full h-11 rounded-xl" />
+    <Shimmer className="w-full h-12 rounded-xl" />
   </div>
 );
 
 const HistoryRowSkeleton = () => (
   <tr>
-    <td className="px-5 py-4">
+    <td className="px-6 py-4">
       <div className="flex items-center gap-2">
-        <Shimmer className="w-3.5 h-3.5 rounded" />
-        <Shimmer className="w-24 h-3.5" />
+        <Shimmer className="w-4 h-4 rounded" />
+        <Shimmer className="w-28 h-3.5" />
       </div>
     </td>
-    <td className="px-5 py-4">
-      <Shimmer className="w-20 h-3.5" />
+    <td className="px-6 py-4">
+      <Shimmer className="w-24 h-3.5" />
     </td>
-    <td className="px-5 py-4">
-      <Shimmer className="w-16 h-6 rounded-full" />
+    <td className="px-6 py-4">
+      <Shimmer className="w-20 h-6 rounded-full" />
     </td>
-    <td className="px-5 py-4 hidden sm:table-cell">
-      <Shimmer className="w-20 h-3.5" />
+    <td className="px-6 py-4 hidden sm:table-cell">
+      <Shimmer className="w-24 h-3.5" />
     </td>
-    <td className="px-5 py-4 hidden md:table-cell">
-      <Shimmer className="w-8 h-3.5" />
+    <td className="px-6 py-4 hidden md:table-cell">
+      <Shimmer className="w-10 h-3.5" />
     </td>
-    <td className="px-5 py-4">
+    <td className="px-6 py-4">
       <Shimmer className="w-4 h-4 mx-auto rounded" />
     </td>
   </tr>
 );
 
 const SummarySkeleton = () => (
-  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-7">
+  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
     {[1, 2, 3].map((i) => (
-      <div key={i} className="bg-white border border-slate-100 rounded-2xl px-4 py-4 space-y-2 shadow-sm">
-        <Shimmer className="w-16 h-2.5" />
-        <Shimmer className="w-28 h-6" />
-        <Shimmer className="w-20 h-2.5" />
+      <div key={i} className="bg-white border border-slate-100 rounded-2xl px-5 py-5 space-y-3 shadow-sm">
+        <Shimmer className="w-20 h-3" />
+        <Shimmer className="w-32 h-7" />
+        <Shimmer className="w-24 h-3" />
       </div>
     ))}
   </div>
@@ -135,72 +135,44 @@ const SummarySkeleton = () => (
 const StatusBadge = ({ status, isOverdue }) => {
   if (status === "paid")
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 ring-1 ring-emerald-100">
-        <CheckCircle2 className="w-3 h-3" /> Paid
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+        Paid
       </span>
     );
   if (isOverdue)
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200 ring-1 ring-red-100">
-        <AlertTriangle className="w-3 h-3" /> Overdue
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block animate-pulse" />
+        Overdue
       </span>
     );
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 ring-1 ring-amber-100">
-      <Clock className="w-3 h-3" /> Unpaid
+    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+      Unpaid
     </span>
   );
 };
 
-// ─── Breakdown Accordion (updated schema) ────────────────────────────────────
+// ─── Breakdown Accordion ──────────────────────────────────────────────────────
 
 const BreakdownAccordion = ({ breakdown }) => {
   const [open, setOpen] = useState(false);
   if (!breakdown) return null;
 
-  const rows = [
-    {
-      label: "Monthly Platform Fee",
-      desc: "Fixed SaaS subscription",
-      value: breakdown.monthlyFee,
-      icon: Banknote,
-      color: "text-blue-600",
-    },
-    {
-      label: "Per-Invoice Fee (Net)",
-      desc: `${breakdown.perInvoiceNet ?? breakdown.perInvoiceFees ?? 0} ৳ × invoices charged to software`,
-      value:
-        breakdown.perInvoiceNet != null
-          ? breakdown.perInvoiceNet * (breakdown.invoiceCount ?? 0)
-          : breakdown.perInvoiceFees,
-      icon: Receipt,
-      color: "text-violet-600",
-    },
-    {
-      label: "Commission Earned",
-      desc: "Your revenue from per-invoice fees",
-      value: breakdown.commission != null ? undefined : breakdown.commissionDeductions,
-      rawLabel: breakdown.commission != null ? `৳${breakdown.commission ?? 0}/invoice` : null,
-      icon: BadgePercent,
-      color: "text-emerald-600",
-      isPositive: true,
-    },
-  ].filter((r) => r.value != null || r.rawLabel);
-
   return (
-    <div className="mt-4 border border-slate-100 rounded-xl overflow-hidden">
+    <div className="mt-4 border border-slate-100 rounded-xl overflow-hidden bg-slate-50/50">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-3.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-widest hover:bg-white/70 transition-colors"
       >
-        <span className="flex items-center gap-2 text-xs uppercase tracking-widest text-slate-400 font-bold">
-          View charge breakdown
-        </span>
-        {open ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+        <span>Charge Breakdown</span>
+        {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
       </button>
 
       {open && (
-        <div className="border-t border-slate-100 divide-y divide-slate-50 px-4 py-1">
+        <div className="border-t border-slate-100 bg-white divide-y divide-slate-50 px-4 py-1">
           {breakdown.monthlyFee != null && (
             <BreakdownRow
               icon={Banknote}
@@ -282,17 +254,26 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
 
   if (!status?.hasUnpaidBill) {
     return (
-      <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
-        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center flex-shrink-0 border border-emerald-100 shadow-sm">
-          <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+      <div className="relative overflow-hidden bg-white border border-emerald-100 rounded-2xl p-6 shadow-sm">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/60 via-white to-teal-50/40 pointer-events-none" />
+        <div className="relative flex items-center gap-4">
+          <div className="w-14 h-14 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm">
+            <CheckCircle2 className="w-7 h-7 text-emerald-500" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-sm font-bold text-slate-800">All Settled</h3>
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Your account has no outstanding balance. All bills have been paid.
+            </p>
+          </div>
+          <div className="hidden sm:flex flex-col items-end gap-1">
+            <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">Status</span>
+            <StatusBadge status="paid" />
+          </div>
         </div>
-        <div>
-          <h3 className="text-sm font-bold text-emerald-800">No outstanding balance</h3>
-          <p className="text-xs text-emerald-600 mt-1 leading-relaxed">
-            Your account is fully settled. All bills have been paid.
-          </p>
-        </div>
-        <Sparkles className="w-4 h-4 text-emerald-300 ml-auto mt-1 shrink-0" />
       </div>
     );
   }
@@ -312,82 +293,73 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
     }
   };
 
-  const accent = isOverdue
-    ? {
-        bg: "from-red-50 to-rose-50",
-        border: "border-red-100",
-        icon: "bg-red-100 border-red-100",
-        iconColor: "text-red-500",
-        text: "text-red-800",
-        sub: "text-red-500",
-      }
-    : {
-        bg: "from-amber-50 to-orange-50",
-        border: "border-amber-100",
-        icon: "bg-amber-100 border-amber-100",
-        iconColor: "text-amber-600",
-        text: "text-amber-800",
-        sub: "text-amber-600",
-      };
+  const isOD = isOverdue;
 
   return (
-    <div className={`bg-gradient-to-br ${accent.bg} border ${accent.border} rounded-2xl p-6 shadow-sm`}>
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 mb-5">
-        <div className="flex items-start gap-3">
-          <div className={`w-12 h-12 rounded-xl ${accent.icon} flex items-center justify-center flex-shrink-0 border`}>
-            {isOverdue ? (
-              <AlertTriangle className={`w-6 h-6 ${accent.iconColor}`} />
-            ) : (
-              <Clock className={`w-6 h-6 ${accent.iconColor}`} />
-            )}
+    <div
+      className={`relative overflow-hidden bg-white border rounded-2xl shadow-sm ${isOD ? "border-red-200" : "border-amber-200"}`}
+    >
+      {/* Subtle gradient accent strip at top */}
+      <div
+        className={`h-1 w-full ${isOD ? "bg-gradient-to-r from-red-400 to-rose-500" : "bg-gradient-to-r from-amber-400 to-orange-400"}`}
+      />
+
+      <div className="p-6">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div className="flex items-start gap-4">
+            <div
+              className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 border shadow-sm ${isOD ? "bg-red-50 border-red-100" : "bg-amber-50 border-amber-100"}`}
+            >
+              {isOD ? <AlertTriangle className="w-6 h-6 text-red-500" /> : <Clock className="w-6 h-6 text-amber-500" />}
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-800 mb-0.5">{isOD ? "Payment Overdue" : "Payment Due"}</h3>
+              <p className="text-xs text-slate-400 font-medium">Billing period: {fmt.period(bill.billingPeriod)}</p>
+            </div>
           </div>
-          <div>
-            <h3 className={`text-sm font-bold ${accent.text}`}>{isOverdue ? "Payment Overdue" : "Payment Due"}</h3>
-            <p className={`text-xs mt-0.5 ${accent.sub}`}>Billing period: {fmt.period(bill.billingPeriod)}</p>
+          <StatusBadge status="unpaid" isOverdue={isOD} />
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-3 gap-3 mb-5">
+          <MetaCell label="Amount Due" value={fmt.currency(bill.amount)} highlight />
+          <MetaCell label="Due Date" value={fmt.date(bill.dueDate)} warn={isOD} />
+          <MetaCell label="Invoices" value={`${bill.invoiceCount ?? 0}`} />
+        </div>
+
+        <BreakdownAccordion breakdown={{ ...bill.breakdown, invoiceCount: bill.invoiceCount }} />
+
+        {error && (
+          <div className="mt-4 flex items-center gap-2.5 text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+            {error}
           </div>
-        </div>
-        <StatusBadge status="unpaid" isOverdue={isOverdue} />
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        <MetaCell label="Amount Due" value={fmt.currency(bill.amount)} highlight />
-        <MetaCell label="Due Date" value={fmt.date(bill.dueDate)} warn={isOverdue} />
-        <MetaCell label="Invoices" value={`${bill.invoiceCount ?? 0}`} />
-      </div>
-
-      <BreakdownAccordion breakdown={{ ...bill.breakdown, invoiceCount: bill.invoiceCount }} />
-
-      {error && (
-        <div className="mt-3 flex items-center gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-          {error}
-        </div>
-      )}
-
-      <button
-        onClick={handlePay}
-        disabled={paying}
-        className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-white bg-slate-900 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.99] shadow-lg shadow-slate-900/20"
-      >
-        {paying ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" /> Processing...
-          </>
-        ) : (
-          <>
-            <CreditCard className="w-4 h-4" /> Mark as Paid — {fmt.currency(bill.amount)}
-          </>
         )}
-      </button>
+
+        <button
+          onClick={handlePay}
+          disabled={paying}
+          className="mt-5 w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl text-sm font-bold text-white bg-slate-900 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.99] shadow-lg shadow-slate-900/15"
+        >
+          {paying ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+            </>
+          ) : (
+            <>
+              <CreditCard className="w-4 h-4" /> Mark as Paid — {fmt.currency(bill.amount)}
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 };
 
 const MetaCell = ({ label, value, highlight, warn }) => (
-  <div className="bg-white/70 rounded-xl border border-white px-3 py-3 backdrop-blur-sm">
-    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+  <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-3.5">
+    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{label}</p>
     <p
       className={`text-sm font-bold truncate ${highlight ? "text-slate-900" : warn ? "text-red-600" : "text-slate-700"}`}
     >
@@ -404,40 +376,37 @@ const HistoryRow = ({ bill }) => {
 
   return (
     <>
-      <tr
-        className="hover:bg-slate-50/70 transition-colors cursor-pointer group"
-        onClick={() => setExpanded((v) => !v)}
-      >
-        <td className="px-5 py-4 text-sm text-slate-700 whitespace-nowrap">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-3.5 h-3.5 text-slate-300 flex-shrink-0 group-hover:text-slate-400 transition-colors" />
-            <span className="font-medium">{fmt.period(bill.billingPeriodStart)}</span>
+      <tr className="hover:bg-blue-50/30 transition-colors cursor-pointer group" onClick={() => setExpanded((v) => !v)}>
+        <td className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">
+          <div className="flex items-center gap-2.5">
+            <Calendar className="w-3.5 h-3.5 text-slate-300 flex-shrink-0 group-hover:text-blue-400 transition-colors" />
+            <span className="font-semibold text-slate-700">{fmt.period(bill.billingPeriodStart)}</span>
           </div>
         </td>
-        <td className="px-5 py-4 text-sm font-bold text-slate-900 whitespace-nowrap tabular-nums">
+        <td className="px-6 py-4 text-sm font-bold text-slate-900 whitespace-nowrap tabular-nums">
           {fmt.currency(bill.totalAmount)}
         </td>
-        <td className="px-5 py-4 whitespace-nowrap">
+        <td className="px-6 py-4 whitespace-nowrap">
           <StatusBadge status={bill.status} isOverdue={isOverdue} />
         </td>
-        <td className="px-5 py-4 text-xs text-slate-500 whitespace-nowrap hidden sm:table-cell">
+        <td className="px-6 py-4 text-xs text-slate-400 whitespace-nowrap hidden sm:table-cell font-medium">
           {fmt.date(bill.dueDate)}
         </td>
-        <td className="px-5 py-4 text-xs text-slate-500 whitespace-nowrap hidden md:table-cell tabular-nums">
+        <td className="px-6 py-4 text-xs text-slate-400 whitespace-nowrap hidden md:table-cell font-medium tabular-nums">
           {bill.invoiceCount ?? 0}
         </td>
-        <td className="px-5 py-4 text-center">
+        <td className="px-6 py-4 text-center">
           {expanded ? (
-            <ChevronUp className="w-4 h-4 text-slate-300 mx-auto group-hover:text-slate-500 transition-colors" />
+            <ChevronUp className="w-4 h-4 text-slate-300 mx-auto group-hover:text-blue-400 transition-colors" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-slate-300 mx-auto group-hover:text-slate-500 transition-colors" />
+            <ChevronDown className="w-4 h-4 text-slate-300 mx-auto group-hover:text-blue-400 transition-colors" />
           )}
         </td>
       </tr>
 
       {expanded && (
         <tr className="bg-slate-50/60">
-          <td colSpan={6} className="px-5 pb-5 pt-2">
+          <td colSpan={6} className="px-6 pb-5 pt-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               {bill.breakdown && (
                 <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
@@ -493,8 +462,8 @@ const HistoryRow = ({ bill }) => {
 };
 
 const SimpleRow = ({ label, value, positive }) => (
-  <div className="flex justify-between py-2.5 gap-4">
-    <span className="text-xs text-slate-400 shrink-0">{label}</span>
+  <div className="flex justify-between py-3 gap-4">
+    <span className="text-xs text-slate-400 shrink-0 font-medium">{label}</span>
     <span className={`text-xs font-semibold text-right ${positive ? "text-emerald-600" : "text-slate-700"}`}>
       {value}
     </span>
@@ -558,56 +527,59 @@ const Billing = () => {
   const unpaidCount = history.filter((b) => b.status === "unpaid").length;
 
   return (
-    <>
-      <style>{`
-        @keyframes shimmer {
-          0% { background-position: 200% center; }
-          100% { background-position: -200% center; }
-        }
-      `}</style>
-
-      <div className="p-4 sm:p-6 max-w-4xl mx-auto">
-        {/* ── Page Header ── */}
-        <div className="flex items-center justify-between mb-7">
-          <div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">Billing</h1>
-            <p className="text-xs text-slate-400 mt-0.5 font-medium">
-              Manage subscription payments and billing history
-            </p>
+    <div className="min-h-full bg-slate-50/50">
+      {/* ── Page Header ── */}
+      <div className="bg-white border-b border-slate-100 px-6 py-5 sticky top-0 z-10 backdrop-blur-sm">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3.5">
+            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-sm shadow-blue-500/30 flex-shrink-0">
+              <CreditCard className="w-4.5 h-4.5 text-white w-[18px] h-[18px]" />
+            </div>
+            <div>
+              <h1 className="text-base font-bold text-slate-900 leading-none mb-0.5">Billing</h1>
+              <p className="text-xs text-slate-400 font-medium">Subscription & payment management</p>
+            </div>
           </div>
           <button
             onClick={handleRefresh}
             disabled={loadingStatus || loadingHistory}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl border border-slate-200 transition-all disabled:opacity-40"
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl border border-slate-200 transition-all disabled:opacity-40 group"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loadingStatus || loadingHistory ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`w-3.5 h-3.5 group-hover:text-blue-500 transition-colors ${loadingStatus || loadingHistory ? "animate-spin" : ""}`}
+            />
             Refresh
           </button>
         </div>
+      </div>
 
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
         {/* ── Summary Stats ── */}
         {loadingHistory ? (
           <SummarySkeleton />
         ) : (
           history.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-7">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               <SummaryCard
+                icon={TrendingUp}
                 label="Total Paid"
                 value={fmt.currency(totalPaid)}
-                sub={`${paidCount} bills settled`}
-                valueColor="text-emerald-600"
+                sub={`${paidCount} bill${paidCount !== 1 ? "s" : ""} settled`}
+                accent="emerald"
               />
               <SummaryCard
+                icon={Activity}
                 label="Outstanding"
                 value={fmt.currency(totalUnpaid)}
                 sub={`${unpaidCount} unpaid`}
-                valueColor={totalUnpaid > 0 ? "text-red-500" : "text-slate-800"}
+                accent={totalUnpaid > 0 ? "red" : "slate"}
               />
               <SummaryCard
+                icon={Shield}
                 label="Billing History"
                 value={String(history.length)}
                 sub="months on record"
-                className="col-span-2 sm:col-span-1"
+                accent="blue"
               />
             </div>
           )
@@ -625,7 +597,7 @@ const Billing = () => {
         </Section>
 
         {/* ── Billing History ── */}
-        <Section icon={FileText} label="Billing History" badge={!loadingHistory ? "Last 24 months" : null}>
+        <Section icon={FileText} label="Billing History" badge={!loadingHistory ? `${history.length} records` : null}>
           {loadingHistory ? (
             <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-sm">
               <div className="overflow-x-auto">
@@ -635,7 +607,7 @@ const Billing = () => {
                       {["Period", "Amount", "Status", "Due Date", "Invoices", ""].map((h, i) => (
                         <th
                           key={i}
-                          className={`px-5 py-3.5 text-[9px] font-black text-slate-400 uppercase tracking-widest ${i >= 3 && i < 5 ? "hidden sm:table-cell" : ""}`}
+                          className={`px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest ${i >= 3 && i < 5 ? "hidden sm:table-cell" : ""}`}
                         >
                           {h}
                         </th>
@@ -660,25 +632,25 @@ const Billing = () => {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50/80 border-b border-slate-100">
-                      <th className="px-5 py-3.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">
                         Period
                       </th>
-                      <th className="px-5 py-3.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">
                         Amount
                       </th>
-                      <th className="px-5 py-3.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">
                         Status
                       </th>
-                      <th className="px-5 py-3.5 text-[9px] font-black text-slate-400 uppercase tracking-widest hidden sm:table-cell">
+                      <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest hidden sm:table-cell">
                         Due Date
                       </th>
-                      <th className="px-5 py-3.5 text-[9px] font-black text-slate-400 uppercase tracking-widest hidden md:table-cell">
+                      <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest hidden md:table-cell">
                         Invoices
                       </th>
-                      <th className="px-5 py-3.5 w-10" />
+                      <th className="px-6 py-4 w-12" />
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50">
+                  <tbody className="divide-y divide-slate-100/70">
                     {history.map((bill) => (
                       <HistoryRow key={bill._id} bill={bill} />
                     ))}
@@ -689,19 +661,19 @@ const Billing = () => {
           )}
         </Section>
       </div>
-    </>
+    </div>
   );
 };
 
 // ─── Shared layout primitives ─────────────────────────────────────────────────
 
 const Section = ({ icon: Icon, label, badge, children }) => (
-  <div className="mb-7">
+  <div className="mb-8">
     <div className="flex items-center gap-2 mb-3">
       <Icon className="w-3.5 h-3.5 text-slate-400" />
       <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</h2>
       {badge && (
-        <span className="ml-1 text-[9px] font-semibold text-slate-300 normal-case bg-slate-100 px-2 py-0.5 rounded-full">
+        <span className="ml-1 text-[9px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
           {badge}
         </span>
       )}
@@ -710,20 +682,37 @@ const Section = ({ icon: Icon, label, badge, children }) => (
   </div>
 );
 
-const SummaryCard = ({ label, value, sub, valueColor = "text-slate-900", className = "" }) => (
-  <div className={`bg-white border border-slate-100 rounded-2xl px-4 py-4 shadow-sm ${className}`}>
-    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">{label}</p>
-    <p className={`text-lg font-black ${valueColor} leading-none`}>{value}</p>
-    <p className="text-[10px] text-slate-400 mt-1.5 font-medium">{sub}</p>
-  </div>
-);
+const accentMap = {
+  emerald: { text: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", icon: "text-emerald-500" },
+  red: { text: "text-red-600", bg: "bg-red-50", border: "border-red-100", icon: "text-red-500" },
+  blue: { text: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100", icon: "text-blue-500" },
+  slate: { text: "text-slate-800", bg: "bg-slate-50", border: "border-slate-100", icon: "text-slate-400" },
+};
+
+const SummaryCard = ({ icon: Icon, label, value, sub, accent = "slate" }) => {
+  const a = accentMap[accent];
+  return (
+    <div className="bg-white border border-slate-100 rounded-2xl px-5 py-5 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+        <div className={`w-7 h-7 ${a.bg} ${a.border} border rounded-lg flex items-center justify-center`}>
+          <Icon className={`w-3.5 h-3.5 ${a.icon}`} />
+        </div>
+      </div>
+      <p className={`text-xl font-black ${a.text} leading-none mb-1.5 tabular-nums`}>{value}</p>
+      <p className="text-[10px] text-slate-400 font-medium">{sub}</p>
+    </div>
+  );
+};
 
 const ErrorCard = ({ message, onRetry }) => (
-  <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-100 rounded-2xl">
-    <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+  <div className="flex items-center gap-3.5 px-5 py-4 bg-red-50 border border-red-100 rounded-2xl">
+    <div className="w-9 h-9 bg-red-100 border border-red-200 rounded-xl flex items-center justify-center flex-shrink-0">
+      <AlertTriangle className="w-4 h-4 text-red-500" />
+    </div>
     <div>
       <p className="text-sm font-semibold text-red-700">{message}</p>
-      <button onClick={onRetry} className="text-xs text-red-500 hover:underline mt-0.5 font-medium">
+      <button onClick={onRetry} className="text-xs text-red-500 hover:text-red-600 hover:underline mt-0.5 font-medium">
         Try again
       </button>
     </div>
@@ -732,7 +721,9 @@ const ErrorCard = ({ message, onRetry }) => (
 
 const EmptyState = ({ icon: Icon, title, desc }) => (
   <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-dashed border-slate-200">
-    <Icon className="w-8 h-8 text-slate-200 mb-3" />
+    <div className="w-14 h-14 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mb-4">
+      <Icon className="w-6 h-6 text-slate-300" />
+    </div>
     <p className="text-sm font-bold text-slate-400">{title}</p>
     <p className="text-xs text-slate-300 mt-1">{desc}</p>
   </div>
