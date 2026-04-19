@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import billingService from "../../api/billing";
 
-
 const fmt = {
   currency: (amount) =>
     new Intl.NumberFormat("en-BD", {
@@ -53,7 +52,7 @@ const fmt = {
       : "—",
 };
 
-// ─── Status Badge ────────────────────────────────────────────────────────────
+// ─── Status Badge ─────────────────────────────────────────────────────────────
 
 const StatusBadge = ({ status, isOverdue }) => {
   if (status === "paid")
@@ -78,7 +77,7 @@ const StatusBadge = ({ status, isOverdue }) => {
   );
 };
 
-// ─── Breakdown Accordion ─────────────────────────────────────────────────────
+// ─── Breakdown Accordion ──────────────────────────────────────────────────────
 
 const BreakdownAccordion = ({ breakdown }) => {
   const [open, setOpen] = useState(false);
@@ -86,9 +85,9 @@ const BreakdownAccordion = ({ breakdown }) => {
 
   const rows = [
     { label: "Monthly fee", value: breakdown.monthlyFee },
-    { label: "Per-invoice fees", value: breakdown.perInvoiceFees },
-    { label: "Commission deductions", value: breakdown.commissionDeductions },
-    { label: "Other charges", value: breakdown.otherCharges },
+    { label: "Per-invoice fee (patient charge)", value: breakdown.perInvoiceFee },
+    { label: "Commission per invoice", value: breakdown.commission },
+    { label: "Net per invoice (software)", value: breakdown.perInvoiceNet },
   ].filter((r) => r.value != null && r.value !== 0);
 
   return (
@@ -236,7 +235,7 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
   );
 };
 
-// ─── History Row ─────────────────────────────────────────────────────────────
+// ─── History Row ──────────────────────────────────────────────────────────────
 
 const HistoryRow = ({ bill }) => {
   const [expanded, setExpanded] = useState(false);
@@ -283,9 +282,18 @@ const HistoryRow = ({ bill }) => {
                   </p>
                   {[
                     { label: "Monthly fee", value: bill.breakdown.monthlyFee },
-                    { label: "Per-invoice fees", value: bill.breakdown.perInvoiceFees },
-                    { label: "Commission deductions", value: bill.breakdown.commissionDeductions },
-                    { label: "Other charges", value: bill.breakdown.otherCharges },
+                    {
+                      label: "Per-invoice fee (patient charge)",
+                      value: bill.breakdown.perInvoiceFee,
+                    },
+                    {
+                      label: "Commission per invoice",
+                      value: bill.breakdown.commission,
+                    },
+                    {
+                      label: "Net per invoice (software)",
+                      value: bill.breakdown.perInvoiceNet,
+                    },
                   ]
                     .filter((r) => r.value != null && r.value !== 0)
                     .map((r) => (
@@ -381,7 +389,6 @@ const Billing = () => {
     fetchHistory();
   };
 
-  // ── Summary stats from history ────────────────────────────────────────────
   const totalPaid = history.filter((b) => b.status === "paid").reduce((s, b) => s + (b.totalAmount ?? 0), 0);
 
   const totalUnpaid = history.filter((b) => b.status === "unpaid").reduce((s, b) => s + (b.totalAmount ?? 0), 0);
@@ -389,133 +396,137 @@ const Billing = () => {
   const paidCount = history.filter((b) => b.status === "paid").length;
 
   return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
-      {/* ── Page Header ──────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 leading-tight">Billing</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage your subscription payments and view billing history</p>
+    <div className="min-h-full p-4 sm:p-6 lg:p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* ── Page Header ──────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 leading-tight">Billing</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Manage your subscription payments and view billing history</p>
+          </div>
+          <button
+            onClick={() => {
+              fetchStatus();
+              fetchHistory();
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl border border-gray-200/80 transition-all"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Refresh
+          </button>
         </div>
-        <button
-          onClick={() => {
-            fetchStatus();
-            fetchHistory();
-          }}
-          className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl border border-gray-200/80 transition-all"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          Refresh
-        </button>
-      </div>
 
-      {/* ── Summary Stats ────────────────────────────────────────────────── */}
-      {!loadingHistory && history.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-          <div className="bg-gray-50 border border-gray-200/80 rounded-xl px-4 py-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Paid</p>
-            <p className="text-lg font-bold text-green-700">{fmt.currency(totalPaid)}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{paidCount} bills settled</p>
-          </div>
-          <div className="bg-gray-50 border border-gray-200/80 rounded-xl px-4 py-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Outstanding</p>
-            <p className={`text-lg font-bold ${totalUnpaid > 0 ? "text-red-600" : "text-gray-800"}`}>
-              {fmt.currency(totalUnpaid)}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">{history.filter((b) => b.status === "unpaid").length} unpaid</p>
-          </div>
-          <div className="bg-gray-50 border border-gray-200/80 rounded-xl px-4 py-3 col-span-2 sm:col-span-1">
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">History</p>
-            <p className="text-lg font-bold text-gray-800">{history.length}</p>
-            <p className="text-xs text-gray-400 mt-0.5">months on record</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Current Bill ─────────────────────────────────────────────────── */}
-      <div className="mb-6">
-        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-          <CreditCard className="w-4 h-4 text-blue-500" />
-          Current Bill
-        </h2>
-
-        {loadingStatus ? (
-          <div className="flex items-center justify-center py-12 bg-gray-50 rounded-2xl border border-gray-200/80">
-            <Loader2 className="w-5 h-5 animate-spin text-blue-500 mr-2" />
-            <span className="text-sm text-gray-500">Loading billing status...</span>
-          </div>
-        ) : statusError ? (
-          <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
-            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-red-800">{statusError}</p>
-              <button onClick={fetchStatus} className="text-xs text-red-600 hover:underline mt-0.5">
-                Try again
-              </button>
+        {/* ── Summary Stats ─────────────────────────────────────────────── */}
+        {!loadingHistory && history.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+            <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Paid</p>
+              <p className="text-lg font-bold text-green-700">{fmt.currency(totalPaid)}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{paidCount} bills settled</p>
+            </div>
+            <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Outstanding</p>
+              <p className={`text-lg font-bold ${totalUnpaid > 0 ? "text-red-600" : "text-gray-800"}`}>
+                {fmt.currency(totalUnpaid)}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {history.filter((b) => b.status === "unpaid").length} unpaid
+              </p>
+            </div>
+            <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm col-span-2 sm:col-span-1">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">History</p>
+              <p className="text-lg font-bold text-gray-800">{history.length}</p>
+              <p className="text-xs text-gray-400 mt-0.5">months on record</p>
             </div>
           </div>
-        ) : (
-          <CurrentBillCard status={status} onPaySuccess={handlePaySuccess} />
         )}
-      </div>
 
-      {/* ── Billing History ───────────────────────────────────────────────── */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-          <FileText className="w-4 h-4 text-blue-500" />
-          Billing History
-          {!loadingHistory && (
-            <span className="ml-1 text-xs font-normal text-gray-400 normal-case">(last 24 months)</span>
+        {/* ── Current Bill ──────────────────────────────────────────────── */}
+        <div className="mb-6">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+            <CreditCard className="w-4 h-4 text-blue-500" />
+            Current Bill
+          </h2>
+
+          {loadingStatus ? (
+            <div className="flex items-center justify-center py-12 bg-gray-50 rounded-2xl border border-gray-200/80">
+              <Loader2 className="w-5 h-5 animate-spin text-blue-500 mr-2" />
+              <span className="text-sm text-gray-500">Loading billing status...</span>
+            </div>
+          ) : statusError ? (
+            <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
+              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-red-800">{statusError}</p>
+                <button onClick={fetchStatus} className="text-xs text-red-600 hover:underline mt-0.5">
+                  Try again
+                </button>
+              </div>
+            </div>
+          ) : (
+            <CurrentBillCard status={status} onPaySuccess={handlePaySuccess} />
           )}
-        </h2>
+        </div>
 
-        {loadingHistory ? (
-          <div className="flex items-center justify-center py-12 bg-gray-50 rounded-2xl border border-gray-200/80">
-            <Loader2 className="w-5 h-5 animate-spin text-blue-500 mr-2" />
-            <span className="text-sm text-gray-500">Loading history...</span>
-          </div>
-        ) : historyError ? (
-          <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
-            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-red-800">{historyError}</p>
-              <button onClick={fetchHistory} className="text-xs text-red-600 hover:underline mt-0.5">
-                Try again
-              </button>
+        {/* ── Billing History ───────────────────────────────────────────── */}
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+            <FileText className="w-4 h-4 text-blue-500" />
+            Billing History
+            {!loadingHistory && (
+              <span className="ml-1 text-xs font-normal text-gray-400 normal-case">(last 24 months)</span>
+            )}
+          </h2>
+
+          {loadingHistory ? (
+            <div className="flex items-center justify-center py-12 bg-gray-50 rounded-2xl border border-gray-200/80">
+              <Loader2 className="w-5 h-5 animate-spin text-blue-500 mr-2" />
+              <span className="text-sm text-gray-500">Loading history...</span>
             </div>
-          </div>
-        ) : history.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-14 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-            <FileText className="w-8 h-8 text-gray-300 mb-3" />
-            <p className="text-sm font-medium text-gray-500">No billing history yet</p>
-            <p className="text-xs text-gray-400 mt-1">Bills will appear here once generated</p>
-          </div>
-        ) : (
-          <div className="border border-gray-200/80 rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/80 border-b border-gray-200/80">
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Period</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Amount</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">
-                      Due Date
-                    </th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">
-                      Invoices
-                    </th>
-                    <th className="px-4 py-3 w-8" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {history.map((bill) => (
-                    <HistoryRow key={bill._id} bill={bill} />
-                  ))}
-                </tbody>
-              </table>
+          ) : historyError ? (
+            <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
+              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-red-800">{historyError}</p>
+                <button onClick={fetchHistory} className="text-xs text-red-600 hover:underline mt-0.5">
+                  Try again
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          ) : history.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-14 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+              <FileText className="w-8 h-8 text-gray-300 mb-3" />
+              <p className="text-sm font-medium text-gray-500">No billing history yet</p>
+              <p className="text-xs text-gray-400 mt-1">Bills will appear here once generated</p>
+            </div>
+          ) : (
+            <div className="border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50/80 border-b border-gray-200/80">
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Period</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Amount</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">
+                        Due Date
+                      </th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">
+                        Invoices
+                      </th>
+                      <th className="px-4 py-3 w-8" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {history.map((bill) => (
+                      <HistoryRow key={bill._id} bill={bill} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
