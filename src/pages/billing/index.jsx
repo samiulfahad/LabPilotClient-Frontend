@@ -235,11 +235,17 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
 
   const { bill, isOverdue } = status;
 
+  // Support the exact data structure provided (uses _id, billingPeriodStart, totalAmount, etc.)
+  const billId = bill._id || bill.id; // MongoDB _id or legacy id
+  const periodTs = bill.billingPeriodStart || bill.billingPeriod; // fallback for older responses
+  const amount = bill.totalAmount ?? bill.amount; // support both field names
+
   const handlePay = async () => {
+    if (!billId) return;
     setPaying(true);
     setError(null);
     try {
-      await billingService.pay(bill.id);
+      await billingService.pay(billId);
       onPaySuccess();
     } catch (err) {
       setError(err?.response?.data?.error || "Payment failed. Please try again.");
@@ -272,7 +278,7 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
               {isOverdue ? "Payment Overdue" : "Payment Due"}
             </h3>
             <p className={`text-sm mt-0.5 ${isOverdue ? "text-red-600" : "text-amber-600"}`}>
-              Billing period: {fmt.period(bill.billingPeriod)}
+              Billing period: {fmt.period(periodTs)}
             </p>
           </div>
         </div>
@@ -282,7 +288,7 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
         <div className="bg-white/70 rounded-xl border border-white/80 px-4 py-3">
           <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Amount Due</p>
-          <p className="text-xl font-bold text-gray-900">{fmt.currency(bill.amount)}</p>
+          <p className="text-xl font-bold text-gray-900">{fmt.currency(amount)}</p>
         </div>
         <div className="bg-white/70 rounded-xl border border-white/80 px-4 py-3">
           <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Due Date</p>
@@ -307,7 +313,7 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
 
       <button
         onClick={handlePay}
-        disabled={paying}
+        disabled={paying || !billId}
         className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all active:scale-[0.98] shadow-lg shadow-blue-200"
       >
         {paying ? (
@@ -318,7 +324,7 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
         ) : (
           <>
             <CreditCard className="w-4 h-4" />
-            Mark as Paid — {fmt.currency(bill.amount)}
+            Mark as Paid — {fmt.currency(amount)}
           </>
         )}
       </button>
