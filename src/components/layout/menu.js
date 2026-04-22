@@ -11,8 +11,7 @@ import {
   UserCircle,
   FlaskConical,
   HelpCircle,
-  Search,
-  Receipt
+  Search
 } from "lucide-react";
 
 
