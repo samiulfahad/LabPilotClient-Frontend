@@ -57,7 +57,7 @@ function App() {
       <Route element={<ProtectedRoutes />}>
         <Route path="/" element={<Home />} />
         <Route path="/cashmemo" element={<CashMemo />} />
-         <Route path="/cashmemo" element={<InvoiceMaster/> } />
+         <Route path="/invoice-master" element={<InvoiceMaster/> } />
         <Route path="/search-invoice" element={<SearchInvoice />} />
         <Route path="/commission" element={<Commission />} />
         <Route path="/invoice/new" element={<CreateInvoice />} />

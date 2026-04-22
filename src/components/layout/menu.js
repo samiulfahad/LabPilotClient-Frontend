@@ -19,7 +19,7 @@ import {
 const menu = [
   { label: "Home", path: "/", icon: Home },
   { label: "Cashmemo", path: "/cashmemo", icon: Receipt },
-  { label: "Invoices", path: "/invoice-master", icon: Receipt },
+  { label: "Invoice Master", path: "/invoice-master", icon: Receipt },
   { label: "New Invoice", path: "/invoice/new", icon: FilePlus },
   { label: "Reports", path: "/report", icon: FileText },
   { label: "Transactions", path: "/transactions", icon: ArrowLeftRight },
