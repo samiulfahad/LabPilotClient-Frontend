@@ -12,15 +12,16 @@ import {
   FlaskConical,
   HelpCircle,
   Search,
+  Receipt
 } from "lucide-react";
+
+
 
 const menu = [
   { label: "Home", path: "/", icon: Home },
   { label: "Cashmemo", path: "/cashmemo", icon: Receipt },
+  { label: "Invoices", path: "/invoice-master", icon: Receipt },
   { label: "New Invoice", path: "/invoice/new", icon: FilePlus },
-   { label: "Search Invoice", path: "/search-invoice", icon: Search },
-  { label: "Delete Invoice", path: "/invoice/delete", icon: Trash2 },
-  { label: "Invoice List", path: "/invoice/all", icon: LayoutList },
   { label: "Reports", path: "/report", icon: FileText },
   { label: "Transactions", path: "/transactions", icon: ArrowLeftRight },
   { label: "Commission", path: "/commission", icon: Percent },

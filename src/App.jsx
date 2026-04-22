@@ -23,6 +23,7 @@ import Transactions from "./pages/transactions";
 import Account from "./pages/account";
 import SearchInvoice from "./pages/search";
 import Billing from "./pages/billing";
+import InvoiceMaster from "./pages/invoiceMaster";
 
 // ─── Route Wrapper for Protected Pages ──────────────────────────────────────
 const ProtectedRoutes = () => {
@@ -56,6 +57,7 @@ function App() {
       <Route element={<ProtectedRoutes />}>
         <Route path="/" element={<Home />} />
         <Route path="/cashmemo" element={<CashMemo />} />
+         <Route path="/cashmemo" element={<InvoiceMaster/> } />
         <Route path="/search-invoice" element={<SearchInvoice />} />
         <Route path="/commission" element={<Commission />} />
         <Route path="/invoice/new" element={<CreateInvoice />} />
