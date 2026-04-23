@@ -1,6 +1,22 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Pencil, Trash2, Search, X, Package, ChevronLeft, ChevronRight, Minus } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  X,
+  Package,
+  ChevronLeft,
+  ChevronRight,
+  Minus,
+  ToggleLeft,
+  ToggleRight,
+} from "lucide-react";
 import productService from "../../../api/products";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const LAB_PRODUCT_LIMIT = 500;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -60,6 +76,7 @@ function ProductModal({ mode, product, onClose, onSave }) {
     name: product?.name ?? "",
     price: product?.price ?? "",
     description: product?.description ?? "",
+    hasStock: product?.hasStock ?? false,
     stock: product?.stock ?? 0,
   });
   const [errors, setErrors] = useState({});
@@ -74,7 +91,9 @@ function ProductModal({ mode, product, onClose, onSave }) {
     else if (isNaN(form.price) || Number(form.price) < 0) e.price = "Must be ≥ 0";
     else if (Number(form.price) > 10000000) e.price = "Max ৳10,000,000";
     if (form.description.length > 500) e.description = "Max 500 characters";
-    if (form.stock === "" || isNaN(form.stock) || Number(form.stock) < 0) e.stock = "Must be ≥ 0";
+    if (form.hasStock) {
+      if (form.stock === "" || isNaN(form.stock) || Number(form.stock) < 0) e.stock = "Must be ≥ 0";
+    }
     return e;
   };
 
@@ -91,7 +110,9 @@ function ProductModal({ mode, product, onClose, onSave }) {
         name: form.name.trim(),
         price: Number(form.price),
         description: form.description.trim() || undefined,
-        stock: Number(form.stock),
+        hasStock: form.hasStock,
+        // Only include stock in payload when tracking is on
+        ...(form.hasStock && { stock: Number(form.stock) }),
       };
       if (isEdit) await productService.updateProduct(product._id, payload);
       else await productService.createProduct(payload);
@@ -155,49 +176,76 @@ function ProductModal({ mode, product, onClose, onSave }) {
           {field("name", "Product Name", "text", "e.g. Blood Culture Panel")}
           {field("price", "Price (BDT ৳)", "number", "0.00")}
 
-          {/* Stock */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Initial Stock</label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const v = Math.max(0, Number(form.stock) - 1);
-                  setForm((f) => ({ ...f, stock: v }));
-                  setErrors((r) => ({ ...r, stock: "" }));
-                }}
-                className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
-              >
-                <Minus size={14} />
-              </button>
-              <input
-                type="number"
-                value={form.stock}
-                min={0}
-                onChange={(e) => {
-                  setForm((f) => ({ ...f, stock: e.target.value }));
-                  setErrors((r) => ({ ...r, stock: "" }));
-                }}
-                className={`w-20 px-3 py-2 text-sm rounded-lg border bg-white text-gray-800 outline-none text-center transition-all
-                  ${
-                    errors.stock
-                      ? "border-red-400 ring-1 ring-red-200"
-                      : "border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-                  }`}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setForm((f) => ({ ...f, stock: Number(f.stock) + 1 }));
-                  setErrors((r) => ({ ...r, stock: "" }));
-                }}
-                className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
-              >
-                <Plus size={14} />
-              </button>
-            </div>
-            {errors.stock && <p className="text-xs text-red-500">{errors.stock}</p>}
+          {/* Stock tracking toggle */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Stock Tracking</label>
+            <button
+              type="button"
+              onClick={() => {
+                setForm((f) => ({ ...f, hasStock: !f.hasStock }));
+                setErrors((r) => ({ ...r, stock: "" }));
+              }}
+              className={`flex items-center gap-2.5 w-fit px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                form.hasStock
+                  ? "bg-blue-50 border-blue-200 text-blue-700"
+                  : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+              }`}
+            >
+              {form.hasStock ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+              {form.hasStock ? "Tracking enabled" : "No stock tracking"}
+            </button>
+            {!form.hasStock && (
+              <p className="text-xs text-gray-400">Enable to track inventory levels and get low-stock alerts.</p>
+            )}
           </div>
+
+          {/* Stock stepper — only shown when hasStock is on */}
+          {form.hasStock && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                {isEdit ? "Stock" : "Initial Stock"}
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const v = Math.max(0, Number(form.stock) - 1);
+                    setForm((f) => ({ ...f, stock: v }));
+                    setErrors((r) => ({ ...r, stock: "" }));
+                  }}
+                  className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
+                >
+                  <Minus size={14} />
+                </button>
+                <input
+                  type="number"
+                  value={form.stock}
+                  min={0}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, stock: e.target.value }));
+                    setErrors((r) => ({ ...r, stock: "" }));
+                  }}
+                  className={`w-20 px-3 py-2 text-sm rounded-lg border bg-white text-gray-800 outline-none text-center transition-all
+                    ${
+                      errors.stock
+                        ? "border-red-400 ring-1 ring-red-200"
+                        : "border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                    }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((f) => ({ ...f, stock: Number(f.stock) + 1 }));
+                    setErrors((r) => ({ ...r, stock: "" }));
+                  }}
+                  className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+              {errors.stock && <p className="text-xs text-red-500">{errors.stock}</p>}
+            </div>
+          )}
 
           {/* Description */}
           <div className="flex flex-col gap-1.5">
@@ -489,20 +537,28 @@ function ProductCard({ product, onEdit, onDelete, onAdjustStock }) {
         <span className="text-xs text-gray-400">{timeAgo(product.createdAt)}</span>
       </div>
 
-      {/* Stock row */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => onAdjustStock(product)}
-          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 transition-colors"
-          title="Adjust stock"
-        >
-          <span className="tabular-nums font-medium">{stock}</span>
-          <span className="text-gray-400">in stock</span>
-          <span className="text-gray-300">·</span>
-          <span className="text-blue-500 hover:underline">adjust</span>
-        </button>
-        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${badge.cls}`}>{badge.label}</span>
-      </div>
+      {/* Stock row — conditional on hasStock */}
+      {product.hasStock ? (
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => onAdjustStock(product)}
+            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 transition-colors"
+            title="Adjust stock"
+          >
+            <span className="tabular-nums font-medium">{stock}</span>
+            <span className="text-gray-400">in stock</span>
+            <span className="text-gray-300">·</span>
+            <span className="text-blue-500 hover:underline">adjust</span>
+          </button>
+          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${badge.cls}`}>{badge.label}</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-gray-50 text-gray-400 border-gray-200">
+            No stock tracking
+          </span>
+        </div>
+      )}
 
       {product.createdBy?.name && (
         <div className="flex items-center gap-1.5 pt-2 border-t border-gray-50">
@@ -623,7 +679,7 @@ export default function Products() {
     }, DEBOUNCE_MS);
   };
 
-  // ── Fetch — plain async function, NOT useCallback ─────────────────────────
+  // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchProducts = async () => {
     setLoading(true);
     setError("");
@@ -638,7 +694,6 @@ export default function Products() {
     }
   };
 
-  // Only re-run when the actual query params change — no function in deps
   useEffect(() => {
     fetchProducts();
   }, [debouncedSearch, page]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -660,6 +715,9 @@ export default function Products() {
     fetchProducts();
   };
 
+  // Derived: whether the lab has hit the 500-product cap
+  const atLimit = pagination.total >= LAB_PRODUCT_LIMIT;
+
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
@@ -672,16 +730,20 @@ export default function Products() {
             <p className="text-sm text-gray-500 mt-0.5">Manage your lab's test catalogue</p>
           </div>
           <button
-            onClick={() => setModal({ type: "create" })}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:scale-95 transition-all"
+            onClick={() => {
+              if (!atLimit) setModal({ type: "create" });
+            }}
+            disabled={atLimit}
+            title={atLimit ? `Limit of ${LAB_PRODUCT_LIMIT} products reached` : undefined}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             <Plus size={16} />
             New Product
           </button>
         </div>
 
-        {/* Stat */}
-        <div className="mt-5">
+        {/* Stats row */}
+        <div className="mt-5 flex items-center gap-3">
           <div className="inline-block bg-gray-50 rounded-lg px-4 py-3 min-w-[130px]">
             <p className="text-xs text-gray-500">Total Products</p>
             <p className="text-lg font-bold text-gray-800 tabular-nums mt-0.5">
@@ -692,6 +754,27 @@ export default function Products() {
               )}
             </p>
           </div>
+
+          {/* Capacity indicator */}
+          {!loading && (
+            <div className="flex flex-col gap-1.5 min-w-[160px]">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">Capacity</p>
+                <p className="text-xs font-medium text-gray-600 tabular-nums">
+                  {pagination.total} / {LAB_PRODUCT_LIMIT}
+                </p>
+              </div>
+              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden w-40">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    atLimit ? "bg-red-400" : pagination.total / LAB_PRODUCT_LIMIT > 0.8 ? "bg-amber-400" : "bg-blue-400"
+                  }`}
+                  style={{ width: `${Math.min((pagination.total / LAB_PRODUCT_LIMIT) * 100, 100)}%` }}
+                />
+              </div>
+              {atLimit && <p className="text-xs text-red-500">Product limit reached</p>}
+            </div>
+          )}
         </div>
       </div>
 
@@ -747,7 +830,7 @@ export default function Products() {
             <p className="text-sm font-medium text-gray-500">
               {debouncedSearch ? "No products match your search" : "No products yet"}
             </p>
-            {!debouncedSearch && (
+            {!debouncedSearch && !atLimit && (
               <button onClick={() => setModal({ type: "create" })} className="text-sm text-blue-600 hover:underline">
                 Create your first product
               </button>
