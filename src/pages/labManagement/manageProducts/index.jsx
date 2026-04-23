@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Plus, Pencil, Trash2, Search, X, Package, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Pencil, Trash2, Search, X, Package, ChevronLeft, ChevronRight, Minus } from "lucide-react";
 import productService from "../../api/products";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -19,6 +19,12 @@ const timeAgo = (ts) => {
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h ago`;
   return `${Math.floor(h / 24)}d ago`;
+};
+
+const stockBadge = (stock) => {
+  if (stock === 0) return { label: "Out of Stock", cls: "bg-red-50 text-red-600 border-red-200" };
+  if (stock <= 5) return { label: "Low Stock", cls: "bg-amber-50 text-amber-600 border-amber-200" };
+  return { label: "In Stock", cls: "bg-green-50 text-green-600 border-green-200" };
 };
 
 // ─── Skeleton Card ────────────────────────────────────────────────────────────
@@ -54,6 +60,7 @@ function ProductModal({ mode, product, onClose, onSave }) {
     name: product?.name ?? "",
     price: product?.price ?? "",
     description: product?.description ?? "",
+    stock: product?.stock ?? 0,
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -67,6 +74,7 @@ function ProductModal({ mode, product, onClose, onSave }) {
     else if (isNaN(form.price) || Number(form.price) < 0) e.price = "Must be ≥ 0";
     else if (Number(form.price) > 10000000) e.price = "Max ৳10,000,000";
     if (form.description.length > 500) e.description = "Max 500 characters";
+    if (form.stock === "" || isNaN(form.stock) || Number(form.stock) < 0) e.stock = "Must be ≥ 0";
     return e;
   };
 
@@ -83,6 +91,7 @@ function ProductModal({ mode, product, onClose, onSave }) {
         name: form.name.trim(),
         price: Number(form.price),
         description: form.description.trim() || undefined,
+        stock: Number(form.stock),
       };
       if (isEdit) await productService.updateProduct(product._id, payload);
       else await productService.createProduct(payload);
@@ -146,6 +155,51 @@ function ProductModal({ mode, product, onClose, onSave }) {
           {field("name", "Product Name", "text", "e.g. Blood Culture Panel")}
           {field("price", "Price (BDT ৳)", "number", "0.00")}
 
+          {/* Stock */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Initial Stock</label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const v = Math.max(0, Number(form.stock) - 1);
+                  setForm((f) => ({ ...f, stock: v }));
+                  setErrors((r) => ({ ...r, stock: "" }));
+                }}
+                className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                <Minus size={14} />
+              </button>
+              <input
+                type="number"
+                value={form.stock}
+                min={0}
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, stock: e.target.value }));
+                  setErrors((r) => ({ ...r, stock: "" }));
+                }}
+                className={`w-20 px-3 py-2 text-sm rounded-lg border bg-white text-gray-800 outline-none text-center transition-all
+                  ${
+                    errors.stock
+                      ? "border-red-400 ring-1 ring-red-200"
+                      : "border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                  }`}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setForm((f) => ({ ...f, stock: Number(f.stock) + 1 }));
+                  setErrors((r) => ({ ...r, stock: "" }));
+                }}
+                className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+            {errors.stock && <p className="text-xs text-red-500">{errors.stock}</p>}
+          </div>
+
+          {/* Description */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
               Description <span className="normal-case text-gray-400">(optional)</span>
@@ -186,6 +240,165 @@ function ProductModal({ mode, product, onClose, onSave }) {
             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? "Saving…" : isEdit ? "Save Changes" : "Create Product"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Stock Adjust Modal ───────────────────────────────────────────────────────
+
+function StockModal({ product, onClose, onSave }) {
+  const [delta, setDelta] = useState(1);
+  const [mode, setMode] = useState("add"); // "add" | "remove"
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState("");
+
+  const currentStock = product.stock ?? 0;
+  const effectiveDelta = mode === "add" ? Math.abs(delta) : -Math.abs(delta);
+  const preview = currentStock + effectiveDelta;
+
+  const handleSubmit = async () => {
+    if (!delta || Number(delta) === 0) return;
+    if (preview < 0) {
+      setApiError("Stock cannot go below zero");
+      return;
+    }
+    setLoading(true);
+    setApiError("");
+    try {
+      await productService.adjustStock(product._id, effectiveDelta, note.trim() || undefined);
+      onSave();
+    } catch (err) {
+      setApiError(err?.response?.data?.error || "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.4)" }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-base font-semibold text-gray-800">Adjust Stock</h2>
+            <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[220px]">{product.name}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 flex flex-col gap-4">
+          {apiError && (
+            <div className="px-3 py-2.5 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600">
+              {apiError}
+            </div>
+          )}
+
+          {/* Current stock */}
+          <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+            <span className="text-xs text-gray-500">Current Stock</span>
+            <span className="text-sm font-bold text-gray-800 tabular-nums">{currentStock} units</span>
+          </div>
+
+          {/* Add / Remove toggle */}
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setMode("add")}
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                mode === "add" ? "bg-green-500 text-white" : "text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              + Add
+            </button>
+            <button
+              onClick={() => setMode("remove")}
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                mode === "remove" ? "bg-red-500 text-white" : "text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              − Remove
+            </button>
+          </div>
+
+          {/* Quantity */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Quantity</label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setDelta((d) => Math.max(1, Number(d) - 1))}
+                className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                <Minus size={14} />
+              </button>
+              <input
+                type="number"
+                value={delta}
+                min={1}
+                onChange={(e) => setDelta(e.target.value)}
+                className="w-20 px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white text-gray-800 outline-none text-center focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setDelta((d) => Number(d) + 1)}
+                className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Note */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+              Note <span className="normal-case text-gray-400">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Received new batch"
+              maxLength={200}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white text-gray-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-all"
+            />
+          </div>
+
+          {/* Preview */}
+          <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+            <span className="text-xs text-gray-500">New Stock</span>
+            <span className={`text-sm font-bold tabular-nums ${preview < 0 ? "text-red-500" : "text-gray-800"}`}>
+              {preview} units
+            </span>
+          </div>
+        </div>
+
+        <div className="px-6 pb-5 flex gap-3 justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading || preview < 0}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? "Saving…" : "Confirm"}
           </button>
         </div>
       </div>
@@ -242,7 +455,10 @@ function DeleteModal({ product, onClose, onConfirm }) {
 
 // ─── Product Card ─────────────────────────────────────────────────────────────
 
-function ProductCard({ product, onEdit, onDelete }) {
+function ProductCard({ product, onEdit, onDelete, onAdjustStock }) {
+  const stock = product.stock ?? 0;
+  const badge = stockBadge(stock);
+
   return (
     <div className="group bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-3 hover:border-gray-200 hover:shadow-sm transition-all">
       <div className="flex items-start justify-between gap-2">
@@ -271,6 +487,21 @@ function ProductCard({ product, onEdit, onDelete }) {
       <div className="flex items-center justify-between">
         <span className="text-lg font-bold text-gray-900 tabular-nums">{formatPrice(product.price)}</span>
         <span className="text-xs text-gray-400">{timeAgo(product.createdAt)}</span>
+      </div>
+
+      {/* Stock row */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => onAdjustStock(product)}
+          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 transition-colors"
+          title="Adjust stock"
+        >
+          <span className="tabular-nums font-medium">{stock}</span>
+          <span className="text-gray-400">in stock</span>
+          <span className="text-gray-300">·</span>
+          <span className="text-blue-500 hover:underline">adjust</span>
+        </button>
+        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${badge.cls}`}>{badge.label}</span>
       </div>
 
       {product.createdBy?.name && (
@@ -311,7 +542,6 @@ function Pagination({ pagination, onPageChange }) {
       </p>
 
       <div className="flex items-center gap-1">
-        {/* Prev */}
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page === 1}
@@ -320,7 +550,6 @@ function Pagination({ pagination, onPageChange }) {
           <ChevronLeft size={16} />
         </button>
 
-        {/* First page + ellipsis */}
         {pages[0] > 1 && (
           <>
             <button
@@ -333,7 +562,6 @@ function Pagination({ pagination, onPageChange }) {
           </>
         )}
 
-        {/* Windowed pages */}
         {pages.map((p) => (
           <button
             key={p}
@@ -345,7 +573,6 @@ function Pagination({ pagination, onPageChange }) {
           </button>
         ))}
 
-        {/* Last page + ellipsis */}
         {pages[pages.length - 1] < totalPages && (
           <>
             {pages[pages.length - 1] < totalPages - 1 && <span className="text-xs text-gray-400 px-1">…</span>}
@@ -358,7 +585,6 @@ function Pagination({ pagination, onPageChange }) {
           </>
         )}
 
-        {/* Next */}
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={page === totalPages}
@@ -381,8 +607,8 @@ export default function Products() {
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: LIMIT, totalPages: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [search, setSearch] = useState(""); // live input value
-  const [debouncedSearch, setDebouncedSearch] = useState(""); // sent to API
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [modal, setModal] = useState(null); // null | { type, product? }
   const debounceRef = useRef(null);
@@ -397,16 +623,12 @@ export default function Products() {
     }, DEBOUNCE_MS);
   };
 
-  // ── Fetch ─────────────────────────────────────────────────────────────────
-  const fetchProducts = useCallback(async () => {
+  // ── Fetch — plain async function, NOT useCallback ─────────────────────────
+  const fetchProducts = async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await productService.getProducts({
-        search: debouncedSearch,
-        page,
-        limit: LIMIT,
-      });
+      const res = await productService.getProducts({ search: debouncedSearch, page, limit: LIMIT });
       setProducts(res.data?.products ?? []);
       setPagination(res.data?.pagination ?? { total: 0, page: 1, limit: LIMIT, totalPages: 0 });
     } catch {
@@ -414,18 +636,18 @@ export default function Products() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, page]);
+  };
 
+  // Only re-run when the actual query params change — no function in deps
   useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
+  }, [debouncedSearch, page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     try {
       await productService.deleteProduct(modal.product._id);
       setModal(null);
-      // If last item on a page beyond page 1, go back
       if (products.length === 1 && page > 1) setPage((p) => p - 1);
       else fetchProducts();
     } catch {
@@ -458,7 +680,7 @@ export default function Products() {
           </button>
         </div>
 
-        {/* Stat — total count only */}
+        {/* Stat */}
         <div className="mt-5">
           <div className="inline-block bg-gray-50 rounded-lg px-4 py-3 min-w-[130px]">
             <p className="text-xs text-gray-500">Total Products</p>
@@ -540,6 +762,7 @@ export default function Products() {
                   product={p}
                   onEdit={(prod) => setModal({ type: "edit", product: prod })}
                   onDelete={(prod) => setModal({ type: "delete", product: prod })}
+                  onAdjustStock={(prod) => setModal({ type: "stock", product: prod })}
                 />
               ))}
             </div>
@@ -559,6 +782,9 @@ export default function Products() {
       )}
       {modal?.type === "delete" && (
         <DeleteModal product={modal.product} onClose={() => setModal(null)} onConfirm={handleDelete} />
+      )}
+      {modal?.type === "stock" && (
+        <StockModal product={modal.product} onClose={() => setModal(null)} onSave={handleSave} />
       )}
     </div>
   );
