@@ -83,17 +83,20 @@ function ProductModal({ mode, product, onClose, onSave }) {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
 
+  const set = (key, val) => {
+    setForm((f) => ({ ...f, [key]: val }));
+    setErrors((e) => ({ ...e, [key]: "" }));
+  };
+
   const validate = () => {
     const e = {};
-    if (!form.name.trim()) e.name = "Name is required";
-    else if (form.name.length > 100) e.name = "Max 100 characters";
-    if (form.price === "" || form.price === null) e.price = "Price is required";
+    if (!form.name.trim()) e.name = "Required";
+    else if (form.name.length > 100) e.name = "Max 100 chars";
+    if (form.price === "" || form.price === null) e.price = "Required";
     else if (isNaN(form.price) || Number(form.price) < 0) e.price = "Must be ≥ 0";
     else if (Number(form.price) > 10000000) e.price = "Max ৳10,000,000";
-    if (form.description.length > 500) e.description = "Max 500 characters";
-    if (form.hasStock) {
-      if (form.stock === "" || isNaN(form.stock) || Number(form.stock) < 0) e.stock = "Must be ≥ 0";
-    }
+    if (form.description.length > 500) e.description = "Max 500 chars";
+    if (form.hasStock && (form.stock === "" || isNaN(form.stock) || Number(form.stock) < 0)) e.stock = "Must be ≥ 0";
     return e;
   };
 
@@ -111,7 +114,6 @@ function ProductModal({ mode, product, onClose, onSave }) {
         price: Number(form.price),
         description: form.description.trim() || undefined,
         hasStock: form.hasStock,
-        // Only include stock in payload when tracking is on
         ...(form.hasStock && { stock: Number(form.stock) }),
       };
       if (isEdit) await productService.updateProduct(product._id, payload);
@@ -124,170 +126,151 @@ function ProductModal({ mode, product, onClose, onSave }) {
     }
   };
 
-  const field = (key, label, type = "text", placeholder = "") => (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</label>
-      <input
-        type={type}
-        value={form[key]}
-        onChange={(e) => {
-          setForm((f) => ({ ...f, [key]: e.target.value }));
-          setErrors((r) => ({ ...r, [key]: "" }));
-        }}
-        placeholder={placeholder}
-        className={`w-full px-3 py-2 text-sm rounded-lg border bg-white text-gray-800 outline-none transition-all
-          ${
-            errors[key]
-              ? "border-red-400 ring-1 ring-red-200"
-              : "border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-          }`}
-      />
-      {errors[key] && <p className="text-xs text-red-500">{errors[key]}</p>}
-    </div>
-  );
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.4)" }}
+      style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(2px)" }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-800">{isEdit ? "Edit Product" : "New Product"}</h2>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h2 className="text-sm font-semibold text-gray-800 tracking-tight">
+            {isEdit ? "Edit Product" : "New Product"}
+          </h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
           >
-            <X size={16} />
+            <X size={14} />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="px-6 py-5 flex flex-col gap-4">
+        {/* ── Body ── */}
+        <div className="px-5 py-4 flex flex-col gap-3">
           {apiError && (
-            <div className="px-3 py-2.5 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600">
-              {apiError}
-            </div>
+            <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600">{apiError}</div>
           )}
-          {field("name", "Product Name", "text", "e.g. Blood Culture Panel")}
-          {field("price", "Price (BDT ৳)", "number", "0.00")}
 
-          {/* Stock tracking toggle */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Stock Tracking</label>
-            <button
-              type="button"
-              onClick={() => {
-                setForm((f) => ({ ...f, hasStock: !f.hasStock }));
-                setErrors((r) => ({ ...r, stock: "" }));
-              }}
-              className={`flex items-center gap-2.5 w-fit px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
-                form.hasStock
-                  ? "bg-blue-50 border-blue-200 text-blue-700"
-                  : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
-              }`}
-            >
-              {form.hasStock ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
-              {form.hasStock ? "Tracking enabled" : "No stock tracking"}
-            </button>
-            {!form.hasStock && (
-              <p className="text-xs text-gray-400">Enable to track inventory levels and get low-stock alerts.</p>
-            )}
+          {/* Name */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Name</label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => set("name", e.target.value)}
+              placeholder="e.g. Blood Culture Panel"
+              className={`w-full px-3 py-2 text-sm rounded-lg border bg-white text-gray-800 outline-none transition-all placeholder:text-gray-300
+                ${errors.name ? "border-red-300 ring-1 ring-red-100" : "border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-100"}`}
+            />
+            {errors.name && <p className="text-[11px] text-red-500">{errors.name}</p>}
           </div>
 
-          {/* Stock stepper — only shown when hasStock is on */}
-          {form.hasStock && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                {isEdit ? "Stock" : "Initial Stock"}
-              </label>
-              <div className="flex items-center gap-2">
+          {/* Price + Stock side by side */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Price */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Price (৳)</label>
+              <input
+                type="number"
+                value={form.price}
+                onChange={(e) => set("price", e.target.value)}
+                placeholder="0.00"
+                className={`w-full px-3 py-2 text-sm rounded-lg border bg-white text-gray-800 outline-none transition-all placeholder:text-gray-300
+                  ${errors.price ? "border-red-300 ring-1 ring-red-100" : "border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-100"}`}
+              />
+              {errors.price && <p className="text-[11px] text-red-500">{errors.price}</p>}
+            </div>
+
+            {/* Stock (conditional on hasStock) */}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">
+                  {isEdit ? "Stock" : "Init. Stock"}
+                </label>
+                {/* Toggle pill */}
                 <button
                   type="button"
-                  onClick={() => {
-                    const v = Math.max(0, Number(form.stock) - 1);
-                    setForm((f) => ({ ...f, stock: v }));
-                    setErrors((r) => ({ ...r, stock: "" }));
-                  }}
-                  className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
+                  onClick={() => set("hasStock", !form.hasStock)}
+                  className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none
+                    ${form.hasStock ? "bg-blue-500" : "bg-gray-200"}`}
                 >
-                  <Minus size={14} />
-                </button>
-                <input
-                  type="number"
-                  value={form.stock}
-                  min={0}
-                  onChange={(e) => {
-                    setForm((f) => ({ ...f, stock: e.target.value }));
-                    setErrors((r) => ({ ...r, stock: "" }));
-                  }}
-                  className={`w-20 px-3 py-2 text-sm rounded-lg border bg-white text-gray-800 outline-none text-center transition-all
-                    ${
-                      errors.stock
-                        ? "border-red-400 ring-1 ring-red-200"
-                        : "border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-                    }`}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setForm((f) => ({ ...f, stock: Number(f.stock) + 1 }));
-                    setErrors((r) => ({ ...r, stock: "" }));
-                  }}
-                  className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
-                >
-                  <Plus size={14} />
+                  <span
+                    className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform
+                      ${form.hasStock ? "translate-x-3" : "translate-x-0"}`}
+                  />
                 </button>
               </div>
-              {errors.stock && <p className="text-xs text-red-500">{errors.stock}</p>}
+              {form.hasStock ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => set("stock", Math.max(0, Number(form.stock) - 1))}
+                    className="w-7 h-[34px] rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors shrink-0"
+                  >
+                    <Minus size={12} />
+                  </button>
+                  <input
+                    type="number"
+                    value={form.stock}
+                    min={0}
+                    onChange={(e) => set("stock", e.target.value)}
+                    className={`flex-1 min-w-0 px-2 py-2 text-sm rounded-lg border bg-white text-gray-800 outline-none text-center transition-all
+                      ${errors.stock ? "border-red-300 ring-1 ring-red-100" : "border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-100"}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => set("stock", Number(form.stock) + 1)}
+                    className="w-7 h-[34px] rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors shrink-0"
+                  >
+                    <Plus size={12} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center h-[34px] px-3 rounded-lg border border-dashed border-gray-200 bg-gray-50">
+                  <span className="text-xs text-gray-400">Not tracked</span>
+                </div>
+              )}
+              {errors.stock && <p className="text-[11px] text-red-500">{errors.stock}</p>}
             </div>
-          )}
+          </div>
 
           {/* Description */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-              Description <span className="normal-case text-gray-400">(optional)</span>
-            </label>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">
+                Description <span className="normal-case text-gray-300">(optional)</span>
+              </label>
+              <span className="text-[11px] text-gray-300">{form.description.length}/500</span>
+            </div>
             <textarea
               value={form.description}
-              onChange={(e) => {
-                setForm((f) => ({ ...f, description: e.target.value }));
-                setErrors((r) => ({ ...r, description: "" }));
-              }}
-              placeholder="Brief description of this product..."
-              rows={3}
-              className={`w-full px-3 py-2 text-sm rounded-lg border bg-white text-gray-800 outline-none resize-none transition-all
-                ${
-                  errors.description
-                    ? "border-red-400 ring-1 ring-red-200"
-                    : "border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-                }`}
+              onChange={(e) => set("description", e.target.value)}
+              placeholder="Brief description…"
+              rows={2}
+              className={`w-full px-3 py-2 text-sm rounded-lg border bg-white text-gray-800 outline-none resize-none transition-all placeholder:text-gray-300
+                ${errors.description ? "border-red-300 ring-1 ring-red-100" : "border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-100"}`}
             />
-            <div className="flex justify-between">
-              {errors.description ? <p className="text-xs text-red-500">{errors.description}</p> : <span />}
-              <span className="text-xs text-gray-400">{form.description.length}/500</span>
-            </div>
+            {errors.description && <p className="text-[11px] text-red-500">{errors.description}</p>}
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 pb-5 flex gap-3 justify-end">
+        {/* ── Footer ── */}
+        <div className="px-5 pb-4 flex gap-2 justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            className="px-3.5 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            className="px-3.5 py-2 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? "Saving…" : isEdit ? "Save Changes" : "Create Product"}
+            {loading ? "Saving…" : isEdit ? "Save Changes" : "Create"}
           </button>
         </div>
       </div>
