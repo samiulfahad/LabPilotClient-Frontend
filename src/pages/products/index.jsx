@@ -300,7 +300,7 @@ function ProductCard({ product, onEdit, onDelete }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function ProductsPage() {
+export default function Products() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

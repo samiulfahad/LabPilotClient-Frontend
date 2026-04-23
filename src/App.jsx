@@ -24,6 +24,7 @@ import Account from "./pages/account";
 import SearchInvoice from "./pages/search";
 import Billing from "./pages/billing";
 import InvoiceMaster from "./pages/invoiceMaster";
+import Products from "./pages/products";
 
 // ─── Route Wrapper for Protected Pages ──────────────────────────────────────
 const ProtectedRoutes = () => {
@@ -74,6 +75,7 @@ function App() {
         <Route path="/manage-referrers" element={<ManageReferrers />} />
         <Route path="/manage-staffs" element={<ManageStaffs />} />
         <Route path="/manage-tests" element={<ManageTests />} />
+        <Route path="/manage-products" element={<Products/> } />
         <Route path="/test/add" element={<AddTest />} />
       </Route>
       {/* Catch-all: Redirect unknown URLs to home */}
