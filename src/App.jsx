@@ -24,7 +24,7 @@ import Account from "./pages/account";
 import SearchInvoice from "./pages/search";
 import Billing from "./pages/billing";
 import InvoiceMaster from "./pages/invoiceMaster";
-import Products from "./pages/products";
+import Products from "./pages/labManagement/manageProducts";
 
 // ─── Route Wrapper for Protected Pages ──────────────────────────────────────
 const ProtectedRoutes = () => {

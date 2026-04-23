@@ -1,8 +1,9 @@
 import api from "./baseAPI";
 
 const productService = {
-  // Get all products for the lab
-  getProducts: () => api.get("/products"),
+  // Get products — supports search + pagination
+  getProducts: ({ search = "", page = 1, limit = 50 } = {}) =>
+    api.get("/products", { params: { search, page, limit } }),
 
   // Get a single product
   getProduct: (productId) => api.get(`/products/${productId}`),
