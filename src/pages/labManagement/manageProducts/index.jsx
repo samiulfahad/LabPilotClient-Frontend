@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Plus, Pencil, Trash2, Search, X, Package, ChevronLeft, ChevronRight, Minus } from "lucide-react";
-import productService from "../../api/products";
+import productService from "../../../api/products";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
