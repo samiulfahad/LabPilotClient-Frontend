@@ -12,9 +12,9 @@ const CARDS = [
     textColor: "text-blue-600",
   },
   {
-    title: "Non-Test Items",
+    title: "Products",
     icon: Package,
-    link: null,
+    link:  "/manage-products",
     bgIcon: "bg-gradient-to-br from-amber-50 to-amber-100",
     iconColor: "text-amber-600",
     hoverBorder: "group-hover:border-amber-200",
