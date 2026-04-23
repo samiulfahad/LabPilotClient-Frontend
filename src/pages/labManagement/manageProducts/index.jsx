@@ -627,24 +627,10 @@ export default function Products() {
   const fetchProducts = async () => {
     setLoading(true);
     setError("");
-
     try {
-      const res = await productService.getProducts({
-        search: debouncedSearch,
-        page,
-        limit: LIMIT,
-      });
-
+      const res = await productService.getProducts({ search: debouncedSearch, page, limit: LIMIT });
       setProducts(res.data?.products ?? []);
-
-      const apiPagination = res.data?.pagination ?? {};
-
-      setPagination({
-        total: apiPagination.total ?? 0,
-        page, // ✅ keep local
-        limit: apiPagination.limit ?? LIMIT,
-        totalPages: apiPagination.totalPages ?? 0,
-      });
+      setPagination(res.data?.pagination ?? { total: 0, page: 1, limit: LIMIT, totalPages: 0 });
     } catch {
       setError("Failed to load products. Please try again.");
     } finally {

@@ -29,17 +29,8 @@ import Products from "./pages/labManagement/manageProducts";
 // ─── Route Wrapper for Protected Pages ──────────────────────────────────────
 const ProtectedRoutes = () => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-
-  // If not logged in, kick them to the login page
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  // If logged in, show the Layout (Sidebar/Navbar) and the requested page
-  return (
-    <Layout>
-      <Outlet />
-    </Layout>
-  );
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <Layout />; // no children
 };
 
 // ─── Main App Component ─────────────────────────────────────────────────────
@@ -53,12 +44,12 @@ function App() {
       <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LabPilotLogin />} />
       {/* Help is now public and accessible without logging in */}
       <Route path="/help" element={<Help />} />
-      
+
       {/* ════ PROTECTED ROUTES (Login required) ════ */}
       <Route element={<ProtectedRoutes />}>
         <Route path="/" element={<Home />} />
         <Route path="/cashmemo" element={<CashMemo />} />
-         <Route path="/invoice-master" element={<InvoiceMaster/> } />
+        <Route path="/invoice-master" element={<InvoiceMaster />} />
         <Route path="/search-invoice" element={<SearchInvoice />} />
         <Route path="/commission" element={<Commission />} />
         <Route path="/invoice/new" element={<CreateInvoice />} />
@@ -68,14 +59,14 @@ function App() {
         <Route path="/report" element={<Report />} />
         <Route path="/report-upload" element={<ReportUpload />} />
         <Route path="/report-download" element={<ReportDownload />} />
-        <Route path="/transactions" element={<Transactions/> } />
-        <Route path="/account" element={<Account/> } />
-        <Route path="/billing" element={<Billing/> } />
+        <Route path="/transactions" element={<Transactions />} />
+        <Route path="/account" element={<Account />} />
+        <Route path="/billing" element={<Billing />} />
         <Route path="/lab-management" element={<LabManagement />} />
         <Route path="/manage-referrers" element={<ManageReferrers />} />
         <Route path="/manage-staffs" element={<ManageStaffs />} />
         <Route path="/manage-tests" element={<ManageTests />} />
-        <Route path="/manage-products" element={<Products/> } />
+        <Route path="/manage-products" element={<Products />} />
         <Route path="/test/add" element={<AddTest />} />
       </Route>
       {/* Catch-all: Redirect unknown URLs to home */}
