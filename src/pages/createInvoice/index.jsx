@@ -324,13 +324,10 @@ const InvoiceForm = ({
   pendingReferrerNameRef,
 }) => {
   const [referrerQuery, setReferrerQuery] = useState("");
-  const [testQuery, setTestQuery] = useState("");
-  const [productQuery, setProductQuery] = useState("");
+  const [itemQuery, setItemQuery] = useState("");
   const [showReferrerDrop, setShowReferrerDrop] = useState(false);
-  const [showTestDrop, setShowTestDrop] = useState(false);
-  const [showProductDrop, setShowProductDrop] = useState(false);
-  const testDropRef = useRef(null);
-  const productDropRef = useRef(null);
+  const [showItemDrop, setShowItemDrop] = useState(false);
+  const itemDropRef = useRef(null);
 
   const {
     patient,
@@ -345,27 +342,24 @@ const InvoiceForm = ({
   } = formData;
   const due = Math.max(0, amount.final - amount.paid);
 
-  // Close dropdowns on outside click
+  // Close item dropdown on outside click
   useEffect(() => {
     const handler = (e) => {
-      if (testDropRef.current && !testDropRef.current.contains(e.target)) setShowTestDrop(false);
-      if (productDropRef.current && !productDropRef.current.contains(e.target)) setShowProductDrop(false);
+      if (itemDropRef.current && !itemDropRef.current.contains(e.target)) setShowItemDrop(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // Combined filtered results
+  const q = itemQuery.trim().toLowerCase();
+  const filteredTests = q ? availableTests.filter((t) => t.name.toLowerCase().includes(q)) : availableTests;
+  const filteredProducts = q ? availableProducts.filter((p) => p.name.toLowerCase().includes(q)) : availableProducts;
+  const hasResults = filteredTests.length > 0 || filteredProducts.length > 0;
+
   const filteredReferrers = referrerQuery.trim()
     ? availableReferrers.filter((r) => r.name.toLowerCase().includes(referrerQuery.toLowerCase()))
     : availableReferrers;
-
-  const filteredTests = testQuery.trim()
-    ? availableTests.filter((t) => t.name.toLowerCase().includes(testQuery.toLowerCase()))
-    : availableTests;
-
-  const filteredProducts = productQuery.trim()
-    ? availableProducts.filter((p) => p.name.toLowerCase().includes(productQuery.toLowerCase()))
-    : availableProducts;
 
   const selectReferrer = (r) => {
     onChange("referredBy", r);
@@ -558,67 +552,137 @@ const InvoiceForm = ({
         </div>
       </SectionCard>
 
-      {/* ── Diagnostic Tests ────────────────────────────────────── */}
-      <SectionCard icon={FileText} title="Diagnostic Tests">
-        <div className="relative mb-5" ref={testDropRef}>
+      {/* ── Tests & Products ────────────────────────────────────── */}
+      <SectionCard icon={FileText} title="Tests & Products">
+        {/* Combined search */}
+        <div className="relative mb-5" ref={itemDropRef}>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              value={testQuery}
+              value={itemQuery}
               onChange={(e) => {
-                setTestQuery(e.target.value);
-                setShowTestDrop(true);
+                setItemQuery(e.target.value);
+                setShowItemDrop(true);
               }}
-              onFocus={() => setShowTestDrop(true)}
+              onFocus={() => setShowItemDrop(true)}
               className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-              placeholder="Search tests by name..."
+              placeholder="Search tests or products..."
             />
           </div>
-          {showTestDrop && testQuery && (
-            <div className="absolute top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
-              {filteredTests.length > 0 ? (
-                filteredTests.map((test) => {
-                  const selected = selectedTests.some((t) => t.testId === test.testId);
-                  return (
-                    <button
-                      key={test.testId}
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        onTestToggle(test);
-                        setTestQuery("");
-                      }}
-                      className={`w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0 ${selected ? "bg-blue-50" : ""}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900 text-sm">{test.name}</p>
-                          <p className="text-xs text-blue-600 font-medium">{fmt(test.price)}</p>
-                        </div>
-                        {selected && (
-                          <div className="p-1 bg-blue-600 rounded-full">
-                            <Check className="w-3 h-3 text-white" />
-                          </div>
-                        )}
+
+          {showItemDrop && itemQuery && (
+            <div className="absolute top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto z-20">
+              {hasResults ? (
+                <>
+                  {/* Tests group */}
+                  {filteredTests.length > 0 && (
+                    <>
+                      <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 sticky top-0">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tests</span>
                       </div>
-                    </button>
-                  );
-                })
+                      {filteredTests.map((test) => {
+                        const selected = selectedTests.some((t) => t.testId === test.testId);
+                        return (
+                          <button
+                            key={test.testId}
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              onTestToggle(test);
+                              setItemQuery("");
+                            }}
+                            className={`w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0 transition-colors ${selected ? "bg-blue-50" : ""}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-gray-900 text-sm">{test.name}</p>
+                                <p className="text-xs text-blue-600 font-medium">{fmt(test.price)}</p>
+                              </div>
+                              {selected && (
+                                <div className="p-1 bg-blue-600 rounded-full">
+                                  <Check className="w-3 h-3 text-white" />
+                                </div>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
+
+                  {/* Products group */}
+                  {filteredProducts.length > 0 && (
+                    <>
+                      <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 sticky top-0">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Products</span>
+                      </div>
+                      {filteredProducts.map((product) => {
+                        const selected = selectedProducts.some((p) => p._id === product._id);
+                        const outOfStock = product.hasStock && product.stock === 0;
+                        return (
+                          <button
+                            key={product._id}
+                            type="button"
+                            disabled={outOfStock}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              if (!outOfStock) {
+                                onProductToggle(product);
+                                setItemQuery("");
+                              }
+                            }}
+                            className={`w-full px-4 py-3 text-left border-b border-gray-100 last:border-0 transition-colors
+                              ${outOfStock ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-50"}
+                              ${selected ? "bg-blue-50" : ""}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-gray-900 text-sm">
+                                  {product.name}
+                                  {product.unit && (
+                                    <span className="ml-1.5 text-xs text-gray-400 font-normal">({product.unit})</span>
+                                  )}
+                                </p>
+                                <p className="text-xs text-blue-600 font-medium">{fmt(product.price)}</p>
+                                {product.hasStock && (
+                                  <p
+                                    className={`text-xs mt-0.5 ${product.stock === 0 ? "text-red-500 font-medium" : "text-gray-400"}`}
+                                  >
+                                    Stock: {product.stock ?? 0}
+                                  </p>
+                                )}
+                              </div>
+                              {selected && (
+                                <div className="p-1 bg-blue-600 rounded-full shrink-0">
+                                  <Check className="w-3 h-3 text-white" />
+                                </div>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
+                </>
               ) : (
                 <div className="px-4 py-6 text-center text-gray-500 text-sm">
                   <AlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                  <p>No tests found</p>
+                  <p>No tests or products found</p>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {selectedTests.length > 0 ? (
-          <div>
+        {/* Selected Tests */}
+        {selectedTests.length > 0 && (
+          <div className="mb-4">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-medium text-gray-700">Selected Tests</h4>
+              <div className="flex items-center gap-2">
+                <FileText className="w-3.5 h-3.5 text-gray-500" />
+                <h4 className="text-sm font-medium text-gray-700">Tests</h4>
+              </div>
               <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
                 {selectedTests.length} Selected
               </span>
@@ -644,96 +708,16 @@ const InvoiceForm = ({
               ))}
             </div>
           </div>
-        ) : (
-          <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-            <div className="inline-flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-sm mb-3">
-              <Plus className="w-5 h-5 text-gray-400" />
-            </div>
-            <p className="text-gray-900 font-medium mb-1">No tests selected</p>
-            <p className="text-sm text-gray-500">Search and add tests using the search bar above</p>
-          </div>
         )}
-      </SectionCard>
 
-      {/* ── Products / Consumables ──────────────────────────────── */}
-      <SectionCard icon={Package} title="Products / Consumables">
-        <div className="relative mb-5" ref={productDropRef}>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={productQuery}
-              onChange={(e) => {
-                setProductQuery(e.target.value);
-                setShowProductDrop(true);
-              }}
-              onFocus={() => setShowProductDrop(true)}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-              placeholder="Search products by name..."
-            />
-          </div>
-          {showProductDrop && productQuery && (
-            <div className="absolute top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
-              {filteredProducts.length > 0 ? (
-                filteredProducts.map((product) => {
-                  const selected = selectedProducts.some((p) => p._id === product._id);
-                  const outOfStock = product.hasStock && product.stock === 0;
-                  return (
-                    <button
-                      key={product._id}
-                      type="button"
-                      disabled={outOfStock}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        if (!outOfStock) {
-                          onProductToggle(product);
-                          setProductQuery("");
-                        }
-                      }}
-                      className={`w-full px-4 py-3 text-left border-b border-gray-100 last:border-0 transition-colors
-                        ${outOfStock ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-50"}
-                        ${selected ? "bg-blue-50" : ""}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900 text-sm">
-                            {product.name}
-                            {product.unit && (
-                              <span className="ml-1.5 text-xs text-gray-400 font-normal">({product.unit})</span>
-                            )}
-                          </p>
-                          <p className="text-xs text-blue-600 font-medium">{fmt(product.price)}</p>
-                          {product.hasStock && (
-                            <p
-                              className={`text-xs mt-0.5 ${product.stock === 0 ? "text-red-500 font-medium" : "text-gray-400"}`}
-                            >
-                              Stock: {product.stock ?? 0}
-                            </p>
-                          )}
-                        </div>
-                        {selected && (
-                          <div className="p-1 bg-blue-600 rounded-full shrink-0">
-                            <Check className="w-3 h-3 text-white" />
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })
-              ) : (
-                <div className="px-4 py-6 text-center text-gray-500 text-sm">
-                  <AlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                  <p>No products found</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {selectedProducts.length > 0 ? (
-          <div>
+        {/* Selected Products */}
+        {selectedProducts.length > 0 && (
+          <div className="mb-4">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-medium text-gray-700">Selected Products</h4>
+              <div className="flex items-center gap-2">
+                <Package className="w-3.5 h-3.5 text-gray-500" />
+                <h4 className="text-sm font-medium text-gray-700">Products</h4>
+              </div>
               <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
                 {selectedProducts.length} Selected
               </span>
@@ -776,13 +760,16 @@ const InvoiceForm = ({
               ))}
             </div>
           </div>
-        ) : (
+        )}
+
+        {/* Empty state */}
+        {selectedTests.length === 0 && selectedProducts.length === 0 && (
           <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
             <div className="inline-flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-sm mb-3">
               <Plus className="w-5 h-5 text-gray-400" />
             </div>
-            <p className="text-gray-900 font-medium mb-1">No products selected</p>
-            <p className="text-sm text-gray-500">Search and add consumables or supplies</p>
+            <p className="text-gray-900 font-medium mb-1">Nothing selected yet</p>
+            <p className="text-sm text-gray-500">Search and add tests or products above</p>
           </div>
         )}
       </SectionCard>
@@ -1073,7 +1060,6 @@ const CreateInvoice = () => {
           price,
           schemaId: schemaId || null,
         })),
-        // ── products: map to the shape the backend expects ───────────────
         products: selectedProducts.map(({ _id, name, price, unit, quantity }) => ({
           productId: _id,
           name,
