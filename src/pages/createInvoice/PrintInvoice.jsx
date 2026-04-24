@@ -261,82 +261,34 @@ const InvoicePDF = ({ invoice, qrCodeUrl, date, time }) => {
 
         {/* Tests & Products & Pricing */}
         <View style={pdf$.sectionLast}>
-          {/* Unified table header */}
+          {/* Smart header */}
           <View style={pdf$.tableHeader}>
             <Text style={[pdf$.colNum, pdf$.colHeader]}>#</Text>
-            <Text style={[pdf$.colName, pdf$.colHeader]}>{hasProducts ? "Item" : "Test"}</Text>
+            <Text style={[pdf$.colName, pdf$.colHeader]}>
+              {tests.length > 0 && products.length > 0 ? "Test / Product" : tests.length > 0 ? "Test" : "Product"}
+            </Text>
             <Text style={[pdf$.colPrice, pdf$.colHeader]}>Price</Text>
           </View>
 
-          {/* Tests category label — only when products also exist */}
-          {hasProducts && (
-            <View
-              style={{
-                flexDirection: "row",
-                backgroundColor: "#eff6ff",
-                padding: "3 8",
-                borderBottom: "1 solid #e5e7eb",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 7,
-                  fontFamily: "Helvetica-Bold",
-                  color: "#2563eb",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                }}
-              >
-                Diagnostic Tests
-              </Text>
-            </View>
-          )}
-          {tests.map((t, i) => (
+          {/* Flat unified list — tests first, then products, sequentially numbered */}
+          {[
+            ...tests.map((t, i) => ({ n: i + 1, name: t.name, price: fmt(t.price) })),
+            ...products.map((p, i) => {
+              const qty = p.quantity ?? 1;
+              const unitPrice = p.price ?? 0;
+              return {
+                n: tests.length + i + 1,
+                name: qty > 1 ? `${p.name} (${qty} × ${fmt(unitPrice)})` : p.name,
+                price: fmt(unitPrice * qty),
+              };
+            }),
+          ].map((row, i) => (
             <View key={i} style={i % 2 === 0 ? pdf$.tableRow : pdf$.tableRowEven}>
-              <Text style={pdf$.colNum}>{i + 1}</Text>
-              <Text style={pdf$.colName}>{t.name}</Text>
-              <Text style={pdf$.colPrice}>{fmt(t.price)}</Text>
+              <Text style={pdf$.colNum}>{row.n}</Text>
+              <Text style={pdf$.colName}>{row.name}</Text>
+              <Text style={pdf$.colPrice}>{row.price}</Text>
             </View>
           ))}
-
-          {/* Products */}
-          {hasProducts && (
-            <>
-              <View
-                style={{
-                  flexDirection: "row",
-                  backgroundColor: "#f0fdf4",
-                  padding: "3 8",
-                  borderBottom: "1 solid #e5e7eb",
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 7,
-                    fontFamily: "Helvetica-Bold",
-                    color: "#16a34a",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  Products
-                </Text>
-              </View>
-              {products.map((p, i) => {
-                const qty = p.quantity ?? 1;
-                const unitPrice = p.price ?? 0;
-                const lineTotal = unitPrice * qty;
-                const label = qty > 1 ? `${p.name} (${qty} × ${fmt(unitPrice)})` : p.name;
-                return (
-                  <View key={i} style={i % 2 === 0 ? pdf$.tableRow : pdf$.tableRowEven}>
-                    <Text style={pdf$.colNum}>{i + 1}</Text>
-                    <Text style={pdf$.colName}>{label}</Text>
-                    <Text style={pdf$.colPrice}>{fmt(lineTotal)}</Text>
-                  </View>
-                );
-              })}
-            </>
-          )}
 
           {/* Pricing summary */}
           <View style={pdf$.pricingBox}>
@@ -489,64 +441,41 @@ const InvoiceCard = ({ invoice, qrCodeUrl, date, time }) => {
               <tr>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase w-8">#</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                  {!hasProducts ? "Test" : "Item"}
+                  {tests.length > 0 && products.length > 0 ? "Test / Product" : tests.length > 0 ? "Test" : "Product"}
                 </th>
                 <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Price</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {hasProducts && (
-                <tr>
-                  <td
-                    colSpan={3}
-                    className="px-3 py-1 bg-blue-50 text-[10px] font-semibold text-blue-600 uppercase tracking-wider"
-                  >
-                    Diagnostic Tests
-                  </td>
-                </tr>
-              )}
-              {tests.map((t, i) => (
-                <tr key={t._id || i} className={i % 2 === 1 ? "bg-gray-50/50" : ""}>
-                  <td className="px-3 py-2.5 text-xs text-gray-500">{i + 1}</td>
-                  <td className="px-3 py-2.5 text-sm text-gray-900">{t.name}</td>
-                  <td className="px-3 py-2.5 text-sm text-gray-900 text-right font-medium">{fmt(t.price)}</td>
-                </tr>
-              ))}
-              {hasProducts && (
-                <>
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-3 py-1 bg-green-50 text-[10px] font-semibold text-green-700 uppercase tracking-wider"
-                    >
-                      Products
-                    </td>
-                  </tr>
-                  {products.map((p, i) => {
-                    const qty = p.quantity ?? 1;
-                    const unitPrice = p.price ?? 0;
-                    const lineTotal = unitPrice * qty;
-                    const label =
+              {[
+                ...tests.map((t, i) => ({ n: i + 1, key: t._id || `t${i}`, name: t.name, price: fmt(t.price) })),
+                ...products.map((p, i) => {
+                  const qty = p.quantity ?? 1;
+                  const unitPrice = p.price ?? 0;
+                  return {
+                    n: tests.length + i + 1,
+                    key: p._id || p.productId || `p${i}`,
+                    name:
                       qty > 1 ? (
                         <>
                           {p.name}{" "}
-                          <span className="text-gray-400 font-normal">
-                            ({qty} × {fmt(unitPrice)})
+                          <span className="text-gray-400 font-normal text-xs">
+                            ({qty} × {fmt(unitPrice)})
                           </span>
                         </>
                       ) : (
                         p.name
-                      );
-                    return (
-                      <tr key={p._id || p.productId || i} className={i % 2 === 1 ? "bg-gray-50/50" : ""}>
-                        <td className="px-3 py-2.5 text-xs text-gray-500">{i + 1}</td>
-                        <td className="px-3 py-2.5 text-sm text-gray-900">{label}</td>
-                        <td className="px-3 py-2.5 text-sm text-gray-900 text-right font-medium">{fmt(lineTotal)}</td>
-                      </tr>
-                    );
-                  })}
-                </>
-              )}
+                      ),
+                    price: fmt(unitPrice * qty),
+                  };
+                }),
+              ].map((row, i) => (
+                <tr key={row.key} className={i % 2 === 1 ? "bg-gray-50/50" : ""}>
+                  <td className="px-3 py-2.5 text-xs text-gray-500">{row.n}</td>
+                  <td className="px-3 py-2.5 text-sm text-gray-900">{row.name}</td>
+                  <td className="px-3 py-2.5 text-sm text-gray-900 text-right font-medium">{row.price}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
