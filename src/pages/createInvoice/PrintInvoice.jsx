@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
-import { Printer, Download, Phone, Mail, MapPin, FileText, Share2, Wallet, CheckCircle } from "lucide-react";
+import { Printer, Download, Phone, Mail, MapPin, FileText, Share2, Wallet, CheckCircle, Package } from "lucide-react";
 import QRCode from "qrcode";
 import { pdf, Document, Page, View, Text, Image, StyleSheet, Link, Svg, Path } from "@react-pdf/renderer";
 import invoiceService from "../../api/invoice";
@@ -57,6 +57,7 @@ const normaliseInvoice = (raw) => ({
   },
   referrer: raw.referrer || null,
   tests: Array.isArray(raw.tests) ? raw.tests : [],
+  products: Array.isArray(raw.products) ? raw.products : [],
   amount: {
     initial: Number(raw.amount?.initial) || 0,
     referrerDiscount: Number(raw.amount?.referrerDiscount) || 0,
@@ -123,6 +124,13 @@ const pdf$ = StyleSheet.create({
   section: { padding: "12 20", borderBottom: "1 solid #e5e7eb" },
   sectionLast: { padding: "12 20" },
   sectionTitle: { fontFamily: "Helvetica-Bold", fontSize: 9, color: "#111827", marginBottom: 8 },
+  sectionTitleSecondary: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 9,
+    color: "#111827",
+    marginBottom: 8,
+    marginTop: 12,
+  },
   // patient grid
   patientRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   patientGrid: { flex: 1, flexDirection: "row", flexWrap: "wrap" },
@@ -153,6 +161,7 @@ const pdf$ = StyleSheet.create({
   tableRowEven: { flexDirection: "row", padding: "5 8", borderBottom: "1 solid #f3f4f6", backgroundColor: "#fafafa" },
   colNum: { width: "8%", fontSize: 8, color: "#6b7280" },
   colName: { flex: 1, fontSize: 8 },
+  colQty: { width: "15%", fontSize: 8, textAlign: "center" },
   colPrice: { width: "25%", fontSize: 8, textAlign: "right", fontFamily: "Helvetica-Bold" },
   colHeader: {
     fontFamily: "Helvetica-Bold",
@@ -160,6 +169,20 @@ const pdf$ = StyleSheet.create({
     color: "#374151",
     textTransform: "uppercase",
     letterSpacing: 0.4,
+  },
+  // product table header — teal tint to differentiate
+  productTableHeader: {
+    flexDirection: "row",
+    backgroundColor: "#f0fdf4",
+    padding: "5 8",
+    borderBottom: "1 solid #bbf7d0",
+  },
+  productTableRow: { flexDirection: "row", padding: "5 8", borderBottom: "1 solid #f3f4f6" },
+  productTableRowEven: {
+    flexDirection: "row",
+    padding: "5 8",
+    borderBottom: "1 solid #f3f4f6",
+    backgroundColor: "#fafafa",
   },
   // pricing
   pricingBox: { marginTop: 10, alignItems: "flex-end" },
@@ -190,8 +213,9 @@ const pdf$ = StyleSheet.create({
 // ─── PDF Document ─────────────────────────────────────────────────────────────
 
 const InvoicePDF = ({ invoice, qrCodeUrl, date, time }) => {
-  const { patient, amount, referrer, tests, reportLink, invoiceId } = invoice;
+  const { patient, amount, referrer, tests, products, reportLink, invoiceId } = invoice;
   const flags = getPricingFlags(invoice);
+  const hasProducts = products.length > 0;
 
   return (
     <Document>
@@ -258,8 +282,9 @@ const InvoicePDF = ({ invoice, qrCodeUrl, date, time }) => {
           </View>
         </View>
 
-        {/* Tests & Pricing */}
+        {/* Tests & Products & Pricing */}
         <View style={pdf$.sectionLast}>
+          {/* Diagnostic Tests */}
           <Text style={pdf$.sectionTitle}>Diagnostic Tests</Text>
           <View style={pdf$.tableHeader}>
             <Text style={[pdf$.colNum, pdf$.colHeader]}>#</Text>
@@ -273,6 +298,29 @@ const InvoicePDF = ({ invoice, qrCodeUrl, date, time }) => {
               <Text style={pdf$.colPrice}>{fmt(t.price)}</Text>
             </View>
           ))}
+
+          {/* Products */}
+          {hasProducts && (
+            <>
+              <Text style={pdf$.sectionTitleSecondary}>Products</Text>
+              <View style={pdf$.productTableHeader}>
+                <Text style={[pdf$.colNum, pdf$.colHeader]}>#</Text>
+                <Text style={[pdf$.colName, pdf$.colHeader]}>Product Name</Text>
+                <Text style={[pdf$.colQty, pdf$.colHeader]}>Qty</Text>
+                <Text style={[pdf$.colPrice, pdf$.colHeader]}>Price</Text>
+              </View>
+              {products.map((p, i) => (
+                <View key={i} style={i % 2 === 0 ? pdf$.productTableRow : pdf$.productTableRowEven}>
+                  <Text style={pdf$.colNum}>{i + 1}</Text>
+                  <Text style={pdf$.colName}>{p.name}</Text>
+                  <Text style={[pdf$.colQty, { textAlign: "center", color: "#6b7280" }]}>{p.quantity ?? 1}</Text>
+                  <Text style={pdf$.colPrice}>{fmt((p.price ?? 0) * (p.quantity ?? 1))}</Text>
+                </View>
+              ))}
+            </>
+          )}
+
+          {/* Pricing summary */}
           <View style={pdf$.pricingBox}>
             <View style={pdf$.pricingInner}>
               {flags.showSubtotal && (
@@ -333,8 +381,9 @@ const PDFPricingRow = ({ label, value, valueStyle }) => (
 // ─── Invoice screen card ──────────────────────────────────────────────────────
 
 const InvoiceCard = ({ invoice, qrCodeUrl, date, time }) => {
-  const { patient, amount, referrer, tests, reportLink, invoiceId } = invoice;
+  const { patient, amount, referrer, tests, products, reportLink, invoiceId } = invoice;
   const flags = getPricingFlags(invoice);
+  const hasProducts = products.length > 0;
 
   return (
     <div className="bg-white shadow-lg rounded-xl overflow-hidden">
@@ -413,8 +462,9 @@ const InvoiceCard = ({ invoice, qrCodeUrl, date, time }) => {
         </div>
       </div>
 
-      {/* Tests & Pricing */}
+      {/* Tests & Products & Pricing */}
       <div className="px-6 py-4">
+        {/* Diagnostic Tests */}
         <div className="flex items-center gap-2 mb-3">
           <div className="p-1.5 bg-blue-50 rounded-lg">
             <FileText className="w-4 h-4 text-blue-600" />
@@ -442,6 +492,45 @@ const InvoiceCard = ({ invoice, qrCodeUrl, date, time }) => {
           </table>
         </div>
 
+        {/* Products */}
+        {hasProducts && (
+          <>
+            <div className="flex items-center gap-2 mt-5 mb-3">
+              <div className="p-1.5 bg-green-50 rounded-lg">
+                <Package className="w-4 h-4 text-green-600" />
+              </div>
+              <h2 className="text-base font-semibold text-gray-900">Products</h2>
+            </div>
+            <div className="border border-green-100 rounded-lg overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-green-50">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase w-8">#</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Product Name</th>
+                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase w-16">Qty</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Price</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {products.map((p, i) => {
+                    const qty = p.quantity ?? 1;
+                    const lineTotal = (p.price ?? 0) * qty;
+                    return (
+                      <tr key={p._id || p.productId || i} className={i % 2 === 1 ? "bg-gray-50/50" : ""}>
+                        <td className="px-3 py-2.5 text-xs text-gray-500">{i + 1}</td>
+                        <td className="px-3 py-2.5 text-sm text-gray-900">{p.name}</td>
+                        <td className="px-3 py-2.5 text-sm text-gray-500 text-center">{qty}</td>
+                        <td className="px-3 py-2.5 text-sm text-gray-900 text-right font-medium">{fmt(lineTotal)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {/* Pricing summary */}
         <div className="mt-3 flex justify-end">
           <div className="w-64 space-y-1.5">
             {flags.showSubtotal && <PricingRow label="Subtotal" value={fmt(amount.initial)} />}
@@ -611,6 +700,7 @@ const PrintInvoice = () => {
         `Hello ${invoice.patient.name},\n\n` +
         `Your diagnostic reports from ${LAB_INFO.name} are ready!\n\n` +
         `Tests: ${invoice.tests.length} test(s)\n` +
+        (invoice.products.length > 0 ? `Products: ${invoice.products.length} item(s)\n` : "") +
         `Total: ${fmt(invoice.amount.final)}\n` +
         `Date: ${date}\n\n` +
         `Download your reports here:\n${invoice.reportLink}\n\n` +
