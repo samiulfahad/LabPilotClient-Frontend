@@ -153,7 +153,6 @@ const pdf$ = StyleSheet.create({
   tableRowEven: { flexDirection: "row", padding: "5 8", borderBottom: "1 solid #f3f4f6", backgroundColor: "#fafafa" },
   colNum: { width: "8%", fontSize: 8, color: "#6b7280" },
   colName: { flex: 1, fontSize: 8 },
-  colQty: { width: "15%", fontSize: 8, textAlign: "center" },
   colPrice: { width: "25%", fontSize: 8, textAlign: "right", fontFamily: "Helvetica-Bold" },
   colHeader: {
     fontFamily: "Helvetica-Bold",
@@ -265,8 +264,7 @@ const InvoicePDF = ({ invoice, qrCodeUrl, date, time }) => {
           {/* Unified table header */}
           <View style={pdf$.tableHeader}>
             <Text style={[pdf$.colNum, pdf$.colHeader]}>#</Text>
-            <Text style={[pdf$.colName, pdf$.colHeader]}>Description</Text>
-            <Text style={[pdf$.colQty, pdf$.colHeader]}>Qty</Text>
+            <Text style={[pdf$.colName, pdf$.colHeader]}>Item</Text>
             <Text style={[pdf$.colPrice, pdf$.colHeader]}>Price</Text>
           </View>
 
@@ -297,7 +295,6 @@ const InvoicePDF = ({ invoice, qrCodeUrl, date, time }) => {
             <View key={i} style={i % 2 === 0 ? pdf$.tableRow : pdf$.tableRowEven}>
               <Text style={pdf$.colNum}>{i + 1}</Text>
               <Text style={pdf$.colName}>{t.name}</Text>
-              <Text style={[pdf$.colQty, { textAlign: "center", color: "#9ca3af" }]}>—</Text>
               <Text style={pdf$.colPrice}>{fmt(t.price)}</Text>
             </View>
           ))}
@@ -325,14 +322,19 @@ const InvoicePDF = ({ invoice, qrCodeUrl, date, time }) => {
                   Products
                 </Text>
               </View>
-              {products.map((p, i) => (
-                <View key={i} style={i % 2 === 0 ? pdf$.tableRow : pdf$.tableRowEven}>
-                  <Text style={pdf$.colNum}>{i + 1}</Text>
-                  <Text style={pdf$.colName}>{p.name}</Text>
-                  <Text style={[pdf$.colQty, { textAlign: "center", color: "#6b7280" }]}>{p.quantity ?? 1}</Text>
-                  <Text style={pdf$.colPrice}>{fmt((p.price ?? 0) * (p.quantity ?? 1))}</Text>
-                </View>
-              ))}
+              {products.map((p, i) => {
+                const qty = p.quantity ?? 1;
+                const unitPrice = p.price ?? 0;
+                const lineTotal = unitPrice * qty;
+                const label = qty > 1 ? `${p.name} (${qty} × ${fmt(unitPrice)})` : p.name;
+                return (
+                  <View key={i} style={i % 2 === 0 ? pdf$.tableRow : pdf$.tableRowEven}>
+                    <Text style={pdf$.colNum}>{i + 1}</Text>
+                    <Text style={pdf$.colName}>{label}</Text>
+                    <Text style={pdf$.colPrice}>{fmt(lineTotal)}</Text>
+                  </View>
+                );
+              })}
             </>
           )}
 
@@ -486,17 +488,15 @@ const InvoiceCard = ({ invoice, qrCodeUrl, date, time }) => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase w-8">#</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Description</th>
-                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase w-14">Qty</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Item</th>
                 <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Price</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {/* Tests category label — only shown when products also exist */}
               {hasProducts && (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={3}
                     className="px-3 py-1 bg-blue-50 text-[10px] font-semibold text-blue-600 uppercase tracking-wider"
                   >
                     Diagnostic Tests
@@ -507,16 +507,14 @@ const InvoiceCard = ({ invoice, qrCodeUrl, date, time }) => {
                 <tr key={t._id || i} className={i % 2 === 1 ? "bg-gray-50/50" : ""}>
                   <td className="px-3 py-2.5 text-xs text-gray-500">{i + 1}</td>
                   <td className="px-3 py-2.5 text-sm text-gray-900">{t.name}</td>
-                  <td className="px-3 py-2.5 text-sm text-gray-400 text-center">—</td>
                   <td className="px-3 py-2.5 text-sm text-gray-900 text-right font-medium">{fmt(t.price)}</td>
                 </tr>
               ))}
-              {/* Products category label */}
               {hasProducts && (
                 <>
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={3}
                       className="px-3 py-1 bg-green-50 text-[10px] font-semibold text-green-700 uppercase tracking-wider"
                     >
                       Products
@@ -524,12 +522,23 @@ const InvoiceCard = ({ invoice, qrCodeUrl, date, time }) => {
                   </tr>
                   {products.map((p, i) => {
                     const qty = p.quantity ?? 1;
-                    const lineTotal = (p.price ?? 0) * qty;
+                    const unitPrice = p.price ?? 0;
+                    const lineTotal = unitPrice * qty;
+                    const label =
+                      qty > 1 ? (
+                        <>
+                          {p.name}{" "}
+                          <span className="text-gray-400 font-normal">
+                            ({qty} × {fmt(unitPrice)})
+                          </span>
+                        </>
+                      ) : (
+                        p.name
+                      );
                     return (
                       <tr key={p._id || p.productId || i} className={i % 2 === 1 ? "bg-gray-50/50" : ""}>
                         <td className="px-3 py-2.5 text-xs text-gray-500">{i + 1}</td>
-                        <td className="px-3 py-2.5 text-sm text-gray-900">{p.name}</td>
-                        <td className="px-3 py-2.5 text-sm text-gray-500 text-center">{qty}</td>
+                        <td className="px-3 py-2.5 text-sm text-gray-900">{label}</td>
                         <td className="px-3 py-2.5 text-sm text-gray-900 text-right font-medium">{fmt(lineTotal)}</td>
                       </tr>
                     );
