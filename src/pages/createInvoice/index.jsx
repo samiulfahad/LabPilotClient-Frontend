@@ -23,6 +23,7 @@ import {
   Calendar,
   Building2,
   Wallet,
+  Package,
 } from "lucide-react";
 import Modal from "../../components/modal";
 import Popup from "../../components/popup";
@@ -37,6 +38,7 @@ const INITIAL_FORM = {
   patient: { name: "", gender: "", age: "", contactNumber: "" },
   referredBy: null,
   selectedTests: [],
+  selectedProducts: [],
   hasReferrerDiscount: false,
   referrerDiscount: 0,
   hasLabAdjustment: false,
@@ -51,17 +53,12 @@ const fmt = (n) =>
 
 const toFixed2 = (n) => parseFloat(n.toFixed(2));
 
-/**
- * For doctors: "Dr. Smith ( MBBS, FCPS )"
- * For others: just the name
- */
 const formatReferrerName = (referrer) => {
   if (!referrer || typeof referrer !== "object") return referrer ?? "";
   if (referrer.type === "doctor" && referrer.degree?.trim()) return `${referrer.name} ( ${referrer.degree.trim()} )`;
   return referrer.name;
 };
 
-/** Discount the patient pays (subtracted from their bill) */
 const calcReferrerDiscount = ({ referredBy, hasReferrerDiscount, referrerDiscount, initial }) => {
   if (!hasReferrerDiscount || typeof referredBy !== "object" || !referredBy) return 0;
   if (referredBy.commissionType === "percentage" && referrerDiscount > 0)
@@ -70,7 +67,6 @@ const calcReferrerDiscount = ({ referredBy, hasReferrerDiscount, referrerDiscoun
   return 0;
 };
 
-/** Commission owed to the referrer (gross − discount given to patient) */
 const calcReferrerCommission = (referredBy, initial, referrerDiscountAmt) => {
   if (!referredBy?.commissionType || !referredBy?.commissionValue) return 0;
   const gross =
@@ -80,7 +76,6 @@ const calcReferrerCommission = (referredBy, initial, referrerDiscountAmt) => {
   return Math.max(0, toFixed2(gross - referrerDiscountAmt));
 };
 
-/** Derive the full `amount` object from raw form state */
 const computeAmount = (form) => {
   const initial = form.selectedTests.reduce((s, t) => s + (t.price || 0), 0);
   const labAdjustment = form.hasLabAdjustment ? parseFloat(form.labAdjustmentAmount) || 0 : 0;
@@ -144,7 +139,15 @@ const AmountRow = ({ label, value, accent, border, large }) => (
 // ─── Invoice Summary modal ────────────────────────────────────────────────────
 
 const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
-  const { patient, referredBy, selectedTests, hasReferrerDiscount, referrerDiscount, hasLabAdjustment } = formData;
+  const {
+    patient,
+    referredBy,
+    selectedTests,
+    selectedProducts,
+    hasReferrerDiscount,
+    referrerDiscount,
+    hasLabAdjustment,
+  } = formData;
   const due = Math.max(0, amount.final - amount.paid);
 
   return (
@@ -200,6 +203,28 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
             ))}
           </div>
         </SummaryBlock>
+
+        {/* Products — only shown when at least one is selected */}
+        {selectedProducts.length > 0 && (
+          <SummaryBlock
+            icon={Package}
+            title="Products / Consumables"
+            badge={`${selectedProducts.length} ${selectedProducts.length === 1 ? "Item" : "Items"}`}
+          >
+            <div className="space-y-2">
+              {selectedProducts.map((p) => (
+                <div key={p._id} className="flex items-center justify-between p-3 bg-white rounded-lg">
+                  <span className="text-sm text-gray-900">
+                    {p.name}
+                    {p.unit && <span className="text-xs text-gray-400 ml-1.5">({p.unit})</span>}
+                    <span className="text-xs text-gray-400 ml-1.5">× {p.quantity}</span>
+                  </span>
+                  <span className="text-sm font-medium text-gray-900">{fmt(p.price * p.quantity)}</span>
+                </div>
+              ))}
+            </div>
+          </SummaryBlock>
+        )}
 
         {/* Payment */}
         <SummaryBlock icon={DollarSign} title="Payment Summary">
@@ -289,22 +314,29 @@ const InvoiceForm = ({
   amount,
   availableReferrers,
   availableTests,
+  availableProducts,
   onChange,
   onPatientChange,
   onTestToggle,
+  onProductToggle,
+  onProductQtyChange,
   onSubmit,
   pendingReferrerNameRef,
 }) => {
   const [referrerQuery, setReferrerQuery] = useState("");
   const [testQuery, setTestQuery] = useState("");
+  const [productQuery, setProductQuery] = useState("");
   const [showReferrerDrop, setShowReferrerDrop] = useState(false);
   const [showTestDrop, setShowTestDrop] = useState(false);
+  const [showProductDrop, setShowProductDrop] = useState(false);
   const testDropRef = useRef(null);
+  const productDropRef = useRef(null);
 
   const {
     patient,
     referredBy,
     selectedTests,
+    selectedProducts,
     hasReferrerDiscount,
     referrerDiscount,
     hasLabAdjustment,
@@ -313,16 +345,16 @@ const InvoiceForm = ({
   } = formData;
   const due = Math.max(0, amount.final - amount.paid);
 
-  // Close test dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e) => {
       if (testDropRef.current && !testDropRef.current.contains(e.target)) setShowTestDrop(false);
+      if (productDropRef.current && !productDropRef.current.contains(e.target)) setShowProductDrop(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Name-only search
   const filteredReferrers = referrerQuery.trim()
     ? availableReferrers.filter((r) => r.name.toLowerCase().includes(referrerQuery.toLowerCase()))
     : availableReferrers;
@@ -330,6 +362,10 @@ const InvoiceForm = ({
   const filteredTests = testQuery.trim()
     ? availableTests.filter((t) => t.name.toLowerCase().includes(testQuery.toLowerCase()))
     : availableTests;
+
+  const filteredProducts = productQuery.trim()
+    ? availableProducts.filter((p) => p.name.toLowerCase().includes(productQuery.toLowerCase()))
+    : availableProducts;
 
   const selectReferrer = (r) => {
     onChange("referredBy", r);
@@ -619,6 +655,138 @@ const InvoiceForm = ({
         )}
       </SectionCard>
 
+      {/* ── Products / Consumables ──────────────────────────────── */}
+      <SectionCard icon={Package} title="Products / Consumables">
+        <div className="relative mb-5" ref={productDropRef}>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={productQuery}
+              onChange={(e) => {
+                setProductQuery(e.target.value);
+                setShowProductDrop(true);
+              }}
+              onFocus={() => setShowProductDrop(true)}
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              placeholder="Search products by name..."
+            />
+          </div>
+          {showProductDrop && productQuery && (
+            <div className="absolute top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
+              {filteredProducts.length > 0 ? (
+                filteredProducts.map((product) => {
+                  const selected = selectedProducts.some((p) => p._id === product._id);
+                  const outOfStock = product.hasStock && product.stock === 0;
+                  return (
+                    <button
+                      key={product._id}
+                      type="button"
+                      disabled={outOfStock}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        if (!outOfStock) {
+                          onProductToggle(product);
+                          setProductQuery("");
+                        }
+                      }}
+                      className={`w-full px-4 py-3 text-left border-b border-gray-100 last:border-0 transition-colors
+                        ${outOfStock ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-50"}
+                        ${selected ? "bg-blue-50" : ""}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">
+                            {product.name}
+                            {product.unit && (
+                              <span className="ml-1.5 text-xs text-gray-400 font-normal">({product.unit})</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-blue-600 font-medium">{fmt(product.price)}</p>
+                          {product.hasStock && (
+                            <p
+                              className={`text-xs mt-0.5 ${product.stock === 0 ? "text-red-500 font-medium" : "text-gray-400"}`}
+                            >
+                              Stock: {product.stock ?? 0}
+                            </p>
+                          )}
+                        </div>
+                        {selected && (
+                          <div className="p-1 bg-blue-600 rounded-full shrink-0">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="px-4 py-6 text-center text-gray-500 text-sm">
+                  <AlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  <p>No products found</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {selectedProducts.length > 0 ? (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-gray-700">Selected Products</h4>
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                {selectedProducts.length} Selected
+              </span>
+            </div>
+            <div className="space-y-2">
+              {selectedProducts.map((product) => (
+                <div
+                  key={product._id}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 gap-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 text-sm truncate">
+                      {product.name}
+                      {product.unit && (
+                        <span className="ml-1.5 text-xs text-gray-400 font-normal">({product.unit})</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-blue-600 font-medium">
+                      {fmt(product.price)} × {product.quantity} = {fmt(product.price * product.quantity)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <input
+                      type="number"
+                      value={product.quantity}
+                      onChange={(e) => onProductQtyChange(product._id, e.target.value)}
+                      min="1"
+                      max={product.hasStock ? product.stock : undefined}
+                      className="w-16 text-center py-1.5 px-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onProductToggle(product)}
+                      className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-sm mb-3">
+              <Plus className="w-5 h-5 text-gray-400" />
+            </div>
+            <p className="text-gray-900 font-medium mb-1">No products selected</p>
+            <p className="text-sm text-gray-500">Search and add consumables or supplies</p>
+          </div>
+        )}
+      </SectionCard>
+
       {/* ── Pricing & Adjustments ───────────────────────────────── */}
       <SectionCard icon={DollarSign} title="Pricing & Adjustments">
         <div className="space-y-5">
@@ -804,6 +972,7 @@ const CreateInvoice = () => {
   const navigate = useNavigate();
   const [availableReferrers, setAvailableReferrers] = useState([]);
   const [availableTests, setAvailableTests] = useState([]);
+  const [availableProducts, setAvailableProducts] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [popup, setPopup] = useState(null);
@@ -819,7 +988,7 @@ const CreateInvoice = () => {
       .then((res) => {
         setAvailableReferrers(res.data.referrers || []);
         setAvailableTests(res.data.tests || []);
-        console.log(res.data);
+        setAvailableProducts(res.data.products || []);
       })
       .catch(() => setPopup({ type: "error", message: "Could not load required data" }))
       .finally(() => setInitialLoading(false));
@@ -849,6 +1018,27 @@ const CreateInvoice = () => {
     }));
   };
 
+  const handleProductToggle = (product) => {
+    setFormData((prev) => {
+      const exists = prev.selectedProducts.some((p) => p._id === product._id);
+      return {
+        ...prev,
+        selectedProducts: exists
+          ? prev.selectedProducts.filter((p) => p._id !== product._id)
+          : [...prev.selectedProducts, { ...product, quantity: 1 }],
+      };
+    });
+  };
+
+  const handleProductQtyChange = (productId, qty) => {
+    setFormData((prev) => ({
+      ...prev,
+      selectedProducts: prev.selectedProducts.map((p) =>
+        p._id === productId ? { ...p, quantity: Math.max(1, parseInt(qty) || 1) } : p,
+      ),
+    }));
+  };
+
   const handlePreview = (e) => {
     e.preventDefault();
     const { patient, selectedTests } = formData;
@@ -863,13 +1053,12 @@ const CreateInvoice = () => {
   const handleConfirm = async () => {
     try {
       setSubmitting(true);
-      const { patient, referredBy, selectedTests } = formData;
+      const { patient, referredBy, selectedTests, selectedProducts } = formData;
 
       const invoiceData = {
         patient,
         referrer: {
           id: referredBy?._id ?? null,
-          // Doctor: "Dr. Smith ( MBBS, FCPS )" — degree concatenated at submit time
           name:
             typeof referredBy === "object" && referredBy !== null
               ? formatReferrerName(referredBy)
@@ -884,13 +1073,29 @@ const CreateInvoice = () => {
           price,
           schemaId: schemaId || null,
         })),
+        // ── products: map to the shape the backend expects ───────────────
+        products: selectedProducts.map(({ _id, name, price, unit, quantity }) => ({
+          productId: _id,
+          name,
+          price,
+          unit: unit ?? null,
+          quantity,
+        })),
         amount,
       };
 
       const { data } = await invoiceService.createInvoice(invoiceData);
 
       navigate(`/invoice/print/${data.invoiceId}`, {
-        state: { invoiceData: { ...invoiceData, invoiceId: data.invoiceId, tests: selectedTests, referredBy } },
+        state: {
+          invoiceData: {
+            ...invoiceData,
+            invoiceId: data.invoiceId,
+            tests: selectedTests,
+            selectedProducts,
+            referredBy,
+          },
+        },
       });
 
       setFormData(INITIAL_FORM);
@@ -927,9 +1132,12 @@ const CreateInvoice = () => {
               amount={amount}
               availableReferrers={availableReferrers}
               availableTests={availableTests}
+              availableProducts={availableProducts}
               onChange={handleChange}
               onPatientChange={handlePatientChange}
               onTestToggle={handleTestToggle}
+              onProductToggle={handleProductToggle}
+              onProductQtyChange={handleProductQtyChange}
               onSubmit={handlePreview}
               pendingReferrerNameRef={pendingReferrerNameRef}
             />
