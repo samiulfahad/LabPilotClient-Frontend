@@ -264,7 +264,7 @@ const InvoicePDF = ({ invoice, qrCodeUrl, date, time }) => {
           {/* Unified table header */}
           <View style={pdf$.tableHeader}>
             <Text style={[pdf$.colNum, pdf$.colHeader]}>#</Text>
-            <Text style={[pdf$.colName, pdf$.colHeader]}>Item</Text>
+            <Text style={[pdf$.colName, pdf$.colHeader]}>{hasProducts ? "Item" : "Test"}</Text>
             <Text style={[pdf$.colPrice, pdf$.colHeader]}>Price</Text>
           </View>
 
@@ -488,7 +488,9 @@ const InvoiceCard = ({ invoice, qrCodeUrl, date, time }) => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase w-8">#</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Item</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                  {!hasProducts ? "Test" : "Item"}
+                </th>
                 <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Price</th>
               </tr>
             </thead>
