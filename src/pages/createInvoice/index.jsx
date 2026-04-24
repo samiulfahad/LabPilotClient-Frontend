@@ -216,7 +216,6 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
                 <div key={p._id} className="flex items-center justify-between p-3 bg-white rounded-lg">
                   <span className="text-sm text-gray-900">
                     {p.name}
-                    {p.unit && <span className="text-xs text-gray-400 ml-1.5">({p.unit})</span>}
                     <span className="text-xs text-gray-400 ml-1.5">× {p.quantity}</span>
                   </span>
                   <span className="text-sm font-medium text-gray-900">{fmt(p.price * p.quantity)}</span>
@@ -638,12 +637,7 @@ const InvoiceForm = ({
                           >
                             <div className="flex items-center justify-between">
                               <div>
-                                <p className="font-medium text-gray-900 text-sm">
-                                  {product.name}
-                                  {product.unit && (
-                                    <span className="ml-1.5 text-xs text-gray-400 font-normal">({product.unit})</span>
-                                  )}
-                                </p>
+                                <p className="font-medium text-gray-900 text-sm">{product.name}</p>
                                 <p className="text-xs text-blue-600 font-medium">{fmt(product.price)}</p>
                                 {product.hasStock && (
                                   <p
@@ -729,12 +723,7 @@ const InvoiceForm = ({
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 gap-3"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 text-sm truncate">
-                      {product.name}
-                      {product.unit && (
-                        <span className="ml-1.5 text-xs text-gray-400 font-normal">({product.unit})</span>
-                      )}
-                    </p>
+                    <p className="font-medium text-gray-900 text-sm truncate">{product.name}</p>
                     <p className="text-xs text-blue-600 font-medium">
                       {fmt(product.price)} × {product.quantity} = {fmt(product.price * product.quantity)}
                     </p>
@@ -1060,11 +1049,10 @@ const CreateInvoice = () => {
           price,
           schemaId: schemaId || null,
         })),
-        products: selectedProducts.map(({ _id, name, price, unit, quantity }) => ({
+        products: selectedProducts.map(({ _id, name, price, quantity }) => ({
           productId: _id,
           name,
           price,
-          unit: unit ?? null,
           quantity,
         })),
         amount,
