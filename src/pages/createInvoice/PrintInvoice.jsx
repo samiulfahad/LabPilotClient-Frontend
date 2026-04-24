@@ -8,17 +8,13 @@ import { Printer, Download, Phone, Mail, MapPin, Share2, Wallet, CheckCircle } f
 import QRCode from "qrcode";
 import { pdf, Document, Page, View, Text, Image, StyleSheet, Link, Svg, Path } from "@react-pdf/renderer";
 import invoiceService from "../../api/invoice";
+import { useAuthStore } from "../../store/authStore";
 import LoadingScreen from "../../components/loadingPage";
 import Popup from "../../components/popup";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const LAB_INFO = {
-  name: "LabPilot Pro Diagnostics",
-  address: "123 Medical Center Road, Dhaka 1207, Bangladesh",
-  phone: "+880 1234-567890",
-  email: "info@labpilotpro.com",
-};
+/** LAB_INFO is derived from the auth store at runtime — see PrintInvoice component. */
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -189,7 +185,7 @@ const pdf$ = StyleSheet.create({
 
 // ─── PDF Document ─────────────────────────────────────────────────────────────
 
-const InvoicePDF = ({ invoice, qrCodeUrl, date, time }) => {
+const InvoicePDF = ({ invoice, qrCodeUrl, date, time, labInfo }) => {
   const { patient, amount, referrer, tests, products, reportLink, invoiceId } = invoice;
   const flags = getPricingFlags(invoice);
   const hasProducts = products.length > 0;
@@ -205,13 +201,13 @@ const InvoicePDF = ({ invoice, qrCodeUrl, date, time }) => {
                 <Text style={pdf$.logoText}>LP</Text>
               </View>
               <View>
-                <Text style={pdf$.labName}>{LAB_INFO.name}</Text>
+                <Text style={pdf$.labName}>{labInfo.name}</Text>
                 <Text style={pdf$.labSub}>Professional Diagnostic Services</Text>
               </View>
             </View>
-            <Text style={pdf$.headerMeta}>{LAB_INFO.address}</Text>
+            <Text style={pdf$.headerMeta}>{labInfo.address}</Text>
             <Text style={pdf$.headerMeta}>
-              {LAB_INFO.phone} • {LAB_INFO.email}
+              {labInfo.phone} • {labInfo.email}
             </Text>
           </View>
           <View style={pdf$.headerRight}>
@@ -350,7 +346,7 @@ const PDFPricingRow = ({ label, value, valueStyle }) => (
 
 // ─── Invoice screen card ──────────────────────────────────────────────────────
 
-const InvoiceCard = ({ invoice, qrCodeUrl, date, time }) => {
+const InvoiceCard = ({ invoice, qrCodeUrl, date, time, labInfo }) => {
   const { patient, amount, referrer, tests, products, reportLink, invoiceId } = invoice;
   const flags = getPricingFlags(invoice);
   const hasProducts = products.length > 0;
@@ -366,23 +362,23 @@ const InvoiceCard = ({ invoice, qrCodeUrl, date, time }) => {
                 <span className="text-white font-bold text-sm">LP</span>
               </div>
               <div className="min-w-0">
-                <h1 className="text-lg font-bold text-white leading-tight">{LAB_INFO.name}</h1>
+                <h1 className="text-lg font-bold text-white leading-tight">{labInfo.name}</h1>
                 <p className="text-blue-100 text-xs">Professional Diagnostic Services</p>
               </div>
             </div>
             <div className="mt-2 space-y-1 text-blue-50 text-xs">
               <div className="flex items-start gap-1.5">
                 <MapPin className="w-3 h-3 shrink-0 mt-0.5" />
-                <span>{LAB_INFO.address}</span>
+                <span>{labInfo.address}</span>
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 <div className="flex items-center gap-1.5">
                   <Phone className="w-3 h-3 shrink-0" />
-                  <span>{LAB_INFO.phone}</span>
+                  <span>{labInfo.phone}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Mail className="w-3 h-3 shrink-0" />
-                  <span>{LAB_INFO.email}</span>
+                  <span>{labInfo.email}</span>
                 </div>
               </div>
             </div>
@@ -543,6 +539,14 @@ const PrintInvoice = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { invoiceId } = useParams();
+  const rawLab = useAuthStore((s) => s.lab);
+
+  const labInfo = {
+    name: rawLab?.name ?? "LabPilot Pro Diagnostics",
+    address: [rawLab?.contact?.address, rawLab?.contact?.district].filter(Boolean).join(", ") || "N/A",
+    phone: rawLab?.contact?.primary ?? "N/A",
+    email: rawLab?.contact?.publicEmail ?? "N/A",
+  };
 
   const [invoice, setInvoice] = useState(null);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
@@ -591,7 +595,9 @@ const PrintInvoice = () => {
 
   const buildPDF = () => {
     const { date, time } = formatDateTime(invoice.createdAt);
-    return pdf(<InvoicePDF invoice={invoice} qrCodeUrl={qrCodeUrl} date={date} time={time} />).toBlob();
+    return pdf(
+      <InvoicePDF invoice={invoice} qrCodeUrl={qrCodeUrl} date={date} time={time} labInfo={labInfo} />,
+    ).toBlob();
   };
 
   const triggerDownload = (blob, name) => {
@@ -648,13 +654,13 @@ const PrintInvoice = () => {
       const { date } = formatDateTime(invoice.createdAt);
       const message =
         `Hello ${invoice.patient.name},\n\n` +
-        `Your diagnostic reports from ${LAB_INFO.name} are ready!\n\n` +
+        `Your diagnostic reports from ${labInfo.name} are ready!\n\n` +
         `Tests: ${invoice.tests.length} test(s)\n` +
         (invoice.products.length > 0 ? `Products: ${invoice.products.length} item(s)\n` : "") +
         `Total: ${fmt(invoice.amount.final)}\n` +
         `Date: ${date}\n\n` +
         `Download your reports here:\n${invoice.reportLink}\n\n` +
-        `For queries: ${LAB_INFO.phone}\n— ${LAB_INFO.name}`;
+        `For queries: ${labInfo.phone}\n— ${labInfo.name}`;
 
       const blob = await buildPDF();
       const name = pdfName();
@@ -727,7 +733,7 @@ const PrintInvoice = () => {
 
       <div className="min-h-screen bg-gray-100 py-8 px-4">
         <div className="max-w-2xl mx-auto">
-          <InvoiceCard invoice={invoice} qrCodeUrl={qrCodeUrl} date={date} time={time} />
+          <InvoiceCard invoice={invoice} qrCodeUrl={qrCodeUrl} date={date} time={time} labInfo={labInfo} />
         </div>
       </div>
     </>
