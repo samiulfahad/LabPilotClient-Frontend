@@ -77,7 +77,9 @@ const calcReferrerCommission = (referredBy, initial, referrerDiscountAmt) => {
 };
 
 const computeAmount = (form) => {
-  const initial = form.selectedTests.reduce((s, t) => s + (t.price || 0), 0);
+  const testsTotal = form.selectedTests.reduce((s, t) => s + (t.price || 0), 0);
+  const productsTotal = form.selectedProducts.reduce((s, p) => s + (p.price || 0) * (p.quantity || 1), 0);
+  const initial = testsTotal + productsTotal;
   const labAdjustment = form.hasLabAdjustment ? parseFloat(form.labAdjustmentAmount) || 0 : 0;
   const referrerDiscount = calcReferrerDiscount({ ...form, initial });
   const referrerCommission = calcReferrerCommission(form.referredBy, initial, referrerDiscount);
