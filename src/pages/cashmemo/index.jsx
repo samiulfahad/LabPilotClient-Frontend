@@ -17,13 +17,14 @@ import {
   Printer,
   FlaskConical,
   Banknote,
+  Package,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../components/timeFrame";
 import cashmemoService from "../../api/cashmemo";
 import Popup from "../../components/popup";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (n) => (typeof n === "number" ? n.toLocaleString("en-IN") : "0");
 
@@ -31,7 +32,6 @@ const buildHeadingLabel = (start, end) => {
   if (!start || !end) return "";
   const s = new Date(start);
   const e = new Date(end);
-
   const day = (d) => {
     const n = d.getDate();
     const sfx =
@@ -45,10 +45,8 @@ const buildHeadingLabel = (start, end) => {
     return `${n}${sfx}`;
   };
   const monthYear = (d) => `${d.toLocaleString("en-US", { month: "long" })}, ${d.getFullYear()}`;
-
   const sameDay = s.toDateString() === e.toDateString();
   const sameMonth = s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear();
-
   if (sameDay) return `${day(s)} ${monthYear(s)}`;
   if (sameMonth) return `${s.getDate()} – ${e.getDate()} ${monthYear(s)}`;
   return `${s.toLocaleString("en-US", { month: "short", day: "numeric" })} – ${e.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
@@ -56,13 +54,8 @@ const buildHeadingLabel = (start, end) => {
 
 const todayRange = () => {
   const now = new Date();
-  return {
-    start: new Date(now).setHours(0, 0, 0, 0),
-    end: new Date(now).setHours(23, 59, 59, 999),
-  };
+  return { start: new Date(now).setHours(0, 0, 0, 0), end: new Date(now).setHours(23, 59, 59, 999) };
 };
-
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 const SkeletonMemo = () => (
   <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-pulse">
@@ -84,16 +77,17 @@ const SkeletonMemo = () => (
         </div>
       ))}
       <div className="h-24 w-full bg-emerald-50 border border-emerald-100 rounded-xl my-3" />
-      <div className="flex items-center justify-between py-3 border-b border-gray-50">
-        <div className="h-3.5 w-32 bg-gray-200 rounded" />
-        <div className="h-5 w-20 bg-gray-200 rounded-lg" />
-      </div>
       <div className="flex items-center gap-2 my-3">
         <div className="flex-1 h-px bg-gray-100" />
         <div className="h-6 w-64 bg-gray-100 rounded-full" />
         <div className="flex-1 h-px bg-gray-100" />
       </div>
       <div className="h-16 w-full bg-gray-200 rounded-xl mb-3" />
+      <div className="space-y-2 my-4">
+        {[1, 2].map((i) => (
+          <div key={i} className="h-28 bg-gray-100 rounded-xl" />
+        ))}
+      </div>
       <div className="h-12 w-full bg-red-50 border border-red-100 rounded-xl mb-5" />
     </div>
     <div className="px-6 pb-5 border-t border-gray-100 pt-4">
@@ -103,18 +97,8 @@ const SkeletonMemo = () => (
         <div className="h-16 bg-gray-100 rounded-xl" />
       </div>
     </div>
-    <div className="px-6 pb-6 border-t border-gray-100 pt-4">
-      <div className="h-3 w-24 bg-gray-200 rounded-full mb-3" />
-      <div className="flex flex-wrap gap-2">
-        {[80, 64, 96, 72, 56, 88].map((w) => (
-          <div key={w} className="h-7 bg-gray-100 rounded-full" style={{ width: w }} />
-        ))}
-      </div>
-    </div>
   </div>
 );
-
-// ─── Stat Card ────────────────────────────────────────────────────────────────
 
 const StatCard = ({ icon: Icon, iconBg, iconColor, label, labelColor, value, valueBg, border }) => (
   <div className={`flex items-center gap-3 ${valueBg} ${border} rounded-xl px-4 py-3`}>
@@ -128,7 +112,57 @@ const StatCard = ({ icon: Icon, iconBg, iconColor, label, labelColor, value, val
   </div>
 );
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// Collapsible list — shows 3 rows, expand for the rest
+const ItemCountList = ({ icon: Icon, iconColor, accentColor, badgeColor, title, items, countLabel }) => {
+  const [expanded, setExpanded] = useState(false);
+  if (!items?.length) return null;
+  const total = items.reduce((s, t) => s + t.count, 0);
+  const visible = expanded ? items : items.slice(0, 3);
+  const hasMore = items.length > 3;
+
+  return (
+    <div className="bg-gray-50 border border-gray-100 rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">{title}</p>
+        </div>
+        <span className={`text-[10px] font-semibold ${badgeColor} px-2 py-0.5 rounded-full`}>
+          {total} {countLabel}
+        </span>
+      </div>
+      <div className="divide-y divide-gray-100">
+        {visible.map(({ name, count }, i) => (
+          <div key={name} className="flex items-center justify-between px-4 py-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="text-[10px] font-black text-gray-300 w-5 shrink-0 tabular-nums">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <span className="text-sm font-semibold text-gray-800 truncate">{name}</span>
+            </div>
+            <span className={`text-sm font-black ${accentColor} shrink-0 ml-2`}>{count}×</span>
+          </div>
+        ))}
+      </div>
+      {hasMore && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="w-full flex items-center justify-center gap-1.5 py-2 text-[11px] font-semibold text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors border-t border-gray-100"
+        >
+          {expanded ? (
+            <>
+              <ChevronUp className="w-3.5 h-3.5" /> Show less
+            </>
+          ) : (
+            <>
+              <ChevronDown className="w-3.5 h-3.5" /> {items.length - 3} more
+            </>
+          )}
+        </button>
+      )}
+    </div>
+  );
+};
 
 const CashMemo = () => {
   const [summary, setSummary] = useState(null);
@@ -145,10 +179,7 @@ const CashMemo = () => {
   const fetchSummary = async (range) => {
     try {
       setLoading(true);
-      const res = await cashmemoService.getSummary({
-        startDate: range.start,
-        endDate: range.end,
-      });
+      const res = await cashmemoService.getSummary({ startDate: range.start, endDate: range.end });
       setSummary(res.data);
     } catch {
       setPopup({ type: "error", message: "Failed to load cashmemo. Please try again." });
@@ -166,8 +197,6 @@ const CashMemo = () => {
   const d = summary ?? {};
   const pendingCount = (d.totalInvoices ?? 0) - (d.deliveredCount ?? 0);
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
-
-  // Gross Counter Amount = Total − Lab Adjustment − Referrer Discount
   const grossCounterAmount = (d.initial ?? 0) - (d.labAdjustment ?? 0) - (d.referrerDiscount ?? 0);
 
   return (
@@ -185,7 +214,6 @@ const CashMemo = () => {
       `}</style>
 
       <div className="max-w-2xl mx-auto">
-        {/* Page header */}
         <div className="flex items-center justify-between mb-5 no-print">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
@@ -212,12 +240,10 @@ const CashMemo = () => {
           </div>
         </div>
 
-        {/* TimeFrame picker */}
         <div className="mb-5 no-print">
           <TimeFrame onFetchData={handleFetchData} />
         </div>
 
-        {/* Memo card */}
         {loading ? (
           <SkeletonMemo />
         ) : (
@@ -229,9 +255,7 @@ const CashMemo = () => {
             <div className="px-6 pt-5 pb-4 bg-gradient-to-r from-indigo-50/70 to-purple-50/40 border-b border-gray-100">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-semibold text-indigo-500 uppercase tracking-widest mb-0.5">
-                    Cashmemo
-                  </p>
+                  <p className="text-[11px] font-semibold text-indigo-500 uppercase tracking-widest mb-0.5">Cashmemo</p>
                   <h2 className="text-lg font-extrabold text-gray-900 leading-tight">{headingLabel}</h2>
                 </div>
                 <div className="text-right shrink-0">
@@ -241,15 +265,11 @@ const CashMemo = () => {
               </div>
             </div>
 
-            {/* P&L rows */}
             <div className="px-6 py-2">
-              {/* Total Amount */}
               <div className="flex items-center justify-between py-3 border-b border-gray-50">
                 <p className="text-sm font-semibold text-gray-800">Total Amount</p>
                 <p className="text-lg font-bold text-gray-900">৳{fmt(d.initial)}</p>
               </div>
-
-              {/* Lab Adjustment */}
               <div className="flex items-center justify-between py-3 border-b border-gray-50">
                 <div className="flex items-center gap-1.5">
                   <Minus className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
@@ -257,8 +277,6 @@ const CashMemo = () => {
                 </div>
                 <p className="text-base font-semibold text-yellow-600">− ৳{fmt(d.labAdjustment)}</p>
               </div>
-
-              {/* Referrer's Discount */}
               <div className="flex items-center justify-between py-3 border-b border-gray-50">
                 <div className="flex items-center gap-1.5">
                   <Minus className="w-3.5 h-3.5 text-orange-500 shrink-0" />
@@ -267,9 +285,8 @@ const CashMemo = () => {
                 <p className="text-base font-semibold text-orange-500">− ৳{fmt(d.referrerDiscount)}</p>
               </div>
 
-              {/* ── Gross Counter Amount ─────────────────────────────────────── */}
+              {/* Gross Counter Amount */}
               <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 overflow-hidden my-3">
-                {/* Header row */}
                 <div className="flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
@@ -284,7 +301,6 @@ const CashMemo = () => {
                   </div>
                   <p className="text-3xl font-black text-white tracking-tight">৳{fmt(grossCounterAmount)}</p>
                 </div>
-                {/* Collected / Due breakdown */}
                 <div className="grid grid-cols-2 divide-x divide-emerald-100">
                   <div className="flex items-center gap-2.5 px-4 py-3">
                     <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
@@ -316,7 +332,7 @@ const CashMemo = () => {
                 <p className="text-base font-black text-purple-700">− ৳{fmt(d.referrerCommission)}</p>
               </div>
 
-              {/* Formula tag */}
+              {/* Formula */}
               <div className="flex items-center gap-2 my-3">
                 <div className="flex-1 h-px bg-gray-100" />
                 <span className="text-[10.5px] text-gray-400 font-mono bg-gray-50 border border-gray-100 rounded-full px-3 py-1 whitespace-nowrap">
@@ -339,33 +355,27 @@ const CashMemo = () => {
                 <p className="text-3xl font-black text-white tracking-tight">৳{fmt(d.totalNet)}</p>
               </div>
 
-              {/* Tests ordered */}
-              {d.testCounts?.length > 0 && (
-                <div className="my-4 bg-gray-50 border border-gray-100 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <FlaskConical className="w-3.5 h-3.5 text-indigo-400" />
-                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Tests Ordered</p>
-                    <div className="flex-1 h-px bg-gray-200" />
-                    <span className="text-[10px] font-semibold text-gray-400">
-                      {d.testCounts.reduce((s, t) => s + t.count, 0)} total
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {d.testCounts.map(({ name, count }, i) => (
-                      <div
-                        key={name}
-                        className="flex items-center justify-between bg-white border border-gray-100 rounded-xl px-3 py-2.5 gap-2"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-[10px] font-black text-gray-300 w-4 shrink-0">
-                            {String(i + 1).padStart(2, "0")}
-                          </span>
-                          <span className="text-sm font-bold text-gray-800 truncate">{name}</span>
-                        </div>
-                        <span className="text-sm font-black text-indigo-600 shrink-0">{count}×</span>
-                      </div>
-                    ))}
-                  </div>
+              {/* Tests & Products ordered — collapsible rows */}
+              {(d.testCounts?.length > 0 || d.productCounts?.length > 0) && (
+                <div className="space-y-3 my-4">
+                  <ItemCountList
+                    icon={FlaskConical}
+                    iconColor="text-indigo-400"
+                    accentColor="text-indigo-600"
+                    badgeColor="bg-indigo-50 text-indigo-500"
+                    title="Tests Ordered"
+                    items={d.testCounts}
+                    countLabel="total"
+                  />
+                  <ItemCountList
+                    icon={Package}
+                    iconColor="text-teal-500"
+                    accentColor="text-teal-600"
+                    badgeColor="bg-teal-50 text-teal-600"
+                    title="Products Used"
+                    items={d.productCounts}
+                    countLabel="units"
+                  />
                 </div>
               )}
 
