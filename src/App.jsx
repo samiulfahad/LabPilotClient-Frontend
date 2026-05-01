@@ -25,6 +25,7 @@ import SearchInvoice from "./pages/search";
 import Billing from "./pages/billing";
 import InvoiceMaster from "./pages/invoiceMaster";
 import Products from "./pages/labManagement/manageProducts";
+import Doctors from "./pages/doctors";
 
 // ─── Route Wrapper for Protected Pages ──────────────────────────────────────
 const ProtectedRoutes = () => {
@@ -69,6 +70,7 @@ function App() {
         <Route path="/report-upload" element={<ReportUpload />} />
         <Route path="/report-download" element={<ReportDownload />} />
         <Route path="/transactions" element={<Transactions/> } />
+        <Route path="/Doctors" element={<Doctors/> } />
         <Route path="/account" element={<Account/> } />
         <Route path="/billing" element={<Billing/> } />
         <Route path="/lab-management" element={<LabManagement />} />

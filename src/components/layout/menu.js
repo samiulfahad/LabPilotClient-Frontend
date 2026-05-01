@@ -11,7 +11,8 @@ import {
   UserCircle,
   FlaskConical,
   HelpCircle,
-  Search
+  Search,
+  HeartPlus,
 } from "lucide-react";
 
 
@@ -24,6 +25,7 @@ const menu = [
   { label: "Reports", path: "/report", icon: FileText },
   { label: "Transactions", path: "/transactions", icon: ArrowLeftRight },
   { label: "Commission", path: "/commission", icon: Percent },
+  { label: "Doctors", path: "/doctors", icon: HeartPlus },
   { label: "Billing", path: "/billing", icon: CreditCard },
   { label: "Account", path: "/account", icon: UserCircle },
   { label: "Lab Management", path: "/lab-management", icon: FlaskConical },

@@ -3,15 +3,15 @@ import api from "./baseAPI";
 
 const doctorService = {
   /**
-   * Fetch doctors for the authenticated lab.
-   * @param {{ search?: string, department?: string }} params  Optional filters
+   * Fetch paginated doctors for the authenticated lab.
+   * @param {{ search?: string, department?: string, page?: number }} params
+   * @returns {{ doctors, total, page, totalPages, pageSize }}
    */
-  getAll: ({ search, department } = {}) => {
-    const params = new URLSearchParams();
+  getAll: ({ search, department, page = 1 } = {}) => {
+    const params = new URLSearchParams({ page });
     if (search?.trim()) params.set("search", search.trim());
     if (department?.trim()) params.set("department", department.trim());
-    const qs = params.toString();
-    return api.get(`/doctors${qs ? `?${qs}` : ""}`);
+    return api.get(`/doctors?${params}`);
   },
 
   /**

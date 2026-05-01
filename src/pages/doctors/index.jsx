@@ -18,10 +18,10 @@ import {
   GraduationCap,
   Building2,
   Layers,
-  CheckCircle2,
-  XCircle,
   AlertTriangle,
   Activity,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import doctorService from "../../api/doctor";
@@ -87,10 +87,8 @@ const EMPTY_FORM = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const fmt = (n, type) => {
-  if (type === "percentage") return `${n}%`;
-  return `৳${typeof n === "number" ? n.toLocaleString("en-IN") : n}`;
-};
+const fmt = (n, type) =>
+  type === "percentage" ? `${n}%` : `৳${typeof n === "number" ? n.toLocaleString("en-IN") : n}`;
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
@@ -105,7 +103,10 @@ const SkeletonCard = () => (
           <div className="h-3 w-20 bg-gray-100 rounded" />
         </div>
       </div>
-      <div className="h-6 w-16 bg-gray-100 rounded-full" />
+    </div>
+    <div className="px-5 pb-3 grid grid-cols-2 gap-2">
+      <div className="h-8 bg-gray-100 rounded-lg" />
+      <div className="h-8 bg-gray-100 rounded-lg" />
     </div>
     <div className="px-5 pb-4 flex items-center justify-between border-t border-gray-50 pt-3">
       <div className="h-3 w-28 bg-gray-100 rounded" />
@@ -120,43 +121,29 @@ const SkeletonCard = () => (
 // ─── Doctor Card ──────────────────────────────────────────────────────────────
 
 const DoctorCard = ({ doctor, onEdit, onDelete }) => (
-  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-indigo-100 transition-all duration-200 group">
-    <div className="px-5 pt-4 pb-3 flex items-start justify-between gap-3">
-      <div className="flex items-start gap-3 flex-1 min-w-0">
-        <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
-          <Stethoscope className="w-5 h-5 text-indigo-500" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-gray-900 truncate">{doctor.name}</p>
-          {doctor.degree && (
-            <div className="flex items-center gap-1 mt-0.5">
-              <GraduationCap className="w-3 h-3 text-gray-400 shrink-0" />
-              <p className="text-[11px] text-gray-500 truncate">{doctor.degree}</p>
-            </div>
-          )}
-          {doctor.designation && (
-            <div className="flex items-center gap-1 mt-0.5">
-              <BadgePercent className="w-3 h-3 text-indigo-400 shrink-0" />
-              <p className="text-[11px] text-indigo-600 font-medium truncate">{doctor.designation}</p>
-            </div>
-          )}
-        </div>
+  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-indigo-100 transition-all duration-200">
+    <div className="px-5 pt-4 pb-3 flex items-start gap-3">
+      <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+        <Stethoscope className="w-5 h-5 text-indigo-500" />
       </div>
-
-      <div className="shrink-0">
-        {doctor.isActive !== false ? (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
-            <CheckCircle2 className="w-3 h-3" /> Active
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-400 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-full">
-            <XCircle className="w-3 h-3" /> Inactive
-          </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-gray-900 truncate">{doctor.name}</p>
+        {doctor.degree && (
+          <div className="flex items-center gap-1 mt-0.5">
+            <GraduationCap className="w-3 h-3 text-gray-400 shrink-0" />
+            <p className="text-[11px] text-gray-500 truncate">{doctor.degree}</p>
+          </div>
+        )}
+        {doctor.designation && (
+          <div className="flex items-center gap-1 mt-0.5">
+            <BadgePercent className="w-3 h-3 text-indigo-400 shrink-0" />
+            <p className="text-[11px] text-indigo-600 font-medium truncate">{doctor.designation}</p>
+          </div>
         )}
       </div>
     </div>
 
-    <div className="px-5 pb-4 grid grid-cols-2 gap-2">
+    <div className="px-5 pb-3 grid grid-cols-2 gap-2">
       {doctor.department && (
         <div className="flex items-center gap-1.5 bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">
           <Layers className="w-3 h-3 text-purple-400 shrink-0" />
@@ -185,14 +172,14 @@ const DoctorCard = ({ doctor, onEdit, onDelete }) => (
       </div>
       <div className="flex items-center gap-1.5">
         <button
-          onClick={() => onEdit(doctor)}
+          onClick={onEdit}
           className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-colors"
           title="Edit"
         >
           <Pencil className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={() => onDelete(doctor)}
+          onClick={onDelete}
           className="w-8 h-8 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center text-red-400 hover:bg-red-100 transition-colors"
           title="Delete"
         >
@@ -203,7 +190,77 @@ const DoctorCard = ({ doctor, onEdit, onDelete }) => (
   </div>
 );
 
-// ─── Form Field ───────────────────────────────────────────────────────────────
+// ─── Pagination ───────────────────────────────────────────────────────────────
+
+const Pagination = ({ page, totalPages, onPage }) => {
+  if (totalPages <= 1) return null;
+
+  // Show at most 5 page buttons centred around current page
+  const delta = 2;
+  const start = Math.max(1, page - delta);
+  const end = Math.min(totalPages, page + delta);
+  const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+
+  return (
+    <div className="flex items-center justify-center gap-1.5 mt-5">
+      <button
+        onClick={() => onPage(page - 1)}
+        disabled={page === 1}
+        className="w-8 h-8 rounded-lg border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-sm"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+
+      {start > 1 && (
+        <>
+          <button
+            onClick={() => onPage(1)}
+            className="w-8 h-8 rounded-lg border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            1
+          </button>
+          {start > 2 && <span className="text-gray-300 text-sm px-1">…</span>}
+        </>
+      )}
+
+      {pages.map((p) => (
+        <button
+          key={p}
+          onClick={() => onPage(p)}
+          className={`w-8 h-8 rounded-lg border text-sm font-semibold transition-colors shadow-sm ${
+            p === page
+              ? "bg-indigo-600 border-indigo-600 text-white"
+              : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+          }`}
+        >
+          {p}
+        </button>
+      ))}
+
+      {end < totalPages && (
+        <>
+          {end < totalPages - 1 && <span className="text-gray-300 text-sm px-1">…</span>}
+          <button
+            onClick={() => onPage(totalPages)}
+            className="w-8 h-8 rounded-lg border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            {totalPages}
+          </button>
+        </>
+      )}
+
+      <button
+        onClick={() => onPage(page + 1)}
+        disabled={page === totalPages}
+        className="w-8 h-8 rounded-lg border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-sm"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
+
+// ─── Form Primitives ──────────────────────────────────────────────────────────
 
 const Field = ({ label, required, children }) => (
   <div>
@@ -217,9 +274,10 @@ const Field = ({ label, required, children }) => (
 const inputCls =
   "w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition placeholder-gray-300";
 
-const SelectField = ({ value, onChange, options, placeholder, required }) => (
+const SelectField = ({ name, value, onChange, options, placeholder, required }) => (
   <div className="relative">
     <select
+      name={name}
       value={value}
       onChange={onChange}
       required={required}
@@ -242,7 +300,7 @@ const SelectField = ({ value, onChange, options, placeholder, required }) => (
 
 const DeleteModal = ({ doctor, onConfirm, onCancel, loading }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-    <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-sm p-6 animate-[fadeIn_0.15s_ease]">
+    <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-sm p-6">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center">
           <AlertTriangle className="w-5 h-5 text-red-500" />
@@ -285,7 +343,8 @@ const DeleteModal = ({ doctor, onConfirm, onCancel, loading }) => (
 
 const DoctorFormModal = ({ initial, onClose, onSaved }) => {
   const isEdit = !!initial?._id;
-  const [form, setForm] = useState(
+
+  const [form, setForm] = useState(() =>
     initial
       ? {
           name: initial.name ?? "",
@@ -301,25 +360,32 @@ const DoctorFormModal = ({ initial, onClose, onSaved }) => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((f) => ({ ...f, [name]: value }));
+  };
+
+  const handleCommissionTypeChange = (type) => {
+    setForm((f) => ({ ...f, commissionType: type, commissionValue: "" }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
     const val = Number(form.commissionValue);
     if (isNaN(val) || val < 0) return setError("Commission value must be a positive number.");
     if (form.commissionType === "percentage" && val > 100) return setError("Percentage must be between 0 and 100.");
 
-    const payload = { ...form, commissionValue: val };
-
     try {
       setSaving(true);
+      const payload = { ...form, commissionValue: val };
       if (isEdit) {
         await doctorService.update(initial._id, payload);
       } else {
         await doctorService.create(payload);
       }
-      onSaved();
+      onSaved(isEdit);
     } catch (err) {
       setError(err?.response?.data?.error ?? "Something went wrong. Please try again.");
     } finally {
@@ -330,7 +396,6 @@ const DoctorFormModal = ({ initial, onClose, onSaved }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50/60 to-purple-50/30 sticky top-0 z-10 rounded-t-2xl">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
@@ -356,55 +421,60 @@ const DoctorFormModal = ({ initial, onClose, onSaved }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
-          {/* Name */}
           <Field label="Full Name" required>
             <input
+              name="name"
               className={inputCls}
               placeholder="Dr. Aminur Rahman"
               value={form.name}
-              onChange={set("name")}
+              onChange={handleChange}
               required
             />
           </Field>
 
-          {/* Degree + Contact */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Degree">
-              <input className={inputCls} placeholder="MBBS, MD…" value={form.degree} onChange={set("degree")} />
+              <input
+                name="degree"
+                className={inputCls}
+                placeholder="MBBS, MD…"
+                value={form.degree}
+                onChange={handleChange}
+              />
             </Field>
             <Field label="Contact Number" required>
               <input
+                name="contactNumber"
                 className={inputCls}
                 placeholder="01XXXXXXXXX"
                 value={form.contactNumber}
-                onChange={set("contactNumber")}
+                onChange={handleChange}
                 required
               />
             </Field>
           </div>
 
-          {/* Designation */}
           <Field label="Designation">
             <SelectField
+              name="designation"
               value={form.designation}
-              onChange={set("designation")}
+              onChange={handleChange}
               options={DESIGNATIONS}
               placeholder="Select designation"
             />
           </Field>
 
-          {/* Department */}
           <Field label="Department" required>
             <SelectField
+              name="department"
               value={form.department}
-              onChange={set("department")}
+              onChange={handleChange}
               options={DEPARTMENTS}
               placeholder="Select department"
               required
             />
           </Field>
 
-          {/* Commission */}
           <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-3">
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Commission</p>
             <div className="grid grid-cols-2 gap-2">
@@ -412,7 +482,7 @@ const DoctorFormModal = ({ initial, onClose, onSaved }) => {
                 <button
                   key={type}
                   type="button"
-                  onClick={() => setForm((f) => ({ ...f, commissionType: type, commissionValue: "" }))}
+                  onClick={() => handleCommissionTypeChange(type)}
                   className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
                     form.commissionType === type
                       ? type === "percentage"
@@ -428,6 +498,7 @@ const DoctorFormModal = ({ initial, onClose, onSaved }) => {
             </div>
             <div className="relative">
               <input
+                name="commissionValue"
                 type="number"
                 min="0"
                 max={form.commissionType === "percentage" ? 100 : undefined}
@@ -435,7 +506,7 @@ const DoctorFormModal = ({ initial, onClose, onSaved }) => {
                 className={`${inputCls} ${form.commissionType === "percentage" ? "pr-10" : "pl-8"}`}
                 placeholder={form.commissionType === "percentage" ? "0 – 100" : "Amount in BDT"}
                 value={form.commissionValue}
-                onChange={set("commissionValue")}
+                onChange={handleChange}
                 required
               />
               {form.commissionType === "percentage" ? (
@@ -487,6 +558,7 @@ const DoctorFormModal = ({ initial, onClose, onSaved }) => {
 
 const Doctors = () => {
   const [doctors, setDoctors] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("");
@@ -494,13 +566,18 @@ const Doctors = () => {
   const [formModal, setFormModal] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const debounceRef = useRef(null);
 
-  const fetchDoctors = async ({ search: s, department: d } = {}) => {
+  const filtersRef = useRef({ search: "", department: "", page: 1 });
+  const debounceRef = useRef(null);
+  const isMountRef = useRef(true);
+
+  const fetchDoctors = async ({ search: s = "", department: d = "", page = 1 } = {}) => {
     try {
       setLoading(true);
-      const res = await doctorService.getAll({ search: s, department: d });
-      setDoctors(res.data);
+      const res = await doctorService.getAll({ search: s, department: d, page });
+      const { doctors: data, total, totalPages, page: currentPage } = res.data;
+      setDoctors(data);
+      setPagination({ page: currentPage, totalPages, total });
     } catch {
       setPopup({ type: "error", message: "Failed to load doctors. Please try again." });
     } finally {
@@ -509,25 +586,33 @@ const Doctors = () => {
   };
 
   useEffect(() => {
-    fetchDoctors();
-  }, []);
+    filtersRef.current = { search, department: deptFilter, page: 1 };
 
-  // Debounce search + dept filter — fires 400ms after last change
-  useEffect(() => {
+    if (isMountRef.current) {
+      isMountRef.current = false;
+      fetchDoctors();
+      return;
+    }
+
+    // Reset to page 1 whenever search/filter changes
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      fetchDoctors({ search, department: deptFilter });
+      fetchDoctors(filtersRef.current);
     }, 400);
+
     return () => clearTimeout(debounceRef.current);
   }, [search, deptFilter]);
 
-  const handleSaved = () => {
+  const handlePage = (p) => {
+    const next = { ...filtersRef.current, page: p };
+    filtersRef.current = next;
+    fetchDoctors(next);
+  };
+
+  const handleSaved = (isEdit) => {
     setFormModal(null);
-    fetchDoctors({ search, department: deptFilter });
-    setPopup({
-      type: "success",
-      message: formModal?._id ? "Doctor updated successfully." : "Doctor registered successfully.",
-    });
+    fetchDoctors(filtersRef.current);
+    setPopup({ type: "success", message: isEdit ? "Doctor updated successfully." : "Doctor registered successfully." });
   };
 
   const handleDelete = async () => {
@@ -536,7 +621,11 @@ const Doctors = () => {
       setDeleting(true);
       await doctorService.delete(deleteTarget._id);
       setDeleteTarget(null);
-      fetchDoctors({ search, department: deptFilter });
+      // If we deleted the last item on a page > 1, step back
+      const targetPage = doctors.length === 1 && pagination.page > 1 ? pagination.page - 1 : pagination.page;
+      const next = { ...filtersRef.current, page: targetPage };
+      filtersRef.current = next;
+      fetchDoctors(next);
       setPopup({ type: "success", message: "Doctor deleted successfully." });
     } catch {
       setPopup({ type: "error", message: "Failed to delete doctor. Please try again." });
@@ -545,12 +634,10 @@ const Doctors = () => {
     }
   };
 
-  // dept options derived from current result set
-  const uniqueDepts = [...new Set(doctors.map((d) => d.department).filter(Boolean))].sort();
-
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+
       {formModal !== null && (
         <DoctorFormModal
           initial={formModal._id ? formModal : null}
@@ -558,6 +645,7 @@ const Doctors = () => {
           onSaved={handleSaved}
         />
       )}
+
       {deleteTarget && (
         <DeleteModal
           doctor={deleteTarget}
@@ -599,7 +687,7 @@ const Doctors = () => {
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
-              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition placeholder-gray-300 shadow-sm"
+              className="w-full pl-10 pr-9 py-2.5 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition placeholder-gray-300 shadow-sm"
               placeholder="Search by name, degree, contact…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -614,33 +702,29 @@ const Doctors = () => {
             )}
           </div>
 
-          {uniqueDepts.length > 0 && (
-            <div className="relative">
-              <select
-                value={deptFilter}
-                onChange={(e) => setDeptFilter(e.target.value)}
-                className="pl-3 pr-8 py-2.5 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition appearance-none shadow-sm text-gray-700"
-              >
-                <option value="">All Depts</option>
-                {uniqueDepts.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-              <Building2 className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-          )}
+          <div className="relative">
+            <select
+              value={deptFilter}
+              onChange={(e) => setDeptFilter(e.target.value)}
+              className="pl-3 pr-8 py-2.5 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition appearance-none shadow-sm text-gray-700"
+            >
+              <option value="">All Depts</option>
+              {DEPARTMENTS.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+            <Building2 className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
         </div>
 
         {/* Stats bar */}
-        {!loading && doctors.length > 0 && (
+        {!loading && pagination.total > 0 && (
           <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-white/60 border border-gray-100 rounded-xl text-[11px] font-semibold text-gray-400 uppercase tracking-wide shadow-sm">
-            <span className="text-indigo-600 font-black text-sm">{doctors.length}</span> Showing &nbsp;·&nbsp;
-            <span className="text-emerald-600 font-black text-sm">
-              {doctors.filter((d) => d.isActive !== false).length}
-            </span>{" "}
-            Active
+            <span className="text-indigo-600 font-black text-sm">{pagination.total}</span> Total &nbsp;·&nbsp; Page{" "}
+            <span className="text-indigo-600 font-black text-sm">{pagination.page}</span> of{" "}
+            <span className="text-indigo-600 font-black text-sm">{pagination.totalPages}</span>
           </div>
         )}
 
@@ -666,16 +750,19 @@ const Doctors = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {doctors.map((doctor) => (
-              <DoctorCard
-                key={doctor._id}
-                doctor={doctor}
-                onEdit={(d) => setFormModal(d)}
-                onDelete={(d) => setDeleteTarget(d)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="space-y-3">
+              {doctors.map((doctor) => (
+                <DoctorCard
+                  key={doctor._id}
+                  doctor={doctor}
+                  onEdit={() => setFormModal(doctor)}
+                  onDelete={() => setDeleteTarget(doctor)}
+                />
+              ))}
+            </div>
+            <Pagination page={pagination.page} totalPages={pagination.totalPages} onPage={handlePage} />
+          </>
         )}
       </div>
     </section>
