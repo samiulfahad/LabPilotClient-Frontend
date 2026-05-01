@@ -1,7 +1,7 @@
 import api from "./baseAPI";
 
 const referrerService = {
-  getReferrers: () => api.get("/referrers"),
+  getAll: () => api.get("/referrers"),
   addReferrer: (data) => api.post("/referrer/add", data),
   editReferrer: (data) => api.put("/referrer/edit/" + data._id, data),
   deactivateReferrer: (_id) => api.patch(`/referrer/${_id}/deactivate`),
