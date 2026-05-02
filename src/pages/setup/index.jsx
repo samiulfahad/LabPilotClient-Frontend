@@ -79,7 +79,7 @@ const CredentialRow = ({ label, icon: Icon, value, buttonLabel, onAction }) => (
   </div>
 );
 
-const LabManagement = () => {
+const Setup = () => {
  
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-2">
@@ -135,4 +135,4 @@ const LabManagement = () => {
   );
 };
 
-export default LabManagement;
+export default Setup;

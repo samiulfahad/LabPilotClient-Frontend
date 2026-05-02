@@ -4,11 +4,11 @@ import { useAuthStore } from "./store/authStore";
 import LabPilotLogin from "./pages/login";
 import Layout from "./components/layout";
 import Home from "./pages/home";
-import LabManagement from "./pages/labManagement";
-import ManageReferrers from "./pages/labManagement/manageReferrers";
-import ManageStaffs from "./pages/labManagement/manageStaffs";
-import ManageTests from "./pages/labManagement/manageTests";
-import AddTest from "./pages/labManagement/manageTests/AddTest";
+import Setup from "./pages/setup";
+import ManageReferrers from "./pages/setup/manageReferrers";
+import ManageStaffs from "./pages/setup/manageStaffs";
+import ManageTests from "./pages/setup/manageTests";
+import AddTest from "./pages/setup/manageTests/AddTest";
 import CreateInvoice from "./pages/createInvoice";
 import PrintInvoice from "./pages/createInvoice/PrintInvoice";
 import InvoiceList from "./pages/invoices";
@@ -24,7 +24,7 @@ import Account from "./pages/account";
 import SearchInvoice from "./pages/search";
 import Billing from "./pages/billing";
 import InvoiceMaster from "./pages/invoiceMaster";
-import Products from "./pages/labManagement/manageProducts";
+import Products from "./pages/setup/manageProducts";
 import Doctors from "./pages/doctors";
 import IndoorPatient from "./pages/indoorPatient";
 
@@ -75,7 +75,7 @@ function App() {
         <Route path="/indoor-patients" element={<IndoorPatient />} />
         <Route path="/account" element={<Account />} />
         <Route path="/billing" element={<Billing />} />
-        <Route path="/lab-management" element={<LabManagement />} />
+        <Route path="/setup" element={<Setup />} />
         <Route path="/manage-referrers" element={<ManageReferrers />} />
         <Route path="/manage-staffs" element={<ManageStaffs />} />
         <Route path="/manage-tests" element={<ManageTests />} />

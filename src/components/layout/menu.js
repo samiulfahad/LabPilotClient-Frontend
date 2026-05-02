@@ -27,7 +27,7 @@ const menu = [
   { label: "Doctors", path: "/doctors", icon: HeartPlus },
   { label: "Billing", path: "/billing", icon: CreditCard },
   { label: "Account", path: "/account", icon: UserCircle },
-  { label: "Lab Management", path: "/lab-management", icon: FlaskConical },
+  { label: "Setup", path: "/setup", icon: FlaskConical },
   { label: "Help", path: "/help", icon: HelpCircle },
 ];
 

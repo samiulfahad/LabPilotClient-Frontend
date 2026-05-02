@@ -48,7 +48,7 @@ const DesktopMenu = () => {
         {/* ── Scrollable Menu ───────────────────────────────────────── */}
         <div className="flex-1 overflow-hidden bg-gray-50/50">
           <div className="h-full overflow-y-auto px-3 py-4">
-            <div className="space-y-0.5">
+            <div className="space-y-0.2">
               {menu.map((item) => {
                 const Icon = item.icon;
                 return (
