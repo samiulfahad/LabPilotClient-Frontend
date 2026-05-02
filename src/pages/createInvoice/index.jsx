@@ -191,20 +191,22 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
         </SummaryBlock>
 
         {/* Tests */}
-        <SummaryBlock
-          icon={FileText}
-          title="Diagnostic Tests"
-          badge={`${selectedTests.length} ${selectedTests.length === 1 ? "Test" : "Tests"}`}
-        >
-          <div className="space-y-2">
-            {selectedTests.map((t) => (
-              <div key={t.testId} className="flex items-center justify-between p-3 bg-white rounded-lg">
-                <span className="text-sm text-gray-900">{t.name}</span>
-                <span className="text-sm font-medium text-gray-900">{fmt(t.price)}</span>
-              </div>
-            ))}
-          </div>
-        </SummaryBlock>
+        {selectedTests.length > 0 && (
+          <SummaryBlock
+            icon={FileText}
+            title="Diagnostic Tests"
+            badge={`${selectedTests.length} ${selectedTests.length === 1 ? "Test" : "Tests"}`}
+          >
+            <div className="space-y-2">
+              {selectedTests.map((t) => (
+                <div key={t.testId} className="flex items-center justify-between p-3 bg-white rounded-lg">
+                  <span className="text-sm text-gray-900">{t.name}</span>
+                  <span className="text-sm font-medium text-gray-900">{fmt(t.price)}</span>
+                </div>
+              ))}
+            </div>
+          </SummaryBlock>
+        )}
 
         {/* Products — only shown when at least one is selected */}
         {selectedProducts.length > 0 && (
@@ -1019,12 +1021,13 @@ const CreateInvoice = () => {
 
   const handlePreview = (e) => {
     e.preventDefault();
-    const { patient, selectedTests } = formData;
+    const { patient, selectedTests, selectedProducts } = formData;
     if (!patient.name?.trim()) return setPopup({ type: "error", message: "Patient name is required" });
     if (!patient.gender) return setPopup({ type: "error", message: "Gender is required" });
     if (!patient.age) return setPopup({ type: "error", message: "Age is required" });
     if (!patient.contactNumber?.trim()) return setPopup({ type: "error", message: "Contact number is required" });
-    if (!selectedTests.length) return setPopup({ type: "error", message: "Please select at least one test" });
+    if (!selectedTests.length && !selectedProducts.length)
+      return setPopup({ type: "error", message: "Please select at least one test or product" });
     setShowSummary(true);
   };
 
