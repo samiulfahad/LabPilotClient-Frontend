@@ -27,6 +27,7 @@ import InvoiceMaster from "./pages/invoiceMaster";
 import Products from "./pages/setup/manageProducts";
 import Doctors from "./pages/doctors";
 import IndoorPatient from "./pages/indoorPatient";
+import ManageSpaces from "./pages/setup/manageAdmissionSpace";
 
 // ─── Route Wrapper for Protected Pages ──────────────────────────────────────
 const ProtectedRoutes = () => {
@@ -79,6 +80,7 @@ function App() {
         <Route path="/manage-referrers" element={<ManageReferrers />} />
         <Route path="/manage-staffs" element={<ManageStaffs />} />
         <Route path="/manage-tests" element={<ManageTests />} />
+        <Route path="/manage-spaces" element={<ManageSpaces/> } />
         <Route path="/manage-products" element={<Products />} />
         <Route path="/test/add" element={<AddTest />} />
       </Route>

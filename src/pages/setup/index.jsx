@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Settings, ChevronRight, FlaskConical, Package, Users, UserCheck } from "lucide-react";
+import { Settings, ChevronRight, FlaskConical, Package, Users, UserCheck, BedDouble } from "lucide-react";
 
 const CARDS = [
   {
@@ -14,7 +14,7 @@ const CARDS = [
   {
     title: "Products",
     icon: Package,
-    link:  "/manage-products",
+    link: "/manage-products",
     bgIcon: "bg-gradient-to-br from-amber-50 to-amber-100",
     iconColor: "text-amber-600",
     hoverBorder: "group-hover:border-amber-200",
@@ -38,49 +38,18 @@ const CARDS = [
     hoverBorder: "group-hover:border-purple-200",
     textColor: "text-purple-600",
   },
+  {
+    title: "Admission Spaces",
+    icon: BedDouble,
+    link: "/manage-spaces",
+    bgIcon: "bg-gradient-to-br from-sky-50 to-cyan-100",
+    iconColor: "text-sky-600",
+    hoverBorder: "group-hover:border-sky-200",
+    textColor: "text-sky-600",
+  },
 ];
 
-const ActionButton = ({ onClick, label, className = "" }) => (
-  <button
-    onClick={onClick}
-    className={`group inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all shadow-sm hover:shadow ${className}`}
-  >
-    {label}
-    <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-  </button>
-);
-
-const CredentialRow = ({ label, icon: Icon, value, buttonLabel, onAction }) => (
-  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg hover:bg-gray-50/80 transition-colors">
-    {/* Mobile: label + button */}
-    <div className="flex items-center justify-between w-full sm:hidden">
-      <div className="flex items-center gap-3">
-        <div className="p-1.5 bg-indigo-50 rounded-md">
-          <Icon className="w-3.5 h-3.5 text-indigo-600" />
-        </div>
-        <span className="text-sm font-medium text-gray-700">{label}</span>
-      </div>
-      <ActionButton onClick={onAction} label="Change" />
-    </div>
-
-    {/* Desktop: icon + label + value + button */}
-    <div className="flex items-center gap-3 pl-10 sm:pl-0 w-full">
-      <div className="hidden sm:flex items-center gap-3">
-        <div className="p-1.5 bg-indigo-50 rounded-md">
-          <Icon className="w-3.5 h-3.5 text-indigo-600" />
-        </div>
-        <span className="text-sm font-medium text-gray-700">{label}</span>
-      </div>
-      <span className="text-xs font-mono text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200">
-        {value}
-      </span>
-      <ActionButton onClick={onAction} label={buttonLabel} className="hidden sm:inline-flex ml-auto w-36" />
-    </div>
-  </div>
-);
-
 const Setup = () => {
- 
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-2">
       <div className="max-w-7xl mx-auto px-4 py-4">
