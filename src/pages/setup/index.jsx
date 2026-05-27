@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Settings, ChevronRight, FlaskConical, Package, Users, UserCheck, BedDouble } from "lucide-react";
+import { Settings, ChevronRight, FlaskConical, Package, Users, UserCheck, BedDouble, SectionIcon } from "lucide-react";
 
 const CARDS = [
   {
@@ -33,6 +33,15 @@ const CARDS = [
     title: "Manage Referrers",
     icon: UserCheck,
     link: "/manage-referrers",
+    bgIcon: "bg-gradient-to-br from-purple-50 to-purple-100",
+    iconColor: "text-purple-600",
+    hoverBorder: "group-hover:border-purple-200",
+    textColor: "text-purple-600",
+  },
+   {
+    title: "Manage Departments",
+    icon: SectionIcon,
+    link: "/manage-departments",
     bgIcon: "bg-gradient-to-br from-purple-50 to-purple-100",
     iconColor: "text-purple-600",
     hoverBorder: "group-hover:border-purple-200",
