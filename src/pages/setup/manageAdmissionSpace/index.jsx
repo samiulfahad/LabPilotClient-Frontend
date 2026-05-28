@@ -3,12 +3,12 @@
  * Indoor Patient Spaces / Wards CRUD for LabPilot Pro
  * Reservation only — booking is handled via invoice flow.
  * Bed states (display only): booked | reserved | available
- * departments is now an array (multi-select).
+ * departments is now an array (multi-select), fetched from backend.
  */
 
 // React Compiler handles memoisation — no useCallback/useMemo
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   BedDouble,
   Plus,
@@ -26,28 +26,15 @@ import {
   Layers,
   BookMarked,
   BookX,
+  Check,
 } from "lucide-react";
 
 import spaceService from "../../../api/admissionSpace";
 
-const DEPARTMENTS = [
-  { value: "general", label: "General" },
-  { value: "cardiology", label: "Cardiology" },
-  { value: "orthopedics", label: "Orthopedics" },
-  { value: "neurology", label: "Neurology" },
-  { value: "gynecology", label: "Gynecology" },
-  { value: "pediatrics", label: "Pediatrics" },
-  { value: "icu", label: "ICU" },
-  { value: "oncology", label: "Oncology" },
-  { value: "surgery", label: "Surgery" },
-  { value: "urology", label: "Urology" },
-  { value: "other", label: "Other" },
-];
-
 const fmt = (n) =>
   new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", minimumFractionDigits: 0 }).format(n || 0);
 
-const deptLabel = (val) => DEPARTMENTS.find((d) => d.value === val)?.label ?? val;
+const deptLabel = (val, departments) => departments.find((d) => d.value === val)?.label ?? val;
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 const Toast = ({ message, type, onClose }) => {
@@ -175,46 +162,162 @@ const ReserveNoteModal = ({ isOpen, onClose, onConfirm, title, bedNumber }) => {
   );
 };
 
-// ─── Department Multi-Select Pills ────────────────────────────────────────────
-const DeptPillSelect = ({ value, onChange, error }) => {
+// ─── Department Multi-Select Dropdown ─────────────────────────────────────────
+const DeptMultiSelect = ({ value, onChange, error, departments }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef(null);
+  const searchRef = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Focus search when dropdown opens
+  useEffect(() => {
+    if (open) setTimeout(() => searchRef.current?.focus(), 50);
+    else setSearch("");
+  }, [open]);
+
   const toggle = (val) => {
     if (value.includes(val)) {
-      // keep at least 1 selected
-      if (value.length === 1) return;
-      onChange(value.filter((v) => v !== val));
+      onChange(value.filter((v) => v !== val)); // allow removing even the last one
     } else {
       onChange([...value, val]);
     }
   };
 
+  if (!departments.length) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-3 text-xs rounded-xl border border-amber-200 bg-amber-50 text-amber-700">
+        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+        No departments available. Please try again.
+      </div>
+    );
+  }
+
+  const filtered = departments.filter((d) => d.label.toLowerCase().includes(search.toLowerCase()));
+
   return (
-    <div>
+    <div ref={ref}>
       <label className="block text-xs font-semibold text-gray-600 mb-1.5">
         Department(s) * <span className="text-gray-400 font-normal">(select all that apply)</span>
       </label>
-      <div
-        className={`flex flex-wrap gap-1.5 p-2.5 rounded-xl border transition-all ${
-          error ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50/50"
+
+      {/* Trigger button */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`w-full flex items-center justify-between px-3.5 py-2.5 text-sm border rounded-xl bg-white transition-all focus:outline-none focus:ring-2 focus:ring-indigo-100 ${
+          error
+            ? "border-red-300 bg-red-50"
+            : open
+              ? "border-indigo-400 ring-2 ring-indigo-100"
+              : "border-gray-200 hover:border-indigo-300"
         }`}
       >
-        {DEPARTMENTS.map((d) => {
-          const active = value.includes(d.value);
-          return (
-            <button
-              key={d.value}
-              type="button"
-              onClick={() => toggle(d.value)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all active:scale-95 ${
-                active
-                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200"
-                  : "bg-white text-gray-500 border-gray-200 hover:border-indigo-300 hover:text-indigo-600"
-              }`}
+        <span className={`truncate text-left ${value.length === 0 ? "text-gray-400" : "text-gray-800"}`}>
+          {value.length === 0
+            ? "Select departments…"
+            : value.length === 1
+              ? deptLabel(value[0], departments)
+              : `${value.length} departments selected`}
+        </span>
+        <ChevronDown
+          className={`w-4 h-4 text-gray-400 shrink-0 ml-2 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {/* Selected chips — always shown when any selected */}
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {value.map((v) => (
+            <span
+              key={v}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-indigo-50 text-indigo-600 border border-indigo-100"
             >
-              {d.label}
-            </button>
-          );
-        })}
-      </div>
+              {deptLabel(v, departments)}
+              <button
+                type="button"
+                onClick={() => toggle(v)}
+                className="text-indigo-400 hover:text-red-500 transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Dropdown with search */}
+      {open && (
+        <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          {/* Search input */}
+          <div className="px-2.5 pt-2.5 pb-1.5 border-b border-gray-100">
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
+              <svg
+                className="w-3.5 h-3.5 text-gray-400 shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"
+                />
+              </svg>
+              <input
+                ref={searchRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search departments…"
+                className="flex-1 text-xs bg-transparent outline-none text-gray-700 placeholder-gray-400"
+              />
+              {search && (
+                <button type="button" onClick={() => setSearch("")} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Options list */}
+          <div className="max-h-48 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <p className="px-4 py-3 text-xs text-gray-400 text-center">No departments match</p>
+            ) : (
+              filtered.map((d) => {
+                const selected = value.includes(d.value);
+                return (
+                  <button
+                    key={d.value}
+                    type="button"
+                    onClick={() => toggle(d.value)}
+                    className={`w-full flex items-center justify-between px-3.5 py-2 text-sm transition-colors text-left ${
+                      selected ? "bg-indigo-50 text-indigo-700 font-semibold" : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span>{d.label}</span>
+                    {selected && <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
     </div>
   );
@@ -224,13 +327,13 @@ const DeptPillSelect = ({ value, onChange, error }) => {
 const EMPTY_FORM = {
   name: "",
   chargePerDay: "",
-  departments: ["general"],
+  departments: [],
   multiBed: false,
   totalNumberOfBed: "",
   bedStartingNumber: 1,
 };
 
-const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace }) => {
+const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace, departments }) => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
@@ -239,11 +342,7 @@ const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace }) => {
     if (!isOpen) return;
     if (editSpace) {
       // normalise: legacy single `department` string → array
-      const depts = editSpace.departments
-        ? editSpace.departments
-        : editSpace.department
-          ? [editSpace.department]
-          : ["general"];
+      const depts = editSpace.departments ? editSpace.departments : editSpace.department ? [editSpace.department] : [];
       setForm({
         name: editSpace.name,
         chargePerDay: editSpace.chargePerDay,
@@ -253,7 +352,7 @@ const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace }) => {
         bedStartingNumber: editSpace.multiBedConf?.bedStartingNumber ?? 1,
       });
     } else {
-      setForm(EMPTY_FORM);
+      setForm({ ...EMPTY_FORM });
     }
     setErrors({});
   }, [isOpen, editSpace]);
@@ -367,11 +466,15 @@ const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace }) => {
             {errors.chargePerDay && <p className="text-xs text-red-500 mt-1">{errors.chargePerDay}</p>}
           </div>
 
-          <DeptPillSelect
-            value={form.departments}
-            onChange={(val) => set("departments", val)}
-            error={errors.departments}
-          />
+          {/* ── Department dropdown (replaces pill buttons) ── */}
+          <div className="relative">
+            <DeptMultiSelect
+              value={form.departments}
+              onChange={(val) => set("departments", val)}
+              error={errors.departments}
+              departments={departments}
+            />
+          </div>
 
           <div
             onClick={() => set("multiBed", !form.multiBed)}
@@ -427,7 +530,7 @@ const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace }) => {
           </button>
           <button
             onClick={handleSubmit}
-            disabled={saving}
+            disabled={saving || !departments.length}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200/60 transition-all active:scale-95 disabled:opacity-60"
           >
             {saving ? (
@@ -566,10 +669,9 @@ const BedGrid = ({ conf, spaceId, onUpdate, showToast }) => {
 };
 
 // ─── Dept Badges (card display) ───────────────────────────────────────────────
-// Shows up to maxVisible badges then a "+N more" chip
-const DeptBadges = ({ departments = [], maxVisible = 2 }) => {
-  const visible = departments.slice(0, maxVisible);
-  const overflow = departments.length - maxVisible;
+const DeptBadges = ({ departments: deptValues = [], allDepartments = [], maxVisible = 2 }) => {
+  const visible = deptValues.slice(0, maxVisible);
+  const overflow = deptValues.length - maxVisible;
   return (
     <div className="flex items-center gap-1 flex-wrap">
       {visible.map((d) => (
@@ -577,13 +679,16 @@ const DeptBadges = ({ departments = [], maxVisible = 2 }) => {
           key={d}
           className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 text-indigo-600 border border-indigo-100"
         >
-          {deptLabel(d)}
+          {deptLabel(d, allDepartments)}
         </span>
       ))}
       {overflow > 0 && (
         <span
           className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 text-gray-500 border border-gray-200"
-          title={departments.slice(maxVisible).map(deptLabel).join(", ")}
+          title={deptValues
+            .slice(maxVisible)
+            .map((d) => deptLabel(d, allDepartments))
+            .join(", ")}
         >
           +{overflow}
         </span>
@@ -593,26 +698,18 @@ const DeptBadges = ({ departments = [], maxVisible = 2 }) => {
 };
 
 // ─── Space Card ───────────────────────────────────────────────────────────────
-const SpaceCard = ({ space: initialSpace, onEdit, onDelete, showToast, onSpaceUpdate }) => {
+const SpaceCard = ({ space, onEdit, onDelete, showToast, onSpaceUpdate, allDepartments }) => {
   const [expanded, setExpanded] = useState(false);
-  const [space, setSpace] = useState(initialSpace);
   const [busy, setBusy] = useState(false);
   const [reserveModal, setReserveModal] = useState(false);
   const [confirmRelease, setConfirmRelease] = useState(false);
 
-  useEffect(() => {
-    setSpace(initialSpace);
-  }, [initialSpace]);
-
   const handleSpaceUpdate = useCallback(
     (updater) => {
-      setSpace((prev) => {
-        const next = typeof updater === "function" ? updater(prev) : updater;
-        onSpaceUpdate(next);
-        return next;
-      });
+      const next = typeof updater === "function" ? updater(space) : updater;
+      onSpaceUpdate(next);
     },
-    [onSpaceUpdate],
+    [onSpaceUpdate, space],
   );
 
   const doReserveSingle = async (note) => {
@@ -688,7 +785,7 @@ const SpaceCard = ({ space: initialSpace, onEdit, onDelete, showToast, onSpaceUp
               ))}
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <DeptBadges departments={depts} maxVisible={2} />
+            <DeptBadges departments={depts} allDepartments={allDepartments} maxVisible={2} />
             <span className="text-xs text-gray-500 flex items-center gap-1">
               <Banknote className="w-3 h-3" /> {fmt(space.chargePerDay)}/day
             </span>
@@ -780,9 +877,68 @@ const SpaceCard = ({ space: initialSpace, onEdit, onDelete, showToast, onSpaceUp
   );
 };
 
+// ─── Dept Filter Dropdown (main page) ────────────────────────────────────────
+const DeptFilterDropdown = ({ value, onChange, departments }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const allOptions = [{ value: "all", label: "All Departments" }, ...departments];
+  const selected = allOptions.find((d) => d.value === value) ?? allOptions[0];
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold border bg-white transition-all shadow-sm ${
+          open
+            ? "border-indigo-400 ring-2 ring-indigo-100 text-indigo-700"
+            : value === "all"
+              ? "border-gray-200 text-gray-600 hover:border-indigo-300"
+              : "border-indigo-300 text-indigo-700 bg-indigo-50"
+        }`}
+      >
+        <Building2 className="w-4 h-4 shrink-0 text-indigo-400" />
+        <span>{selected.label}</span>
+        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full mt-1.5 z-30 w-64 max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg py-1">
+          {allOptions.map((d) => (
+            <button
+              key={d.value}
+              type="button"
+              onClick={() => {
+                onChange(d.value);
+                setOpen(false);
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left transition-colors ${
+                value === d.value ? "bg-indigo-50 text-indigo-700 font-semibold" : "text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              {d.label}
+              {value === d.value && <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const ManageSpaces = () => {
   const [spaces, setSpaces] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editSpace, setEditSpace] = useState(null);
@@ -793,11 +949,14 @@ const ManageSpaces = () => {
 
   const showToast = useCallback((message, type = "success") => setToast({ message, type }), []);
 
+  // Fetch departments and spaces in parallel on mount
   useEffect(() => {
-    spaceService
-      .getAll()
-      .then((r) => setSpaces(r.data))
-      .catch(() => showToast("Failed to load spaces", "error"))
+    Promise.all([spaceService.getDepartments(), spaceService.getAll()])
+      .then(([deptRes, spacesRes]) => {
+        setDepartments(deptRes.data.departments ?? []);
+        setSpaces(spacesRes.data);
+      })
+      .catch(() => showToast("Failed to load data", "error"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -881,6 +1040,7 @@ const ManageSpaces = () => {
         }}
         onSaved={handleSaved}
         editSpace={editSpace}
+        departments={departments}
       />
 
       <div className="max-w-3xl mx-auto">
@@ -891,15 +1051,18 @@ const ManageSpaces = () => {
             </h1>
             <p className="text-sm text-gray-500 mt-1">Wards, cabins, and indoor patient spaces</p>
           </div>
-          <button
-            onClick={() => {
-              setEditSpace(null);
-              setFormOpen(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200/60 transition-all active:scale-95"
-          >
-            <Plus className="w-4 h-4" /> Add Space
-          </button>
+          <div className="flex items-center gap-2">
+            <DeptFilterDropdown value={filterDept} onChange={setFilterDept} departments={departments} />
+            <button
+              onClick={() => {
+                setEditSpace(null);
+                setFormOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200/60 transition-all active:scale-95"
+            >
+              <Plus className="w-4 h-4" /> Add Space
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -914,23 +1077,6 @@ const ManageSpaces = () => {
               <p className="text-xs text-gray-400 font-medium">{s.label}</p>
               <p className={`text-2xl font-black mt-0.5 ${s.color}`}>{s.value}</p>
             </div>
-          ))}
-        </div>
-
-        {/* Department Filter — pill strip */}
-        <div className="flex flex-wrap gap-1.5 mb-5">
-          {[{ value: "all", label: "All" }, ...DEPARTMENTS].map((d) => (
-            <button
-              key={d.value}
-              onClick={() => setFilterDept(d.value)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                filterDept === d.value
-                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200"
-                  : "bg-white text-gray-500 border-gray-200 hover:border-indigo-300 hover:text-indigo-600"
-              }`}
-            >
-              {d.label}
-            </button>
           ))}
         </div>
 
@@ -957,6 +1103,7 @@ const ManageSpaces = () => {
                 space={space}
                 showToast={showToast}
                 onSpaceUpdate={handleSpaceUpdate}
+                allDepartments={departments}
                 onEdit={(s) => {
                   setEditSpace(s);
                   setFormOpen(true);

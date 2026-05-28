@@ -38,15 +38,6 @@ const CARDS = [
     hoverBorder: "group-hover:border-purple-200",
     textColor: "text-purple-600",
   },
-   {
-    title: "Manage Departments",
-    icon: SectionIcon,
-    link: "/manage-departments",
-    bgIcon: "bg-gradient-to-br from-purple-50 to-purple-100",
-    iconColor: "text-purple-600",
-    hoverBorder: "group-hover:border-purple-200",
-    textColor: "text-purple-600",
-  },
   {
     title: "Admission Spaces",
     icon: BedDouble,
