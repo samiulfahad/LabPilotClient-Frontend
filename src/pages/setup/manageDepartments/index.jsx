@@ -1,8 +1,7 @@
 /**
  * ManageDepartments.jsx
  * Hospital Department Selection — multi-select from canonical whitelist.
- * Each hospital configures which departments it operates; the selection
- * is then available across the system (doctors, spaces, invoices, etc.)
+ * Each hospital manually selects which departments it operates; no defaults.
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -25,37 +24,32 @@ import departmentService from "../../../api/department";
 // ─── Canonical department list (mirrors backend ALLOWED_DEPARTMENTS) ──────────
 // Keep in sync with departmentRoutes.js ALLOWED_DEPARTMENTS
 const ALL_DEPARTMENTS = [
-  { value: "general", label: "General Medicine", group: "Core" },
-  { value: "emergency", label: "Emergency Medicine", group: "Core" },
-  { value: "icu", label: "ICU / Critical Care", group: "Core" },
-  { value: "surgery", label: "General Surgery", group: "Core" },
-  { value: "cardiology", label: "Cardiology", group: "Specialties" },
-  { value: "neurology", label: "Neurology", group: "Specialties" },
-  { value: "psychiatry", label: "Psychiatry", group: "Specialties" },
-  { value: "orthopedics", label: "Orthopedics", group: "Specialties" },
-  { value: "gynecology", label: "Gynecology & Obstetrics", group: "Specialties" },
-  { value: "pediatrics", label: "Pediatrics", group: "Specialties" },
-  { value: "oncology", label: "Oncology", group: "Specialties" },
-  { value: "urology", label: "Urology", group: "Specialties" },
-  { value: "nephrology", label: "Nephrology", group: "Specialties" },
-  { value: "gastroenterology", label: "Gastroenterology", group: "Specialties" },
-  { value: "pulmonology", label: "Pulmonology", group: "Specialties" },
-  { value: "endocrinology", label: "Endocrinology", group: "Specialties" },
-  { value: "rheumatology", label: "Rheumatology", group: "Specialties" },
-  { value: "hematology", label: "Hematology", group: "Specialties" },
-  { value: "dermatology", label: "Dermatology", group: "Allied" },
-  { value: "ophthalmology", label: "Ophthalmology", group: "Allied" },
-  { value: "ent", label: "ENT (Ear, Nose & Throat)", group: "Allied" },
-  { value: "radiology", label: "Radiology & Imaging", group: "Allied" },
-  { value: "pathology", label: "Pathology & Lab", group: "Allied" },
-  { value: "anesthesiology", label: "Anesthesiology", group: "Allied" },
-  { value: "physiotherapy", label: "Physiotherapy & Rehab", group: "Allied" },
-  { value: "dentistry", label: "Dentistry", group: "Allied" },
-  { value: "nutrition", label: "Nutrition & Dietetics", group: "Allied" },
-  { value: "other", label: "Other", group: "Allied" },
+  { value: "anesthesiology", label: "Anesthesiology" },
+  { value: "cardiology", label: "Cardiology" },
+  { value: "dentistry", label: "Dentistry" },
+  { value: "dermatology", label: "Dermatology" },
+  { value: "endocrinology", label: "Endocrinology" },
+  { value: "ent", label: "ENT (Ear, Nose & Throat)" },
+  { value: "gastroenterology", label: "Gastroenterology" },
+  { value: "general", label: "General Medicine" },
+  { value: "surgery", label: "General Surgery" },
+  { value: "gynecology", label: "Gynecology & Obstetrics" },
+  { value: "hematology", label: "Hematology" },
+  { value: "nephrology", label: "Nephrology" },
+  { value: "neurology", label: "Neurology" },
+  { value: "nutrition", label: "Nutrition & Dietetics" },
+  { value: "oncology", label: "Oncology" },
+  { value: "ophthalmology", label: "Ophthalmology" },
+  { value: "orthopedics", label: "Orthopedics" },
+  { value: "pediatrics", label: "Pediatrics" },
+  { value: "physiotherapy", label: "Physiotherapy & Rehab" },
+  { value: "psychiatry", label: "Psychiatry" },
+  { value: "pulmonology", label: "Pulmonology" },
+  { value: "radiology", label: "Radiology & Imaging" },
+  { value: "rheumatology", label: "Rheumatology" },
+  { value: "urology", label: "Urology" },
+  { value: "other", label: "Other" },
 ];
-
-const GROUPS = ["Core", "Specialties", "Allied"];
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 const Toast = ({ message, type, onClose }) => {
@@ -125,7 +119,6 @@ const ManageDepartments = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
-  const [activeGroup, setActiveGroup] = useState("All");
   const [toast, setToast] = useState(null);
 
   const showToast = useCallback((message, type = "success") => setToast({ message, type }), []);
@@ -149,14 +142,13 @@ const ManageDepartments = () => {
     setDraft((prev) => prev.filter((v) => v !== value));
   };
 
-  const selectAll = (depts) => {
-    const values = depts.map((d) => d.value);
-    setDraft((prev) => [...new Set([...prev, ...values])]);
+  const selectAll = () => {
+    setDraft(filteredAll.map((d) => d.value));
   };
 
-  const deselectAll = (depts) => {
-    const values = new Set(depts.map((d) => d.value));
-    setDraft((prev) => prev.filter((v) => !values.has(v)));
+  const deselectAll = () => {
+    const filteredValues = new Set(filteredAll.map((d) => d.value));
+    setDraft((prev) => prev.filter((v) => !filteredValues.has(v)));
   };
 
   const handleSave = async () => {
@@ -180,19 +172,11 @@ const ManageDepartments = () => {
 
   const isDirty = JSON.stringify([...draft].sort()) !== JSON.stringify([...selected].sort());
 
-  const filteredAll = ALL_DEPARTMENTS.filter((d) => {
-    const matchesSearch = d.label.toLowerCase().includes(search.toLowerCase());
-    const matchesGroup = activeGroup === "All" || d.group === activeGroup;
-    return matchesSearch && matchesGroup;
-  });
-
-  const grouped = GROUPS.reduce((acc, g) => {
-    const items = filteredAll.filter((d) => d.group === g);
-    if (items.length) acc[g] = items;
-    return acc;
-  }, {});
+  const filteredAll = ALL_DEPARTMENTS.filter((d) => d.label.toLowerCase().includes(search.toLowerCase()));
 
   const selectedWithLabels = draft.map((v) => ALL_DEPARTMENTS.find((d) => d.value === v)).filter(Boolean);
+
+  const allFilteredSelected = filteredAll.length > 0 && filteredAll.every((d) => draft.includes(d.value));
 
   return (
     <section className="min-h-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
@@ -277,8 +261,8 @@ const ManageDepartments = () => {
           </div>
         )}
 
-        {/* ── Search + Group Filter ────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        {/* ── Search + Select All ──────────────────────────────────────────────── */}
+        <div className="flex gap-3 mb-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -288,21 +272,12 @@ const ManageDepartments = () => {
               className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all bg-white"
             />
           </div>
-          <div className="flex gap-2">
-            {["All", ...GROUPS].map((g) => (
-              <button
-                key={g}
-                onClick={() => setActiveGroup(g)}
-                className={`px-3 py-2 text-xs font-semibold rounded-xl border transition-colors ${
-                  activeGroup === g
-                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                    : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600"
-                }`}
-              >
-                {g}
-              </button>
-            ))}
-          </div>
+          <button
+            onClick={() => (allFilteredSelected ? deselectAll() : selectAll())}
+            className="px-4 py-2.5 text-xs font-semibold rounded-xl border transition-colors bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600 whitespace-nowrap"
+          >
+            {allFilteredSelected ? "Deselect All" : "Select All"}
+          </button>
         </div>
 
         {/* ── Department list ──────────────────────────────────────────────────── */}
@@ -316,33 +291,13 @@ const ManageDepartments = () => {
               <LayoutGrid className="w-5 h-5 text-gray-300" />
             </div>
             <p className="text-sm font-bold text-gray-400">No departments match</p>
-            <p className="text-xs text-gray-300 mt-1">Try adjusting the search or filter</p>
+            <p className="text-xs text-gray-300 mt-1">Try adjusting the search</p>
           </div>
         ) : (
-          <div className="space-y-5">
-            {Object.entries(grouped).map(([group, depts]) => {
-              const allGroupSelected = depts.every((d) => draft.includes(d.value));
-              const someGroupSelected = depts.some((d) => draft.includes(d.value));
-              return (
-                <div key={group}>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">{group}</p>
-                    <button
-                      onClick={() => (allGroupSelected ? deselectAll(depts) : selectAll(depts))}
-                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
-                    >
-                      {allGroupSelected ? "Deselect all" : someGroupSelected ? "Select remaining" : "Select all"}
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {depts.map((dept) => (
-                      <DeptRow key={dept.value} dept={dept} selected={draft} onToggle={toggle} />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {filteredAll.map((dept) => (
+              <DeptRow key={dept.value} dept={dept} selected={draft} onToggle={toggle} />
+            ))}
           </div>
         )}
 

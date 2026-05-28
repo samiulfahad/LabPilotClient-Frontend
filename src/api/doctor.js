@@ -22,7 +22,8 @@ const doctorService = {
 
   /**
    * Register a new doctor.
-   * @param {{ name, degree, contactNumber, designation, department, commissionType, commissionValue }} data
+   * @param {{ name, degree, contactNumber, designation, departments, commissionType, commissionValue }} data
+   * departments is an array of department value strings e.g. ["neurology", "general"]
    */
   create: (data) => api.post("/doctor/add", data),
 

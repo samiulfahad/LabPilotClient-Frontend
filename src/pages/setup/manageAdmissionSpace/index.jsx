@@ -3,7 +3,10 @@
  * Indoor Patient Spaces / Wards CRUD for LabPilot Pro
  * Reservation only — booking is handled via invoice flow.
  * Bed states (display only): booked | reserved | available
+ * departments is now an array (multi-select).
  */
+
+// React Compiler handles memoisation — no useCallback/useMemo
 
 import { useState, useEffect, useCallback } from "react";
 import {
@@ -172,11 +175,56 @@ const ReserveNoteModal = ({ isOpen, onClose, onConfirm, title, bedNumber }) => {
   );
 };
 
+// ─── Department Multi-Select Pills ────────────────────────────────────────────
+const DeptPillSelect = ({ value, onChange, error }) => {
+  const toggle = (val) => {
+    if (value.includes(val)) {
+      // keep at least 1 selected
+      if (value.length === 1) return;
+      onChange(value.filter((v) => v !== val));
+    } else {
+      onChange([...value, val]);
+    }
+  };
+
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+        Department(s) * <span className="text-gray-400 font-normal">(select all that apply)</span>
+      </label>
+      <div
+        className={`flex flex-wrap gap-1.5 p-2.5 rounded-xl border transition-all ${
+          error ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50/50"
+        }`}
+      >
+        {DEPARTMENTS.map((d) => {
+          const active = value.includes(d.value);
+          return (
+            <button
+              key={d.value}
+              type="button"
+              onClick={() => toggle(d.value)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all active:scale-95 ${
+                active
+                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200"
+                  : "bg-white text-gray-500 border-gray-200 hover:border-indigo-300 hover:text-indigo-600"
+              }`}
+            >
+              {d.label}
+            </button>
+          );
+        })}
+      </div>
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+    </div>
+  );
+};
+
 // ─── Space Form Modal ─────────────────────────────────────────────────────────
 const EMPTY_FORM = {
   name: "",
   chargePerDay: "",
-  department: "general",
+  departments: ["general"],
   multiBed: false,
   totalNumberOfBed: "",
   bedStartingNumber: 1,
@@ -190,10 +238,16 @@ const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace }) => {
   useEffect(() => {
     if (!isOpen) return;
     if (editSpace) {
+      // normalise: legacy single `department` string → array
+      const depts = editSpace.departments
+        ? editSpace.departments
+        : editSpace.department
+          ? [editSpace.department]
+          : ["general"];
       setForm({
         name: editSpace.name,
         chargePerDay: editSpace.chargePerDay,
-        department: editSpace.department,
+        departments: depts,
         multiBed: editSpace.multiBed,
         totalNumberOfBed: editSpace.multiBedConf?.totalNumberOfBed ?? "",
         bedStartingNumber: editSpace.multiBedConf?.bedStartingNumber ?? 1,
@@ -214,7 +268,7 @@ const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace }) => {
     if (!form.name.trim()) e.name = "Name is required";
     if (!form.chargePerDay || isNaN(form.chargePerDay) || Number(form.chargePerDay) < 0)
       e.chargePerDay = "Enter a valid charge";
-    if (!form.department) e.department = "Select a department";
+    if (!form.departments.length) e.departments = "Select at least one department";
     if (form.multiBed) {
       if (!form.totalNumberOfBed || isNaN(form.totalNumberOfBed) || Number(form.totalNumberOfBed) < 1)
         e.totalNumberOfBed = "Enter total beds (≥ 1)";
@@ -235,7 +289,7 @@ const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace }) => {
       const payload = {
         name: form.name.trim(),
         chargePerDay: Number(form.chargePerDay),
-        department: form.department,
+        departments: form.departments,
         multiBed: form.multiBed,
         multiBedConf: form.multiBed
           ? {
@@ -288,6 +342,7 @@ const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace }) => {
               <AlertTriangle className="w-4 h-4 shrink-0" /> {errors.general}
             </div>
           )}
+
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Space Name *</label>
             <input
@@ -299,34 +354,24 @@ const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace }) => {
             {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Charge / Day (৳) *</label>
-              <input
-                type="number"
-                min={0}
-                value={form.chargePerDay}
-                onChange={(e) => set("chargePerDay", e.target.value)}
-                placeholder="500"
-                className={`w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all ${errors.chargePerDay ? "border-red-300 bg-red-50" : "border-gray-200"}`}
-              />
-              {errors.chargePerDay && <p className="text-xs text-red-500 mt-1">{errors.chargePerDay}</p>}
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Department *</label>
-              <select
-                value={form.department}
-                onChange={(e) => set("department", e.target.value)}
-                className={`w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all bg-white ${errors.department ? "border-red-300 bg-red-50" : "border-gray-200"}`}
-              >
-                {DEPARTMENTS.map((d) => (
-                  <option key={d.value} value={d.value}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Charge / Day (৳) *</label>
+            <input
+              type="number"
+              min={0}
+              value={form.chargePerDay}
+              onChange={(e) => set("chargePerDay", e.target.value)}
+              placeholder="500"
+              className={`w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all ${errors.chargePerDay ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+            />
+            {errors.chargePerDay && <p className="text-xs text-red-500 mt-1">{errors.chargePerDay}</p>}
           </div>
+
+          <DeptPillSelect
+            value={form.departments}
+            onChange={(val) => set("departments", val)}
+            error={errors.departments}
+          />
 
           <div
             onClick={() => set("multiBed", !form.multiBed)}
@@ -401,9 +446,9 @@ const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace }) => {
   );
 };
 
-// ─── Bed Grid (multi-bed, read-only booked, actionable reserved/available) ────
+// ─── Bed Grid ─────────────────────────────────────────────────────────────────
 const BedGrid = ({ conf, spaceId, onUpdate, showToast }) => {
-  const [reserveModal, setReserveModal] = useState(null); // bedNumber
+  const [reserveModal, setReserveModal] = useState(null);
   const [busy, setBusy] = useState(null);
 
   if (!conf) return null;
@@ -417,7 +462,6 @@ const BedGrid = ({ conf, spaceId, onUpdate, showToast }) => {
   };
   const reservedNoteOf = (b) => reserved.find((r) => r.bedNumber === b)?.note ?? "";
 
-  // Reserve a free bed
   const doReserve = async (b, note) => {
     setBusy(b);
     try {
@@ -437,7 +481,6 @@ const BedGrid = ({ conf, spaceId, onUpdate, showToast }) => {
     }
   };
 
-  // Release a reserved bed
   const doReleaseReservation = async (b) => {
     setBusy(b);
     try {
@@ -466,27 +509,22 @@ const BedGrid = ({ conf, spaceId, onUpdate, showToast }) => {
         onClose={() => setReserveModal(null)}
         onConfirm={(note) => doReserve(reserveModal, note)}
       />
-
       <div className="flex flex-wrap gap-1.5 mt-2">
         {beds.map((b) => {
           const s = statusOf(b);
           const isBusy = busy === b;
           const note = s === "reserved" ? reservedNoteOf(b) : "";
-
-          // booked = red, inert; reserved = amber, click to release; available = green, click to reserve
           const colorClass =
             s === "booked"
               ? "bg-red-50 text-red-400 border-red-200 cursor-default"
               : s === "reserved"
                 ? "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 cursor-pointer"
                 : "bg-green-50 text-green-600 border-green-200 hover:bg-green-100 cursor-pointer";
-
           const handleClick = () => {
             if (s === "booked" || isBusy) return;
             if (s === "available") setReserveModal(b);
             if (s === "reserved") doReleaseReservation(b);
           };
-
           return (
             <button
               key={b}
@@ -509,8 +547,6 @@ const BedGrid = ({ conf, spaceId, onUpdate, showToast }) => {
           );
         })}
       </div>
-
-      {/* Legend */}
       <div className="flex items-center gap-4 mt-3 text-[10px] font-medium">
         <span className="flex items-center gap-1 text-green-600">
           <span className="w-2.5 h-2.5 rounded bg-green-200 inline-block" /> Available
@@ -525,6 +561,33 @@ const BedGrid = ({ conf, spaceId, onUpdate, showToast }) => {
       <p className="text-[10px] text-gray-400 mt-1.5">
         Click available bed to reserve · click reserved bed to release · booked beds are managed via invoices
       </p>
+    </div>
+  );
+};
+
+// ─── Dept Badges (card display) ───────────────────────────────────────────────
+// Shows up to maxVisible badges then a "+N more" chip
+const DeptBadges = ({ departments = [], maxVisible = 2 }) => {
+  const visible = departments.slice(0, maxVisible);
+  const overflow = departments.length - maxVisible;
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      {visible.map((d) => (
+        <span
+          key={d}
+          className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 text-indigo-600 border border-indigo-100"
+        >
+          {deptLabel(d)}
+        </span>
+      ))}
+      {overflow > 0 && (
+        <span
+          className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 text-gray-500 border border-gray-200"
+          title={departments.slice(maxVisible).map(deptLabel).join(", ")}
+        >
+          +{overflow}
+        </span>
+      )}
     </div>
   );
 };
@@ -552,7 +615,6 @@ const SpaceCard = ({ space: initialSpace, onEdit, onDelete, showToast, onSpaceUp
     [onSpaceUpdate],
   );
 
-  // Single-bed: reserve
   const doReserveSingle = async (note) => {
     setBusy(true);
     try {
@@ -566,7 +628,6 @@ const SpaceCard = ({ space: initialSpace, onEdit, onDelete, showToast, onSpaceUp
     }
   };
 
-  // Single-bed: release
   const doReleaseSingle = async () => {
     setConfirmRelease(false);
     setBusy(true);
@@ -586,6 +647,9 @@ const SpaceCard = ({ space: initialSpace, onEdit, onDelete, showToast, onSpaceUp
   const reservedCount = space.multiBedConf?.reserved?.length ?? 0;
   const availableCount = totalBeds - bookedCount - reservedCount;
 
+  // normalise legacy single dept string
+  const depts = space.departments ?? (space.department ? [space.department] : []);
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all duration-200 overflow-hidden">
       {confirmRelease && (
@@ -604,7 +668,6 @@ const SpaceCard = ({ space: initialSpace, onEdit, onDelete, showToast, onSpaceUp
         onConfirm={doReserveSingle}
       />
 
-      {/* Main row */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 shadow-sm">
           <BedDouble className="w-5 h-5 text-white" />
@@ -613,10 +676,6 @@ const SpaceCard = ({ space: initialSpace, onEdit, onDelete, showToast, onSpaceUp
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-bold text-gray-900 text-sm">{space.name}</span>
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 text-indigo-600 border border-indigo-100">
-              {deptLabel(space.department)}
-            </span>
-            {/* Single-bed status badge */}
             {!space.multiBed &&
               (space.reserved ? (
                 <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-600 border border-amber-200">
@@ -628,7 +687,8 @@ const SpaceCard = ({ space: initialSpace, onEdit, onDelete, showToast, onSpaceUp
                 </span>
               ))}
           </div>
-          <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <DeptBadges departments={depts} maxVisible={2} />
             <span className="text-xs text-gray-500 flex items-center gap-1">
               <Banknote className="w-3 h-3" /> {fmt(space.chargePerDay)}/day
             </span>
@@ -659,7 +719,6 @@ const SpaceCard = ({ space: initialSpace, onEdit, onDelete, showToast, onSpaceUp
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          {/* Single-bed reserve / release */}
           {!space.multiBed &&
             (space.reserved ? (
               <button
@@ -680,8 +739,6 @@ const SpaceCard = ({ space: initialSpace, onEdit, onDelete, showToast, onSpaceUp
                 {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookMarked className="w-3.5 h-3.5" />}
               </button>
             ))}
-
-          {/* Multi-bed expand toggle */}
           {space.multiBed && (
             <button
               onClick={() => setExpanded((v) => !v)}
@@ -705,7 +762,6 @@ const SpaceCard = ({ space: initialSpace, onEdit, onDelete, showToast, onSpaceUp
         </div>
       </div>
 
-      {/* Single-bed reserved note */}
       {!space.multiBed && space.reserved && space.reservedNote && (
         <div className="px-4 pb-3">
           <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5">
@@ -714,7 +770,6 @@ const SpaceCard = ({ space: initialSpace, onEdit, onDelete, showToast, onSpaceUp
         </div>
       )}
 
-      {/* Expanded bed grid */}
       {expanded && space.multiBed && space.multiBedConf && (
         <div className="px-4 pb-4 pt-1 border-t border-gray-50">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Bed Layout</p>
@@ -775,7 +830,13 @@ const ManageSpaces = () => {
     }
   };
 
-  const filtered = spaces.filter((s) => filterDept === "all" || s.department === filterDept);
+  // Filter: space matches if filterDept is "all" or its departments array includes filterDept
+  // Normalise legacy docs that still have a singular `department` string
+  const filtered = spaces.filter((s) => {
+    if (filterDept === "all") return true;
+    const depts = s.departments ?? (s.department ? [s.department] : []);
+    return depts.includes(filterDept);
+  });
 
   const stats = {
     total: spaces.length,
@@ -823,7 +884,6 @@ const ManageSpaces = () => {
       />
 
       <div className="max-w-3xl mx-auto">
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
@@ -842,7 +902,7 @@ const ManageSpaces = () => {
           </button>
         </div>
 
-        {/* Stats — 4 cards */}
+        {/* Stats */}
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
             { label: "Total Spaces", value: stats.total, color: "text-gray-900", bg: "bg-white" },
@@ -857,20 +917,21 @@ const ManageSpaces = () => {
           ))}
         </div>
 
-        {/* Department Filter */}
-        <div className="flex flex-wrap gap-2 mb-5">
-          <select
-            value={filterDept}
-            onChange={(e) => setFilterDept(e.target.value)}
-            className="px-3 py-2 text-xs font-semibold border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 text-gray-600"
-          >
-            <option value="all">All Departments</option>
-            {DEPARTMENTS.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </select>
+        {/* Department Filter — pill strip */}
+        <div className="flex flex-wrap gap-1.5 mb-5">
+          {[{ value: "all", label: "All" }, ...DEPARTMENTS].map((d) => (
+            <button
+              key={d.value}
+              onClick={() => setFilterDept(d.value)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                filterDept === d.value
+                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200"
+                  : "bg-white text-gray-500 border-gray-200 hover:border-indigo-300 hover:text-indigo-600"
+              }`}
+            >
+              {d.label}
+            </button>
+          ))}
         </div>
 
         {/* List */}
