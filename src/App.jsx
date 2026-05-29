@@ -28,6 +28,9 @@ import Products from "./pages/setup/manageProducts";
 import Doctors from "./pages/doctors";
 import IndoorPatient from "./pages/indoorPatient";
 import ManageSpaces from "./pages/setup/manageAdmissionSpace";
+import AdmitPatient from "./pages/indoorPatient/AdmitPatient";
+import SearchPatient from "./pages/indoorPatient/SearchPatient";
+import PatientList from "./pages/indoorPatient/PatientList";
 
 // ─── Route Wrapper for Protected Pages ──────────────────────────────────────
 const ProtectedRoutes = () => {
@@ -83,6 +86,10 @@ function App() {
         <Route path="/manage-spaces" element={<ManageSpaces />} />
         <Route path="/manage-products" element={<Products />} />
         <Route path="/test/add" element={<AddTest />} />
+        <Route path="/ipd/admit" element={<AdmitPatient />} />
+        <Route path="/ipd/search" element={<SearchPatient/> } />
+        <Route path="/ipd/admitted" element={<PatientList/> } />
+        <Route path="/ipd/released" element={<PatientList/> } />
       </Route>
       {/* Catch-all: Redirect unknown URLs to home */}
       <Route path="*" element={<Navigate to="/" replace />} />
