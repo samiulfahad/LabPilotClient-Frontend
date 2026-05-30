@@ -20,7 +20,7 @@ const menu = [
   { label: "Cashmemo", path: "/cashmemo", icon: Receipt },
   { label: "Invoice Master", path: "/invoice-master", icon: Receipt },
   { label: "New Invoice", path: "/invoice/new", icon: FilePlus },
-  { label: "Indoor Patient", path: "/ipd", icon: HeartPlus },
+  { label: "Indoor Patient", path: "/ipd-master", icon: HeartPlus },
   { label: "Reports", path: "/report", icon: FileText },
   { label: "Transactions", path: "/transactions", icon: ArrowLeftRight },
   { label: "Commission", path: "/commission", icon: Percent },

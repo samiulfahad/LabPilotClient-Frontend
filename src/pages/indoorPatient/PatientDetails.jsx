@@ -4,7 +4,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import indoorPatientService from "../../api/indoorPatient";
 import {
   BLOOD_GROUPS,
-  EXPENSE_TYPES,
   Badge,
   BedSelector,
   Btn,
@@ -21,83 +20,6 @@ import {
   totalPayments,
   days,
 } from "./indoorPatientHelpers";
-
-// ─── Add Expense Modal ────────────────────────────────────────────────────────
-
-const AddExpenseModal = ({ open, patientId, onClose, onSuccess }) => {
-  const [form, setForm] = useState({ type: "medicine", name: "", price: "", quantity: "1", note: "" });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-
-  const handleAdd = async () => {
-    setError("");
-    if (!form.name.trim()) return setError("Item name required");
-    if (!form.price) return setError("Price required");
-    setLoading(true);
-    try {
-      await indoorPatientService.addExpense(patientId, {
-        type: form.type,
-        name: form.name.trim(),
-        price: parseFloat(form.price),
-        quantity: parseInt(form.quantity) || 1,
-        note: form.note.trim(),
-      });
-      setForm({ type: "medicine", name: "", price: "", quantity: "1", note: "" });
-      onSuccess();
-      onClose();
-    } catch (err) {
-      setError(err?.response?.data?.error ?? "Failed to add expense");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal open={open} onClose={onClose} title="Add Expense" width="max-w-lg">
-      <div className="space-y-3">
-        <ErrorMsg msg={error} />
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Type">
-            <Select value={form.type} onChange={(e) => set("type", e.target.value)}>
-              {EXPENSE_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Item Name">
-            <Input placeholder="Medicine / Test name" value={form.name} onChange={(e) => set("name", e.target.value)} />
-          </Field>
-          <Field label="Unit Price (BDT)">
-            <Input
-              type="number"
-              min="0"
-              placeholder="0.00"
-              value={form.price}
-              onChange={(e) => set("price", e.target.value)}
-            />
-          </Field>
-          <Field label="Quantity">
-            <Input type="number" min="1" value={form.quantity} onChange={(e) => set("quantity", e.target.value)} />
-          </Field>
-        </div>
-        <Field label="Note (optional)">
-          <Input placeholder="e.g. morning dose" value={form.note} onChange={(e) => set("note", e.target.value)} />
-        </Field>
-        <div className="flex gap-3 pt-1">
-          <Btn variant="secondary" size="lg" className="flex-1" onClick={onClose}>
-            Cancel
-          </Btn>
-          <Btn variant="primary" size="lg" className="flex-1" loading={loading} onClick={handleAdd}>
-            Add Expense
-          </Btn>
-        </div>
-      </div>
-    </Modal>
-  );
-};
 
 // ─── Collect Payment Modal ────────────────────────────────────────────────────
 
@@ -159,8 +81,8 @@ const CollectPaymentModal = ({ open, patientId, onClose, onSuccess }) => {
 
 const TABS = [
   { id: "overview", label: "Overview" },
-  { id: "expenses", label: "Expenses" },
-  { id: "payments", label: "Payments" },
+  { id: "billing", label: "Billing" },
+  { id: "reports", label: "Reports" },
   { id: "history", label: "History" },
 ];
 
@@ -180,7 +102,6 @@ const PatientDetail = () => {
   const [transferWard, setTransferWard] = useState(false);
   const [changeDoc, setChangeDoc] = useState(false);
   const [releaseConfirm, setReleaseConfirm] = useState(false);
-  const [showAddExpense, setShowAddExpense] = useState(false);
   const [showCollectPayment, setShowCollectPayment] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -354,9 +275,10 @@ const PatientDetail = () => {
           back={() => navigate(-1)}
           action={
             isAdmitted && (
-              <div className="flex items-center gap-2">
-                <Btn variant="secondary" size="sm" onClick={() => setShowAddExpense(true)}>
-                  ➕ Add Expense
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Redirect to catalog-based add items page, pre-selecting this patient */}
+                <Btn variant="primary" size="sm" onClick={() => navigate(`/ipd/add-items?patientId=${patientId}`)}>
+                  ➕ Add Expenses
                 </Btn>
                 <Btn variant="success" size="sm" onClick={() => setShowCollectPayment(true)}>
                   💳 Collect Payment
@@ -658,89 +580,101 @@ const PatientDetail = () => {
           </div>
         )}
 
-        {/* ── Expenses (view only) ── */}
-        {activeTab === "expenses" && (
-          <SectionCard title={`Expense Log (${patient.expenses?.length ?? 0})`} icon="🧾">
-            {!patient.expenses?.length ? (
-              <p className="text-slate-400 text-sm text-center py-4">No expenses recorded yet</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100">
-                      {["Type", "Item", "Price", "Qty", "Total", "Date", "By"].map((h) => (
-                        <th
-                          key={h}
-                          className="text-left px-2 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide"
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {patient.expenses.map((e, i) => (
-                      <tr key={i} className="hover:bg-slate-50">
-                        <td className="px-2 py-2.5">
-                          <Badge color="slate">{e.type}</Badge>
-                        </td>
-                        <td className="px-2 py-2.5 font-medium text-slate-700">{e.name}</td>
-                        <td className="px-2 py-2.5 text-slate-600">{fmt.currency(e.price)}</td>
-                        <td className="px-2 py-2.5 text-slate-600">{e.quantity}</td>
-                        <td className="px-2 py-2.5 font-semibold text-slate-800">
-                          {fmt.currency(e.total ?? e.price * e.quantity)}
-                        </td>
-                        <td className="px-2 py-2.5 text-slate-400 text-xs">{fmt.date(e.addedAt)}</td>
-                        <td className="px-2 py-2.5 text-slate-400 text-xs">{e.addedBy?.name}</td>
+        {/* ── Billing ── */}
+        {activeTab === "billing" && (
+          <div className="space-y-4">
+            <SectionCard title={`Expense Log (${patient.expenses?.length ?? 0})`} icon="🧾">
+              {!patient.expenses?.length ? (
+                <p className="text-slate-400 text-sm text-center py-4">No expenses recorded yet</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100">
+                        {["Type", "Item", "Price", "Qty", "Total", "Date", "By"].map((h) => (
+                          <th
+                            key={h}
+                            className="text-left px-2 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide"
+                          >
+                            {h}
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-slate-200">
-                      <td colSpan={4} className="px-2 py-2 text-sm font-bold text-slate-600">
-                        Total
-                      </td>
-                      <td className="px-2 py-2 text-sm font-bold text-slate-900">
-                        {fmt.currency(totalExpenses(patient.expenses))}
-                      </td>
-                      <td colSpan={2} />
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )}
-          </SectionCard>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {patient.expenses.map((e, i) => (
+                        <tr key={i} className="hover:bg-slate-50">
+                          <td className="px-2 py-2.5">
+                            <Badge color="slate">{e.type}</Badge>
+                          </td>
+                          <td className="px-2 py-2.5 font-medium text-slate-700">{e.name}</td>
+                          <td className="px-2 py-2.5 text-slate-600">{fmt.currency(e.price)}</td>
+                          <td className="px-2 py-2.5 text-slate-600">{e.quantity}</td>
+                          <td className="px-2 py-2.5 font-semibold text-slate-800">
+                            {fmt.currency(e.total ?? e.price * e.quantity)}
+                          </td>
+                          <td className="px-2 py-2.5 text-slate-400 text-xs">{fmt.date(e.addedAt)}</td>
+                          <td className="px-2 py-2.5 text-slate-400 text-xs">{e.addedBy?.name}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-slate-200">
+                        <td colSpan={4} className="px-2 py-2 text-sm font-bold text-slate-600">
+                          Total
+                        </td>
+                        <td className="px-2 py-2 text-sm font-bold text-slate-900">
+                          {fmt.currency(totalExpenses(patient.expenses))}
+                        </td>
+                        <td colSpan={2} />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </SectionCard>
+
+            <SectionCard title={`Payment History (${patient.payments?.length ?? 0})`} icon="🏦">
+              {!patient.payments?.length ? (
+                <p className="text-slate-400 text-sm text-center py-4">No payments recorded yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {patient.payments.map((p, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl border border-emerald-100"
+                    >
+                      <div>
+                        <div className="text-sm font-semibold text-emerald-800">{fmt.currency(p.amount)}</div>
+                        <div className="text-xs text-emerald-600 mt-0.5">
+                          {p.collectedBy?.name} · {fmt.datetime(p.collectedAt)}
+                          {p.note && ` · ${p.note}`}
+                        </div>
+                      </div>
+                      <Badge color="green">Collected</Badge>
+                    </div>
+                  ))}
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-sm font-bold">
+                    <span className="text-slate-600">Total Collected</span>
+                    <span className="text-emerald-700">{fmt.currency(totalPayments(patient.payments))}</span>
+                  </div>
+                </div>
+              )}
+            </SectionCard>
+          </div>
         )}
 
-        {/* ── Payments (view only) ── */}
-        {activeTab === "payments" && (
-          <SectionCard title={`Payment History (${patient.payments?.length ?? 0})`} icon="🏦">
-            {!patient.payments?.length ? (
-              <p className="text-slate-400 text-sm text-center py-4">No payments recorded yet</p>
-            ) : (
-              <div className="space-y-2">
-                {patient.payments.map((p, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl border border-emerald-100"
-                  >
-                    <div>
-                      <div className="text-sm font-semibold text-emerald-800">{fmt.currency(p.amount)}</div>
-                      <div className="text-xs text-emerald-600 mt-0.5">
-                        {p.collectedBy?.name} · {fmt.datetime(p.collectedAt)}
-                        {p.note && ` · ${p.note}`}
-                      </div>
-                    </div>
-                    <Badge color="green">Collected</Badge>
-                  </div>
-                ))}
-                <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-sm font-bold">
-                  <span className="text-slate-600">Total Collected</span>
-                  <span className="text-emerald-700">{fmt.currency(totalPayments(patient.payments))}</span>
-                </div>
-              </div>
-            )}
-          </SectionCard>
+        {/* ── Reports ── */}
+        {activeTab === "reports" && (
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-10 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">📋</span>
+            </div>
+            <h3 className="text-base font-bold text-slate-700 mb-1">Reports — Coming Soon</h3>
+            <p className="text-sm text-slate-400 max-w-xs mx-auto">
+              Patient reports and lab documents will be available here.
+            </p>
+          </div>
         )}
 
         {/* ── History ── */}
@@ -798,13 +732,6 @@ const PatientDetail = () => {
       </div>
 
       {/* ── Modals ── */}
-      <AddExpenseModal
-        open={showAddExpense}
-        patientId={patientId}
-        onClose={() => setShowAddExpense(false)}
-        onSuccess={fetchPatient}
-      />
-
       <CollectPaymentModal
         open={showCollectPayment}
         patientId={patientId}

@@ -27,11 +27,12 @@ import InvoiceMaster from "./pages/invoiceMaster";
 import Products from "./pages/setup/manageProducts";
 import Doctors from "./pages/doctors";
 import ManageSpaces from "./pages/setup/manageAdmissionSpace";
-import IndoorPatient from "./pages/indoorPatient";
+import IndoorPatientHub from "./pages/indoorPatient/index";
 import AdmitPatient from "./pages/indoorPatient/AdmitPatient";
 import SearchPatient from "./pages/indoorPatient/SearchPatient";
 import PatientList from "./pages/indoorPatient/PatientList";
-import PatientDetail from "./pages/indoorPatient/PatientDetails";
+import PatientDetails from "./pages/indoorPatient/PatientDetails";
+import AddItemsToPatient from "./pages/indoorPatient/AddItemsToPatient";
 
 // ─── Route Wrapper for Protected Pages ──────────────────────────────────────
 const ProtectedRoutes = () => {
@@ -86,11 +87,12 @@ function App() {
         <Route path="/manage-spaces" element={<ManageSpaces />} />
         <Route path="/manage-products" element={<Products />} />
         <Route path="/test/add" element={<AddTest />} />
-        <Route path="/ipd" element={<IndoorPatient />} />
+        <Route path="/ipd-master" element={<IndoorPatientHub />} />
         <Route path="/ipd/admit" element={<AdmitPatient />} />
         <Route path="/ipd/search" element={<SearchPatient />} />
         <Route path="/ipd/patients" element={<PatientList />} />
-        <Route path="/ipd/patient/:id" element={<PatientDetail />} />
+        <Route path="/ipd/patient/:id" element={<PatientDetails />} />
+        <Route path="/ipd/add-items" element={<AddItemsToPatient />} />
       </Route>
       {/* Catch-all: Redirect unknown URLs to home */}
       <Route path="*" element={<Navigate to="/" replace />} />
