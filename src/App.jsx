@@ -26,12 +26,12 @@ import Billing from "./pages/billing";
 import InvoiceMaster from "./pages/invoiceMaster";
 import Products from "./pages/setup/manageProducts";
 import Doctors from "./pages/doctors";
-import IndoorPatient from "./pages/indoorPatient";
 import ManageSpaces from "./pages/setup/manageAdmissionSpace";
+import IndoorPatient from "./pages/indoorPatient";
 import AdmitPatient from "./pages/indoorPatient/AdmitPatient";
 import SearchPatient from "./pages/indoorPatient/SearchPatient";
 import PatientList from "./pages/indoorPatient/PatientList";
-import { AdmittedPatients, ReleasedPatients } from "./pages/indoorPatient/AdmittedReleasedPatients ";
+import PatientDetail from "./pages/indoorPatient/PatientDetails";
 
 // ─── Route Wrapper for Protected Pages ──────────────────────────────────────
 const ProtectedRoutes = () => {
@@ -77,7 +77,6 @@ function App() {
         <Route path="/report-download" element={<ReportDownload />} />
         <Route path="/transactions" element={<Transactions />} />
         <Route path="/doctors" element={<Doctors />} />
-        <Route path="/indoor-patients" element={<IndoorPatient />} />
         <Route path="/account" element={<Account />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/setup" element={<Setup />} />
@@ -87,10 +86,11 @@ function App() {
         <Route path="/manage-spaces" element={<ManageSpaces />} />
         <Route path="/manage-products" element={<Products />} />
         <Route path="/test/add" element={<AddTest />} />
+        <Route path="/ipd" element={<IndoorPatient />} />
         <Route path="/ipd/admit" element={<AdmitPatient />} />
         <Route path="/ipd/search" element={<SearchPatient />} />
-        <Route path="/ipd/admitted" element={<AdmittedPatients />} />
-        <Route path="/ipd/released" element={<ReleasedPatients />} />
+        <Route path="/ipd/patients" element={<PatientList />} />
+        <Route path="/ipd/patient/:id" element={<PatientDetail />} />
       </Route>
       {/* Catch-all: Redirect unknown URLs to home */}
       <Route path="*" element={<Navigate to="/" replace />} />

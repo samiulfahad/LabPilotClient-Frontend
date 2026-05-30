@@ -1,3 +1,4 @@
+import ReactDOM from "react-dom";
 // React Compiler active — no useCallback/useMemo
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -226,5 +227,56 @@ export const BedSelector = ({ space, value, onChange }) => {
         ))}
       </div>
     </div>
+  );
+};
+
+export const Modal = ({ open, onClose, title, children, width = "max-w-2xl" }) => {
+  if (!open) return null;
+  return ReactDOM.createPortal(
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+        background: "rgba(15,23,42,0.4)",
+        backdropFilter: "blur(4px)",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={`relative w-full ${width} bg-white rounded-2xl border border-slate-200/80`}
+        style={{
+          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+          maxHeight: "85vh",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <div
+          style={{ flexShrink: 0 }}
+          className="flex items-center justify-between px-6 py-4 border-b border-slate-100"
+        >
+          <h2 className="text-base font-bold text-slate-800">{title}</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div style={{ overflowY: "auto", padding: "1.25rem 1.5rem" }}>{children}</div>
+      </div>
+    </div>,
+    document.body,
   );
 };

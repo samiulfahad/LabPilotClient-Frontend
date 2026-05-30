@@ -11,6 +11,7 @@ import {
   ErrorMsg,
   Field,
   Input,
+  Modal,
   PageHeader,
   SectionCard,
   Select,
@@ -21,9 +22,9 @@ import {
   days,
 } from "./indoorPatientHelpers";
 
-// ─── Add Expense Form ─────────────────────────────────────────────────────────
+// ─── Add Expense Modal ────────────────────────────────────────────────────────
 
-const AddExpenseForm = ({ patientId, onSuccess }) => {
+const AddExpenseModal = ({ open, patientId, onClose, onSuccess }) => {
   const [form, setForm] = useState({ type: "medicine", name: "", price: "", quantity: "1", note: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -44,6 +45,7 @@ const AddExpenseForm = ({ patientId, onSuccess }) => {
       });
       setForm({ type: "medicine", name: "", price: "", quantity: "1", note: "" });
       onSuccess();
+      onClose();
     } catch (err) {
       setError(err?.response?.data?.error ?? "Failed to add expense");
     } finally {
@@ -52,47 +54,54 @@ const AddExpenseForm = ({ patientId, onSuccess }) => {
   };
 
   return (
-    <div className="space-y-3">
-      <ErrorMsg msg={error} />
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Type">
-          <Select value={form.type} onChange={(e) => set("type", e.target.value)}>
-            {EXPENSE_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </Select>
+    <Modal open={open} onClose={onClose} title="Add Expense" width="max-w-lg">
+      <div className="space-y-3">
+        <ErrorMsg msg={error} />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Type">
+            <Select value={form.type} onChange={(e) => set("type", e.target.value)}>
+              {EXPENSE_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Item Name">
+            <Input placeholder="Medicine / Test name" value={form.name} onChange={(e) => set("name", e.target.value)} />
+          </Field>
+          <Field label="Unit Price (BDT)">
+            <Input
+              type="number"
+              min="0"
+              placeholder="0.00"
+              value={form.price}
+              onChange={(e) => set("price", e.target.value)}
+            />
+          </Field>
+          <Field label="Quantity">
+            <Input type="number" min="1" value={form.quantity} onChange={(e) => set("quantity", e.target.value)} />
+          </Field>
+        </div>
+        <Field label="Note (optional)">
+          <Input placeholder="e.g. morning dose" value={form.note} onChange={(e) => set("note", e.target.value)} />
         </Field>
-        <Field label="Item Name">
-          <Input placeholder="Medicine / Test name" value={form.name} onChange={(e) => set("name", e.target.value)} />
-        </Field>
-        <Field label="Unit Price (BDT)">
-          <Input
-            type="number"
-            min="0"
-            placeholder="0.00"
-            value={form.price}
-            onChange={(e) => set("price", e.target.value)}
-          />
-        </Field>
-        <Field label="Quantity">
-          <Input type="number" min="1" value={form.quantity} onChange={(e) => set("quantity", e.target.value)} />
-        </Field>
+        <div className="flex gap-3 pt-1">
+          <Btn variant="secondary" size="lg" className="flex-1" onClick={onClose}>
+            Cancel
+          </Btn>
+          <Btn variant="primary" size="lg" className="flex-1" loading={loading} onClick={handleAdd}>
+            Add Expense
+          </Btn>
+        </div>
       </div>
-      <Field label="Note (optional)">
-        <Input placeholder="e.g. morning dose" value={form.note} onChange={(e) => set("note", e.target.value)} />
-      </Field>
-      <Btn variant="primary" loading={loading} onClick={handleAdd} className="w-full">
-        Add Expense
-      </Btn>
-    </div>
+    </Modal>
   );
 };
 
-// ─── Add Payment Form ─────────────────────────────────────────────────────────
+// ─── Collect Payment Modal ────────────────────────────────────────────────────
 
-const AddPaymentForm = ({ patientId, onSuccess }) => {
+const CollectPaymentModal = ({ open, patientId, onClose, onSuccess }) => {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
@@ -107,6 +116,7 @@ const AddPaymentForm = ({ patientId, onSuccess }) => {
       setAmount("");
       setNote("");
       onSuccess();
+      onClose();
     } catch (err) {
       setError(err?.response?.data?.error ?? "Failed to record payment");
     } finally {
@@ -115,38 +125,46 @@ const AddPaymentForm = ({ patientId, onSuccess }) => {
   };
 
   return (
-    <div className="space-y-3">
-      <ErrorMsg msg={error} />
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Amount (BDT)">
-          <Input
-            type="number"
-            min="0.01"
-            placeholder="0.00"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-        </Field>
-        <Field label="Note (optional)">
-          <Input placeholder="Cash / bKash / etc." value={note} onChange={(e) => setNote(e.target.value)} />
-        </Field>
+    <Modal open={open} onClose={onClose} title="Collect Payment" width="max-w-md">
+      <div className="space-y-3">
+        <ErrorMsg msg={error} />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Amount (BDT)">
+            <Input
+              type="number"
+              min="0.01"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </Field>
+          <Field label="Note (optional)">
+            <Input placeholder="Cash / bKash / etc." value={note} onChange={(e) => setNote(e.target.value)} />
+          </Field>
+        </div>
+        <div className="flex gap-3 pt-1">
+          <Btn variant="secondary" size="lg" className="flex-1" onClick={onClose}>
+            Cancel
+          </Btn>
+          <Btn variant="success" size="lg" className="flex-1" loading={loading} onClick={handleAdd}>
+            Record Payment
+          </Btn>
+        </div>
       </div>
-      <Btn variant="success" loading={loading} onClick={handleAdd} className="w-full">
-        Record Payment
-      </Btn>
-    </div>
+    </Modal>
   );
 };
 
-// ─── Patient Detail Page ──────────────────────────────────────────────────────
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
 
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "expenses", label: "Expenses" },
   { id: "payments", label: "Payments" },
-  { id: "products", label: "Products" },
   { id: "history", label: "History" },
 ];
+
+// ─── Patient Detail Page ──────────────────────────────────────────────────────
 
 const PatientDetail = () => {
   const { id: patientId } = useParams();
@@ -162,6 +180,8 @@ const PatientDetail = () => {
   const [transferWard, setTransferWard] = useState(false);
   const [changeDoc, setChangeDoc] = useState(false);
   const [releaseConfirm, setReleaseConfirm] = useState(false);
+  const [showAddExpense, setShowAddExpense] = useState(false);
+  const [showCollectPayment, setShowCollectPayment] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
 
@@ -276,7 +296,7 @@ const PatientDetail = () => {
     setActionLoading(true);
     try {
       await indoorPatientService.release(patientId, {});
-      navigate("/ipd/admitted");
+      navigate("/ipd/patients");
     } catch (err) {
       setActionError(err?.response?.data?.error ?? "Failed to release");
       setActionLoading(false);
@@ -285,7 +305,7 @@ const PatientDetail = () => {
 
   const txSelectedSpace = spaces.find((s) => s._id === txForm.spaceId) ?? null;
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -322,6 +342,8 @@ const PatientDetail = () => {
     );
   }
 
+  const isAdmitted = patient.status === "admitted";
+
   return (
     <div className="min-h-full bg-slate-50/50">
       <div className="max-w-4xl mx-auto p-4 sm:p-6">
@@ -331,19 +353,25 @@ const PatientDetail = () => {
           subtitle={`${patient.admissionId} · ${patient.patient.age}y · ${patient.patient.gender}${patient.patient.bloodGroup ? ` · ${patient.patient.bloodGroup}` : ""}`}
           back={() => navigate(-1)}
           action={
-            patient.status === "admitted" && (
-              <Btn variant="danger" size="sm" onClick={() => setReleaseConfirm(true)}>
-                Discharge
-              </Btn>
+            isAdmitted && (
+              <div className="flex items-center gap-2">
+                <Btn variant="secondary" size="sm" onClick={() => setShowAddExpense(true)}>
+                  ➕ Add Expense
+                </Btn>
+                <Btn variant="success" size="sm" onClick={() => setShowCollectPayment(true)}>
+                  💳 Collect Payment
+                </Btn>
+                <Btn variant="danger" size="sm" onClick={() => setReleaseConfirm(true)}>
+                  Discharge
+                </Btn>
+              </div>
             )
           }
         />
 
         {/* Status strip */}
         <div className="flex items-center gap-2 mb-5">
-          <Badge color={patient.status === "admitted" ? "blue" : "green"}>
-            {patient.status === "admitted" ? "🏥 Admitted" : "✅ Released"}
-          </Badge>
+          <Badge color={isAdmitted ? "blue" : "green"}>{isAdmitted ? "🏥 Admitted" : "✅ Released"}</Badge>
           {patient.dealType === "package" && <Badge color="purple">📦 Package Deal</Badge>}
           <span className="text-xs text-slate-400 ml-1">Since {fmt.date(patient.admittedAt)}</span>
         </div>
@@ -368,7 +396,6 @@ const PatientDetail = () => {
         {/* ── Overview ── */}
         {activeTab === "overview" && (
           <div className="space-y-4">
-            {/* Patient Info */}
             <SectionCard
               title="Patient Information"
               icon="👤"
@@ -454,13 +481,12 @@ const PatientDetail = () => {
               )}
             </SectionCard>
 
-            {/* Ward + Doctor */}
             <div className="grid grid-cols-2 gap-4">
               <SectionCard
                 title="Ward / Bed"
                 icon="🛏️"
                 action={
-                  patient.status === "admitted" && (
+                  isAdmitted && (
                     <Btn variant="ghost" size="sm" onClick={() => setTransferWard(!transferWard)}>
                       {transferWard ? "Cancel" : "Transfer"}
                     </Btn>
@@ -518,7 +544,7 @@ const PatientDetail = () => {
                 title="Supervisor Doctor"
                 icon="👨‍⚕️"
                 action={
-                  patient.status === "admitted" && (
+                  isAdmitted && (
                     <Btn variant="ghost" size="sm" onClick={() => setChangeDoc(!changeDoc)}>
                       {changeDoc ? "Cancel" : "Change"}
                     </Btn>
@@ -565,7 +591,6 @@ const PatientDetail = () => {
               </SectionCard>
             </div>
 
-            {/* Clinical Notes */}
             <SectionCard title="Clinical Notes" icon="🩺">
               <div className="space-y-3 text-sm">
                 {patient.disease?.description && (
@@ -590,7 +615,6 @@ const PatientDetail = () => {
               </div>
             </SectionCard>
 
-            {/* Package Deal */}
             {patient.dealType === "package" && patient.packageDeal && (
               <SectionCard title="Package Deal" icon="📦">
                 <div className="flex items-center justify-between">
@@ -602,7 +626,6 @@ const PatientDetail = () => {
               </SectionCard>
             )}
 
-            {/* Billing Summary */}
             <SectionCard title="Billing Summary" icon="💰">
               {(() => {
                 const exp = totalExpenses(patient.expenses);
@@ -635,116 +658,89 @@ const PatientDetail = () => {
           </div>
         )}
 
-        {/* ── Expenses ── */}
+        {/* ── Expenses (view only) ── */}
         {activeTab === "expenses" && (
-          <div className="space-y-4">
-            {patient.status === "admitted" && (
-              <SectionCard title="Add Expense" icon="➕">
-                <AddExpenseForm patientId={patientId} onSuccess={fetchPatient} />
-              </SectionCard>
-            )}
-            <SectionCard title={`Expense Log (${patient.expenses?.length ?? 0})`} icon="🧾">
-              {!patient.expenses?.length ? (
-                <p className="text-slate-400 text-sm text-center py-4">No expenses recorded yet</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-100">
-                        {["Type", "Item", "Price", "Qty", "Total", "Date", "By"].map((h) => (
-                          <th
-                            key={h}
-                            className="text-left px-2 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide"
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {patient.expenses.map((e, i) => (
-                        <tr key={i} className="hover:bg-slate-50">
-                          <td className="px-2 py-2.5">
-                            <Badge color="slate">{e.type}</Badge>
-                          </td>
-                          <td className="px-2 py-2.5 font-medium text-slate-700">{e.name}</td>
-                          <td className="px-2 py-2.5 text-slate-600">{fmt.currency(e.price)}</td>
-                          <td className="px-2 py-2.5 text-slate-600">{e.quantity}</td>
-                          <td className="px-2 py-2.5 font-semibold text-slate-800">
-                            {fmt.currency(e.total ?? e.price * e.quantity)}
-                          </td>
-                          <td className="px-2 py-2.5 text-slate-400 text-xs">{fmt.date(e.addedAt)}</td>
-                          <td className="px-2 py-2.5 text-slate-400 text-xs">{e.addedBy?.name}</td>
-                        </tr>
+          <SectionCard title={`Expense Log (${patient.expenses?.length ?? 0})`} icon="🧾">
+            {!patient.expenses?.length ? (
+              <p className="text-slate-400 text-sm text-center py-4">No expenses recorded yet</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      {["Type", "Item", "Price", "Qty", "Total", "Date", "By"].map((h) => (
+                        <th
+                          key={h}
+                          className="text-left px-2 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide"
+                        >
+                          {h}
+                        </th>
                       ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 border-slate-200">
-                        <td colSpan={4} className="px-2 py-2 text-sm font-bold text-slate-600">
-                          Total
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {patient.expenses.map((e, i) => (
+                      <tr key={i} className="hover:bg-slate-50">
+                        <td className="px-2 py-2.5">
+                          <Badge color="slate">{e.type}</Badge>
                         </td>
-                        <td className="px-2 py-2 text-sm font-bold text-slate-900">
-                          {fmt.currency(totalExpenses(patient.expenses))}
+                        <td className="px-2 py-2.5 font-medium text-slate-700">{e.name}</td>
+                        <td className="px-2 py-2.5 text-slate-600">{fmt.currency(e.price)}</td>
+                        <td className="px-2 py-2.5 text-slate-600">{e.quantity}</td>
+                        <td className="px-2 py-2.5 font-semibold text-slate-800">
+                          {fmt.currency(e.total ?? e.price * e.quantity)}
                         </td>
-                        <td colSpan={2} />
+                        <td className="px-2 py-2.5 text-slate-400 text-xs">{fmt.date(e.addedAt)}</td>
+                        <td className="px-2 py-2.5 text-slate-400 text-xs">{e.addedBy?.name}</td>
                       </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
-            </SectionCard>
-          </div>
-        )}
-
-        {/* ── Payments ── */}
-        {activeTab === "payments" && (
-          <div className="space-y-4">
-            {patient.status === "admitted" && (
-              <SectionCard title="Collect Payment" icon="💳">
-                <AddPaymentForm patientId={patientId} onSuccess={fetchPatient} />
-              </SectionCard>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-200">
+                      <td colSpan={4} className="px-2 py-2 text-sm font-bold text-slate-600">
+                        Total
+                      </td>
+                      <td className="px-2 py-2 text-sm font-bold text-slate-900">
+                        {fmt.currency(totalExpenses(patient.expenses))}
+                      </td>
+                      <td colSpan={2} />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             )}
-            <SectionCard title={`Payment History (${patient.payments?.length ?? 0})`} icon="🏦">
-              {!patient.payments?.length ? (
-                <p className="text-slate-400 text-sm text-center py-4">No payments recorded yet</p>
-              ) : (
-                <div className="space-y-2">
-                  {patient.payments.map((p, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl border border-emerald-100"
-                    >
-                      <div>
-                        <div className="text-sm font-semibold text-emerald-800">{fmt.currency(p.amount)}</div>
-                        <div className="text-xs text-emerald-600 mt-0.5">
-                          {p.collectedBy?.name} · {fmt.datetime(p.collectedAt)}
-                          {p.note && ` · ${p.note}`}
-                        </div>
-                      </div>
-                      <Badge color="green">Collected</Badge>
-                    </div>
-                  ))}
-                  <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-sm font-bold">
-                    <span className="text-slate-600">Total Collected</span>
-                    <span className="text-emerald-700">{fmt.currency(totalPayments(patient.payments))}</span>
-                  </div>
-                </div>
-              )}
-            </SectionCard>
-          </div>
+          </SectionCard>
         )}
 
-        {/* ── Products (coming soon) ── */}
-        {activeTab === "products" && (
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-10 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">📦</span>
-            </div>
-            <h3 className="text-base font-bold text-slate-700 mb-1">Products — Coming Soon</h3>
-            <p className="text-sm text-slate-400 max-w-xs mx-auto">
-              This will allow dispensing inventory products directly to the patient with automatic stock deduction.
-            </p>
-          </div>
+        {/* ── Payments (view only) ── */}
+        {activeTab === "payments" && (
+          <SectionCard title={`Payment History (${patient.payments?.length ?? 0})`} icon="🏦">
+            {!patient.payments?.length ? (
+              <p className="text-slate-400 text-sm text-center py-4">No payments recorded yet</p>
+            ) : (
+              <div className="space-y-2">
+                {patient.payments.map((p, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl border border-emerald-100"
+                  >
+                    <div>
+                      <div className="text-sm font-semibold text-emerald-800">{fmt.currency(p.amount)}</div>
+                      <div className="text-xs text-emerald-600 mt-0.5">
+                        {p.collectedBy?.name} · {fmt.datetime(p.collectedAt)}
+                        {p.note && ` · ${p.note}`}
+                      </div>
+                    </div>
+                    <Badge color="green">Collected</Badge>
+                  </div>
+                ))}
+                <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-sm font-bold">
+                  <span className="text-slate-600">Total Collected</span>
+                  <span className="text-emerald-700">{fmt.currency(totalPayments(patient.payments))}</span>
+                </div>
+              </div>
+            )}
+          </SectionCard>
         )}
 
         {/* ── History ── */}
@@ -799,34 +795,53 @@ const PatientDetail = () => {
             </SectionCard>
           </div>
         )}
-
-        {/* ── Discharge Confirm ── */}
-        {releaseConfirm && (
-          <div className="mt-4 bg-red-50 border border-red-200 rounded-2xl p-4 space-y-3">
-            <div className="flex items-center gap-2 text-red-800 font-semibold">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              Confirm Patient Discharge?
-            </div>
-            <p className="text-sm text-red-700">
-              This will release {patient.patient.name} and free up the assigned bed/ward. This action cannot be undone.
-            </p>
-            <div className="flex gap-3">
-              <Btn variant="secondary" onClick={() => setReleaseConfirm(false)} className="flex-1">
-                Cancel
-              </Btn>
-              <Btn variant="danger" loading={actionLoading} onClick={handleRelease} className="flex-1">
-                Confirm Discharge
-              </Btn>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* ── Modals ── */}
+      <AddExpenseModal
+        open={showAddExpense}
+        patientId={patientId}
+        onClose={() => setShowAddExpense(false)}
+        onSuccess={fetchPatient}
+      />
+
+      <CollectPaymentModal
+        open={showCollectPayment}
+        patientId={patientId}
+        onClose={() => setShowCollectPayment(false)}
+        onSuccess={fetchPatient}
+      />
+
+      <Modal open={releaseConfirm} onClose={() => setReleaseConfirm(false)} title="Confirm Discharge" width="max-w-md">
+        <div className="space-y-4">
+          <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-red-100 mx-auto">
+            <svg className="w-7 h-7 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <div className="text-center">
+            <h3 className="text-base font-bold text-slate-800 mb-1">Discharge {patient.patient.name}?</h3>
+            <p className="text-sm text-slate-500">
+              This will release the patient and free up{" "}
+              <span className="font-semibold text-slate-700">{patient.space.spaceName}</span>
+              {patient.space.bedNumber != null && <> · Bed {patient.space.bedNumber}</>}. This action cannot be undone.
+            </p>
+          </div>
+          <ErrorMsg msg={actionError} />
+          <div className="flex gap-3 pt-1">
+            <Btn variant="secondary" size="lg" className="flex-1" onClick={() => setReleaseConfirm(false)}>
+              Cancel
+            </Btn>
+            <Btn variant="danger" size="lg" className="flex-1" loading={actionLoading} onClick={handleRelease}>
+              Confirm Discharge
+            </Btn>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
