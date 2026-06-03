@@ -191,6 +191,7 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
   const [itemQuery, setItemQuery] = useState("");
   const [showDrop, setShowDrop] = useState(false);
   const [selected, setSelected] = useState([]);
+  const [paidInput, setPaidInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -246,6 +247,22 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
   };
 
   const total = selected.reduce((s, i) => s + i.price * i.quantity, 0);
+  const paidAmount = Math.min(parseFloat(paidInput) || 0, total);
+  const due = total - paidAmount;
+
+  const handlePaidChange = (e) => {
+    const v = e.target.value;
+    if (v === "") {
+      setPaidInput("");
+      return;
+    }
+    const num = parseFloat(v);
+    if (!isNaN(num) && num > total) {
+      setPaidInput(String(total));
+    } else {
+      setPaidInput(v);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!selected.length) return setError("Add at least one item");
@@ -263,8 +280,15 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
           }),
         ),
       );
+      if (paidAmount > 0) {
+        await indoorPatientService.addPayment(patient._id, {
+          amount: paidAmount,
+          note: "Collected at item entry",
+        });
+      }
       setSuccess(true);
       setSelected([]);
+      setPaidInput("");
     } catch (err) {
       setError(err?.response?.data?.error ?? "Failed to add items");
     } finally {
@@ -481,14 +505,50 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
               </div>
             ))}
           </div>
-          <div className="px-5 py-4 border-t border-slate-100 space-y-3">
+
+          {/* Summary + payment */}
+          <div className="mx-5 my-4 rounded-xl border border-slate-200 overflow-hidden">
+            {/* Total */}
+            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+              <span className="text-sm text-slate-500 font-medium">Items Total</span>
+              <span className="text-sm font-bold text-slate-800">{fmt.currency(total)}</span>
+            </div>
+            {/* Collect payment */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 gap-4">
+              <span className="text-sm text-slate-500 font-medium shrink-0">Collect Payment</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-400 font-medium">৳</span>
+                <input
+                  type="number"
+                  min="0"
+                  max={total}
+                  step="0.01"
+                  placeholder="0"
+                  value={paidInput}
+                  onChange={handlePaidChange}
+                  className="w-32 text-right py-1.5 px-2.5 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white transition-all"
+                />
+              </div>
+            </div>
+            {/* Due */}
+            <div className="flex items-center justify-between px-4 py-3">
+              <span className="text-sm font-semibold text-slate-600">Due</span>
+              <span className={`text-sm font-bold ${due > 0 ? "text-red-500" : "text-emerald-600"}`}>
+                {due > 0 ? fmt.currency(due) : "Fully Paid ✓"}
+              </span>
+            </div>
+          </div>
+
+          <div className="px-5 pb-4 space-y-3">
             <ErrorMsg msg={error} />
             <div className="flex gap-3">
               <Btn variant="secondary" size="lg" className="flex-1" onClick={onBack}>
                 Cancel
               </Btn>
               <Btn variant="primary" size="lg" className="flex-1" loading={submitting} onClick={handleSubmit}>
-                Add {selected.length} Item{selected.length !== 1 ? "s" : ""} · {fmt.currency(total)}
+                {paidAmount > 0
+                  ? `Add Items & Collect ${fmt.currency(paidAmount)}`
+                  : `Add ${selected.length} Item${selected.length !== 1 ? "s" : ""} · ${fmt.currency(total)}`}
               </Btn>
             </div>
           </div>
@@ -526,7 +586,6 @@ const AddItemsToPatient = () => {
   const originPatientId = searchParams.get("patientId");
   const handleDone = () => (originPatientId ? navigate(`/ipd/patient/${originPatientId}`) : navigate("/ipd"));
   const handleBack = () => {
-    // If we arrived pre-selected, going "back" returns to the patient detail
     if (originPatientId) return navigate(`/ipd/patient/${originPatientId}`);
     setSelectedPatient(null);
   };
