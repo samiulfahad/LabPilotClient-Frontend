@@ -158,10 +158,16 @@ const PatientSearch = ({ onSelect }) => {
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <div className="text-right hidden sm:block">
-                      <div className="text-xs font-semibold text-slate-700">{fmt.currency(exp)}</div>
-                      <div className={`text-xs ${due > 0 ? "text-red-500" : "text-emerald-600"}`}>
-                        {due > 0 ? `Due: ${fmt.currency(due)}` : "Paid"}
-                      </div>
+                      {p.dealType === "package" ? (
+                        <div className="text-xs font-semibold text-violet-600">Package Deal</div>
+                      ) : (
+                        <>
+                          <div className="text-xs font-semibold text-slate-700">{fmt.currency(exp)}</div>
+                          <div className={`text-xs ${due > 0 ? "text-red-500" : "text-emerald-600"}`}>
+                            {due > 0 ? `Due: ${fmt.currency(due)}` : "Paid"}
+                          </div>
+                        </>
+                      )}
                     </div>
                     <svg
                       className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors"
@@ -198,6 +204,8 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
 
   const inputRef = useRef(null);
   const wrapperRef = useRef(null);
+
+  const isPackage = patient.dealType === "package";
 
   useEffect(() => {
     invoiceService
@@ -247,7 +255,7 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
   };
 
   const total = selected.reduce((s, i) => s + i.price * i.quantity, 0);
-  const paidAmount = Math.min(parseFloat(paidInput) || 0, total);
+  const paidAmount = isPackage ? 0 : Math.min(parseFloat(paidInput) || 0, total);
   const due = total - paidAmount;
 
   const handlePaidChange = (e) => {
@@ -280,7 +288,7 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
           }),
         ),
       );
-      if (paidAmount > 0) {
+      if (!isPackage && paidAmount > 0) {
         await indoorPatientService.addPayment(patient._id, {
           amount: paidAmount,
           note: "Collected at item entry",
@@ -329,7 +337,14 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
       {/* Patient strip */}
       <div className="bg-blue-50 border border-blue-200 rounded-2xl px-5 py-3.5 flex items-center justify-between">
         <div>
-          <div className="font-bold text-sm text-blue-900">{patient.patient?.name}</div>
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-sm text-blue-900">{patient.patient?.name}</span>
+            {isPackage && (
+              <span className="text-xs font-semibold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">
+                Package Deal
+              </span>
+            )}
+          </div>
           <div className="text-xs text-blue-600 mt-0.5">
             {patient.admissionId} · {patient.space?.spaceName}
             {patient.space?.bedNumber != null ? ` · Bed ${patient.space.bedNumber}` : ""}
@@ -513,30 +528,53 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
               <span className="text-sm text-slate-500 font-medium">Items Total</span>
               <span className="text-sm font-bold text-slate-800">{fmt.currency(total)}</span>
             </div>
-            {/* Collect payment */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 gap-4">
-              <span className="text-sm text-slate-500 font-medium shrink-0">Collect Payment</span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-slate-400 font-medium">৳</span>
-                <input
-                  type="number"
-                  min="0"
-                  max={total}
-                  step="0.01"
-                  placeholder="0"
-                  value={paidInput}
-                  onChange={handlePaidChange}
-                  className="w-32 text-right py-1.5 px-2.5 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white transition-all"
-                />
+
+            {/* Collect payment — hidden for package deals */}
+            {isPackage ? (
+              <div className="flex items-center gap-2 px-4 py-3">
+                <svg
+                  className="w-4 h-4 text-violet-400 shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span className="text-xs text-violet-600 font-medium">
+                  Package deal — payment is managed from the patient's billing section
+                </span>
               </div>
-            </div>
-            {/* Due */}
-            <div className="flex items-center justify-between px-4 py-3">
-              <span className="text-sm font-semibold text-slate-600">Due</span>
-              <span className={`text-sm font-bold ${due > 0 ? "text-red-500" : "text-emerald-600"}`}>
-                {due > 0 ? fmt.currency(due) : "Fully Paid ✓"}
-              </span>
-            </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 gap-4">
+                  <span className="text-sm text-slate-500 font-medium shrink-0">Collect Payment</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400 font-medium">৳</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max={total}
+                      step="0.01"
+                      placeholder="0"
+                      value={paidInput}
+                      onChange={handlePaidChange}
+                      className="w-32 text-right py-1.5 px-2.5 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white transition-all"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="text-sm font-semibold text-slate-600">Due</span>
+                  <span className={`text-sm font-bold ${due > 0 ? "text-red-500" : "text-emerald-600"}`}>
+                    {due > 0 ? fmt.currency(due) : "Fully Paid ✓"}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="px-5 pb-4 space-y-3">
@@ -546,9 +584,11 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
                 Cancel
               </Btn>
               <Btn variant="primary" size="lg" className="flex-1" loading={submitting} onClick={handleSubmit}>
-                {paidAmount > 0
-                  ? `Add Items & Collect ${fmt.currency(paidAmount)}`
-                  : `Add ${selected.length} Item${selected.length !== 1 ? "s" : ""} · ${fmt.currency(total)}`}
+                {isPackage
+                  ? `Add ${selected.length} Item${selected.length !== 1 ? "s" : ""} · ${fmt.currency(total)}`
+                  : paidAmount > 0
+                    ? `Add Items & Collect ${fmt.currency(paidAmount)}`
+                    : `Add ${selected.length} Item${selected.length !== 1 ? "s" : ""} · ${fmt.currency(total)}`}
               </Btn>
             </div>
           </div>
