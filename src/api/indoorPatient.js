@@ -9,8 +9,7 @@ const indoorPatientService = {
   transferWard: (id, data) => api.patch(`/indoor-patient/${id}/transfer-ward`, data),
   changeDoctor: (id, data) => api.patch(`/indoor-patient/${id}/change-doctor`, data),
   addExpense: (id, data) => api.post(`/indoor-patient/${id}/expense`, data),
-  addBedCharge: (id, data) => api.post(`/indoor-patient/${id}/bed-charge`, data),
-  addBedChargesBulk: (id, data) => api.post(`/indoor-patient/${id}/bed-charges-bulk`, data),
+  addBedChargeAdjustment: (id, data) => api.post(`/indoor-patient/${id}/bed-charge-adjustment`, data),
   addPayment: (id, data) => api.post(`/indoor-patient/${id}/payment`, data),
   release: (id, data) => api.patch(`/indoor-patient/${id}/release`, data),
 };

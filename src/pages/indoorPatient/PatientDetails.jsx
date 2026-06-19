@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import indoorPatientService from "../../api/indoorPatient";
-import BedChargeSection from "./BedChargeSection";
+import BedChargeSection, { calcBedAccrual } from "./BedChargeSection";
 import {
   BLOOD_GROUPS,
   Badge,
@@ -19,7 +19,6 @@ import {
   fmt,
   totalExpenses,
   totalPayments,
-  days,
 } from "./indoorPatientHelpers";
 
 // ─── Collect Payment Modal ────────────────────────────────────────────────────
@@ -44,10 +43,7 @@ const CollectPaymentModal = ({ open, patientId, onClose, onSuccess, isExtra = fa
     if (isExtra && !note.trim()) return setError("A note is required for extra payments");
     setLoading(true);
     try {
-      await indoorPatientService.addPayment(patientId, {
-        amount: parseFloat(amount),
-        note: note.trim(),
-      });
+      await indoorPatientService.addPayment(patientId, { amount: parseFloat(amount), note: note.trim() });
       setAmount("");
       setNote("");
       onSuccess();
@@ -111,42 +107,9 @@ const CollectPaymentModal = ({ open, patientId, onClose, onSuccess, isExtra = fa
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "billing", label: "Billing" },
-  { id: "reports", label: "Reports" },
-  { id: "history", label: "History" },
 ];
 
-// ─── Bill breakdown helper ────────────────────────────────────────────────────
-
-const tsBst = (ts) => new Date(ts + 6 * 3600 * 1000).toISOString().slice(0, 10);
-const todayBst = () => tsBst(Date.now());
-
-function buildPendingBedBill(patient) {
-  const paidSet = new Set((patient.bedCharges ?? []).map((c) => c.date));
-  const start = tsBst(patient.admittedAt);
-  const end = patient.releasedAt ? tsBst(patient.releasedAt) : todayBst();
-  const cur = new Date(start + "T00:00:00Z");
-  const endD = new Date(end + "T00:00:00Z");
-  let pending = 0;
-  while (cur <= endD) {
-    const d = cur.toISOString().slice(0, 10);
-    if (!paidSet.has(d) && d <= todayBst()) {
-      // resolve charge for this date using wardHistory
-      let amount = patient.space.chargePerDay;
-      for (const h of patient.wardHistory ?? []) {
-        if (!h.fromDate || !h.toDate) continue;
-        const from = tsBst(h.fromDate);
-        const to = tsBst(h.toDate);
-        if (d >= from && d < to) {
-          amount = h.chargePerDay ?? patient.space.chargePerDay;
-          break;
-        }
-      }
-      pending += amount;
-    }
-    cur.setUTCDate(cur.getUTCDate() + 1);
-  }
-  return pending;
-}
+// ─── Bill breakdown ───────────────────────────────────────────────────────────
 
 function calcBillBreakdown(patient) {
   const expenses = patient.expenses ?? [];
@@ -157,39 +120,37 @@ function calcBillBreakdown(patient) {
   const otherBill = expenses
     .filter((e) => ["product", "service", "other"].includes(e.type))
     .reduce((s, e) => s + (e.total ?? e.price * e.quantity), 0);
-  const bedBilled = (patient.bedCharges ?? []).reduce((s, c) => s + (c.net ?? c.amount ?? 0), 0);
-  const bedPending = patient.dealType === "regular" ? buildPendingBedBill(patient) : 0;
-  const bedBill = bedBilled + bedPending;
-  const total = testBill + medicineBill + otherBill + bedBill;
-  return { testBill, medicineBill, otherBill, bedBill, bedBilled, bedPending, total };
+  const bedBill = patient.dealType === "regular" ? calcBedAccrual(patient).total : 0;
+  return { testBill, medicineBill, otherBill, bedBill, total: testBill + medicineBill + otherBill + bedBill };
+}
+
+function getBillingSummary(patient) {
+  const { total: breakdownTotal } = calcBillBreakdown(patient);
+  const paid = totalPayments(patient.payments);
+  const total = patient.dealType === "package" ? (patient.packageDeal?.totalAmount ?? 0) : breakdownTotal;
+  return { total, paid, due: total - paid };
 }
 
 // ─── Bill Summary Strip ───────────────────────────────────────────────────────
 
 function BillSummaryStrip({ patient }) {
-  const { testBill, medicineBill, otherBill, bedBill, bedBilled, bedPending, total } = calcBillBreakdown(patient);
-
+  const { testBill, medicineBill, otherBill, bedBill } = calcBillBreakdown(patient);
   const items = [
     { label: "Test Bill", value: testBill, icon: "🧪", color: "text-violet-700" },
     { label: "Medicine Bill", value: medicineBill, icon: "💊", color: "text-blue-700" },
     { label: "Other Bill", value: otherBill, icon: "🧾", color: "text-slate-700" },
-    { label: "Bed Charge", value: bedBill, icon: "🛏️", color: "text-indigo-700", pending: bedPending },
+    { label: "Bed Charge", value: bedBill, icon: "🛏️", color: "text-indigo-700" },
   ];
-
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-      {/* Row of four */}
       <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-100">
-        {items.map(({ label, value, icon, color, pending }) => (
+        {items.map(({ label, value, icon, color }) => (
           <div key={label} className="px-5 py-4">
             <div className="flex items-center gap-1.5 mb-1.5">
               <span className="text-sm">{icon}</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</span>
             </div>
             <p className={`text-lg font-black ${color}`}>{fmt.currency(value)}</p>
-            {pending > 0 && (
-              <p className="text-[10px] text-amber-500 font-semibold mt-0.5">{fmt.currency(pending)} pending</p>
-            )}
           </div>
         ))}
       </div>
@@ -199,7 +160,7 @@ function BillSummaryStrip({ patient }) {
 
 // ─── Patient Detail Page ──────────────────────────────────────────────────────
 
-const PatientDetail = () => {
+const PatientDetails = () => {
   const { id: patientId } = useParams();
   const navigate = useNavigate();
 
@@ -336,23 +297,6 @@ const PatientDetail = () => {
     }
   };
 
-  const txSelectedSpace = spaces.find((s) => s._id === txForm.spaceId) ?? null;
-
-  // ── Billing summary helper ─────────────────────────────────────────────────
-  const getBillingSummary = (pt) => {
-    const { total: breakdownTotal } = calcBillBreakdown(pt);
-    const paid = totalPayments(pt.payments);
-
-    let total;
-    if (pt.dealType === "package") {
-      total = pt.packageDeal?.totalAmount ?? 0;
-    } else {
-      total = breakdownTotal;
-    }
-    const due = total - paid;
-    return { total, paid, due };
-  };
-
   // ── Loading ────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -393,11 +337,10 @@ const PatientDetail = () => {
   const isAdmitted = patient.status === "admitted";
   const { total, paid, due } = getBillingSummary(patient);
   const { testBill, medicineBill, otherBill, bedBill } = calcBillBreakdown(patient);
-
-  // Package-specific helpers
   const isPackageFullyPaid = patient.dealType === "package" && due <= 0;
   const extraPaid = patient.dealType === "package" ? Math.max(0, paid - total) : 0;
   const collectDefaultAmount = due > 0 ? String(Math.ceil(due)) : "";
+  const txSelectedSpace = spaces.find((s) => s._id === txForm.spaceId) ?? null;
 
   return (
     <div className="min-h-full bg-slate-50/50">
@@ -689,27 +632,22 @@ const PatientDetail = () => {
               </SectionCard>
             )}
 
-            {/* ── Billing Summary ── */}
+            {/* Billing Summary */}
             <SectionCard title="Billing Summary" icon="💰">
               <div className="space-y-3">
                 {patient.dealType === "regular" && (
                   <div className="space-y-1.5 text-sm pb-3 border-b border-slate-100">
-                    <div className="flex justify-between text-slate-500">
-                      <span>Test bill</span>
-                      <span>{fmt.currency(testBill)}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-500">
-                      <span>Medicine bill</span>
-                      <span>{fmt.currency(medicineBill)}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-500">
-                      <span>Other bill</span>
-                      <span>{fmt.currency(otherBill)}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-500">
-                      <span>Bed charges ({(patient.bedCharges ?? []).length} days billed)</span>
-                      <span>{fmt.currency(bedBill)}</span>
-                    </div>
+                    {[
+                      ["Test bill", testBill],
+                      ["Medicine bill", medicineBill],
+                      ["Other bill", otherBill],
+                      ["Bed charges (accrued)", bedBill],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex justify-between text-slate-500">
+                        <span>{label}</span>
+                        <span>{fmt.currency(value)}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
 
@@ -761,17 +699,65 @@ const PatientDetail = () => {
                 )}
               </div>
             </SectionCard>
+
+            {/* Ward Transfer History */}
+            <SectionCard title="Ward Transfer History" icon="🔄">
+              {!patient.wardHistory?.length ? (
+                <p className="text-slate-400 text-sm text-center py-4">No ward transfers recorded</p>
+              ) : (
+                <div className="space-y-3">
+                  {patient.wardHistory.map((h, i) => (
+                    <div key={i} className="flex gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100 text-sm">
+                      <div className="flex-1">
+                        <span className="font-medium text-blue-800">{h.fromSpaceName}</span>
+                        {h.fromBedNumber != null && ` (Bed ${h.fromBedNumber})`}
+                        <span className="text-blue-500 mx-2">→</span>
+                        <span className="font-medium text-blue-800">{h.toSpaceName ?? "Discharged"}</span>
+                        {h.toBedNumber != null && ` (Bed ${h.toBedNumber})`}
+                      </div>
+                      <div className="text-right text-xs text-blue-500">
+                        <div>{fmt.date(h.movedAt)}</div>
+                        <div>{h.movedBy?.name}</div>
+                        {h.note && <div className="text-blue-400">{h.note}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </SectionCard>
+
+            {/* Doctor Change History */}
+            <SectionCard title="Doctor Change History" icon="👨‍⚕️">
+              {!patient.doctorHistory?.length ? (
+                <p className="text-slate-400 text-sm text-center py-4">No doctor changes recorded</p>
+              ) : (
+                <div className="space-y-3">
+                  {patient.doctorHistory.map((h, i) => (
+                    <div key={i} className="flex gap-3 p-3 bg-purple-50 rounded-xl border border-purple-100 text-sm">
+                      <div className="flex-1">
+                        <span className="font-medium text-purple-800">{h.previousDoctorName}</span>
+                        <span className="text-purple-500 mx-2">→</span>
+                        <span className="font-medium text-purple-800">{h.newDoctorName}</span>
+                      </div>
+                      <div className="text-right text-xs text-purple-500">
+                        <div>{fmt.date(h.changedAt)}</div>
+                        <div>{h.changedBy?.name}</div>
+                        {h.note && <div className="text-purple-400">{h.note}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </SectionCard>
           </div>
         )}
 
         {/* ── Billing ── */}
         {activeTab === "billing" && (
           <div className="space-y-4">
-            {/* Bill breakdown strip — regular only */}
             {patient.dealType === "regular" && (
               <>
                 <BillSummaryStrip patient={patient} />
-                {/* Payment summary */}
                 <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
                   {[
                     { label: "Total Bill", value: fmt.currency(total), color: "text-slate-800" },
@@ -791,13 +777,10 @@ const PatientDetail = () => {
                     </div>
                   ))}
                 </div>
+                <BedChargeSection patient={patient} onSuccess={fetchPatient} />
               </>
             )}
 
-            {/* Bed charges — drawer system, regular only */}
-            {patient.dealType === "regular" && <BedChargeSection patient={patient} onSuccess={fetchPatient} />}
-
-            {/* Package deal card */}
             {patient.dealType === "package" && (
               <SectionCard title="Package Deal" icon="📦">
                 <div className="space-y-3">
@@ -807,15 +790,13 @@ const PatientDetail = () => {
                       {fmt.currency(patient.packageDeal?.totalAmount ?? 0)}
                     </div>
                   </div>
-
                   {isPackageFullyPaid ? (
                     <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200">
                       <span className="text-lg">✅</span>
                       <div className="flex-1">
                         <p className="text-sm font-bold text-emerald-700">Package Fully Paid</p>
                         <p className="text-xs text-emerald-600">
-                          {fmt.currency(paid)} collected
-                          {extraPaid > 0 && ` · ${fmt.currency(extraPaid)} extra`}
+                          {fmt.currency(paid)} collected{extraPaid > 0 && ` · ${fmt.currency(extraPaid)} extra`}
                         </p>
                       </div>
                       {isAdmitted && (
@@ -939,72 +920,6 @@ const PatientDetail = () => {
             </SectionCard>
           </div>
         )}
-
-        {/* ── Reports ── */}
-        {activeTab === "reports" && (
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-10 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">📋</span>
-            </div>
-            <h3 className="text-base font-bold text-slate-700 mb-1">Reports — Coming Soon</h3>
-            <p className="text-sm text-slate-400 max-w-xs mx-auto">
-              Patient reports and lab documents will be available here.
-            </p>
-          </div>
-        )}
-
-        {/* ── History ── */}
-        {activeTab === "history" && (
-          <div className="space-y-4">
-            <SectionCard title="Ward Transfer History" icon="🔄">
-              {!patient.wardHistory?.length ? (
-                <p className="text-slate-400 text-sm text-center py-4">No ward transfers recorded</p>
-              ) : (
-                <div className="space-y-3">
-                  {patient.wardHistory.map((h, i) => (
-                    <div key={i} className="flex gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100 text-sm">
-                      <div className="flex-1">
-                        <span className="font-medium text-blue-800">{h.fromSpaceName}</span>
-                        {h.fromBedNumber != null && ` (Bed ${h.fromBedNumber})`}
-                        <span className="text-blue-500 mx-2">→</span>
-                        <span className="font-medium text-blue-800">{h.toSpaceName ?? "Discharged"}</span>
-                        {h.toBedNumber != null && ` (Bed ${h.toBedNumber})`}
-                      </div>
-                      <div className="text-right text-xs text-blue-500">
-                        <div>{fmt.date(h.movedAt)}</div>
-                        <div>{h.movedBy?.name}</div>
-                        {h.note && <div className="text-blue-400">{h.note}</div>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </SectionCard>
-
-            <SectionCard title="Doctor Change History" icon="👨‍⚕️">
-              {!patient.doctorHistory?.length ? (
-                <p className="text-slate-400 text-sm text-center py-4">No doctor changes recorded</p>
-              ) : (
-                <div className="space-y-3">
-                  {patient.doctorHistory.map((h, i) => (
-                    <div key={i} className="flex gap-3 p-3 bg-purple-50 rounded-xl border border-purple-100 text-sm">
-                      <div className="flex-1">
-                        <span className="font-medium text-purple-800">{h.previousDoctorName}</span>
-                        <span className="text-purple-500 mx-2">→</span>
-                        <span className="font-medium text-purple-800">{h.newDoctorName}</span>
-                      </div>
-                      <div className="text-right text-xs text-purple-500">
-                        <div>{fmt.date(h.changedAt)}</div>
-                        <div>{h.changedBy?.name}</div>
-                        {h.note && <div className="text-purple-400">{h.note}</div>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </SectionCard>
-          </div>
-        )}
       </div>
 
       {/* ── Modals ── */}
@@ -1015,7 +930,6 @@ const PatientDetail = () => {
         onClose={() => setShowCollectPayment(false)}
         onSuccess={fetchPatient}
       />
-
       <CollectPaymentModal
         open={showExtraPayment}
         patientId={patientId}
@@ -1065,4 +979,4 @@ const PatientDetail = () => {
   );
 };
 
-export default PatientDetail;
+export default PatientDetails;

@@ -15,8 +15,7 @@ export const EXPENSE_TYPES = [
 // ─── Formatting ───────────────────────────────────────────────────────────────
 
 export const fmt = {
-  currency: (n) =>
-    new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", minimumFractionDigits: 0 }).format(n ?? 0),
+  currency: (n) => `${new Intl.NumberFormat("en-BD", { minimumFractionDigits: 0 }).format(n ?? 0)}৳`,
   date: (ts) =>
     ts ? new Date(ts).toLocaleDateString("en-BD", { day: "2-digit", month: "short", year: "numeric" }) : "—",
   datetime: (ts) =>
