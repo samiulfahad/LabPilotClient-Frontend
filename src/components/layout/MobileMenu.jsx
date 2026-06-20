@@ -65,7 +65,7 @@ const MobileMenu = () => {
   return (
     <>
       {/* ─── Mobile Navbar ──────────────────────────────────────────────── */}
-      <div className="lg:hidden">
+      <div className="lg:hidden font-anek">
         <nav
           className={`
             fixed top-0 left-0 right-0 z-50
@@ -116,7 +116,7 @@ const MobileMenu = () => {
       {/* ─── Slide-out drawer ────────────────────────────────────────────── */}
       <div
         className={`
-          lg:hidden fixed top-0 right-0 h-full w-80 max-w-[85vw]
+          lg:hidden font-anek fixed top-0 right-0 h-full w-80 max-w-[85vw]
           bg-white/95 backdrop-blur-xl z-50 shadow-2xl
           transform transition-transform duration-300 ease-out
           ${isMenuOpen ? "translate-x-0" : "translate-x-full"}
@@ -158,7 +158,7 @@ const MobileMenu = () => {
                     end={item.path === "/"}
                     onClick={closeMenu}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+                      `flex items-center gap-1 px-4 py-1 rounded-xl transition-all duration-200 group ${
                         isActive
                           ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200/80 shadow-sm"
                           : "text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent"
@@ -197,7 +197,7 @@ const MobileMenu = () => {
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-gray-700 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all duration-200 group"
             >
               <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span className="text-sm font-medium">Logout</span>
+              <span className="text-red-600 font-medium">লগ আউট</span>
             </button>
           </div>
         </div>

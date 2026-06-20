@@ -21,7 +21,7 @@ const DesktopMenu = () => {
 
   return (
     <>
-      <nav className="hidden lg:flex w-64 fixed left-0 top-0 h-screen flex-col bg-sky-200/10 backdrop-blur-md border-r border-gray-200/80 shadow-lg z-40">
+      <nav className="hidden font-anek lg:flex w-64 fixed left-0 top-0 h-screen flex-col bg-sky-200/10 backdrop-blur-md border-r border-gray-200/80 shadow-lg z-40">
         {/* ── Brand Header ─────────────────────────────────────────── */}
         <div className="flex-shrink-0 px-5 py-4 bg-gradient-to-br from-blue-200 to-slate-200 border-b border-slate-200">
           <div className="flex items-center gap-3">
@@ -55,9 +55,9 @@ const DesktopMenu = () => {
                   <NavLink
                     key={item.path}
                     to={item.path}
-                    end={item.path === "/"}
+                    end
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
+                      `flex items-center gap-1 px-3 py-1 rounded-xl transition-all duration-200 group ${
                         isActive
                           ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200/80 shadow-sm"
                           : "text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm border border-transparent"
@@ -79,7 +79,7 @@ const DesktopMenu = () => {
                         >
                           <Icon className="w-4 h-4" />
                         </div>
-                        <span className="font-medium text-sm flex-1">{item.label}</span>
+                        <span className="font-semibold text-[15px] flex-1">{item.label}</span>
                         {isActive && <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse" />}
                       </>
                     )}
@@ -100,7 +100,7 @@ const DesktopMenu = () => {
               transition-all duration-200 group"
           >
             <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
-            <span className="text-sm font-medium">Logout</span>
+            <span className="text-red-600 font-medium">লগ আউট</span>
           </button>
         </div>
       </nav>

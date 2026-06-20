@@ -21,10 +21,10 @@ import {
   Loader2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import invoiceService from "../../api/invoice";
-import Modal from "../../components/modal";
-import Popup from "../../components/popup";
-import LoadingScreen from "../../components/loadingPage";
+import invoiceService from "../../../api/invoice";
+import Modal from "../../../components/modal";
+import Popup from "../../../components/popup";
+import LoadingScreen from "../../../components/loadingPage";
 import { InvoiceDetailsModal } from "../invoices/index"; // ← extract from InvoiceList if needed
 import { EditPatientModal } from "../invoices/index"; // ← extract from InvoiceList if needed
 

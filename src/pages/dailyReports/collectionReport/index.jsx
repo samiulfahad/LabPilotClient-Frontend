@@ -15,10 +15,10 @@ import {
   UserCheck,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import TimeFrame from "../../components/timeFrame";
-import transactionService from "../../api/transaction";
-import Popup from "../../components/popup";
-import { useAuthStore } from "../../store/authStore";
+import TimeFrame from "../../../components/timeFrame";
+import collectionReportAPI from "../../../api/collectionReport";
+import Popup from "../../../components/popup";
+import { useAuthStore } from "../../../store/authStore";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -81,23 +81,17 @@ const recordStamp = (start, end) => {
   return generatedStamp(end);
 };
 
-const initials = (name = "") =>
-  name
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase() || "?";
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TEAL = "#0F6E5C";
 const RUST = "#B23A2E";
 const INK = "#1C1F1E";
+const SEAL_BLUE = "#1E4FA0";
+const SEAL_RED = "#C0312B";
 
 const EMPTY_DATA = {
   staff: [],
-  totals: { totalInvoices: 0, totalFinal: 0, totalPaid: 0, totalDue: 0, totalCollected: 0 },
+  totals: { totalInvoices: 0, totalFinal: 0, totalDue: 0, totalCollected: 0 },
 };
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -108,11 +102,11 @@ const SkeletonManifest = () => (
     <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] space-y-2">
       <div className="h-2.5 w-28 bg-[#ECE9DF] rounded-sm" />
       <div className="h-6 w-48 bg-[#ECE9DF] rounded-sm" />
-    </div>
-    <div className="px-6 sm:px-8 py-4 grid grid-cols-4 gap-3 border-b border-[#E3E0D6]">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="h-10 bg-[#ECE9DF] rounded-sm" />
-      ))}
+      <div className="flex gap-6 pt-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-9 w-16 bg-[#ECE9DF] rounded-sm" />
+        ))}
+      </div>
     </div>
     {[0, 1].map((i) => (
       <div key={i} className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6] last:border-b-0 space-y-3">
@@ -131,38 +125,37 @@ const SkeletonManifest = () => (
 const EmptyRow = ({ label }) => (
   <div className="flex items-center gap-2 py-10 justify-center text-[#A8ACA3]">
     <AlertCircle className="w-3.5 h-3.5" />
-    <p className="font-['IBM_Plex_Mono'] text-[11px] tracking-wide">{label}</p>
+    <p className="font-['IBM_Plex_Mono'] text-xs font-noto">{label}</p>
   </div>
 );
 
-const StatStrip = ({ label, value, accent, sub }) => (
-  <div className="text-center px-2">
-    <p className="font-['IBM_Plex_Mono'] text-[9.5px] uppercase tracking-[0.15em] text-[#A8ACA3]">{label}</p>
-    <p className="font-['IBM_Plex_Mono'] text-lg font-semibold mt-0.5 tabular-nums" style={{ color: accent ?? INK }}>
+const HeaderStat = ({ label, value, accent }) => (
+  <div className="flex flex-col gap-0.5 px-4 first:pl-0 last:pr-0">
+    <span className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#A8ACA3] font-noto whitespace-nowrap">{label}</span>
+    <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: accent ?? INK }}>
       {value}
-    </p>
-    {sub && <p className="font-['IBM_Plex_Mono'] text-[9px] text-[#A8ACA3] mt-0.5">{sub}</p>}
+    </span>
   </div>
 );
 
 const InvoiceRow = ({ inv, idx }) => (
   <div className="flex items-center gap-3 py-2 border-b border-dotted border-[#E3E0D6] last:border-b-0">
-    <span className="font-['IBM_Plex_Mono'] text-[10px] text-[#C7C4B8] tabular-nums w-4 shrink-0">
+    <span className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] tabular-nums w-5 shrink-0">
       {String(idx + 1).padStart(2, "0")}
     </span>
     <div className="min-w-0 flex-1">
-      <p className="text-[12.5px] text-[#1C1F1E] font-medium truncate">{inv.patient}</p>
-      <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3] mt-0.5">
+      <p className="text-sm text-[#1C1F1E] font-medium truncate font-noto">{inv.patient}</p>
+      <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] mt-0.5">
         {inv.invoiceId} · {fmtDt(inv.createdAt)}
       </p>
     </div>
     <div className="flex items-center gap-3 shrink-0 text-right">
-      <span className="font-['IBM_Plex_Mono'] text-[11px] text-[#6F756F] tabular-nums">৳{fmt(inv.final)}</span>
-      <span className="font-['IBM_Plex_Mono'] text-[11px] font-semibold tabular-nums" style={{ color: TEAL }}>
+      <span className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] tabular-nums">৳{fmt(inv.final)}</span>
+      <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: TEAL }}>
         ৳{fmt(inv.paid)}
       </span>
       {inv.due > 0 && (
-        <span className="font-['IBM_Plex_Mono'] text-[11px] tabular-nums w-14 text-right" style={{ color: RUST }}>
+        <span className="font-['IBM_Plex_Mono'] text-sm tabular-nums w-14 text-right" style={{ color: RUST }}>
           ৳{fmt(inv.due)}
         </span>
       )}
@@ -172,101 +165,134 @@ const InvoiceRow = ({ inv, idx }) => (
 
 const CollectionRow = ({ col, idx }) => (
   <div className="flex items-center gap-3 py-2 border-b border-dotted border-[#E3E0D6] last:border-b-0">
-    <span className="font-['IBM_Plex_Mono'] text-[10px] text-[#C7C4B8] tabular-nums w-4 shrink-0">
+    <span className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] tabular-nums w-5 shrink-0">
       {String(idx + 1).padStart(2, "0")}
     </span>
     <div className="min-w-0 flex-1">
-      <p className="text-[12.5px] text-[#1C1F1E] font-medium truncate">{col.patient}</p>
-      <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3] mt-0.5 flex items-center gap-1">
+      <p className="text-sm text-[#1C1F1E] font-medium truncate font-noto">{col.patient}</p>
+      <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] mt-0.5 flex items-center gap-1">
         <Clock className="w-2.5 h-2.5" />
         {fmtDt(col.at)} · {fmtTime(col.at)}
       </p>
     </div>
     <div className="flex items-center gap-3 shrink-0 text-right">
-      <span className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3]">{col.invoiceId}</span>
-      <span className="font-['IBM_Plex_Mono'] text-[11px] font-semibold tabular-nums" style={{ color: TEAL }}>
+      <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3]">{col.invoiceId}</span>
+      <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: TEAL }}>
         ৳{fmt(col.amount)}
       </span>
     </div>
   </div>
 );
 
+// ─── Seal ───────────────────────────────────────────────────────────────────
+
+const RoundSeal = ({ dateLabel }) => {
+  return (
+    <div className="relative shrink-0 select-none rotate-[-3deg]">
+      <div
+        className="bg-white px-4 py-2.5 rounded-[3px]"
+        style={{ border: `2px solid ${SEAL_BLUE}`, boxShadow: `inset 0 0 0 3px ${SEAL_BLUE}05` }}
+      >
+        <div className="border" style={{ borderColor: `${SEAL_BLUE}55`, padding: "5px 10px" }}>
+          <p
+            className="text-center font-['IBM_Plex_Mono'] font-bold uppercase"
+            style={{ color: SEAL_BLUE, fontSize: "10px", letterSpacing: "2px" }}
+          >
+            LabPilotPro.com
+          </p>
+          <div className="h-px w-full my-1" style={{ backgroundColor: `${SEAL_BLUE}55` }} />
+          <p
+            className="text-center font-['IBM_Plex_Mono'] font-extrabold uppercase whitespace-nowrap"
+            style={{ color: SEAL_RED, fontSize: "11px", letterSpacing: "1px" }}
+          >
+            Collection Report
+          </p>
+          <p
+            className="text-center font-['IBM_Plex_Mono'] font-semibold"
+            style={{ color: SEAL_RED, fontSize: "11px", letterSpacing: "0.5px" }}
+          >
+            {dateLabel}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Staff ledger entry ────────────────────────────────────────────────────────
+
+// Shared column template so every staff row lines up exactly, with no header row needed.
+const STAFF_GRID_COLS = "grid-cols-[24px_1fr_108px_150px]";
+
+const MetricCell = ({ icon: Icon, value, unit, accent, active, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center justify-end gap-1.5 -my-1 -mr-1 py-1.5 pl-1.5 pr-1 rounded-sm transition-colors font-noto ${
+      active ? "bg-[#1C1F1E]/[0.05]" : "hover:bg-[#1C1F1E]/[0.03]"
+    }`}
+  >
+    <Icon className="w-3 h-3 text-[#A8ACA3] shrink-0" />
+    <span className="flex items-baseline gap-1 whitespace-nowrap">
+      <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: accent ?? INK }}>
+        {value}
+      </span>
+      <span className="text-xs text-[#8A8F89] font-noto">{unit}</span>
+    </span>
+    {active ? (
+      <ChevronUp className="w-3 h-3 text-[#A8ACA3] shrink-0" />
+    ) : (
+      <ChevronDown className="w-3 h-3 text-[#A8ACA3] shrink-0" />
+    )}
+  </button>
+);
 
 const StaffEntry = ({ member: m, rank }) => {
   const [tab, setTab] = useState(null); // null | "invoices" | "collections"
-  const hasDue = m.totalDue > 0;
 
   return (
-    <div className="py-3 first:pt-0">
-      <div className="flex items-baseline gap-3">
-        <span className="font-['IBM_Plex_Mono'] text-[11px] text-[#A8ACA3] tabular-nums w-5 shrink-0">
+    <div className="py-2 first:pt-0">
+      <div className={`grid ${STAFF_GRID_COLS} items-center gap-3`}>
+        <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] tabular-nums">
           {String(rank).padStart(2, "0")}
         </span>
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-[13.5px] text-[#1C1F1E] font-medium truncate">{m.name}</span>
-          <span className="flex items-center gap-1 font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-wide text-[#6F756F] shrink-0">
-            <UserCheck className="w-2.5 h-2.5" />
-            Staff
-          </span>
+          <span className="text-sm text-[#1C1F1E] font-medium truncate font-noto">{m.name}</span>
+          <UserCheck className="w-3 h-3 text-[#A8ACA3] shrink-0" />
         </div>
-        <span className="flex-1 border-b border-dotted border-[#D8D5CB] translate-y-[-3px]" />
-        <div className="flex items-center gap-3 shrink-0">
-          {hasDue && (
-            <span className="font-['IBM_Plex_Mono'] text-[12px] tabular-nums" style={{ color: RUST }}>
-              ৳{fmt(m.totalDue)} due
-            </span>
-          )}
-          <span className="font-['IBM_Plex_Mono'] text-[13.5px] font-semibold tabular-nums" style={{ color: TEAL }}>
-            ৳{fmt(m.totalCollected)}
-          </span>
-        </div>
-      </div>
-
-      {/* mini stat row */}
-      <div className="pl-8 mt-1.5 flex items-center gap-4 font-['IBM_Plex_Mono'] text-[10px] text-[#8A8F89]">
-        <span>{m.totalInvoices} invoices</span>
-        <span>৳{fmt(m.totalFinal)} billed</span>
-        <span style={{ color: TEAL }}>৳{fmt(m.totalPaid)} paid</span>
-      </div>
-
-      {/* toggles */}
-      <div className="pl-8 mt-2 flex items-center gap-4">
-        <button
+        <MetricCell
+          icon={ReceiptText}
+          value={m.totalInvoices}
+          unit="টি ইনভয়েস"
+          active={tab === "invoices"}
           onClick={() => setTab((p) => (p === "invoices" ? null : "invoices"))}
-          className={`flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-wide transition-colors ${
-            tab === "invoices" ? "text-[#1C1F1E]" : "text-[#A8ACA3] hover:text-[#1C1F1E]"
-          }`}
-        >
-          <ReceiptText className="w-3 h-3" />
-          {m.invoices.length} Invoice{m.invoices.length !== 1 ? "s" : ""}
-          {tab === "invoices" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-        </button>
-        <button
+        />
+        <MetricCell
+          icon={Wallet}
+          value={`৳${fmt(m.totalCollected)}`}
+          unit="কালেকশন"
+          accent={TEAL}
+          active={tab === "collections"}
           onClick={() => setTab((p) => (p === "collections" ? null : "collections"))}
-          className={`flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-wide transition-colors ${
-            tab === "collections" ? "text-[#1C1F1E]" : "text-[#A8ACA3] hover:text-[#1C1F1E]"
-          }`}
-        >
-          <Wallet className="w-3 h-3" />
-          {m.collections.length} Collection{m.collections.length !== 1 ? "s" : ""}
-          {tab === "collections" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-        </button>
+        />
       </div>
 
       {tab === "invoices" && (
-        <div className="pl-8 pr-1 mt-2">
+        <div className="pl-9 pr-1 mt-2">
           {m.invoices.length === 0 ? (
-            <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3] py-2">No invoices in this period</p>
+            <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] py-2 font-noto">
+              এই সময়সীমায় কোনো ইনভয়েস নেই
+            </p>
           ) : (
             m.invoices.map((inv, i) => <InvoiceRow key={inv.invoiceId} inv={inv} idx={i} />)
           )}
         </div>
       )}
       {tab === "collections" && (
-        <div className="pl-8 pr-1 mt-2">
+        <div className="pl-9 pr-1 mt-2">
           {m.collections.length === 0 ? (
-            <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3] py-2">No collections in this period</p>
+            <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] py-2 font-noto">
+              এই সময়সীমায় কোনো কালেকশন নেই
+            </p>
           ) : (
             m.collections.map((col, i) => <CollectionRow key={`${col.invoiceId}-${i}`} col={col} idx={i} />)
           )}
@@ -278,7 +304,7 @@ const StaffEntry = ({ member: m, rank }) => {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-const Transactions = () => {
+const CollectionReport = () => {
   const user = useAuthStore((state) => state.user);
   const isStaff = user?.role === "staff";
 
@@ -296,10 +322,10 @@ const Transactions = () => {
   const fetchData = async (range) => {
     try {
       setLoading(true);
-      const res = await transactionService.getSummary({ startDate: range.start, endDate: range.end });
+      const res = await collectionReportAPI.getSummary({ startDate: range.start, endDate: range.end });
       setData(res.data);
     } catch {
-      setPopup({ type: "error", message: "Failed to load transaction data. Please try again." });
+      setPopup({ type: "error", message: "লেনদেনের তথ্য লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।" });
     } finally {
       setLoading(false);
     }
@@ -313,14 +339,13 @@ const Transactions = () => {
 
   const d = data ?? EMPTY_DATA;
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
+  const sortedStaff = [...d.staff].sort((a, b) => b.totalCollected - a.totalCollected);
 
   return (
-    <section className="min-h-screen manifest-bg px-4 py-6">
+    <section className="min-h-screen manifest-bg px-4 py-6 font-noto">
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
-
         .manifest-bg {
           background-color: #F5F4EF;
           background-image: radial-gradient(circle, rgba(28,31,30,0.05) 1px, transparent 1px);
@@ -339,27 +364,27 @@ const Transactions = () => {
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-5 no-print">
           <div>
-            <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-[0.2em] text-[#0F6E5C] mb-1">
-              Lab Operations
-            </p>
-            <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] tracking-tight">
-              Transactions
+            <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1 font-noto">ল্যাব অপারেশন</p>
+            <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] font-noto">
+              কালেকশন রিপোর্ট
             </h1>
-            <p className="text-sm text-[#767D78] mt-1">Staff collections and billing for the selected range.</p>
+            <p className="text-base text-[#767D78] mt-1 font-noto">
+              নির্ধারিত সময়সীমায় স্টাফদের কালেকশন ও বিলিংয়ের হিসাব।
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => window.print()}
               disabled={loading}
-              className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-[11px] uppercase tracking-wide disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase disabled:opacity-40 disabled:cursor-not-allowed font-noto"
             >
-              <Printer className="w-3.5 h-3.5" /> Print
+              <Printer className="w-3.5 h-3.5" /> প্রিন্ট
             </button>
             <Link
               to="/lab-management"
-              className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-[11px] uppercase tracking-wide"
+              className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase font-noto"
             >
-              <ArrowLeft className="w-3.5 h-3.5" /> Back
+              <ArrowLeft className="w-3.5 h-3.5" /> ফিরে যান
             </Link>
           </div>
         </div>
@@ -375,63 +400,64 @@ const Transactions = () => {
             id="transactions-printable"
             className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
           >
+            {/* Letterhead */}
+            <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5]">
+              <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
+                Azizul Haque Diagonostic Center
+              </h3>
+              <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">
+                Hospital Road, Bhaluka, Mymensingh
+              </p>
+            </div>
+
             {/* Header band */}
             <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
               <div>
-                <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-[0.2em] text-[#0F6E5C] mb-1.5">
-                  Collections Manifest
+                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">
+                  কালেকশন রিপোর্ট
                 </p>
-                <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] tracking-tight">
+                <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">
                   {headingLabel}
                 </h2>
+
+                {!isStaff && (
+                  <div className="flex flex-wrap divide-x divide-[#E3E0D6] mt-3">
+                    <HeaderStat label="মোট বিল" value={`৳${fmt(d.totals.totalFinal)}`} />
+                    <HeaderStat label="আদায়" value={`৳${fmt(d.totals.totalCollected)}`} accent={TEAL} />
+                    <HeaderStat
+                      label="বাকি"
+                      value={`৳${fmt(d.totals.totalDue)}`}
+                      accent={d.totals.totalDue > 0 ? RUST : undefined}
+                    />
+                    <HeaderStat label="মোট ইনভয়েস" value={fmt(d.totals.totalInvoices)} />
+                  </div>
+                )}
               </div>
 
-              <div className="rotate-[-4deg] border border-[#0F6E5C]/35 text-[#0F6E5C] px-2 py-1 font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-[0.15em] rounded-sm select-none shrink-0 mt-1">
-                Record · {recordStamp(timeRange?.start, timeRange?.end)}
-              </div>
+              <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} />
             </div>
 
-            {/* Stat strip — admin only */}
-            {!isStaff && (
-              <div className="px-6 sm:px-8 py-4 border-b border-[#E3E0D6] flex items-center divide-x divide-[#E3E0D6]">
-                <StatStrip label="Collected" value={`৳${fmt(d.totals.totalCollected)}`} accent={TEAL} />
-                <StatStrip label="Billed" value={`৳${fmt(d.totals.totalFinal)}`} />
-                <StatStrip
-                  label="Due"
-                  value={`৳${fmt(d.totals.totalDue)}`}
-                  accent={d.totals.totalDue > 0 ? RUST : undefined}
-                />
-                <StatStrip label="Staff" value={fmt(d.staff.length)} />
-              </div>
-            )}
-
             {/* Staff ledger */}
-            <div className="px-6 sm:px-8 py-5">
-              <div className="flex items-center justify-between mb-1">
-                <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-[0.15em] text-[#6F756F]">
-                  By Staff ({d.staff.length})
-                </p>
-                <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3]">Ranked by collected</p>
-              </div>
-              {d.staff.length > 0 ? (
+            <div className="px-6 sm:px-8 py-5 border-t border-[#E3E0D6]">
+              {sortedStaff.length > 0 ? (
                 <div className="divide-y divide-[#EFEDE5]">
-                  {d.staff.map((member, i) => (
+                  {sortedStaff.map((member, i) => (
                     <StaffEntry key={member.staffId} member={member} rank={i + 1} />
                   ))}
                 </div>
               ) : (
-                <EmptyRow label="No transactions recorded in this range" />
+                <EmptyRow label="এই সময়সীমায় কোনো লেনদেন রেকর্ড হয়নি" />
               )}
             </div>
           </div>
         )}
 
-        <p className="font-['IBM_Plex_Mono'] text-center text-[10px] text-[#A8ACA3] mt-4 pb-6 no-print tracking-wide">
-          Counts reflect active (non-deleted) invoices only
+        <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-4 pb-6 no-print font-noto">
+          শুধুমাত্র সক্রিয় (ডিলিট না হওয়া) ইনভয়েসের হিসাব অন্তর্ভুক্ত
         </p>
       </div>
     </section>
   );
 };
 
-export default Transactions;
+export default CollectionReport;

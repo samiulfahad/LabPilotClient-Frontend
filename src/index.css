@@ -5,3 +5,12 @@
     overflow-y: scroll;
   }
 }
+
+@theme {
+  /* This automatically generates the 'font-anek' utility class */
+  --font-anek: "Anek Bangla", sans-serif;
+
+  /* Creates the new 'font-noto' utility class for your body */
+  --font-noto: "Noto Sans Bengali", sans-serif;
+}
+

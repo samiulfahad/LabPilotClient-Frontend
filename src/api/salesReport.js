@@ -1,7 +1,7 @@
 // api/testStats.js
 import api from "./baseAPI";
 
-const testStatsService = {
+const salesReportAPI = {
   /**
    * Fetch test order counts for a date range.
    * @param {number} startDate  Unix ms timestamp — start of range
@@ -18,4 +18,4 @@ const testStatsService = {
   },
 };
 
-export default testStatsService;
+export default salesReportAPI;

@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/anek-bangla": "^5.2.7",
+    "@fontsource/noto-sans-bengali": "^5.2.11",
     "@react-pdf/renderer": "^4.3.2",
     "@tailwindcss/vite": "^4.1.18",
     "axios": "^1.13.5",

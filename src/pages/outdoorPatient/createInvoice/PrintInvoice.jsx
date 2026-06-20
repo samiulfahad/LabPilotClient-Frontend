@@ -7,10 +7,10 @@ import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { Printer, Download, Phone, Mail, MapPin, Share2, Wallet, CheckCircle } from "lucide-react";
 import QRCode from "qrcode";
 import { pdf, Document, Page, View, Text, Image, StyleSheet, Link, Svg, Path } from "@react-pdf/renderer";
-import invoiceService from "../../api/invoice";
-import { useAuthStore } from "../../store/authStore";
-import LoadingScreen from "../../components/loadingPage";
-import Popup from "../../components/popup";
+import invoiceService from "../../../api/invoice";
+import { useAuthStore } from "../../../store/authStore";
+import LoadingScreen from "../../../components/loadingPage";
+import Popup from "../../../components/popup";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

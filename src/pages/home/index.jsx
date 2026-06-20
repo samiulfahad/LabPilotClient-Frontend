@@ -29,7 +29,7 @@ const useClock = () => {
     const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
-  return time.toLocaleTimeString("en-US", {
+  return time.toLocaleTimeString("bn-BD", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -38,9 +38,9 @@ const useClock = () => {
 
 const getGreeting = () => {
   const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
+  if (h < 12) return "শুভ সকাল";
+  if (h < 17) return "শুভ দুপুর";
+  return "শুভ সন্ধ্যা";
 };
 
 // ─── quick-access actions ─────────────────────────────────────────────────────
@@ -48,64 +48,64 @@ const ACTIONS = [
   {
     to: "/invoice/new",
     icon: Plus,
-    label: "New Invoice",
-    sub: "Create patient billing",
+    label: "নতুন ইনভয়েস",
+    sub: "রোগীর বিলিং তৈরি করুন",
     grad: "from-violet-500 to-indigo-600",
     glow: "rgba(99,102,241,0.3)",
   },
   {
     to: "/invoice/all",
     icon: ReceiptText,
-    label: "Invoice List",
-    sub: "View & manage records",
+    label: "ইনভয়েস তালিকা",
+    sub: "রেকর্ড দেখুন ও পরিচালনা করুন",
     grad: "from-sky-400 to-blue-600",
     glow: "rgba(59,130,246,0.3)",
   },
   {
     to: "/report",
     icon: FlaskConical,
-    label: "Reports",
-    sub: "Test results & data",
+    label: "রিপোর্টস",
+    sub: "পরীক্ষার ফলাফল ও তথ্য",
     grad: "from-teal-400 to-emerald-600",
     glow: "rgba(16,185,129,0.3)",
   },
   {
     to: "/cashmemo",
     icon: BarChart3,
-    label: "Cash Memo",
-    sub: "Profit & collections",
+    label: "ক্যাশমেমু",
+    sub: "মুনাফা ও সংগ্রহ",
     grad: "from-amber-400 to-orange-500",
     glow: "rgba(245,158,11,0.3)",
   },
   {
     to: "/transactions",
     icon: ArrowLeftRight,
-    label: "Transactions",
-    sub: "Payment records",
+    label: "লেনদেন",
+    sub: "পেমেন্ট রেকর্ড",
     grad: "from-blue-400 to-cyan-600",
     glow: "rgba(6,182,212,0.3)",
   },
   {
     to: "/commission",
     icon: Percent,
-    label: "Commission",
-    sub: "Referral earnings",
+    label: "কমিশন",
+    sub: "রেফারেল আয়",
     grad: "from-fuchsia-500 to-pink-600",
     glow: "rgba(217,70,239,0.3)",
   },
   {
     to: "/billing",
     icon: CreditCard,
-    label: "Billing",
-    sub: "Payments & dues",
+    label: "বিলিং",
+    sub: "পেমেন্ট ও বকেয়া",
     grad: "from-rose-400 to-red-600",
     glow: "rgba(239,68,68,0.3)",
   },
   {
     to: "/account",
     icon: UserCircle,
-    label: "Account",
-    sub: "Profile & settings",
+    label: "অ্যাকাউন্ট",
+    sub: "প্রোফাইল ও সেটিংস",
     grad: "from-slate-400 to-slate-600",
     glow: "rgba(100,116,139,0.3)",
   },
@@ -113,14 +113,14 @@ const ACTIONS = [
 
 // ─── nav menu ─────────────────────────────────────────────────────────────────
 const NAV_MENU = [
-  { to: "/", icon: HomeIcon, label: "Home", color: "text-indigo-500", bg: "bg-indigo-50" },
-  { to: "/manage-referrers", icon: Users, label: "Referrers", color: "text-fuchsia-600", bg: "bg-fuchsia-50" },
-  { to: "/manage-staffs", icon: Users2, label: "Staffs", color: "text-rose-500", bg: "bg-rose-50" },
-  { to: "/lab-management", icon: Microscope, label: "Lab Settings", color: "text-gray-600", bg: "bg-gray-100" },
+  { to: "/", icon: HomeIcon, label: "প্রধান পাতা", color: "text-indigo-500", bg: "bg-indigo-50" },
+  { to: "/manage-referrers", icon: Users, label: "রেফারার", color: "text-fuchsia-600", bg: "bg-fuchsia-50" },
+  { to: "/manage-staffs", icon: Users2, label: "স্টাফ", color: "text-rose-500", bg: "bg-rose-50" },
+  { to: "/lab-management", icon: Microscope, label: "ল্যাব সেটিংস", color: "text-gray-600", bg: "bg-gray-100" },
 ];
 
 // ─── Action card ─────────────────────────────────────────────────────────────
-const Card = ({ to, icon: Icon, label, sub, grad, glow, idx }) => (
+const Card = ({ to, icon: Icon, label, grad, glow, idx }) => (
   <Link
     to={to}
     className="group relative rounded-2xl overflow-hidden"
@@ -139,10 +139,7 @@ const Card = ({ to, icon: Icon, label, sub, grad, glow, idx }) => (
           <ArrowUpRight className="w-3.5 h-3.5 text-gray-500" />
         </div>
       </div>
-      <div>
-        <p className="text-sm font-bold text-gray-900 leading-tight">{label}</p>
-        <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>
-      </div>
+      <p className="text-sm font-normal text-gray-800 leading-tight font-noto">{label}</p>
       <div
         className={`absolute bottom-0 left-0 h-[2px] w-0 group-hover:w-full bg-gradient-to-r ${grad} transition-all duration-500`}
       />
@@ -161,14 +158,14 @@ const Home = () => {
   const labAddress = [lab?.contact?.address, lab?.contact?.district].filter(Boolean).join(", ") || "—";
   const labPhone = lab?.contact?.primary ?? "—";
 
-  const userName = user?.name ?? "User";
+  const userName = user?.name ?? "ব্যবহারকারী";
   const userRole = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "—";
 
   const greeting = getGreeting();
-  const greetingEmoji = greeting === "Good morning" ? "☀️" : greeting === "Good afternoon" ? "🌤️" : "🌙";
+  const greetingEmoji = greeting === "শুভ সকাল" ? "☀️" : greeting === "শুভ দুপুর" ? "🌤️" : "🌙";
 
   return (
-    <div className="min-h-screen bg-[#f0f1f7] relative overflow-hidden">
+    <div className="min-h-screen bg-[#f0f1f7] relative overflow-hidden font-noto">
       {/* ── Background blobs ── */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div
@@ -205,15 +202,17 @@ const Home = () => {
               <Microscope className="w-[17px] h-[17px] text-white" strokeWidth={2.2} />
             </div>
             <div>
-              <p className="text-[11px] font-black text-gray-900 tracking-widest uppercase leading-none">LabPilot</p>
-              <p className="text-[9.5px] text-gray-400 leading-none mt-0.5">Lab Management</p>
+              <p className="text-[11px] font-black text-gray-900 tracking-widest uppercase leading-none font-noto">
+                LabPilot
+              </p>
+              <p className="text-[9.5px] text-gray-400 leading-none mt-0.5 font-noto">ল্যাব ম্যানেজমেন্ট</p>
             </div>
           </div>
 
           {/* Clock */}
           <div className="flex items-center gap-1.5 bg-white/80 backdrop-blur border border-gray-100 rounded-xl px-3 py-2 shadow-sm">
             <Activity className="w-3 h-3 text-emerald-500" />
-            <span className="text-xs font-mono font-bold text-gray-700 tabular-nums">{clock}</span>
+            <span className="text-xs font-mono font-bold text-gray-700 tabular-nums font-noto">{clock}</span>
           </div>
         </div>
 
@@ -235,38 +234,40 @@ const Home = () => {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xl">{greetingEmoji}</span>
-                  <span className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest">{greeting}</span>
+                  <span className="text-sm font-bold text-indigo-500 tracking-widest font-noto">{greeting}</span>
                 </div>
-                <h1 className="text-2xl font-black text-gray-900 leading-tight tracking-tight">
-                  Welcome back, {userName}
-                  <span className="text-indigo-500">.</span>
+                <h1 className="text-3xl font-black text-gray-900 leading-tight tracking-tight font-noto">
+                  স্বাগতম, {userName}
+                  <span className="text-indigo-500">।</span>
                 </h1>
               </div>
 
               <div className="flex flex-col items-end gap-2 shrink-0">
                 <div className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-xl text-right">
-                  <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest leading-none">Lab ID</p>
-                  <p className="text-base font-black text-indigo-700 leading-tight mt-0.5">{labId}</p>
+                  <p className="text-[11px] text-indigo-400 font-bold tracking-widest leading-none font-noto">
+                    ল্যাব আইডি
+                  </p>
+                  <p className="text-base font-black text-indigo-700 leading-tight mt-0.5 font-noto">{labId}</p>
                 </div>
                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[10px] font-bold text-emerald-600">Online</span>
+                  <span className="text-[10px] font-bold text-emerald-600 font-noto">অনলাইন</span>
                 </div>
               </div>
             </div>
 
             {/* ── Lab name + contact ── */}
             <div className="mt-4 mb-4 pl-0.5">
-              <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Your Lab</p>
-              <p className="text-base font-black text-gray-800 leading-snug">{labName}</p>
+              <p className="text-xs font-bold text-indigo-400 tracking-widest mb-1 font-noto">আপনার ল্যাব</p>
+              <p className="text-lg font-black text-gray-800 leading-snug font-noto">{labName}</p>
               <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-1.5">
                 <div className="flex items-center gap-1.5">
                   <MapPin className="w-3 h-3 text-gray-300" />
-                  <span className="text-[11px] text-gray-400">{labAddress}</span>
+                  <span className="text-[11px] text-gray-400 font-noto">{labAddress}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Phone className="w-3 h-3 text-gray-300" />
-                  <span className="text-[11px] text-gray-400">{labPhone}</span>
+                  <span className="text-[11px] text-gray-400 font-noto">{labPhone}</span>
                 </div>
               </div>
             </div>
@@ -274,13 +275,13 @@ const Home = () => {
             {/* ── Stats strip ── */}
             <div className="pt-4 border-t border-gray-50 grid grid-cols-3 gap-4">
               {[
-                { label: "Logged in as", value: userName },
-                { label: "Role", value: userRole },
-                { label: "Version", value: "LabPilot v1" },
+                { label: "লগইন করেছেন", value: userName },
+                { label: "ভূমিকা", value: userRole },
+                { label: "সংস্করণ", value: "LabPilot v1" },
               ].map(({ label, value }) => (
                 <div key={label}>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">{label}</p>
-                  <p className="text-xs font-bold text-gray-700 mt-0.5">{value}</p>
+                  <p className="text-xs text-gray-400 tracking-wide font-semibold font-noto">{label}</p>
+                  <p className="text-sm font-bold text-gray-700 mt-0.5 font-noto">{value}</p>
                 </div>
               ))}
             </div>
@@ -294,8 +295,8 @@ const Home = () => {
           className="flex items-center gap-3 mb-3"
           style={{ animation: "cardIn 0.5s cubic-bezier(.22,1,.36,1) 0.15s both" }}
         >
-          <p className="text-[10.5px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
-            Quick Access
+          <p className="text-[10.5px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap font-noto">
+            দ্রুত অ্যাক্সেস
           </p>
           <div className="flex-1 h-px bg-gray-200" />
         </div>
@@ -313,7 +314,9 @@ const Home = () => {
           className="flex items-center gap-3 mt-6 mb-3"
           style={{ animation: "cardIn 0.5s cubic-bezier(.22,1,.36,1) 0.35s both" }}
         >
-          <p className="text-[10.5px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Navigate</p>
+          <p className="text-[10.5px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap font-noto">
+            নেভিগেট
+          </p>
           <div className="flex-1 h-px bg-gray-200" />
         </div>
 
@@ -330,14 +333,16 @@ const Home = () => {
               >
                 <Icon className={`w-[18px] h-[18px] ${color}`} strokeWidth={2} />
               </div>
-              <span className="text-[10.5px] font-semibold text-gray-600 text-center leading-tight">{label}</span>
+              <span className="text-[10.5px] font-semibold text-gray-600 text-center leading-tight font-noto">
+                {label}
+              </span>
             </Link>
           ))}
         </div>
 
         {/* ── Footer ── */}
-        <p className="text-center text-[11px] text-gray-300 font-medium mt-10">
-          LabPilot · Diagnostic Lab Management System
+        <p className="text-center text-[11px] text-gray-300 font-medium mt-10 font-noto">
+          LabPilot · ডায়াগনস্টিক ল্যাব ম্যানেজমেন্ট সিস্টেম
         </p>
       </div>
 

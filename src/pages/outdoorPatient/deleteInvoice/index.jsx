@@ -20,10 +20,10 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import Popup from "../../components/popup";
-import LoadingScreen from "../../components/loadingPage";
-import invoiceService from "../../api/invoice";
-import TimeFrame from "../../components/timeFrame";
+import Popup from "../../../components/popup";
+import LoadingScreen from "../../../components/loadingPage";
+import invoiceService from "../../../api/invoice";
+import TimeFrame from "../../../components/timeFrame";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Printer, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import TimeFrame from "../../components/timeFrame";
-import testStatsService from "../../api/testStats";
-import Popup from "../../components/popup";
+import TimeFrame from "../../../components/timeFrame";
+import salesReportAPI from "../../../api/salesReport";
+import Popup from "../../../components/popup";
 
 const fmt = (n) => (typeof n === "number" ? n.toLocaleString("en-IN") : "0");
 
@@ -88,12 +88,12 @@ const LedgerRow = ({ rank, name, count }) => {
   return (
     <div>
       <div className="flex items-baseline gap-3">
-        <span className="font-['IBM_Plex_Mono'] text-[11px] text-[#A8ACA3] tabular-nums w-5 shrink-0">
+        <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] tabular-nums w-5 shrink-0">
           {String(rank).padStart(2, "0")}
         </span>
-        <span className="text-[13.5px] text-[#1C1F1E] font-medium truncate">{name}</span>
+        <span className="text-sm text-[#1C1F1E] font-medium truncate">{name}</span>
         <span className="flex-1 border-b border-dotted border-[#D8D5CB] translate-y-[-3px]" />
-        <span className="font-['IBM_Plex_Mono'] text-[13.5px] text-[#1C1F1E] tabular-nums shrink-0">{fmt(count)}</span>
+        <span className="font-['IBM_Plex_Mono'] text-sm text-[#1C1F1E] tabular-nums shrink-0">{fmt(count)}</span>
       </div>
     </div>
   );
@@ -102,11 +102,47 @@ const LedgerRow = ({ rank, name, count }) => {
 const EmptyRow = ({ label }) => (
   <div className="flex items-center gap-2 py-5 text-[#A8ACA3]">
     <AlertCircle className="w-3.5 h-3.5" />
-    <p className="font-['IBM_Plex_Mono'] text-[11px] tracking-wide">{label}</p>
+    <p className="font-['IBM_Plex_Mono'] text-xs">{label}</p>
   </div>
 );
 
-const SaleStats = () => {
+const SEAL_BLUE = "#1E4FA0";
+const SEAL_RED = "#C0312B";
+
+const RoundSeal = ({ dateLabel }) => {
+  return (
+    <div className="relative shrink-0 select-none rotate-[-3deg]">
+      <div
+        className="bg-white px-4 py-2.5 rounded-[3px]"
+        style={{ border: `2px solid ${SEAL_BLUE}`, boxShadow: `inset 0 0 0 3px ${SEAL_BLUE}05` }}
+      >
+        <div className="border" style={{ borderColor: `${SEAL_BLUE}55`, padding: "5px 10px" }}>
+          <p
+            className="text-center font-['IBM_Plex_Mono'] font-bold uppercase"
+            style={{ color: SEAL_BLUE, fontSize: "10px", letterSpacing: "2px" }}
+          >
+            LabPilotPro.com
+          </p>
+          <div className="h-px w-full my-1" style={{ backgroundColor: `${SEAL_BLUE}55` }} />
+          <p
+            className="text-center font-['IBM_Plex_Mono'] font-extrabold uppercase"
+            style={{ color: SEAL_RED, fontSize: "15px", letterSpacing: "1.5px" }}
+          >
+            Sales Report
+          </p>
+          <p
+            className="text-center font-['IBM_Plex_Mono'] font-semibold"
+            style={{ color: SEAL_RED, fontSize: "11px", letterSpacing: "0.5px" }}
+          >
+            {dateLabel}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SalesReport = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
@@ -121,10 +157,10 @@ const SaleStats = () => {
   const fetchStats = async (range) => {
     try {
       setLoading(true);
-      const res = await testStatsService.getSummary({ startDate: range.start, endDate: range.end });
+      const res = await salesReportAPI.getSummary({ startDate: range.start, endDate: range.end });
       setData(res.data);
     } catch {
-      setPopup({ type: "error", message: "Failed to load test stats. Please try again." });
+      setPopup({ type: "error", message: "টেস্ট স্ট্যাটস লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।" });
     } finally {
       setLoading(false);
     }
@@ -144,51 +180,49 @@ const SaleStats = () => {
   const totalProductUnits = productCounts.reduce((sum, p) => sum + (p.count ?? 0), 0);
 
   return (
-    <section className="min-h-screen manifest-bg px-4 py-6">
+    <section className="min-h-screen manifest-bg px-4 py-6 font-noto">
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+  .manifest-bg {
+    background-color: #F5F4EF;
+    background-image: radial-gradient(circle, rgba(28,31,30,0.05) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
 
-        .manifest-bg {
-          background-color: #F5F4EF;
-          background-image: radial-gradient(circle, rgba(28,31,30,0.05) 1px, transparent 1px);
-          background-size: 18px 18px;
-        }
-
-        @media print {
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          body * { visibility: hidden; }
-          #teststats-printable, #teststats-printable * { visibility: visible; }
-          #teststats-printable { position: fixed; top: 0; left: 0; width: 100%; padding: 32px; box-shadow: none; }
-          .no-print { display: none !important; }
-        }
-      `}</style>
+  @media print {
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body * { visibility: hidden; }
+    #salesreport-printable, #salesreport-printable * { visibility: visible; }
+    #salesreport-printable { position: fixed; top: 0; left: 0; width: 100%; padding: 32px; box-shadow: none; }
+    .no-print { display: none !important; }
+  }
+`}</style>
 
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-5 no-print">
           <div>
-            <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-[0.2em] text-[#0F6E5C] mb-1">
-              Lab Operations
-            </p>
-            <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] tracking-tight">
-              Test Stats
+            <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1 font-noto">ল্যাব অপারেশন</p>
+            <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] font-noto">
+              সেলস রিপোর্ট
             </h1>
-            <p className="text-sm text-[#767D78] mt-1">Order volume by test and product, ranked by selected range.</p>
+            <p className="text-base text-[#767D78] mt-1 font-noto">
+              নির্ধারিত সময়সীমায় মধ্যে প্রাপ্ত টেস্ট ও পণ্যের সংখ্যা।
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => window.print()}
               disabled={loading}
-              className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-[11px] uppercase tracking-wide disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase disabled:opacity-40 disabled:cursor-not-allowed font-noto"
             >
-              <Printer className="w-3.5 h-3.5" /> Print
+              <Printer className="w-3.5 h-3.5" /> প্রিন্ট
             </button>
             <Link
               to="/lab-management"
-              className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-[11px] uppercase tracking-wide"
+              className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase font-noto"
             >
-              <ArrowLeft className="w-3.5 h-3.5" /> Back
+              <ArrowLeft className="w-3.5 h-3.5" /> ফিরে যান
             </Link>
           </div>
         </div>
@@ -201,65 +235,72 @@ const SaleStats = () => {
           <SkeletonManifest />
         ) : (
           <div
-            id="teststats-printable"
+            id="salesreport-printable"
             className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
           >
-            {/* Header band — stamp flows inline so it can't collide with anything while printing */}
+            {/* Letterhead */}
+            <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5]">
+              <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
+                Azizul Haque Diagonostic Center
+              </h3>
+              <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">
+                Hospital Road, Bhaluka, Mymensingh
+              </p>
+            </div>
+
+            {/* Header band */}
             <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
               <div>
-                <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-[0.2em] text-[#0F6E5C] mb-1.5">
-                  Order Manifest
+                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">
+                  সেলস রিপোর্ট
                 </p>
-                <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] tracking-tight">
+                <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">
                   {headingLabel}
                 </h2>
+                <p className="font-['IBM_Plex_Mono'] text-sm text-[#8A8F89] mt-1.5 font-noto">
+                  মোট টেস্ট- {fmt(totalTestOrders)}টি
+                  <br />
+                  মোট পণ্য- {fmt(totalProductUnits)}টি
+                </p>
               </div>
 
-              <div className="rotate-[-4deg] border border-[#0F6E5C]/35 text-[#0F6E5C] px-2 py-1 font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-[0.15em] rounded-sm select-none shrink-0 mt-1">
-                Record · {recordStamp(timeRange?.start, timeRange?.end)}
-              </div>
+              <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} />
             </div>
 
             {/* Tests */}
             <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
-              <div className="flex items-center justify-between mb-1">
-                <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-[0.15em] text-[#6F756F]">
-                  By Test ({fmt(totalTestOrders)} Total Tests)
-                </p>
-                <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3]">Ranked by volume</p>
+              <div className="mb-1">
+                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">টেস্টের নাম</p>
               </div>
               {testCounts.length > 0 ? (
                 testCounts.map((t, i) => <LedgerRow key={t.testId ?? i} rank={i + 1} name={t.name} count={t.count} />)
               ) : (
-                <EmptyRow label="No tests ordered in this range" />
+                <EmptyRow label="এই সময়সীমায় কোনো টেস্ট অর্ডার হয়নি" />
               )}
             </div>
 
             {/* Products */}
             <div className="px-6 sm:px-8 py-5">
-              <div className="flex items-center justify-between mb-1">
-                <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-[0.15em] text-[#6F756F]">
-                  By Product ({fmt(totalProductUnits)} Total Products)
-                </p>
-                <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3]">Ranked by volume</p>
+              <div className="mb-1">
+                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">পণ্যের নাম</p>
               </div>
               {productCounts.length > 0 ? (
                 productCounts.map((p, i) => (
                   <LedgerRow key={p.productId ?? i} rank={i + 1} name={p.name} count={p.count} />
                 ))
               ) : (
-                <EmptyRow label="No products sold in this range" />
+                <EmptyRow label="এই সময়সীমায় কোনো পণ্য বিক্রি হয়নি" />
               )}
             </div>
           </div>
         )}
 
-        <p className="font-['IBM_Plex_Mono'] text-center text-[10px] text-[#A8ACA3] mt-4 pb-6 no-print tracking-wide">
-          Counts reflect active (non-deleted) invoices only
+        <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-4 pb-6 no-print font-noto">
+          শুধুমাত্র সক্রিয় (ডিলিট না হওয়া) ইনভয়েসের হিসাব অন্তর্ভুক্ত
         </p>
       </div>
     </section>
   );
 };
 
-export default SaleStats;
+export default SalesReport;
