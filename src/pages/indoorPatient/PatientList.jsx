@@ -2,34 +2,28 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import indoorPatientService from "../../api/indoorPatient";
-import {
-  Badge,
-  Btn,
-  EmptyState,
-  Input,
-  PageHeader,
-  Sk,
-  fmt,
-  totalExpenses,
-  totalPayments,
-} from "./indoorPatientHelpers";
+import { Btn, EmptyState, Input, PageHeader, Sk } from "./indoorPatientHelpers";
 
 // ─── Row ──────────────────────────────────────────────────────────────────────
 
 const PatientRow = ({ patient }) => {
   const navigate = useNavigate();
-  const expTotal = totalExpenses(patient.expenses);
-  const paid = totalPayments(patient.payments);
-  const balance = expTotal - paid;
+  const isAdmitted = patient.status === "admitted";
 
   const goToDetail = () => navigate(`/ipd/patient/${patient._id}`);
 
   return (
     <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
       <td className="px-4 py-3.5 cursor-pointer" onClick={goToDetail}>
-        <div className="font-semibold text-sm text-slate-800">{patient.patient?.name}</div>
-        <div className="text-xs text-slate-400 mt-0.5">{patient.admissionId}</div>
-        <div className="text-xs text-slate-400">
+        <div className="flex items-center gap-2">
+          <span
+            className={`w-2 h-2 rounded-full shrink-0 ${isAdmitted ? "bg-blue-500" : "bg-emerald-500"}`}
+            title={isAdmitted ? "Admitted" : "Released"}
+          />
+          <span className="font-semibold text-sm text-slate-800">{patient.patient?.name}</span>
+        </div>
+        <div className="text-xs text-slate-400 mt-0.5 pl-4">{patient.admissionId}</div>
+        <div className="text-xs text-slate-400 pl-4">
           {patient.patient?.age}y · {patient.patient?.gender} · {patient.patient?.contactNumber}
         </div>
       </td>
@@ -41,17 +35,6 @@ const PatientRow = ({ patient }) => {
       </td>
       <td className="px-4 py-3.5 text-sm text-slate-600 hidden md:table-cell cursor-pointer" onClick={goToDetail}>
         {patient.supervisorDoctor?.name}
-      </td>
-      <td className="px-4 py-3.5 hidden sm:table-cell cursor-pointer" onClick={goToDetail}>
-        <div className="text-sm font-semibold text-slate-800">{fmt.currency(expTotal)}</div>
-        <div className={`text-xs font-medium ${balance > 0 ? "text-red-500" : "text-emerald-600"}`}>
-          {balance > 0 ? `Due: ${fmt.currency(balance)}` : "Paid"}
-        </div>
-      </td>
-      <td className="px-4 py-3.5">
-        <Badge color={patient.status === "admitted" ? "blue" : "green"}>
-          {patient.status === "admitted" ? "🏥 Admitted" : "✅ Released"}
-        </Badge>
       </td>
       <td className="px-4 py-3.5">
         <Btn
@@ -229,8 +212,6 @@ const PatientList = () => {
                       ["Patient", ""],
                       ["Ward/Bed", ""],
                       ["Doctor", "hidden md:table-cell"],
-                      ["Billing", "hidden sm:table-cell"],
-                      ["Status", ""],
                       ["Reports", ""],
                       ["", "w-12"],
                     ].map(([label, cls]) => (

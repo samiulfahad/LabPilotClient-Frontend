@@ -1,26 +1,5 @@
-/**
- * useCallback / useMemo are intentionally absent throughout this file.
- * babel-plugin-react-compiler handles all memoization automatically.
- */
 import { useState, useEffect } from "react";
-import {
-  ReceiptText,
-  Activity,
-  ArrowLeft,
-  Minus,
-  TrendingUp,
-  Wallet,
-  PackageCheck,
-  Clock,
-  AlertCircle,
-  Trash2,
-  Printer,
-  FlaskConical,
-  Banknote,
-  Package,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+import { ArrowLeft, Printer, Trash2, PackageCheck, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../components/timeFrame";
 import cashmemoService from "../../api/cashmemo";
@@ -57,112 +36,86 @@ const todayRange = () => {
   return { start: new Date(now).setHours(0, 0, 0, 0), end: new Date(now).setHours(23, 59, 59, 999) };
 };
 
-const SkeletonMemo = () => (
-  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-pulse">
-    <div className="px-6 pt-5 pb-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-4">
-      <div className="space-y-2">
-        <div className="h-3 w-20 bg-gray-200 rounded-full" />
-        <div className="h-5 w-44 bg-gray-300 rounded-lg" />
-      </div>
-      <div className="text-right space-y-2">
-        <div className="h-3 w-24 bg-gray-200 rounded-full ml-auto" />
-        <div className="h-9 w-12 bg-gray-300 rounded-lg ml-auto" />
-      </div>
-    </div>
-    <div className="px-6 py-2 space-y-0">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="flex items-center justify-between py-3 border-b border-gray-50">
-          <div className="h-3.5 w-32 bg-gray-200 rounded" />
-          <div className="h-5 w-20 bg-gray-200 rounded-lg" />
-        </div>
-      ))}
-      <div className="h-24 w-full bg-emerald-50 border border-emerald-100 rounded-xl my-3" />
-      <div className="flex items-center gap-2 my-3">
-        <div className="flex-1 h-px bg-gray-100" />
-        <div className="h-6 w-64 bg-gray-100 rounded-full" />
-        <div className="flex-1 h-px bg-gray-100" />
-      </div>
-      <div className="h-16 w-full bg-gray-200 rounded-xl mb-3" />
-      <div className="space-y-2 my-4">
-        {[1, 2].map((i) => (
-          <div key={i} className="h-28 bg-gray-100 rounded-xl" />
-        ))}
-      </div>
-      <div className="h-12 w-full bg-red-50 border border-red-100 rounded-xl mb-5" />
-    </div>
-    <div className="px-6 pb-5 border-t border-gray-100 pt-4">
-      <div className="h-3 w-16 bg-gray-200 rounded-full mb-3" />
-      <div className="grid grid-cols-2 gap-3">
-        <div className="h-16 bg-gray-100 rounded-xl" />
-        <div className="h-16 bg-gray-100 rounded-xl" />
-      </div>
-    </div>
-  </div>
-);
+const generatedStamp = (date) =>
+  new Date(date ?? Date.now())
+    .toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" })
+    .toUpperCase();
 
-const StatCard = ({ icon: Icon, iconBg, iconColor, label, labelColor, value, valueBg, border }) => (
-  <div className={`flex items-center gap-3 ${valueBg} ${border} rounded-xl px-4 py-3`}>
-    <div className={`w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center shrink-0`}>
-      <Icon className={`w-4 h-4 ${iconColor}`} />
-    </div>
-    <div>
-      <p className={`text-[11px] font-semibold ${labelColor} uppercase tracking-wide`}>{label}</p>
-      <p className="text-lg font-bold">{value}</p>
-    </div>
-  </div>
-);
-
-// Collapsible list — shows 3 rows, expand for the rest
-const ItemCountList = ({ icon: Icon, iconColor, accentColor, badgeColor, title, items, countLabel }) => {
-  const [expanded, setExpanded] = useState(false);
-  if (!items?.length) return null;
-  const total = items.reduce((s, t) => s + t.count, 0);
-  const visible = expanded ? items : items.slice(0, 3);
-  const hasMore = items.length > 3;
-
+const isFullMonthRange = (start, end) => {
+  if (!start || !end) return false;
+  const s = new Date(start);
+  const e = new Date(end);
+  const firstDay = new Date(s.getFullYear(), s.getMonth(), 1, 0, 0, 0, 0).getTime();
+  const lastDay = new Date(e.getFullYear(), e.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
   return (
-    <div className="bg-gray-50 border border-gray-100 rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
-          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">{title}</p>
-        </div>
-        <span className={`text-[10px] font-semibold ${badgeColor} px-2 py-0.5 rounded-full`}>
-          {total} {countLabel}
-        </span>
-      </div>
-      <div className="divide-y divide-gray-100">
-        {visible.map(({ name, count }, i) => (
-          <div key={name} className="flex items-center justify-between px-4 py-2.5">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="text-[10px] font-black text-gray-300 w-5 shrink-0 tabular-nums">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span className="text-sm font-semibold text-gray-800 truncate">{name}</span>
-            </div>
-            <span className={`text-sm font-black ${accentColor} shrink-0 ml-2`}>{count}×</span>
-          </div>
-        ))}
-      </div>
-      {hasMore && (
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="w-full flex items-center justify-center gap-1.5 py-2 text-[11px] font-semibold text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors border-t border-gray-100"
-        >
-          {expanded ? (
-            <>
-              <ChevronUp className="w-3.5 h-3.5" /> Show less
-            </>
-          ) : (
-            <>
-              <ChevronDown className="w-3.5 h-3.5" /> {items.length - 3} more
-            </>
-          )}
-        </button>
-      )}
-    </div>
+    s.getTime() === firstDay &&
+    e.getTime() === lastDay &&
+    s.getMonth() === e.getMonth() &&
+    s.getFullYear() === e.getFullYear()
   );
 };
+
+const recordStamp = (start, end) => {
+  if (isFullMonthRange(start, end)) {
+    return new Date(start).toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase();
+  }
+  return generatedStamp(end);
+};
+
+const SkeletonReceipt = () => (
+  <div className="bg-white border border-[#E3E0D6] rounded-lg overflow-hidden animate-pulse">
+    <div className="h-[3px] bg-[#E3E0D6]" />
+    <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] space-y-2">
+      <div className="h-2.5 w-24 bg-[#ECE9DF] rounded-sm" />
+      <div className="h-6 w-48 bg-[#ECE9DF] rounded-sm" />
+    </div>
+    <div className="px-6 sm:px-8 py-5 space-y-3">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex items-center gap-3">
+          <div className="h-3 w-28 bg-[#ECE9DF] rounded-sm" />
+          <div className="h-3 flex-1 bg-[#ECE9DF] rounded-sm" />
+          <div className="h-3 w-14 bg-[#ECE9DF] rounded-sm" />
+        </div>
+      ))}
+      <div className="h-20 w-full bg-[#ECE9DF] rounded-sm my-4" />
+      <div className="h-28 w-full bg-[#ECE9DF] rounded-sm mx-auto max-w-xs" />
+    </div>
+  </div>
+);
+
+const ReceiptLine = ({ label, value, tone = "#1C1F1E", icon: Icon, bold = false }) => (
+  <div className="flex items-baseline gap-3 py-2.5">
+    <span
+      className={`flex items-center gap-1.5 text-[13.5px] shrink-0 ${bold ? "font-semibold" : "font-medium"}`}
+      style={{ color: bold ? tone : "#1C1F1E" }}
+    >
+      {Icon && <Icon className="w-3.5 h-3.5" style={{ color: tone }} />}
+      {label}
+    </span>
+    <span className="flex-1 border-b border-dotted border-[#D8D5CB] translate-y-[-3px]" />
+    <span
+      className={`font-['IBM_Plex_Mono'] text-[13.5px] tabular-nums shrink-0 ${bold ? "font-semibold" : ""}`}
+      style={{ color: tone }}
+    >
+      {value}
+    </span>
+  </div>
+);
+
+const LedgerCell = ({ icon: Icon, label, value, accent, sub }) => (
+  <div className="px-5 py-4 border-l-[3px]" style={{ borderColor: accent }}>
+    <div className="flex items-center gap-1.5 mb-1.5">
+      <Icon className="w-3.5 h-3.5" style={{ color: accent }} />
+      <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-[0.15em] text-[#6F756F]">{label}</p>
+    </div>
+    <p className="font-['IBM_Plex_Mono'] text-2xl font-semibold text-[#1C1F1E] tabular-nums">{value}</p>
+    {sub && <p className="font-['IBM_Plex_Mono'] text-[11px] text-[#8A8F89] mt-1">{sub}</p>}
+  </div>
+);
+
+const TEAL = "#0F6E5C";
+const OCHRE = "#B5772A";
+const RUST = "#B23A2E";
 
 const CashMemo = () => {
   const [summary, setSummary] = useState(null);
@@ -200,15 +153,23 @@ const CashMemo = () => {
   const grossCounterAmount = (d.initial ?? 0) - (d.labAdjustment ?? 0) - (d.referrerDiscount ?? 0);
 
   return (
-    <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
+    <section className="min-h-screen manifest-bg px-4 py-6">
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+        .manifest-bg {
+          background-color: #F5F4EF;
+          background-image: radial-gradient(circle, rgba(28,31,30,0.05) 1px, transparent 1px);
+          background-size: 18px 18px;
+        }
+
         @media print {
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           body * { visibility: hidden; }
           #cashmemo-printable, #cashmemo-printable * { visibility: visible; }
-          #cashmemo-printable { position: fixed; top: 0; left: 0; width: 100%; padding: 32px; box-shadow: none; border-radius: 0; }
+          #cashmemo-printable { position: fixed; top: 0; left: 0; width: 100%; padding: 32px; box-shadow: none; }
           .no-print { display: none !important; }
         }
       `}</style>
@@ -216,26 +177,27 @@ const CashMemo = () => {
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-5 no-print">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <ReceiptText className="w-7 h-7 text-indigo-600" /> Cashmemo
-            </h1>
-            <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
-              <Activity className="w-4 h-4 text-indigo-400" /> Financial summary by time frame
+            <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-[0.2em] text-[#0F6E5C] mb-1">
+              Lab Operations
             </p>
+            <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] tracking-tight">
+              Cashmemo
+            </h1>
+            <p className="text-sm text-[#767D78] mt-1">Counter earnings and collections for the selected range.</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => window.print()}
               disabled={loading}
-              className="px-3 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-all flex items-center gap-2 text-sm font-medium shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-[11px] uppercase tracking-wide disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Printer className="w-4 h-4" /> Print
+              <Printer className="w-3.5 h-3.5" /> Print
             </button>
             <Link
               to="/lab-management"
-              className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white/60 text-gray-700 hover:bg-gray-50 transition-all flex items-center gap-2 text-sm font-medium shadow-sm"
+              className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-[11px] uppercase tracking-wide"
             >
-              <ArrowLeft className="w-4 h-4" /> Back
+              <ArrowLeft className="w-3.5 h-3.5" /> Back
             </Link>
           </div>
         </div>
@@ -245,188 +207,108 @@ const CashMemo = () => {
         </div>
 
         {loading ? (
-          <SkeletonMemo />
+          <SkeletonReceipt />
         ) : (
           <div
             id="cashmemo-printable"
-            className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+            className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
           >
-            {/* Heading band */}
-            <div className="px-6 pt-5 pb-4 bg-gradient-to-r from-indigo-50/70 to-purple-50/40 border-b border-gray-100">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-semibold text-indigo-500 uppercase tracking-widest mb-0.5">Cashmemo</p>
-                  <h2 className="text-lg font-extrabold text-gray-900 leading-tight">{headingLabel}</h2>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Total Invoices</p>
-                  <p className="text-3xl font-black text-gray-900">{d.totalInvoices ?? 0}</p>
-                </div>
+            {/* Header band — stamp flows inline so it can't collide with anything while printing */}
+            <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
+              <div>
+                <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-[0.2em] text-[#0F6E5C] mb-1.5">
+                  Cash Memo
+                </p>
+                <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] tracking-tight">
+                  {headingLabel}
+                </h2>
+                <p className="font-['IBM_Plex_Mono'] text-[11px] text-[#8A8F89] mt-1.5">
+                  {d.totalInvoices ?? 0} invoices recorded
+                </p>
+              </div>
+
+              <div className="rotate-[-4deg] border border-[#0F6E5C]/35 bg-white text-[#0F6E5C] px-2 py-1 font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-[0.15em] rounded-sm select-none shrink-0 mt-1">
+                Record · {recordStamp(timeRange?.start, timeRange?.end)}
               </div>
             </div>
 
-            <div className="px-6 py-2">
-              <div className="flex items-center justify-between py-3 border-b border-gray-50">
-                <p className="text-sm font-semibold text-gray-800">Total Amount</p>
-                <p className="text-lg font-bold text-gray-900">৳{fmt(d.initial)}</p>
-              </div>
-              <div className="flex items-center justify-between py-3 border-b border-gray-50">
-                <div className="flex items-center gap-1.5">
-                  <Minus className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
-                  <p className="text-sm font-semibold text-gray-700">Lab Adjustment</p>
-                </div>
-                <p className="text-base font-semibold text-yellow-600">− ৳{fmt(d.labAdjustment)}</p>
-              </div>
-              <div className="flex items-center justify-between py-3 border-b border-gray-50">
-                <div className="flex items-center gap-1.5">
-                  <Minus className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                  <p className="text-sm font-semibold text-gray-700">Referrer's Discount</p>
-                </div>
-                <p className="text-base font-semibold text-orange-500">− ৳{fmt(d.referrerDiscount)}</p>
+            <div className="px-6 sm:px-8 py-5">
+              {/* Line items */}
+              <div className="divide-y divide-[#F0EEE6]">
+                <ReceiptLine label="Total Amount" value={`৳${fmt(d.initial)}`} bold />
+                <ReceiptLine label="Lab Discount" value={`− ৳${fmt(d.labAdjustment)}`} tone={OCHRE} />
+                <ReceiptLine label="Referrer Discount" value={`− ৳${fmt(d.referrerDiscount)}`} tone={OCHRE} />
               </div>
 
-              {/* Gross Counter Amount */}
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 overflow-hidden my-3">
-                <div className="flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                      <Banknote className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold text-emerald-100 uppercase tracking-widest">
-                        Gross Counter Amount
-                      </p>
-                      <p className="text-[10px] text-emerald-200 mt-0.5">Total − Lab Adj. − Discount</p>
-                    </div>
-                  </div>
-                  <p className="text-3xl font-black text-white tracking-tight">৳{fmt(grossCounterAmount)}</p>
-                </div>
-                <div className="grid grid-cols-2 divide-x divide-emerald-100">
-                  <div className="flex items-center gap-2.5 px-4 py-3">
-                    <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
-                      <Wallet className="w-3.5 h-3.5 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold text-green-700 uppercase tracking-wide">Collected</p>
-                      <p className="text-base font-black text-green-700">৳{fmt(d.totalPaid)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2.5 px-4 py-3">
-                    <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                      <AlertCircle className="w-3.5 h-3.5 text-red-500" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold text-red-600 uppercase tracking-wide">Due</p>
-                      <p className="text-base font-black text-red-600">৳{fmt(d.totalDue)}</p>
-                    </div>
-                  </div>
-                </div>
+              {/* Gross counter subtotal */}
+              <div className="mt-3 pt-3 border-t-2 border-[#1C1F1E]/10">
+                <ReceiptLine label="Gross Counter Amount" value={`৳${fmt(grossCounterAmount)}`} bold />
+              </div>
+
+              {/* Collected / Due split */}
+              <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm my-4">
+                <LedgerCell icon={PackageCheck} label="Collected" value={`৳${fmt(d.totalPaid)}`} accent={TEAL} />
+                <LedgerCell icon={Clock} label="Due" value={`৳${fmt(d.totalDue)}`} accent={RUST} />
               </div>
 
               {/* Commission */}
-              <div className="flex items-center justify-between py-3 border-b border-dashed border-indigo-100">
-                <div className="flex items-center gap-1.5">
-                  <Minus className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                  <p className="text-sm font-black text-purple-700">Commission</p>
-                </div>
-                <p className="text-base font-black text-purple-700">− ৳{fmt(d.referrerCommission)}</p>
+              <div className="pt-1 border-t border-dashed border-[#E3E0D6]">
+                <ReceiptLine label="Commission" value={`− ৳${fmt(d.referrerCommission)}`} tone={OCHRE} bold />
               </div>
 
               {/* Formula */}
-              <div className="flex items-center gap-2 my-3">
-                <div className="flex-1 h-px bg-gray-100" />
-                <span className="text-[10.5px] text-gray-400 font-mono bg-gray-50 border border-gray-100 rounded-full px-3 py-1 whitespace-nowrap">
-                  Total − Lab Adj. − Discount − Commission
+              <div className="flex items-center gap-2 my-4">
+                <div className="flex-1 h-px bg-[#E3E0D6]" />
+                <span className="font-['IBM_Plex_Mono'] text-[10px] text-[#8A8F89] bg-[#F5F4EF] border border-[#E3E0D6] rounded-sm px-3 py-1 whitespace-nowrap uppercase tracking-wide">
+                  Total − Lab Discount − Referrer Discount − Commission
                 </span>
-                <div className="flex-1 h-px bg-gray-100" />
+                <div className="flex-1 h-px bg-[#E3E0D6]" />
               </div>
 
-              {/* Net Earning */}
-              <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl mb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                    <TrendingUp className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold text-indigo-200 uppercase tracking-widest">Net Earning</p>
-                    <p className="text-[10px] text-indigo-300 mt-0.5">After all deductions</p>
-                  </div>
+              {/* Net Earning stamp */}
+              <div className="flex justify-center py-3">
+                <div className="relative rotate-[-1.5deg] border-2 border-[#0F6E5C] rounded-md px-10 py-5 text-center">
+                  <div className="absolute inset-[3px] border border-[#0F6E5C]/40 rounded-sm pointer-events-none" />
+                  <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-[0.25em] text-[#0F6E5C] mb-1">
+                    Net Earning
+                  </p>
+                  <p className="font-['IBM_Plex_Mono'] text-4xl font-bold text-[#0F6E5C] tabular-nums">
+                    ৳{fmt(d.totalNet)}
+                  </p>
                 </div>
-                <p className="text-3xl font-black text-white tracking-tight">৳{fmt(d.totalNet)}</p>
               </div>
-
-              {/* Tests & Products ordered — collapsible rows */}
-              {(d.testCounts?.length > 0 || d.productCounts?.length > 0) && (
-                <div className="space-y-3 my-4">
-                  <ItemCountList
-                    icon={FlaskConical}
-                    iconColor="text-indigo-400"
-                    accentColor="text-indigo-600"
-                    badgeColor="bg-indigo-50 text-indigo-500"
-                    title="Tests Ordered"
-                    items={d.testCounts}
-                    countLabel="total"
-                  />
-                  <ItemCountList
-                    icon={Package}
-                    iconColor="text-teal-500"
-                    accentColor="text-teal-600"
-                    badgeColor="bg-teal-50 text-teal-600"
-                    title="Products Used"
-                    items={d.productCounts}
-                    countLabel="units"
-                  />
-                </div>
-              )}
 
               {/* Deleted invoices */}
-              <div className="flex items-center justify-between px-4 py-3 bg-red-50 border border-red-200 rounded-xl mb-5">
+              <div className="flex items-center justify-between px-4 py-3 border border-[#E3D9D5] bg-[#FBF2F0] rounded-sm mt-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                  </div>
+                  <Trash2 className="w-3.5 h-3.5 text-[#B23A2E]" />
                   <div>
-                    <p className="text-sm font-bold text-red-600">Deleted Invoices</p>
-                    <p className="text-[11px] text-red-400 mt-0.5">Excluded from all calculations</p>
+                    <p className="text-[12.5px] font-medium text-[#1C1F1E]">Deleted Invoices</p>
+                    <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8807A] mt-0.5">
+                      Excluded from all calculations
+                    </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 text-red-400" />
-                  <p className="text-lg font-black text-red-600">{d.deletedCount ?? 0}</p>
-                </div>
+                <p className="font-['IBM_Plex_Mono'] text-lg font-semibold text-[#B23A2E] tabular-nums">
+                  {d.deletedCount ?? 0}
+                </p>
               </div>
             </div>
 
             {/* Delivery */}
-            <div className="px-6 pb-5 border-t border-gray-100 pt-4">
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Delivery</p>
-              <div className="grid grid-cols-2 gap-3">
-                <StatCard
-                  icon={PackageCheck}
-                  iconBg="bg-blue-100"
-                  iconColor="text-blue-600"
-                  label="Delivered"
-                  labelColor="text-blue-600"
-                  value={d.deliveredCount ?? 0}
-                  valueBg="bg-blue-50"
-                  border="border border-blue-100"
-                />
-                <StatCard
-                  icon={Clock}
-                  iconBg="bg-amber-100"
-                  iconColor="text-amber-600"
-                  label="Pending"
-                  labelColor="text-amber-700"
-                  value={pendingCount}
-                  valueBg="bg-amber-50"
-                  border="border border-amber-100"
-                />
+            <div className="px-6 sm:px-8 py-5 border-t border-[#E3E0D6]">
+              <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-[0.15em] text-[#6F756F] mb-3">
+                Delivery
+              </p>
+              <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
+                <LedgerCell icon={PackageCheck} label="Delivered" value={d.deliveredCount ?? 0} accent={TEAL} />
+                <LedgerCell icon={Clock} label="Pending" value={pendingCount} accent={OCHRE} />
               </div>
             </div>
           </div>
         )}
 
-        <p className="text-center text-[11px] text-gray-400 mt-4 pb-6 no-print">
+        <p className="font-['IBM_Plex_Mono'] text-center text-[10px] text-[#A8ACA3] mt-4 pb-6 no-print tracking-wide">
           Net Earning = Total Amount − Lab Adjustment − Referrer Discount − Commission
         </p>
       </div>

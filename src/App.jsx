@@ -33,6 +33,7 @@ import SearchPatient from "./pages/indoorPatient/SearchPatient";
 import PatientList from "./pages/indoorPatient/PatientList";
 import PatientDetails from "./pages/indoorPatient/PatientDetails";
 import AddItemsToPatient from "./pages/indoorPatient/AddItemsToPatient";
+import SaleStats from "./pages/saleStats";
 
 // ─── Route Wrapper for Protected Pages ──────────────────────────────────────
 const ProtectedRoutes = () => {
@@ -69,6 +70,7 @@ function App() {
         <Route path="/invoice-master" element={<InvoiceMaster />} />
         <Route path="/search-invoice" element={<SearchInvoice />} />
         <Route path="/commission" element={<Commission />} />
+        <Route path="/sale-stats" element={<SaleStats/> } />
         <Route path="/invoice/new" element={<CreateInvoice />} />
         <Route path="/invoice/print/:invoiceId" element={<PrintInvoice />} />
         <Route path="/invoice/all" element={<InvoiceList />} />
