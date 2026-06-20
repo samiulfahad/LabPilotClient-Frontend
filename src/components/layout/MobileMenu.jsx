@@ -155,7 +155,7 @@ const MobileMenu = () => {
                   <NavLink
                     key={item.path}
                     to={item.path}
-                    end={item.path === "/"}
+                    end
                     onClick={closeMenu}
                     className={({ isActive }) =>
                       `flex items-center gap-1 px-4 py-1 rounded-xl transition-all duration-200 group ${
