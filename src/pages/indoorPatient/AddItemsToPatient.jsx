@@ -228,9 +228,19 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
   const filteredProducts = q ? catalog.products.filter((p) => p.name.toLowerCase().includes(q)) : catalog.products;
 
   const addTest = (test) => {
-    const tid = test._id?.$oid ?? test.testId?.$oid ?? test.testId ?? test._id ?? null;
+    const tid = test.testId?.$oid ?? test.testId ?? null;
     if (selected.some((s) => s.itemId === tid && s.type === "test")) return;
-    setSelected((prev) => [...prev, { type: "test", itemId: tid, name: test.name, price: test.price, quantity: 1 }]);
+    setSelected((prev) => [
+      ...prev,
+      {
+        type: "test",
+        itemId: tid,
+        name: test.name,
+        price: test.price,
+        quantity: 1,
+        schemaId: test.schemaId?.$oid ?? test.schemaId ?? null,
+      },
+    ]);
     setItemQuery("");
     setShowDrop(false);
   };
@@ -285,6 +295,9 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
             name: item.name,
             price: item.price,
             quantity: item.quantity,
+            ...(item.type === "test" && item.schemaId && String(item.schemaId).length === 24
+              ? { schemaId: item.schemaId }
+              : {}),
           }),
         ),
       );
@@ -303,7 +316,6 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
       setSubmitting(false);
     }
   };
-
   if (success) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-10 text-center">
@@ -434,7 +446,7 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
                         {filteredProducts.map((p) => {
                           const pid = p._id?.$oid ?? p._id ?? null;
                           const already = selected.some((s) => s.itemId === pid && s.type === (p.type ?? "other"));
-                          const outOfStock = p.trackStock && (p.stock ?? 0) === 0;
+                          const outOfStock = p.hasStock && (p.stock ?? 0) === 0;
                           return (
                             <button
                               key={p._id}
@@ -449,7 +461,7 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
                               <div>
                                 <div className="text-sm font-medium text-slate-800">{p.name}</div>
                                 <div className="text-xs text-blue-600 font-semibold">{fmt.currency(p.price)}</div>
-                                {p.trackStock && (
+                                {p.hasStock && (
                                   <div
                                     className={`text-xs mt-0.5 ${outOfStock ? "text-red-500 font-medium" : "text-slate-400"}`}
                                   >
