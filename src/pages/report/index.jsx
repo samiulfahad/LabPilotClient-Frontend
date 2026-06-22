@@ -20,6 +20,8 @@ import {
   ClipboardList,
   Check,
   Loader2,
+  ArrowLeft,
+  AlertCircle,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 import Popup from "../../components/popup";
@@ -29,8 +31,6 @@ import reportService from "../../api/report";
 
 // ─── ID Format Detection ──────────────────────────────────────────────────────
 
-// Indoor:  IP + 3 digits (1-9) + 2 letters (no O)  e.g. IP482XK
-// Outdoor: 3 letters (no O) + 4 digits (no 0)       e.g. APX8743
 const detectIdType = (id) => {
   if (/^IP[1-9]{3}[A-NP-Z]{2}$/i.test(id.trim())) return "indoor";
   if (/^[A-NP-Z]{3}[1-9]{4}$/i.test(id.trim())) return "outdoor";
@@ -38,22 +38,6 @@ const detectIdType = (id) => {
 };
 
 // ─── Data Normalizers ─────────────────────────────────────────────────────────
-//
-// Both flatten into a single unified shape so RecordDetail renders both
-// without branching per field. fastify-mongo serializes ObjectIds as plain
-// strings, so no .$oid handling is needed anywhere.
-//
-// Unified shape:
-// {
-//   _type     : "outdoor" | "indoor",
-//   _patientId: String | null,
-//   displayId : String,
-//   createdAt : Number | null,
-//   patient   : { name, gender, age, contactNumber },
-//   amount    : { final, paid, initial } | null,   // null for indoor
-//   space     : { spaceName, bedNumber } | null,   // null for outdoor
-//   tests     : [{ testId, name, price, schemaId, isCompleted, report }],
-// }
 
 const normalizeOutdoor = (invoice) => ({
   _type: "outdoor",
@@ -93,76 +77,9 @@ const normalizeIndoor = (patient) => ({
   })),
 });
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-
-const Skeleton = ({ className = "", style = {} }) => (
-  <div
-    className={`rounded-lg ${className}`}
-    style={{
-      background: "linear-gradient(90deg, #e4e7ed 25%, #f2f4f7 50%, #e4e7ed 75%)",
-      backgroundSize: "200% 100%",
-      animation: "rp-shimmer 1.5s infinite",
-      ...style,
-    }}
-  />
-);
-
-const RecordSkeleton = () => (
-  <>
-    <style>{`@keyframes rp-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="bg-gradient-to-r from-indigo-100 to-purple-100 px-6 py-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-2">
-            <Skeleton style={{ height: 8, width: 60 }} />
-            <Skeleton style={{ height: 22, width: 120 }} />
-            <Skeleton style={{ height: 8, width: 160 }} />
-          </div>
-          <div className="space-y-2 text-right flex flex-col items-end">
-            <Skeleton style={{ height: 8, width: 70 }} />
-            <Skeleton style={{ height: 28, width: 100 }} />
-            <Skeleton style={{ height: 24, width: 80, borderRadius: 6 }} />
-          </div>
-        </div>
-      </div>
-      <div className="px-6 py-4 border-b border-gray-100">
-        <Skeleton style={{ height: 8, width: 60, marginBottom: 14 }} />
-        <div className="grid grid-cols-2 gap-3">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="flex items-center gap-2">
-              {i < 2 && <Skeleton style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0 }} />}
-              <div className="space-y-1.5 flex-1">
-                <Skeleton style={{ height: 7, width: "45%" }} />
-                <Skeleton style={{ height: 13, width: "75%" }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="px-6 py-4 border-b border-gray-100">
-        <Skeleton style={{ height: 8, width: 160, marginBottom: 14 }} />
-        <div className="space-y-2">
-          {[...Array(2)].map((_, i) => (
-            <div key={i} className="rounded-xl border border-gray-100 px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <Skeleton style={{ width: 10, height: 10, borderRadius: "50%", flexShrink: 0 }} />
-                  <div className="space-y-1.5 flex-1">
-                    <Skeleton style={{ height: 12, width: "55%" }} />
-                    <Skeleton style={{ height: 9, width: "25%" }} />
-                  </div>
-                </div>
-                <Skeleton style={{ height: 30, width: 70, borderRadius: 8, flexShrink: 0 }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  </>
-);
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const fmt = (n) => (typeof n === "number" ? n.toLocaleString("en-IN") : "0");
 
 const formatDateTime = (ts) => {
   if (!ts) return { date: "—", time: "—" };
@@ -188,6 +105,41 @@ const toInputDate = (dateStr) => {
   const d = new Date(dateStr);
   return isNaN(d) ? "" : d.toISOString().slice(0, 10);
 };
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+const RecordSkeleton = () => (
+  <div className="bg-white border border-[#E3E0D6] rounded-lg overflow-hidden animate-pulse">
+    <div className="h-[3px] bg-[#E3E0D6]" />
+    <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] space-y-2">
+      <div className="h-2 w-20 bg-[#ECE9DF] rounded-sm" />
+      <div className="h-6 w-40 bg-[#ECE9DF] rounded-sm" />
+      <div className="h-2 w-52 bg-[#ECE9DF] rounded-sm" />
+    </div>
+    <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6] space-y-3">
+      <div className="h-2 w-16 bg-[#ECE9DF] rounded-sm" />
+      {[0, 1].map((i) => (
+        <div key={i} className="flex items-center gap-3">
+          <div className="h-8 w-8 bg-[#ECE9DF] rounded-sm" />
+          <div className="space-y-1.5 flex-1">
+            <div className="h-2 w-24 bg-[#ECE9DF] rounded-sm" />
+            <div className="h-3 w-36 bg-[#ECE9DF] rounded-sm" />
+          </div>
+        </div>
+      ))}
+    </div>
+    <div className="px-6 sm:px-8 py-5 space-y-3">
+      <div className="h-2 w-24 bg-[#ECE9DF] rounded-sm" />
+      {[0, 1].map((i) => (
+        <div key={i} className="flex items-center gap-3 border border-[#E3E0D6] rounded px-4 py-3">
+          <div className="h-2.5 w-2.5 rounded-full bg-[#ECE9DF]" />
+          <div className="flex-1 h-3 bg-[#ECE9DF] rounded-sm" />
+          <div className="h-7 w-16 bg-[#ECE9DF] rounded-sm" />
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 // ─── Date Editor ──────────────────────────────────────────────────────────────
 
@@ -221,48 +173,46 @@ const DateEditor = ({ recordType, displayId, patientId, testId, initialSampleDat
       }
       onSaved({ sampleCollectionDate: sampleDate || null, reportDate: reportDate || null });
     } catch {
-      setError("Failed to save dates");
+      setError("তারিখ সেভ করা সম্ভব হয়নি");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="mt-2 pt-2 border-t border-gray-100">
+    <div className="mt-2 pt-2 border-t border-[#E3E0D6]">
       <div className="flex flex-wrap items-end gap-3">
         <DateField
           icon={Calendar}
-          iconColor="text-indigo-400"
+          iconColor="text-[#0F6E5C]"
           label="Sample Date"
           value={sampleDate}
           onChange={setSampleDate}
-          focusColor="indigo"
         />
         <DateField
           icon={ClipboardList}
-          iconColor="text-emerald-500"
+          iconColor="text-[#8A5C00]"
           label="Report Date"
           value={reportDate}
           onChange={setReportDate}
-          focusColor="emerald"
         />
         <button
           onClick={handleSave}
           disabled={saving || !isDirty || (!sampleDate && !reportDate)}
-          className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-indigo-600 hover:bg-indigo-700 text-white self-end"
+          className="flex items-center gap-1.5 px-3 py-1 font-['IBM_Plex_Mono'] text-xs font-semibold rounded-sm border transition-colors disabled:opacity-40 disabled:cursor-not-allowed border-[#1C1F1E]/20 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white self-end"
         >
           {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
           {saving ? "Saving…" : "Save"}
         </button>
       </div>
-      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
+      {error && <p className="font-['IBM_Plex_Mono'] text-[11px] text-[#C0312B] mt-1">{error}</p>}
     </div>
   );
 };
 
-const DateField = ({ icon: Icon, iconColor, label, value, onChange, focusColor }) => (
+const DateField = ({ icon: Icon, iconColor, label, value, onChange }) => (
   <div className="flex flex-col gap-0.5">
-    <label className="flex items-center gap-1 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+    <label className="flex items-center gap-1 font-['IBM_Plex_Mono'] text-[10px] font-medium text-[#6F756F] uppercase tracking-wide">
       <Icon className={`w-3 h-3 ${iconColor}`} />
       {label}
     </label>
@@ -270,7 +220,7 @@ const DateField = ({ icon: Icon, iconColor, label, value, onChange, focusColor }
       type="date"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={`px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-${focusColor}-100 focus:border-${focusColor}-400 bg-white text-gray-700 cursor-pointer`}
+      className="px-2 py-1 font-['IBM_Plex_Mono'] text-xs border border-[#D8D5CB] rounded-sm focus:outline-none focus:ring-1 focus:ring-[#0F6E5C] focus:border-[#0F6E5C] bg-white text-[#1C1F1E] cursor-pointer"
     />
   </div>
 );
@@ -290,7 +240,7 @@ const TestActions = ({ record, test }) => {
             ? { patientId: _patientId, testId, testName: name, type: "indoor" }
             : { invoiceId: displayId, testId, testName: name, invoice: record }
         }
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
+        className="flex items-center gap-1.5 px-3 py-1.5 border border-[#1C1F1E]/20 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white font-['IBM_Plex_Mono'] text-xs font-semibold rounded-sm transition-colors"
       >
         <Upload className="w-3.5 h-3.5" /> Upload
       </Link>
@@ -308,19 +258,19 @@ const TestActions = ({ record, test }) => {
         to={`${printBase}&printType=PAD`}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-semibold rounded-lg border border-violet-200 transition-colors"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 border border-[#D8D5CB] text-[#6F756F] hover:border-[#1C1F1E] hover:text-[#1C1F1E] font-['IBM_Plex_Mono'] text-xs font-semibold rounded-sm transition-colors"
       >
         <Printer className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">Print (Pad)</span>
+        <span className="hidden sm:inline">Pad</span>
       </Link>
       <Link
         to={`${printBase}&printType=PLAIN`}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 transition-colors"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 border border-[#D8D5CB] text-[#6F756F] hover:border-[#1C1F1E] hover:text-[#1C1F1E] font-['IBM_Plex_Mono'] text-xs font-semibold rounded-sm transition-colors"
       >
         <Printer className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">Print (Plain A4)</span>
+        <span className="hidden sm:inline">A4</span>
       </Link>
       <Link
         to="/report-upload"
@@ -329,7 +279,7 @@ const TestActions = ({ record, test }) => {
             ? { patientId: _patientId, testId, testName: name, type: "indoor", isEdit: true }
             : { invoiceId: displayId, testId, testName: name, invoice: record, isEdit: true }
         }
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg border border-blue-200 transition-colors"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 border border-[#D8D5CB] text-[#6F756F] hover:border-[#1C1F1E] hover:text-[#1C1F1E] font-['IBM_Plex_Mono'] text-xs font-semibold rounded-sm transition-colors"
       >
         <Pencil className="w-3.5 h-3.5" />
         <span className="hidden sm:inline">Edit</span>
@@ -353,123 +303,103 @@ const RecordDetail = ({ record, onDatesSaved }) => {
   const offlineTests = record.tests.filter((t) => !t.schemaId);
   const completedCount = onlineTests.filter((t) => t.isCompleted).length;
 
-  const space = record.space;
-  const spaceLabel = space
-    ? [space.spaceName, space.bedNumber != null ? `Bed ${space.bedNumber}` : null].filter(Boolean).join(", ")
-    : null;
-
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-indigo-200 text-xs uppercase tracking-wide font-medium mb-1">
-              {isIndoor ? "Admission" : "Invoice"}
-            </p>
-            <p className="text-white text-xl font-bold font-mono">#{record.displayId}</p>
-            <p className="text-indigo-200 text-xs mt-1">
-              {date} · {time}
-            </p>
-          </div>
+    <div className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden">
+      {/* Header band */}
+      <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6]">
+        <div>
+          <h2 className="font-['IBM_Plex_Mono'] text-2xl font-semibold text-[#1C1F1E]">#{record.displayId}</h2>
+         
 
-          {/* Outdoor — amount block */}
+          {/* Outdoor — amount */}
           {!isIndoor && amount && (
-            <div className="text-right">
-              <p className="text-indigo-200 text-xs mb-1">Final Amount</p>
-              <p className="text-white text-2xl font-bold">৳{final.toLocaleString()}</p>
-              {final < initial && <p className="text-indigo-300 text-xs line-through">৳{initial.toLocaleString()}</p>}
+            <div className="mt-3">
               <div className="mt-2">
                 {due === 0 ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-400/20 text-green-200 border border-green-400/30 text-xs font-semibold">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 border border-[#0F6E5C]/30 text-[#0F6E5C] font-['IBM_Plex_Mono'] text-xs rounded-sm">
                     <CheckCircle2 className="w-3 h-3" /> Fully Paid
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-400/20 text-red-200 border border-red-400/30 text-xs font-semibold">
-                    <Wallet className="w-3 h-3" /> Due ৳{due.toLocaleString()}
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 border border-[#C0312B]/30 text-[#C0312B] font-['IBM_Plex_Mono'] text-xs rounded-sm">
+                    <Wallet className="w-3 h-3" /> Due ৳{fmt(due)}
                   </span>
                 )}
               </div>
             </div>
           )}
 
-          {/* Indoor — admission space + doctor block */}
-          {isIndoor && (spaceLabel || record.supervisorDoctor) && (
-            <div className="text-right">
-              {spaceLabel && (
-                <>
-                  <p className="text-indigo-200 text-xs mb-1">Admitted To</p>
-                  <p className="text-white text-sm font-bold leading-snug">{spaceLabel}</p>
-                </>
-              )}
-              {record.supervisorDoctor?.name && (
-                <>
-                  <p className="text-indigo-200 text-xs mt-2 mb-1">Supervisor</p>
-                  <p className="text-white text-sm font-bold leading-snug">{record.supervisorDoctor.name}</p>
-                  {record.supervisorDoctor.degree && (
-                    <p className="text-indigo-300 text-xs">{record.supervisorDoctor.degree}</p>
-                  )}
-                </>
-              )}
+          {/* Indoor — simple badge */}
+          {isIndoor && (
+            <div className="mt-3">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 border border-[#0F6E5C]/30 text-[#0F6E5C] font-['IBM_Plex_Mono'] text-xs rounded-sm">
+                <CheckCircle2 className="w-3 h-3" /> Admitted Patient
+              </span>
             </div>
           )}
         </div>
       </div>
 
       {/* Patient */}
-      <div className="px-6 py-4 border-b border-gray-100">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Patient</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-indigo-50 rounded-lg">
-              <User className="w-3.5 h-3.5 text-indigo-500" />
-            </div>
-            <div>
-              <p className="text-[10px] text-gray-400">Name</p>
-              <p className="text-sm font-semibold text-gray-900">{record.patient?.name}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-indigo-50 rounded-lg">
-              <Phone className="w-3.5 h-3.5 text-indigo-500" />
-            </div>
-            <div>
-              <p className="text-[10px] text-gray-400">Contact</p>
-              <p className="text-sm font-semibold text-gray-900">{record.patient?.contactNumber}</p>
-            </div>
+      <div className="px-6 sm:px-8 py-4 border-b border-[#E3E0D6]">
+        <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] mb-2.5 tracking-wide">রোগীর তথ্য</p>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
+          <div>
+            <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3] uppercase tracking-wide">Name</p>
+            <p className="font-['IBM_Plex_Mono'] text-sm text-[#1C1F1E] font-semibold truncate">
+              {record.patient?.name}
+            </p>
           </div>
           <div>
-            <p className="text-[10px] text-gray-400">Gender</p>
-            <p className="text-sm font-medium text-gray-700 capitalize">{record.patient?.gender}</p>
+            <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3] uppercase tracking-wide">Contact</p>
+            <p className="font-['IBM_Plex_Mono'] text-sm text-[#1C1F1E] font-semibold truncate">
+              {record.patient?.contactNumber}
+            </p>
           </div>
           <div>
-            <p className="text-[10px] text-gray-400">Age</p>
-            <p className="text-sm font-medium text-gray-700">{record.patient?.age} years</p>
+            <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3] uppercase tracking-wide">Gender</p>
+            <p className="font-['IBM_Plex_Mono'] text-sm text-[#1C1F1E] font-semibold capitalize">
+              {record.patient?.gender}
+            </p>
+          </div>
+          <div>
+            <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3] uppercase tracking-wide">Age</p>
+            <p className="font-['IBM_Plex_Mono'] text-sm text-[#1C1F1E] font-semibold">{record.patient?.age} yrs</p>
           </div>
         </div>
       </div>
 
       {/* Online Tests */}
       {onlineTests.length > 0 && (
-        <div className="px-6 py-4 border-b border-gray-100">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5 mb-3">
-            <FlaskConical className="w-3.5 h-3.5 text-indigo-400" />
-            Online Tests ({completedCount}/{onlineTests.length} done)
-          </p>
+        <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] flex items-center gap-1.5 tracking-wide">
+              <FlaskConical className="w-3.5 h-3.5 text-[#0F6E5C]" />
+              অনলাইন টেস্ট
+            </p>
+            <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] tabular-nums">
+              {completedCount}/{onlineTests.length} done
+            </p>
+          </div>
           <div className="space-y-2">
             {onlineTests.map((test, i) => (
               <div
                 key={test.testId + i}
-                className={`rounded-xl border px-4 py-3 transition-colors ${test.isCompleted ? "border-emerald-100 bg-emerald-50/40" : "border-gray-100"}`}
+                className={`border rounded px-4 py-3 transition-colors ${
+                  test.isCompleted ? "border-[#0F6E5C]/20 bg-[#0F6E5C]/[0.03]" : "border-[#E3E0D6]"
+                }`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div
-                      className={`w-2.5 h-2.5 rounded-full shrink-0 ${test.isCompleted ? "bg-emerald-400" : "bg-amber-400"}`}
+                      className={`w-2 h-2 rounded-full shrink-0 ${test.isCompleted ? "bg-[#0F6E5C]" : "bg-[#8A5C00]"}`}
                     />
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{test.name}</p>
-                      {test.price != null && <p className="text-xs text-gray-400">৳{test.price.toLocaleString()}</p>}
+                      <p className="font-['IBM_Plex_Mono'] text-sm font-semibold text-[#1C1F1E] truncate">
+                        {test.name}
+                      </p>
+                      {test.price != null && (
+                        <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] tabular-nums">৳{fmt(test.price)}</p>
+                      )}
                     </div>
                   </div>
                   <div className="shrink-0">
@@ -493,18 +423,23 @@ const RecordDetail = ({ record, onDatesSaved }) => {
 
       {/* Offline Tests */}
       {offlineTests.length > 0 && (
-        <div className="px-6 py-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5 mb-3">
-            <FileText className="w-3.5 h-3.5 text-gray-400" /> Offline Tests
+        <div className="px-6 sm:px-8 py-5">
+          <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] flex items-center gap-1.5 mb-3 tracking-wide">
+            <FileText className="w-3.5 h-3.5 text-[#A8ACA3]" /> অফলাইন টেস্ট
           </p>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {offlineTests.map((test, i) => (
-              <div
-                key={test.testId + i}
-                className="flex items-center justify-between px-4 py-2.5 bg-gray-50 rounded-xl"
-              >
-                <span className="text-sm text-gray-700 font-medium">{test.name}</span>
-                {test.price != null && <span className="text-xs text-gray-400">৳{test.price.toLocaleString()}</span>}
+              <div key={test.testId + i} className="flex items-center gap-3">
+                <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] w-5 shrink-0">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="font-['IBM_Plex_Mono'] text-sm text-[#1C1F1E] font-medium truncate">{test.name}</span>
+                <span className="flex-1 border-b border-dotted border-[#D8D5CB] translate-y-[-3px]" />
+                {test.price != null && (
+                  <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] tabular-nums shrink-0">
+                    ৳{fmt(test.price)}
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -528,20 +463,17 @@ const Report = () => {
 
   const fetchRecord = async (id) => {
     const type = detectIdType(id);
-
     if (!type) {
       setInvalidId(true);
       setRecord(null);
       setNotFound(false);
       return;
     }
-
     try {
       setSearching(true);
       setNotFound(false);
       setInvalidId(false);
       setRecord(null);
-
       if (type === "outdoor") {
         const res = await invoiceService.getReportSummary(id.trim().toUpperCase());
         setRecord(normalizeOutdoor(res.data));
@@ -587,37 +519,54 @@ const Report = () => {
   };
 
   return (
-    <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
+    <section className="min-h-screen manifest-bg px-4 py-6 font-noto">
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
+      <style>{`
+        .manifest-bg {
+          background-color: #F5F4EF;
+          background-image: radial-gradient(circle, rgba(28,31,30,0.05) 1px, transparent 1px);
+          background-size: 18px 18px;
+        }
+      `}</style>
+
       <div className="max-w-2xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <Upload className="w-7 h-7 text-indigo-600" /> Upload and Download Reports
-          </h1>
-          <p className="text-sm text-gray-400 mt-1">
-            Search by invoice ID (e.g. <span className="font-mono">APX8743</span>) or admission ID (e.g.{" "}
-            <span className="font-mono">IP482XK</span>)
-          </p>
+        {/* Page heading */}
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1 tracking-wide">ল্যাব অপারেশন</p>
+            <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E]">
+              রিপোর্ট ম্যানেজমেন্ট
+            </h1>
+            <p className="text-sm text-[#767D78] mt-1">ইনভয়েস বা ভর্তি আইডি দিয়ে রিপোর্ট আপলোড ও ডাউনলোড করুন।</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/lab-management"
+              className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> ফিরে যান
+            </Link>
+          </div>
         </div>
 
         {/* Search */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
-          <div className="flex gap-3">
+        <div className="bg-white border border-[#E3E0D6] rounded-lg p-4 mb-5 shadow-[0_1px_2px_rgba(28,31,30,0.04)]">
+          <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A8ACA3]" />
               <input
                 type="text"
-                placeholder="Enter invoice or admission ID..."
+                placeholder="Invoice ID or Admission ID…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                className="w-full pl-11 pr-10 py-2.5 text-sm border border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder-gray-400 font-mono"
+                className="w-full pl-9 pr-9 py-2 font-['IBM_Plex_Mono'] text-sm border border-[#D8D5CB] rounded-sm focus:border-[#0F6E5C] focus:ring-1 focus:ring-[#0F6E5C] outline-none transition-all placeholder-[#A8ACA3] text-[#1C1F1E]"
               />
               {searchQuery && (
                 <button
                   onClick={handleClear}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A8ACA3] hover:text-[#1C1F1E] p-0.5 transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -626,42 +575,46 @@ const Report = () => {
             <button
               onClick={handleSearch}
               disabled={!searchQuery.trim() || searching}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shrink-0"
+              className="px-4 py-2 border border-[#1C1F1E]/20 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white font-['IBM_Plex_Mono'] text-xs uppercase font-semibold rounded-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0"
             >
-              <ChevronRight className="w-4 h-4" /> Search
+              {searching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ChevronRight className="w-3.5 h-3.5" />}
+              Search
             </button>
           </div>
+          <p className="font-['IBM_Plex_Mono'] text-[11px] text-[#A8ACA3] mt-2">
+            e.g. <span className="text-[#1C1F1E]">APX8743</span> (invoice) ·{" "}
+            <span className="text-[#1C1F1E]">IP482XK</span> (admission)
+          </p>
         </div>
 
         {searching && <RecordSkeleton />}
 
         {!searching && invalidId && (
-          <div className="bg-white rounded-2xl shadow-sm border border-amber-100 p-8 text-center">
-            <div className="bg-amber-50 w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3">
-              <Search className="w-6 h-6 text-amber-400" />
-            </div>
-            <h3 className="text-base font-semibold text-gray-800 mb-1">Unrecognized ID format</h3>
-            <p className="text-sm text-gray-500">
-              Enter a valid invoice ID (e.g. <span className="font-mono font-semibold">APX8743</span>) or admission ID
-              (e.g. <span className="font-mono font-semibold">IP482XK</span>)
+          <div className="bg-white border border-[#E3E0D6] rounded-lg p-8 text-center">
+            <AlertCircle className="w-8 h-8 text-[#8A5C00] mx-auto mb-3" />
+            <p className="font-['IBM_Plex_Mono'] text-sm font-semibold text-[#1C1F1E] mb-1">Unrecognized ID format</p>
+            <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F]">
+              Use invoice format <span className="text-[#1C1F1E]">APX8743</span> or admission format{" "}
+              <span className="text-[#1C1F1E]">IP482XK</span>
             </p>
           </div>
         )}
 
         {!searching && notFound && (
-          <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-8 text-center">
-            <div className="bg-red-50 w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3">
-              <Search className="w-6 h-6 text-red-400" />
-            </div>
-            <h3 className="text-base font-semibold text-gray-800 mb-1">Not found</h3>
-            <p className="text-sm text-gray-500">
-              No record found for ID{" "}
-              <span className="font-mono font-semibold text-gray-700">#{searchQuery.toUpperCase()}</span>
+          <div className="bg-white border border-[#E3E0D6] rounded-lg p-8 text-center">
+            <Search className="w-8 h-8 text-[#A8ACA3] mx-auto mb-3" />
+            <p className="font-['IBM_Plex_Mono'] text-sm font-semibold text-[#1C1F1E] mb-1">Not found</p>
+            <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F]">
+              No record for <span className="text-[#1C1F1E]">#{searchQuery.toUpperCase()}</span>
             </p>
           </div>
         )}
 
         {!searching && record && <RecordDetail record={record} onDatesSaved={handleDatesSaved} />}
+
+        <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-4 pb-6">
+          শুধুমাত্র সক্রিয় (ডিলিট না হওয়া) রেকর্ড প্রদর্শিত হচ্ছে
+        </p>
       </div>
     </section>
   );
