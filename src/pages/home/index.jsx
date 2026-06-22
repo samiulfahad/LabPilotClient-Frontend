@@ -46,7 +46,7 @@ const getGreeting = () => {
 // ─── quick-access actions ─────────────────────────────────────────────────────
 const ACTIONS = [
   {
-    to: "/invoice/new",
+    to: "/outdoor/invoice/new",
     icon: Plus,
     label: "নতুন ইনভয়েস",
     sub: "রোগীর বিলিং তৈরি করুন",
@@ -54,7 +54,7 @@ const ACTIONS = [
     glow: "rgba(99,102,241,0.3)",
   },
   {
-    to: "/invoice/all",
+    to: "/outdoor/invoice/all",
     icon: ReceiptText,
     label: "ইনভয়েস তালিকা",
     sub: "রেকর্ড দেখুন ও পরিচালনা করুন",
@@ -78,7 +78,7 @@ const ACTIONS = [
     glow: "rgba(245,158,11,0.3)",
   },
   {
-    to: "/transactions",
+    to: "/collection-report",
     icon: ArrowLeftRight,
     label: "লেনদেন",
     sub: "পেমেন্ট রেকর্ড",

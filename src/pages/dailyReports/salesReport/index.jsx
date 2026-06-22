@@ -251,9 +251,7 @@ const SalesReport = () => {
             {/* Header band */}
             <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
               <div>
-                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">
-                  সেলস রিপোর্ট
-                </p>
+                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">সেলস রিপোর্ট</p>
                 <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">
                   {headingLabel}
                 </h2>
@@ -269,8 +267,9 @@ const SalesReport = () => {
 
             {/* Tests */}
             <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
-              <div className="mb-1">
+              <div className="mb-1 flex justify-between">
                 <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">টেস্টের নাম</p>
+                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">পরিমাণ</p>
               </div>
               {testCounts.length > 0 ? (
                 testCounts.map((t, i) => <LedgerRow key={t.testId ?? i} rank={i + 1} name={t.name} count={t.count} />)
@@ -281,8 +280,9 @@ const SalesReport = () => {
 
             {/* Products */}
             <div className="px-6 sm:px-8 py-5">
-              <div className="mb-1">
+              <div className="mb-1 flex justify-between">
                 <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">পণ্যের নাম</p>
+                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">পরিমাণ</p>
               </div>
               {productCounts.length > 0 ? (
                 productCounts.map((p, i) => (

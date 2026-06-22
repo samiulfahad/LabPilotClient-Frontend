@@ -297,7 +297,7 @@ export default function ReportDownload() {
       return;
     }
     reportService
-      .getById(invoiceId, testId)
+      .getReport(invoiceId, testId)
       .then(({ data }) => {
         setReport(data.report);
         setPatient({
@@ -382,7 +382,7 @@ export default function ReportDownload() {
               printType={printType}
               invoiceId={invoiceId}
               //  Pass dynamic lab info; ReportViewer falls back to its own
-              //     LAB_INFO constant if labInfo is null (e.g. store cleared) 
+              //     LAB_INFO constant if labInfo is null (e.g. store cleared)
               {...(labInfo && { labInfo })}
             />
           </div>

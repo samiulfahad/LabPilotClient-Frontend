@@ -217,7 +217,7 @@ const ResultCard = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
               className="text-violet-700 bg-violet-50 hover:bg-violet-100 border-violet-100"
             />
             <LinkChip
-              to={`/invoice/print/${invoice.invoiceId}`}
+              to={`/outdoor/invoice/print/${invoice.invoiceId}`}
               icon={FileText}
               label="Invoice"
               className="text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border-indigo-100"

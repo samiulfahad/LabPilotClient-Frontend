@@ -1065,7 +1065,7 @@ const CreateInvoice = () => {
 
       const { data } = await invoiceService.createInvoice(invoiceData);
 
-      navigate(`/invoice/print/${data.invoiceId}`, {
+      navigate(`/outdoor/invoice/print/${data.invoiceId}`, {
         state: {
           invoiceData: {
             ...invoiceData,

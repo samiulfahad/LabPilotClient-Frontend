@@ -565,7 +565,7 @@ const PrintInvoice = () => {
         if (!raw) {
           if (!invoiceId) {
             setPopup({ type: "error", message: "No invoice data available" });
-            setTimeout(() => navigate("/invoice/new"), 2000);
+            setTimeout(() => navigate("/outdoor/invoice/new"), 2000);
             return;
           }
           raw = (await invoiceService.getInvoiceByInvoiceId(invoiceId)).data;
@@ -583,7 +583,7 @@ const PrintInvoice = () => {
         );
       } catch {
         setPopup({ type: "error", message: "Failed to load invoice data" });
-        setTimeout(() => navigate("/invoice/new"), 2000);
+        setTimeout(() => navigate("/outdoor/invoice/new"), 2000);
       } finally {
         setLoading(false);
       }

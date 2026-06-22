@@ -291,25 +291,42 @@ function ReportUploadInner() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { invoiceId, testId, testName: stateTestName, isEdit = false } = location.state ?? {};
+  const {
+    invoiceId,
+    patientId,
+    testId,
+    testName: stateTestName,
+    isEdit = false,
+    type = "outdoor",
+  } = location.state ?? {};
+
+  const isIndoor = type === "indoor";
 
   const [schema, setSchema] = useState(null);
   const [invoice, setInvoice] = useState(null);
   const [existingReport, setExistingReport] = useState(null);
   const [resolvedName, setResolvedName] = useState(stateTestName ?? "Report");
+  // For indoor, store the human-readable admissionId returned by the API
+  // so we can navigate back correctly on success.
+  const [admissionId, setAdmissionId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [resultModal, setResultModal] = useState(null); // { type, message }
+  const [resultModal, setResultModal] = useState(null);
   const [closing, setClosing] = useState(false);
 
   const goBack = () => {
     setClosing(true);
-    setTimeout(() => navigate("/report", { state: { invoiceId } }), 250);
+    setTimeout(() => {
+      if (isIndoor) {
+        navigate("/report", { state: { admissionId } });
+      } else {
+        navigate("/report", { state: { invoiceId } });
+      }
+    }, 250);
   };
 
   const handleClose = () => {
-    // If a success modal is showing, clicking X still goes back properly
     if (resultModal?.type === "success") {
       goBack();
       return;
@@ -327,20 +344,39 @@ function ReportUploadInner() {
   }, [resultModal]);
 
   const fetchData = async () => {
-    if (!invoiceId || !testId) {
-      setError("Missing invoice or test information.");
+    const hasRequiredIds = isIndoor ? patientId && testId : invoiceId && testId;
+    if (!hasRequiredIds) {
+      setError("Missing patient or test information.");
       setLoading(false);
       return;
     }
+
     setLoading(true);
     setError(null);
+
     try {
-      const { data } = await reportService.getById(invoiceId, testId);
-      setResolvedName(data.testName ?? stateTestName ?? "Report");
-      setInvoice({ invoiceId: data.invoiceId, patient: data.patient });
-      if (isEdit && data.report && Object.keys(data.report).length > 0) setExistingReport(data.report);
-      const schemaRes = await testService.getSchemaBySchemaId(data.schemaId);
-      setSchema(schemaRes.data);
+      if (isIndoor) {
+        const { data } = await reportService.getIndoorReport(patientId, testId);
+        setAdmissionId(data.admissionId);
+        setResolvedName(data.testName ?? stateTestName ?? "Report");
+        // Reuse PatientBanner in SchemaRenderer by matching its expected shape:
+        // { invoiceId, patient } — we pass admissionId as invoiceId.
+        setInvoice({ invoiceId: data.admissionId, patient: data.patient });
+        if (isEdit && data.report && Object.keys(data.report).length > 0) {
+          setExistingReport(data.report);
+        }
+        const schemaRes = await testService.getSchemaBySchemaId(data.schemaId);
+        setSchema(schemaRes.data);
+      } else {
+        const { data } = await reportService.getReport(invoiceId, testId);
+        setResolvedName(data.testName ?? stateTestName ?? "Report");
+        setInvoice({ invoiceId: data.invoiceId, patient: data.patient });
+        if (isEdit && data.report && Object.keys(data.report).length > 0) {
+          setExistingReport(data.report);
+        }
+        const schemaRes = await testService.getSchemaBySchemaId(data.schemaId);
+        setSchema(schemaRes.data);
+      }
     } catch (e) {
       setError(e?.response?.data?.message || e?.message || "Failed to load report data.");
     } finally {
@@ -355,7 +391,11 @@ function ReportUploadInner() {
   const handleSubmit = async (payload) => {
     try {
       setSubmitting(true);
-      await reportService.addReport({ report: payload, invoiceId, testId });
+      if (isIndoor) {
+        await reportService.addIndoorReport({ report: payload, patientId, testId });
+      } else {
+        await reportService.addReport({ report: payload, invoiceId, testId });
+      }
       setResultModal({
         type: "success",
         message: "Report submitted successfully. Click below to return to the reports page.",
@@ -370,7 +410,11 @@ function ReportUploadInner() {
   const handleUpdate = async (payload) => {
     try {
       setSubmitting(true);
-      await reportService.updateReport({ report: payload, invoiceId, testId });
+      if (isIndoor) {
+        await reportService.updateIndoorReport({ report: payload, patientId, testId });
+      } else {
+        await reportService.updateReport({ report: payload, invoiceId, testId });
+      }
       setResultModal({
         type: "success",
         message: "Report updated successfully. Click below to return to the reports page.",
@@ -382,11 +426,19 @@ function ReportUploadInner() {
     }
   };
 
+  // Derive the display ID for the header subtitle
+  const headerSubtitle = isIndoor
+    ? admissionId
+      ? `Admission #${admissionId}`
+      : "Indoor Patient"
+    : invoiceId
+      ? `Invoice #${invoiceId}`
+      : "New Report";
+
   return (
     <>
       <StyleInjector />
 
-      {/* Full-screen portal panel */}
       <div className={`ur-portal-root${closing ? " closing" : ""}`}>
         {/* Header */}
         <div className="ur-drawer-header">
@@ -399,7 +451,7 @@ function ReportUploadInner() {
           </div>
           <div className="ur-drawer-title">
             <h2>{isEdit ? `Edit — ${resolvedName}` : `Upload — ${resolvedName}`}</h2>
-            <p>{invoiceId ? `Invoice #${invoiceId}` : "New Report"}</p>
+            <p>{headerSubtitle}</p>
           </div>
           <button className="ur-close-btn" onClick={handleClose} title="Close (Esc)">
             <X style={{ width: 17, height: 17 }} />
@@ -423,7 +475,6 @@ function ReportUploadInner() {
         </div>
       </div>
 
-      {/* Result modal — rendered on top of everything */}
       {resultModal && (
         <ResultModal
           type={resultModal.type}

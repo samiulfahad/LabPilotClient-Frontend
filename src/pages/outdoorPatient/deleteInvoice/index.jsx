@@ -473,7 +473,7 @@ const DeleteInvoices = () => {
             <p className="text-sm text-gray-500 mt-1">Soft delete — data is preserved in history</p>
           </div>
           <Link
-            to="/invoice/list"
+            to="/outdoor/invoice/list"
             className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white/60 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center gap-2 text-sm font-medium shadow-sm shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
