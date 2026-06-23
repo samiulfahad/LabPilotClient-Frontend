@@ -2,22 +2,28 @@ import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { useAuthStore } from "./store/authStore";
 
 import LabPilotLogin from "./pages/login";
-import Layout from "./components/layout";
 import Home from "./pages/home";
-import Setup from "./pages/setup";
-import ManageReferrers from "./pages/setup/manageReferrers";
-import ManageStaffs from "./pages/setup/manageStaffs";
-import ManageTests from "./pages/setup/manageTests";
-import AddTest from "./pages/setup/manageTests/AddTest";
+import Layout from "./components/layout";
 import Report from "./pages/report";
 import ReportUpload from "./pages/reportUpload";
 import ReportDownload from "./pages/reportDownload";
 import Help from "./pages/help";
+
+// Account
 import Account from "./pages/account";
+// Billing
 import Billing from "./pages/billing";
+// Products
 import Products from "./pages/setup/manageProducts";
-import Doctors from "./pages/doctors";
+
+// Setup
+import Setup from "./pages/setup";
+import ManageTests from "./pages/setup/manageTests";
+import AddTest from "./pages/setup/manageTests/AddTest";
+import ManageStaffs from "./pages/setup/manageStaffs";
+import ManageReferrers from "./pages/setup/manageReferrers";
 import ManageSpaces from "./pages/setup/manageAdmissionSpace";
+import ManageDoctors from "./pages/setup/manageDoctors";
 
 // Daily Reports
 import DailyReports from "./pages/dailyReports";
@@ -102,16 +108,20 @@ function App() {
         <Route path="/report-upload" element={<ReportUpload />} />
         <Route path="/report-download" element={<ReportDownload />} />
 
-        <Route path="/doctors" element={<Doctors />} />
-        <Route path="/account" element={<Account />} />
-        <Route path="/billing" element={<Billing />} />
+        {/* Set up */}
         <Route path="/setup" element={<Setup />} />
-        <Route path="/manage-referrers" element={<ManageReferrers />} />
-        <Route path="/manage-staffs" element={<ManageStaffs />} />
         <Route path="/manage-tests" element={<ManageTests />} />
-        <Route path="/manage-spaces" element={<ManageSpaces />} />
+        <Route path="/manage-tests/add" element={<AddTest />} />
         <Route path="/manage-products" element={<Products />} />
-        <Route path="/test/add" element={<AddTest />} />
+        <Route path="/manage-staffs" element={<ManageStaffs />} />
+        <Route path="/manage-referrers" element={<ManageReferrers />} />
+        <Route path="/manage-doctors" element={<ManageDoctors />} />
+        <Route path="/manage-spaces" element={<ManageSpaces />} />
+
+        {/* Account */}
+        <Route path="/account" element={<Account />} />
+        {/* Billing */}
+        <Route path="/billing" element={<Billing />} />
       </Route>
       {/* Catch-all: Redirect unknown URLs to home */}
       <Route path="*" element={<Navigate to="/" replace />} />

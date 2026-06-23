@@ -222,7 +222,7 @@ const ManageTests = () => {
               <span>Back</span>
             </Link>
             <Link
-              to="/test/add"
+              to="/manage-tests/add"
               className="hidden sm:flex items-center gap-2 py-2.5 px-5 rounded-xl text-sm sm:text-base font-semibold
                 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700
                 text-white shadow-lg hover:shadow-xl transition-all duration-300"

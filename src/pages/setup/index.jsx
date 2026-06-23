@@ -1,107 +1,139 @@
 import { Link } from "react-router-dom";
-import { Settings, ChevronRight, FlaskConical, Package, Users, UserCheck, BedDouble, SectionIcon } from "lucide-react";
+import { FlaskConical, Package, Users, UserCheck, BedDouble, Stethoscope } from "lucide-react";
 
 const CARDS = [
   {
-    title: "Manage Test List",
+    title: "টেস্ট ব্যবস্থাপনা",
+    subtitle: "Tests",
     icon: FlaskConical,
     link: "/manage-tests",
-    bgIcon: "bg-gradient-to-br from-blue-50 to-indigo-50",
-    iconColor: "text-blue-600",
-    hoverBorder: "group-hover:border-blue-200",
-    textColor: "text-blue-600",
+    accent: "#1E4FA0",
+    bg: "#EEF2FA",
+    border: "rgba(30,79,160,0.2)",
   },
   {
-    title: "Products",
+    title: "পণ্য তালিকা",
+    subtitle: "Products",
     icon: Package,
     link: "/manage-products",
-    bgIcon: "bg-gradient-to-br from-amber-50 to-amber-100",
-    iconColor: "text-amber-600",
-    hoverBorder: "group-hover:border-amber-200",
-    textColor: "text-amber-600",
+    accent: "#B07D1A",
+    bg: "#FAF3E0",
+    border: "rgba(176,125,26,0.2)",
   },
   {
-    title: "Manage Staff",
+    title: "কর্মী ব্যবস্থাপনা",
+    subtitle: "Staff",
     icon: Users,
     link: "/manage-staffs",
-    bgIcon: "bg-gradient-to-br from-emerald-50 to-emerald-100",
-    iconColor: "text-emerald-600",
-    hoverBorder: "group-hover:border-emerald-200",
-    textColor: "text-emerald-600",
+    accent: "#0F6E5C",
+    bg: "#E5F4F0",
+    border: "rgba(15,110,92,0.2)",
   },
   {
-    title: "Manage Referrers",
+    title: "রেফারার ব্যবস্থাপনা",
+    subtitle: "Referrers",
     icon: UserCheck,
     link: "/manage-referrers",
-    bgIcon: "bg-gradient-to-br from-purple-50 to-purple-100",
-    iconColor: "text-purple-600",
-    hoverBorder: "group-hover:border-purple-200",
-    textColor: "text-purple-600",
+    accent: "#6B3FA0",
+    bg: "#F2ECFA",
+    border: "rgba(107,63,160,0.2)",
   },
   {
-    title: "Admission Spaces",
+    title: "ভর্তি স্থান",
+    subtitle: "Spaces",
     icon: BedDouble,
     link: "/manage-spaces",
-    bgIcon: "bg-gradient-to-br from-sky-50 to-cyan-100",
-    iconColor: "text-sky-600",
-    hoverBorder: "group-hover:border-sky-200",
-    textColor: "text-sky-600",
+    accent: "#0E7090",
+    bg: "#E5F4F8",
+    border: "rgba(14,112,144,0.2)",
+  },
+  {
+    title: "কর্তব্যরত চিকিৎসক",
+    subtitle: "Doctors",
+    icon: Stethoscope,
+    link: "/manage-doctors",
+    accent: "#C0312B",
+    bg: "#FEF0EF",
+    border: "rgba(192,49,43,0.2)",
+    badge: "নিয়োগকৃত",
   },
 ];
 
-const Setup = () => {
-  return (
-    <div className="min-h-screen bg-slate-50 px-6 py-2">
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2.5 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-md">
-            <Settings className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900">Lab Management</h1>
+const SetupCard = ({ card }) => (
+  <Link
+    to={card.link}
+    className="block bg-white border border-[#E3E0D6] rounded-[3px] hover:shadow-sm transition-all"
+    style={{ borderLeft: `2px solid ${card.accent}` }}
+  >
+    <div className="p-4 pb-3">
+      {/* Icon + title */}
+      <div className="flex items-center gap-2.5 mb-3">
+        <div
+          className="w-8 h-8 rounded-[3px] flex items-center justify-center shrink-0"
+          style={{ background: card.bg, border: `1px solid ${card.border}` }}
+        >
+          <card.icon style={{ width: 15, height: 15, color: card.accent }} />
         </div>
-
-        {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {CARDS.map((card) => {
-            const content = (
-              <div
-                className={`group bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/80 hover:border-gray-300 shadow-sm hover:shadow-md transition-all duration-200 p-5 h-full ${card.hoverBorder}`}
-              >
-                <div className="flex flex-col h-full">
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className={`flex-shrink-0 p-2.5 rounded-lg bg-white shadow-sm ${card.bgIcon}`}>
-                      <card.icon className={`w-5 h-5 ${card.iconColor}`} />
-                    </div>
-                    <h2 className="text-base font-semibold text-gray-900 tracking-tight">{card.title}</h2>
-                  </div>
-                  <div className="flex items-center justify-between pt-3 mt-auto border-t border-gray-100">
-                    <span
-                      className={`inline-flex items-center gap-1 text-xs font-medium ${card.textColor} opacity-80 group-hover:opacity-100`}
-                    >
-                      {card.link ? "Manage" : "Soon"}
-                      <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                    </span>
-                    {card.link && <span className="text-xs text-gray-400">→</span>}
-                  </div>
-                </div>
-              </div>
-            );
-
-            return card.link ? (
-              <Link key={card.title} to={card.link} className="block h-full">
-                {content}
-              </Link>
-            ) : (
-              <div key={card.title} className="block h-full cursor-not-allowed opacity-70">
-                {content}
-              </div>
-            );
-          })}
+        <div>
+          <p
+            className="font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-[.07em] mb-0"
+            style={{ color: card.accent }}
+          >
+            {card.subtitle}
+          </p>
+          <p className="font-['IBM_Plex_Sans'] text-[13px] font-semibold text-[#1C1F1E] leading-tight">{card.title}</p>
         </div>
       </div>
+
+      {/* Footer chip row */}
+      <div className="flex items-center justify-between border-t border-[#EDEBE3] pt-2.5">
+        <span
+          className="inline-flex items-center gap-1 font-['IBM_Plex_Mono'] text-[10px] uppercase tracking-wide border rounded-[2px] px-2 py-0.5"
+          style={{ color: card.accent, borderColor: card.border }}
+        >
+          পরিচালনা করুন →
+        </span>
+        {card.badge && (
+          <span className="font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-[.05em] text-[#A8ACA3] bg-[#F5F4EF] border border-[#E3E0D6] rounded-[2px] px-1.5 py-0.5">
+            {card.badge}
+          </span>
+        )}
+      </div>
     </div>
-  );
-};
+  </Link>
+);
+
+const Setup = () => (
+  <section
+    className="min-h-screen px-6 py-6 font-noto"
+    style={{
+      backgroundColor: "#F5F4EF",
+      backgroundImage: "radial-gradient(circle, rgba(28,31,30,0.05) 1px, transparent 1px)",
+      backgroundSize: "18px 18px",
+    }}
+  >
+    <div className="max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="mb-5">
+        <p className="font-['IBM_Plex_Mono'] text-xs uppercase tracking-[.07em] text-[#0F6E5C] mb-1">ল্যাব অপারেশন</p>
+        <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] tracking-tight">
+          ল্যাব ম্যানেজমেন্ট
+        </h1>
+        <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] mt-1">সিস্টেম কনফিগারেশন ও ব্যবস্থাপনা</p>
+      </div>
+
+      {/* Cards grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {CARDS.map((card) => (
+          <SetupCard key={card.link} card={card} />
+        ))}
+      </div>
+
+      <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-6 pb-4">
+        LabPilotPro · ল্যাব ম্যানেজমেন্ট সিস্টেম
+      </p>
+    </div>
+  </section>
+);
 
 export default Setup;

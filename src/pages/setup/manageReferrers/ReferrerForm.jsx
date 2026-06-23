@@ -1,277 +1,205 @@
+import { useState } from "react";
 import {
-  User,
-  Phone,
-  GraduationCap,
-  FileText,
-  DollarSign,
-  Percent,
-  Check,
-  Stethoscope,
-  Briefcase,
-  Building2,
-  Info,
-  Users,
+  User, Phone, GraduationCap, FileText, BadgePercent,
+  Banknote, Stethoscope, Briefcase, Building2, X,
+  UserPlus, Pencil, AlertTriangle, Check,
 } from "lucide-react";
 
-const TYPE_OPTIONS = [
-  {
-    value: "doctor",
-    label: "Doctor",
-    icon: Stethoscope,
-    activeClasses: "border-blue-500 bg-blue-50 text-blue-700",
-    checkColor: "text-blue-600",
-    iconActive: "text-blue-600",
-  },
-  {
-    value: "agent",
-    label: "Agent",
-    icon: Briefcase,
-    activeClasses: "border-purple-500 bg-purple-50 text-purple-700",
-    checkColor: "text-purple-600",
-    iconActive: "text-purple-600",
-  },
-  {
-    value: "institute",
-    label: "Institute",
-    icon: Building2,
-    activeClasses: "border-teal-500 bg-teal-50 text-teal-700",
-    checkColor: "text-teal-600",
-    iconActive: "text-teal-600",
-  },
-];
+const C = {
+  ink: "#1C1F1E", muted: "#A8ACA3", sub: "#6F756F",
+  border: "#E3E0D6", dashed: "#D8D5CB", paper: "#FAF9F5",
+  divider: "#EDEBE3", teal: "#0F6E5C", blue: "#1E4FA0",
+  red: "#C0312B", amber: "#92400E", purple: "#7C3AED",
+};
 
-const COMMISSION_OPTIONS = [
-  {
-    value: "percentage",
-    label: "Percentage",
-    activeClass: "border-blue-500 bg-blue-50",
-    textClass: "text-blue-700",
-    checkClass: "text-blue-600",
-  },
-  {
-    value: "fixed",
-    label: "Fixed",
-    activeClass: "border-green-500 bg-green-50",
-    textClass: "text-green-700",
-    checkClass: "text-green-600",
-  },
+const inputStyle = {
+  border: `1px solid ${C.dashed}`, borderRadius: "2px",
+  background: C.paper, color: C.ink,
+  fontFamily: "'IBM Plex Mono', monospace",
+};
+const focusInput = (e) => { e.target.style.borderColor = C.blue; e.target.style.boxShadow = `0 0 0 1px ${C.blue}`; e.target.style.background = "white"; };
+const blurInput  = (e) => { e.target.style.borderColor = C.dashed; e.target.style.boxShadow = ""; e.target.style.background = C.paper; };
+
+const FormField = ({ label, required, children }) => (
+  <div>
+    <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", textTransform: "uppercase", letterSpacing: ".05em", color: C.sub, display: "block", marginBottom: "6px" }}>
+      {label}{required && <span style={{ color: C.red, marginLeft: "2px" }}>*</span>}
+    </label>
+    {children}
+  </div>
+);
+
+const TYPE_OPTIONS = [
+  { value: "doctor",    label: "ডাক্তার",   icon: Stethoscope, color: C.blue  },
+  { value: "agent",     label: "এজেন্ট",    icon: Briefcase,   color: C.amber },
+  { value: "institute", label: "প্রতিষ্ঠান", icon: Building2,   color: C.teal  },
 ];
 
 const ReferrerForm = ({ formData, onChange, onSubmit, onClose }) => {
   const isEdit = formData.formType === "editReferrer";
+  const accentColor = isEdit ? C.purple : C.teal;
 
   return (
-    <div className="relative max-h-[80vh] sm:max-h-full">
+    <div className="bg-white flex flex-col" style={{ maxHeight: "min(660px, calc(100svh - 48px))", border: `1px solid ${C.border}`, borderRadius: "3px", boxShadow: "0 8px 32px rgba(28,31,30,0.15)" }}>
+
       {/* Header */}
-      <div className="sticky top-0 z-10 px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-cyan-50">
-        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <Users className="w-6 h-6 text-blue-600" />
-          {isEdit ? "Edit Referrer" : "Add New Referrer"}
-        </h2>
+      <div className="shrink-0 flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${C.border}`, background: C.paper }}>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center shrink-0" style={{ width: "32px", height: "32px", border: `1px solid ${accentColor}33`, borderRadius: "2px", background: `${accentColor}08` }}>
+            {isEdit
+              ? <Pencil style={{ width: "14px", height: "14px", color: accentColor }} />
+              : <UserPlus style={{ width: "14px", height: "14px", color: accentColor }} />}
+          </div>
+          <div>
+            <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", textTransform: "uppercase", letterSpacing: ".08em", color: accentColor }}>
+              {isEdit ? "তথ্য সম্পাদনা" : "নতুন নিবন্ধন"}
+            </p>
+            <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: "14px", fontWeight: 700, color: C.ink, marginTop: "1px" }}>
+              {isEdit ? "রেফারার সম্পাদনা" : "রেফারার নিবন্ধন"}
+            </p>
+          </div>
+        </div>
+        <button onClick={onClose} style={{ width: "28px", height: "28px", borderRadius: "2px", color: C.muted, display: "flex", alignItems: "center", justifyContent: "center" }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = C.divider; e.currentTarget.style.color = C.ink; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = ""; e.currentTarget.style.color = C.muted; }}
+        ><X style={{ width: "15px", height: "15px" }} /></button>
       </div>
 
       {/* Body */}
-      <div className="px-6 py-6 bg-gray-50">
-        <form onSubmit={onSubmit} className="space-y-5 max-w-2xl mx-auto">
-          {/* Type */}
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-gray-500" />
-              Referrer Type
-            </h3>
-            <div className="grid grid-cols-3 gap-3">
-              {TYPE_OPTIONS.map(({ value, label, icon: Icon, activeClasses, checkColor, iconActive }) => {
-                const isSelected = formData.type === value;
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+
+        {/* Type selector */}
+        <FormField label="ধরন" required>
+          <div className="grid grid-cols-3 gap-2">
+            {TYPE_OPTIONS.map(({ value, label, icon: Icon, color }) => {
+              const active = formData.type === value;
+              return (
+                <button key={value} type="button" onClick={() => onChange("type", value)}
+                  className="flex items-center gap-2 px-3 py-2.5 transition-all"
+                  style={{ border: `1px solid ${active ? color + "55" : C.dashed}`, borderRadius: "2px", background: active ? `${color}0A` : "white", color: active ? color : C.muted, fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px" }}
+                >
+                  <Icon style={{ width: "13px", height: "13px", flexShrink: 0 }} />
+                  {label}
+                  {active && <Check style={{ width: "11px", height: "11px", marginLeft: "auto" }} />}
+                </button>
+              );
+            })}
+          </div>
+        </FormField>
+
+        {/* Name + Contact */}
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="পূর্ণ নাম" required>
+            <input type="text" value={formData.name || ""} onChange={(e) => onChange("name", e.target.value)}
+              placeholder="রেফারারের নাম" required
+              className="w-full px-3 py-2.5 text-sm outline-none transition-all"
+              style={inputStyle} onFocus={focusInput} onBlur={blurInput} />
+          </FormField>
+          <FormField label="যোগাযোগ নম্বর" required>
+            <input type="tel" value={formData.contactNumber || ""} onChange={(e) => onChange("contactNumber", e.target.value)}
+              placeholder="01XXXXXXXXX" maxLength={11} required
+              className="w-full px-3 py-2.5 text-sm outline-none transition-all"
+              style={inputStyle} onFocus={focusInput} onBlur={blurInput} />
+          </FormField>
+        </div>
+
+        {/* Degree (doctors only) */}
+        {formData.type === "doctor" && (
+          <FormField label="ডিগ্রি">
+            <input type="text" value={formData.degree || ""} onChange={(e) => onChange("degree", e.target.value)}
+              placeholder="MBBS, MD, FCPS…"
+              className="w-full px-3 py-2.5 text-sm outline-none transition-all"
+              style={inputStyle} onFocus={focusInput} onBlur={blurInput} />
+          </FormField>
+        )}
+
+        {/* Details */}
+        <FormField label="বিবরণ">
+          <textarea value={formData.details || ""} onChange={(e) => onChange("details", e.target.value)}
+            placeholder="অতিরিক্ত তথ্য…" rows={2}
+            className="w-full px-3 py-2 text-sm outline-none transition-all resize-none"
+            style={inputStyle} onFocus={focusInput} onBlur={blurInput} />
+        </FormField>
+
+        {/* Status */}
+        <FormField label="স্ট্যাটাস">
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { value: true,  label: "সক্রিয়",    color: C.teal },
+              { value: false, label: "নিষ্ক্রিয়", color: C.red  },
+            ].map(({ value, label, color }) => {
+              const active = formData.isActive === value;
+              return (
+                <button key={String(value)} type="button" onClick={() => onChange("isActive", value)}
+                  className="flex items-center gap-2 px-3 py-2.5 transition-all"
+                  style={{ border: `1px solid ${active ? color + "55" : C.dashed}`, borderRadius: "2px", background: active ? `${color}0A` : "white", color: active ? color : C.muted, fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px" }}
+                >
+                  {active && <Check style={{ width: "11px", height: "11px" }} />}
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </FormField>
+
+        {/* Commission */}
+        <div style={{ border: `1px solid ${C.border}`, borderRadius: "2px", overflow: "hidden" }}>
+          <div className="px-4 py-2.5 flex items-center gap-2" style={{ background: C.paper, borderBottom: `1px solid ${C.border}` }}>
+            <BadgePercent style={{ width: "12px", height: "12px", color: C.muted }} />
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", textTransform: "uppercase", letterSpacing: ".1em", color: C.muted, fontWeight: 700 }}>কমিশন</span>
+          </div>
+          <div className="p-4 space-y-3 bg-white">
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { type: "percentage", label: "শতাংশ (%)",  Icon: BadgePercent, color: C.amber },
+                { type: "fixed",      label: "নির্দিষ্ট (৳)", Icon: Banknote,    color: C.teal  },
+              ].map(({ type, label, Icon, color }) => {
+                const active = formData.commissionType === type;
                 return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => onChange("type", value)}
-                    className={`relative py-3 px-3 rounded-lg font-medium transition-all duration-200 border-2 ${isSelected ? activeClasses : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"}`}
+                  <button key={type} type="button" onClick={() => { onChange("commissionType", type); onChange("commissionValue", 0); }}
+                    className="flex items-center gap-2 px-3 py-2.5 transition-all"
+                    style={{ border: `1px solid ${active ? color + "55" : C.dashed}`, borderRadius: "2px", background: active ? `${color}0A` : "white", color: active ? color : C.muted, fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px" }}
                   >
-                    <div className="flex flex-col items-center gap-1.5">
-                      <Icon className={`w-5 h-5 ${isSelected ? iconActive : "text-gray-400"}`} />
-                      <span className="text-xs font-semibold">{label}</span>
-                    </div>
-                    {isSelected && <Check className={`absolute top-1.5 right-1.5 w-3.5 h-3.5 ${checkColor}`} />}
+                    <Icon style={{ width: "13px", height: "13px", flexShrink: 0 }} />
+                    {label}
                   </button>
                 );
               })}
             </div>
-          </div>
-
-          {/* Basic Info */}
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={formData.name || ""}
-                    onChange={(e) => onChange("name", e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
-                    placeholder="Enter referrer name"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Contact Number <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="tel"
-                    value={formData.contactNumber || ""}
-                    onChange={(e) => onChange("contactNumber", e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
-                    placeholder="01XXXXXXXXX"
-                    maxLength={11}
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-
-            {formData.type === "doctor" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Medical Degree</label>
-                <div className="relative">
-                  <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={formData.degree || ""}
-                    onChange={(e) => onChange("degree", e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
-                    placeholder="e.g., MBBS, MD, FCPS"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Additional Details</label>
-              <div className="relative">
-                <FileText className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                <textarea
-                  value={formData.details || ""}
-                  onChange={(e) => onChange("details", e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none text-sm"
-                  placeholder="Additional information about the referrer"
-                  rows={2}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Account Status</label>
-              <select
-                value={formData.isActive ? "true" : "false"}
-                onChange={(e) => onChange("isActive", e.target.value === "true")}
-                className={`w-full px-4 py-2 border rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all appearance-none cursor-pointer text-sm ${formData.isActive ? "bg-green-50 text-green-700 border-green-300" : "bg-red-50 text-red-700 border-red-300"}`}
-              >
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
-              </select>
+            <div className="relative">
+              <input type="number" min="0" step={formData.commissionType === "percentage" ? "0.1" : "1"}
+                max={formData.commissionType === "percentage" ? 100 : undefined}
+                value={formData.commissionValue || ""} onChange={(e) => onChange("commissionValue", parseFloat(e.target.value) || 0)}
+                placeholder={formData.commissionType === "percentage" ? "০ – ১০০" : "পরিমাণ লিখুন"} required
+                className="w-full outline-none transition-all"
+                style={{ ...inputStyle, padding: formData.commissionType === "percentage" ? "10px 32px 10px 12px" : "10px 12px 10px 28px", fontSize: "13px" }}
+                onFocus={focusInput} onBlur={blurInput}
+              />
+              {formData.commissionType === "percentage"
+                ? <span style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", fontFamily: "'IBM Plex Mono', monospace", fontSize: "13px", fontWeight: 700, color: C.amber }}>%</span>
+                : <span style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", fontFamily: "'IBM Plex Mono', monospace", fontSize: "13px", fontWeight: 700, color: C.teal }}>৳</span>
+              }
             </div>
           </div>
-
-          {/* Commission */}
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-gray-500" />
-              Commission Details
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Commission Type</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {COMMISSION_OPTIONS.map(({ value, label, activeClass, textClass, checkClass }) => (
-                    <label
-                      key={value}
-                      className={`relative flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${formData.commissionType === value ? activeClass : "border-gray-200 hover:border-gray-300"}`}
-                    >
-                      <input
-                        type="radio"
-                        name="commissionType"
-                        value={value}
-                        checked={formData.commissionType === value}
-                        onChange={(e) => onChange("commissionType", e.target.value)}
-                        className="w-4 h-4 text-blue-600"
-                      />
-                      <span
-                        className={`font-medium text-sm ${formData.commissionType === value ? textClass : "text-gray-700"}`}
-                      >
-                        {label}
-                      </span>
-                      {formData.commissionType === value && (
-                        <Check className={`absolute top-2 right-2 w-4 h-4 ${checkClass}`} />
-                      )}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {formData.commissionType === "percentage" ? "Percentage Value" : "Amount"}
-                  <span className="text-red-500 ml-1">*</span>
-                </label>
-                <div className="relative">
-                  {formData.commissionType === "percentage" ? (
-                    <Percent className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  ) : (
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  )}
-                  <input
-                    type="number"
-                    value={formData.commissionValue || ""}
-                    onChange={(e) => onChange("commissionValue", parseFloat(e.target.value) || 0)}
-                    className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
-                    placeholder={formData.commissionType === "percentage" ? "0–100" : "Amount in BDT"}
-                    min="0"
-                    max={formData.commissionType === "percentage" ? "100" : undefined}
-                    step={formData.commissionType === "percentage" ? "0.1" : "1"}
-                    required
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-500">
-                    {formData.commissionType === "percentage" ? "%" : "৳"}
-                  </span>
-                </div>
-                {formData.commissionType === "percentage" && (
-                  <p className="mt-1.5 text-xs text-gray-500 flex items-center gap-1">
-                    <Info className="w-3 h-3" /> Enter a value between 0 and 100
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </form>
+        </div>
       </div>
 
       {/* Footer */}
-      <div className="sticky bottom-0 z-10 border-t border-gray-200 px-6 py-4 bg-white">
-        <div className="flex gap-3 max-w-2xl mx-auto">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 py-2.5 px-4 rounded-lg font-medium text-sm bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 hover:border-gray-400 transition-all"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            onClick={onSubmit}
-            className="flex-1 py-2.5 px-4 rounded-lg font-medium text-sm bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-sm hover:shadow transition-all"
-          >
-            {isEdit ? "Update" : "Create Referrer"}
-          </button>
-        </div>
+      <div className="shrink-0 px-6 py-4 flex gap-2" style={{ borderTop: `1px solid ${C.border}` }}>
+        <button type="button" onClick={onClose} className="flex-1 py-2.5 transition-colors"
+          style={{ border: `1px solid ${C.dashed}`, borderRadius: "2px", color: C.sub, fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", textTransform: "uppercase" }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = C.divider; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
+        >বাতিল</button>
+        <button onClick={onSubmit}
+          className="flex-1 py-2.5 flex items-center justify-center gap-1.5 transition-colors"
+          style={{ border: `1px solid ${accentColor}`, borderRadius: "2px", color: accentColor, fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", textTransform: "uppercase" }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = accentColor; e.currentTarget.style.color = "white"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = ""; e.currentTarget.style.color = accentColor; }}
+        >
+          {isEdit ? <Pencil style={{ width: "12px", height: "12px" }} /> : <UserPlus style={{ width: "12px", height: "12px" }} />}
+          {isEdit ? "পরিবর্তন সংরক্ষণ" : "নিবন্ধন করুন"}
+        </button>
       </div>
     </div>
   );

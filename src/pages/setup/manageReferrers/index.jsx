@@ -1,20 +1,19 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   Plus,
   Search,
   X,
   Users,
-  Filter,
+  ArrowLeft,
+  AlertCircle,
   RotateCcw,
   UserPlus,
-  Activity,
-  UserCheck,
-  UserX,
   Stethoscope,
   Briefcase,
   Building2,
-  ArrowLeft,
+  UserCheck,
+  ChevronDown,
 } from "lucide-react";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
@@ -22,6 +21,21 @@ import Referrer from "./Referrer";
 import ReferrerForm from "./ReferrerForm";
 import referrerService from "../../../api/referrer";
 import LoadingScreen from "../../../components/loadingPage";
+
+const C = {
+  ink: "#1C1F1E",
+  muted: "#A8ACA3",
+  sub: "#6F756F",
+  border: "#E3E0D6",
+  dashed: "#D8D5CB",
+  paper: "#FAF9F5",
+  hover: "#F0EFE9",
+  divider: "#EDEBE3",
+  teal: "#0F6E5C",
+  blue: "#1E4FA0",
+  red: "#C0312B",
+  amber: "#92400E",
+};
 
 const initialData = {
   name: "",
@@ -34,29 +48,20 @@ const initialData = {
   isActive: true,
 };
 
-const STATS_CONFIG = [
-  { key: "total", label: "Total", icon: Users, color: "blue", textColor: "text-gray-900" },
-  { key: "active", label: "Active", icon: UserCheck, color: "green", textColor: "text-green-600" },
-  { key: "doctors", label: "Doctors", icon: Stethoscope, color: "indigo", textColor: "text-indigo-600" },
-  { key: "agents", label: "Agents", icon: Briefcase, color: "amber", textColor: "text-amber-600" },
-  { key: "institutes", label: "Institutes", icon: Building2, color: "teal", textColor: "text-teal-600" },
-];
-
-const SkeletonReferrer = () => (
-  <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 animate-pulse">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4 flex-1">
-        <div className="w-12 h-12 rounded-full bg-gray-200" />
-        <div className="flex-1">
-          <div className="h-5 bg-gray-200 rounded w-1/3 mb-2" />
-          <div className="h-4 bg-gray-100 rounded w-1/4" />
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <div className="h-9 w-20 bg-gray-200 rounded-lg" />
-        <div className="h-9 w-20 bg-gray-200 rounded-lg" />
-      </div>
+const Skeleton = () => (
+  <div className="bg-white animate-pulse" style={{ border: `1px solid ${C.border}`, borderRadius: "3px" }}>
+    <div className="px-6 py-4 flex gap-4" style={{ borderBottom: `1px solid ${C.border}`, background: C.paper }}>
+      {[120, 70, 90].map((w, i) => (
+        <div key={i} style={{ height: "11px", width: `${w}px`, background: "#E5E3DB", borderRadius: "2px" }} />
+      ))}
     </div>
+    {[1, 2, 3, 4].map((i) => (
+      <div key={i} className="flex items-center gap-3 px-6 py-3" style={{ borderBottom: `1px solid ${C.divider}` }}>
+        <div style={{ width: "20px", height: "10px", background: "#E5E3DB", borderRadius: "2px" }} />
+        <div style={{ flex: 1, height: "12px", background: "#E5E3DB", borderRadius: "2px" }} />
+        <div style={{ width: "60px", height: "12px", background: "#E5E3DB", borderRadius: "2px" }} />
+      </div>
+    ))}
   </div>
 );
 
@@ -68,7 +73,7 @@ const ManageReferrer = () => {
   const [popup, setPopup] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState(initialData);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -98,49 +103,33 @@ const ManageReferrer = () => {
     [referrers],
   );
 
-  const filteredReferrers = useMemo(() => {
-    return referrers.filter((r) => {
-      if (typeFilter !== "all" && r.type !== typeFilter) return false;
-      if (statusFilter === "active" && !r.isActive) return false;
-      if (statusFilter === "inactive" && r.isActive) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        return r.name.toLowerCase().includes(q) || r.contactNumber.includes(q) || r.degree?.toLowerCase().includes(q);
-      }
-      return true;
-    });
-  }, [referrers, typeFilter, statusFilter, searchQuery]);
+  const filteredReferrers = useMemo(
+    () =>
+      referrers.filter((r) => {
+        if (typeFilter !== "all" && r.type !== typeFilter) return false;
+        if (statusFilter === "active" && !r.isActive) return false;
+        if (statusFilter === "inactive" && r.isActive) return false;
+        if (search.trim()) {
+          const q = search.toLowerCase();
+          return r.name.toLowerCase().includes(q) || r.contactNumber.includes(q) || r.degree?.toLowerCase().includes(q);
+        }
+        return true;
+      }),
+    [referrers, typeFilter, statusFilter, search],
+  );
 
-  const handleFormChange = (field, value) => setFormData((prev) => ({ ...prev, [field]: value }));
+  const handleFormChange = (field, value) => setFormData((p) => ({ ...p, [field]: value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name?.trim()) {
-      setPopup({ type: "error", message: "Name is required" });
-      return;
-    }
-    if (!formData.contactNumber?.trim()) {
-      setPopup({ type: "error", message: "Contact number is required" });
-      return;
-    }
-    if (formData.commissionType === "percentage" && (formData.commissionValue < 0 || formData.commissionValue > 100)) {
-      setPopup({ type: "error", message: "Percentage must be between 0 and 100" });
-      return;
-    }
-    if (formData.commissionValue < 0) {
-      setPopup({ type: "error", message: "Commission value cannot be negative" });
-      return;
-    }
-
+    if (!formData.name?.trim()) return setPopup({ type: "error", message: "Name is required" });
+    if (!formData.contactNumber?.trim()) return setPopup({ type: "error", message: "Contact number is required" });
     try {
       setLoading(true);
-      if (formData.formType === "addReferrer") {
-        setLoadingMessage("Creating referrer");
-        await referrerService.addReferrer(formData);
-      } else {
-        setLoadingMessage("Updating referrer");
-        await referrerService.editReferrer(formData);
-      }
+      setLoadingMessage(formData.formType === "addReferrer" ? "Creating referrer" : "Updating referrer");
+      formData.formType === "addReferrer"
+        ? await referrerService.addReferrer(formData)
+        : await referrerService.editReferrer(formData);
       await loadReferrers();
       setPopup({
         type: "success",
@@ -149,22 +138,11 @@ const ManageReferrer = () => {
       setIsModalOpen(false);
       setFormData(initialData);
     } catch (e) {
-      console.error("Error:", e);
-      setPopup({
-        type: "error",
-        message:
-          e?.response?.data?.error ||
-          (formData.formType === "editReferrer" ? "Could not edit referrer" : "Could not add referrer"),
-      });
+      setPopup({ type: "error", message: e?.response?.data?.error || "Could not save referrer" });
     } finally {
       setLoading(false);
       setLoadingMessage("Processing request");
     }
-  };
-
-  const handleClose = () => {
-    setIsModalOpen(false);
-    setFormData(initialData);
   };
 
   const handleDelete = async () => {
@@ -178,7 +156,6 @@ const ManageReferrer = () => {
       setPopup({ type: "error", message: e?.response?.data?.error || "Could not delete referrer" });
     } finally {
       setLoading(false);
-      setLoadingMessage("Processing request");
     }
   };
 
@@ -192,271 +169,522 @@ const ManageReferrer = () => {
       setReferrers((prev) => prev.map((r) => (r._id === popup._id ? { ...r, isActive: isActivating } : r)));
       setPopup({ type: "success", message: `Referrer ${isActivating ? "activated" : "deactivated"} successfully` });
     } catch (e) {
-      setPopup({
-        type: "error",
-        message: e?.response?.data?.error || `Could not ${isActivating ? "activate" : "deactivate"} referrer`,
-      });
+      setPopup({ type: "error", message: e?.response?.data?.error || "Could not update status" });
     } finally {
       setLoading(false);
-      setLoadingMessage("Processing request");
     }
   };
 
   const hasFilters = typeFilter !== "all" || statusFilter !== "all";
 
-  return (
-    <section className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 px-4 py-6">
-      {loading && <LoadingScreen message={loadingMessage} />}
+  const inputStyle = {
+    border: `1px solid ${C.dashed}`,
+    borderRadius: "2px",
+    background: C.paper,
+    color: C.ink,
+    fontFamily: "'IBM Plex Mono', monospace",
+  };
 
+  const TYPE_FILTERS = [
+    { key: "all", label: "সব" },
+    { key: "doctor", label: "ডাক্তার" },
+    { key: "agent", label: "এজেন্ট" },
+    { key: "institute", label: "প্রতিষ্ঠান" },
+  ];
+
+  const STATUS_FILTERS = [
+    { key: "all", label: "সব" },
+    { key: "active", label: "সক্রিয়" },
+    { key: "inactive", label: "নিষ্ক্রিয়" },
+  ];
+
+  return (
+    <section
+      className="min-h-screen px-4 py-6"
+      style={{
+        backgroundColor: "#F5F4EF",
+        backgroundImage: "radial-gradient(circle, rgba(28,31,30,0.045) 1px, transparent 1px)",
+        backgroundSize: "18px 18px",
+        fontFamily: "'IBM Plex Sans', sans-serif",
+      }}
+    >
+      {loading && <LoadingScreen message={loadingMessage} />}
       {popup && (
         <Popup
           type={popup.type}
           message={popup.message}
           onClose={() => setPopup(null)}
           onConfirm={
-            popup.type === "warning" && popup.action === "delete"
+            popup.action === "delete"
               ? handleDelete
-              : popup.type === "warning" && popup.action === "deactivate"
+              : popup.action === "deactivate"
                 ? () => handleToggleStatus(false)
-                : popup.type === "warning" && popup.action === "activate"
+                : popup.action === "activate"
                   ? () => handleToggleStatus(true)
                   : null
           }
         />
       )}
 
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-2 sm:mb-4">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <Users className="w-7 h-7 sm:w-8 sm:h-8 text-blue-600" />
-              Referrer Management
-            </h1>
-            <p className="text-sm text-gray-600 mt-1 hidden sm:flex items-center gap-1.5">
-              <Activity className="w-4 h-4 text-blue-500" /> Manage referrers & commissions
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <p
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: "10px",
+                textTransform: "uppercase",
+                letterSpacing: ".1em",
+                color: C.teal,
+                marginBottom: "4px",
+              }}
+            >
+              ল্যাব অপারেশন
             </p>
+            <h1
+              style={{
+                fontFamily: "'IBM Plex Sans', sans-serif",
+                fontSize: "26px",
+                fontWeight: 600,
+                color: C.ink,
+                lineHeight: 1.2,
+                margin: 0,
+              }}
+            >
+              রেফারার ব্যবস্থাপনা
+            </h1>
+            <p style={{ fontSize: "14px", color: "#767D78", marginTop: "4px" }}>রেফারেল ও কমিশন পরিচালনা।</p>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 pt-1">
             <Link
               to="/lab-management"
-              className="px-2 md:px-4 py-2.5 rounded-xl border border-gray-200 bg-white/50 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow"
+              className="flex items-center gap-1.5 transition-colors"
+              style={{
+                padding: "7px 12px",
+                border: `1px solid ${C.ink}18`,
+                borderRadius: "2px",
+                color: C.sub,
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: "11px",
+                textTransform: "uppercase",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = C.ink;
+                e.currentTarget.style.color = "white";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "";
+                e.currentTarget.style.color = C.sub;
+              }}
             >
-              <ArrowLeft className="w-4 h-4" /> <span>Back</span>
+              <ArrowLeft style={{ width: "13px", height: "13px" }} /> ফিরে
             </Link>
             <button
               onClick={() => {
                 setFormData({ ...initialData, formType: "addReferrer" });
                 setIsModalOpen(true);
               }}
-              className="hidden sm:flex bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all items-center gap-2 text-sm"
+              className="flex items-center gap-1.5 transition-colors"
+              style={{
+                padding: "7px 14px",
+                border: `1px solid ${C.teal}`,
+                borderRadius: "2px",
+                color: C.teal,
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: "11px",
+                textTransform: "uppercase",
+                fontWeight: 600,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = C.teal;
+                e.currentTarget.style.color = "white";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "";
+                e.currentTarget.style.color = C.teal;
+              }}
             >
-              <Plus className="w-5 h-5" /> Add Referrer
+              <UserPlus style={{ width: "13px", height: "13px" }} /> নতুন
             </button>
           </div>
         </div>
 
-        {/* Mobile add button */}
-        <div className="flex flex-col gap-3 sm:hidden mb-6">
-          <p className="text-sm text-gray-600 flex items-center gap-1.5">
-            <Activity className="w-4 h-4 text-blue-500" /> Manage referrers & commissions
-          </p>
-          <button
-            onClick={() => {
-              setFormData({ ...initialData, formType: "addReferrer" });
-              setIsModalOpen(true);
-            }}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 text-sm"
-          >
-            <Plus className="w-5 h-5" /> Add Referrer
-          </button>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          {STATS_CONFIG.map(({ key, label, icon: Icon, color, textColor }) => (
-            <div
-              key={key}
-              className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center gap-2">
-                <div className={`p-2 bg-${color}-50 rounded-lg`}>
-                  <Icon className={`w-6 h-6 text-${color}-600`} />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600 font-medium">{label}</p>
-                  {initialLoading ? (
-                    <div className="h-8 w-12 bg-gray-200 rounded animate-pulse" />
-                  ) : (
-                    <p className={`text-2xl font-bold ${textColor}`}>{stats[key]}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-gray-500" />
-              <span className="text-sm font-semibold text-gray-700">Filters:</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-500">Type</span>
-              <div className="flex rounded-lg bg-gray-100 p-1">
-                {["all", "doctor", "agent", "institute"].map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setTypeFilter(t)}
-                    disabled={initialLoading}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${typeFilter === t ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"} disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-500">Status</span>
-              <div className="flex rounded-lg bg-gray-100 p-1">
-                {["all", "active", "inactive"].map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setStatusFilter(s)}
-                    disabled={initialLoading}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${statusFilter === s ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"} disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {hasFilters && (
-              <button
-                onClick={() => {
-                  setTypeFilter("all");
-                  setStatusFilter("all");
-                }}
-                disabled={initialLoading}
-                className="ml-auto text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1.5 font-medium px-3 py-1.5 hover:bg-blue-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        {/* Stats strip */}
+        {!initialLoading && (
+          <div className="grid grid-cols-5 gap-2 mb-4">
+            {[
+              { label: "মোট", value: stats.total, color: C.ink },
+              { label: "সক্রিয়", value: stats.active, color: C.teal },
+              { label: "ডাক্তার", value: stats.doctors, color: C.blue },
+              { label: "এজেন্ট", value: stats.agents, color: C.amber },
+              { label: "প্রতিষ্ঠান", value: stats.institutes, color: C.teal },
+            ].map(({ label, value, color }) => (
+              <div
+                key={label}
+                className="bg-white"
+                style={{ border: `1px solid ${C.border}`, borderRadius: "3px", padding: "10px 14px" }}
               >
-                <RotateCcw className="w-3.5 h-3.5" /> Reset Filters
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by name, contact, or degree..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              disabled={initialLoading}
-              className="w-full pl-11 pr-11 py-2.5 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                disabled={initialLoading}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors disabled:opacity-50"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        <Modal isOpen={isModalOpen} size="md" onClose={handleClose}>
-          <ReferrerForm formData={formData} onChange={handleFormChange} onSubmit={handleSubmit} onClose={handleClose} />
-        </Modal>
-
-        {/* List */}
-        {initialLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => (
-              <SkeletonReferrer key={i} />
-            ))}
-          </div>
-        ) : filteredReferrers.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users className="w-8 h-8 text-blue-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">
-              {hasFilters || searchQuery ? "No referrers found" : "No referrers yet"}
-            </h3>
-            <p className="text-gray-500 text-sm mb-4 max-w-md mx-auto">
-              {hasFilters || searchQuery
-                ? "Try adjusting your filters or search criteria"
-                : "Get started by adding your first referrer to begin tracking commissions"}
-            </p>
-            {!hasFilters && !searchQuery && (
-              <button
-                onClick={() => {
-                  setFormData({ ...initialData, formType: "addReferrer" });
-                  setIsModalOpen(true);
-                }}
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm hover:shadow transition-all"
-              >
-                <UserPlus className="w-4 h-4" /> Add Your First Referrer
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredReferrers.map((item) => (
-              <Referrer
-                key={item._id}
-                input={item}
-                onEdit={() => {
-                  setFormData({
-                    name: item.name || "",
-                    contactNumber: item.contactNumber || "",
-                    degree: item.degree || "",
-                    details: item.details || "",
-                    type: item.type || "doctor",
-                    commissionType: item.commissionType || "percentage",
-                    commissionValue: item.commissionValue || 0,
-                    isActive: item.isActive ?? true,
-                    formType: "editReferrer",
-                    _id: item._id,
-                  });
-                  setIsModalOpen(true);
-                }}
-                onDelete={() =>
-                  setPopup({
-                    type: "warning",
-                    message: `Are you sure you want to delete ${item.name}?`,
-                    action: "delete",
-                    _id: item._id,
-                  })
-                }
-                onDeactivate={() =>
-                  setPopup({
-                    type: "warning",
-                    message: `Are you sure you want to deactivate ${item.name}?`,
-                    action: "deactivate",
-                    _id: item._id,
-                  })
-                }
-                onActivate={() =>
-                  setPopup({
-                    type: "warning",
-                    message: `Are you sure you want to activate ${item.name}?`,
-                    action: "activate",
-                    _id: item._id,
-                  })
-                }
-              />
+                <p
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: "9px",
+                    textTransform: "uppercase",
+                    letterSpacing: ".06em",
+                    color: C.muted,
+                    marginBottom: "5px",
+                  }}
+                >
+                  {label}
+                </p>
+                <p
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: "22px",
+                    fontWeight: 700,
+                    color,
+                    lineHeight: 1,
+                    margin: 0,
+                  }}
+                >
+                  {value}
+                </p>
+              </div>
             ))}
           </div>
         )}
+
+        {/* Ledger card */}
+        {initialLoading ? (
+          <Skeleton />
+        ) : (
+          <div
+            className="bg-white"
+            style={{ border: `1px solid ${C.border}`, borderRadius: "3px", boxShadow: "0 1px 3px rgba(28,31,30,0.05)" }}
+          >
+            {/* Card head */}
+            <div
+              className="flex items-center justify-between px-6 py-4"
+              style={{ borderBottom: `1px solid ${C.border}`, background: C.paper }}
+            >
+              <div>
+                <p
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: "10px",
+                    textTransform: "uppercase",
+                    letterSpacing: ".1em",
+                    color: C.teal,
+                    marginBottom: "4px",
+                  }}
+                >
+                  রেফারার লেজার
+                </p>
+                <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "13px", color: C.sub }}>
+                  মোট {stats.total}জন · {stats.active}জন সক্রিয়
+                </p>
+              </div>
+            </div>
+
+            {/* Toolbar */}
+            <div
+              className="px-6 py-3 flex flex-wrap items-center gap-3"
+              style={{ borderBottom: `1px solid ${C.border}`, background: C.paper }}
+            >
+              <div className="relative" style={{ flex: "1 1 160px" }}>
+                <Search
+                  style={{
+                    width: "12px",
+                    height: "12px",
+                    color: C.muted,
+                    position: "absolute",
+                    left: "9px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    pointerEvents: "none",
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="নাম, নম্বর বা ডিগ্রি…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{
+                    ...inputStyle,
+                    width: "100%",
+                    padding: "7px 28px 7px 28px",
+                    fontSize: "11px",
+                    outline: "none",
+                  }}
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    style={{
+                      position: "absolute",
+                      right: "8px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      color: C.muted,
+                    }}
+                  >
+                    <X style={{ width: "12px", height: "12px" }} />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1">
+                <span
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: "9.5px",
+                    textTransform: "uppercase",
+                    letterSpacing: ".07em",
+                    color: C.muted,
+                    marginRight: "4px",
+                  }}
+                >
+                  ধরন
+                </span>
+                {TYPE_FILTERS.map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setTypeFilter(key)}
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: "10px",
+                      textTransform: "uppercase",
+                      letterSpacing: ".06em",
+                      border: `1px solid ${typeFilter === key ? `${C.ink}44` : "transparent"}`,
+                      borderRadius: "2px",
+                      padding: "4px 10px",
+                      cursor: "pointer",
+                      transition: "all .12s",
+                      background: typeFilter === key ? C.ink : "transparent",
+                      color: typeFilter === key ? "white" : C.sub,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (typeFilter !== key) {
+                        e.currentTarget.style.borderColor = C.dashed;
+                        e.currentTarget.style.background = C.divider;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (typeFilter !== key) {
+                        e.currentTarget.style.borderColor = "transparent";
+                        e.currentTarget.style.background = "transparent";
+                      }
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1">
+                <span
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: "9.5px",
+                    textTransform: "uppercase",
+                    letterSpacing: ".07em",
+                    color: C.muted,
+                    marginRight: "4px",
+                  }}
+                >
+                  স্ট্যাটাস
+                </span>
+                {STATUS_FILTERS.map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setStatusFilter(key)}
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: "10px",
+                      textTransform: "uppercase",
+                      letterSpacing: ".06em",
+                      border: `1px solid ${statusFilter === key ? `${C.ink}44` : "transparent"}`,
+                      borderRadius: "2px",
+                      padding: "4px 10px",
+                      cursor: "pointer",
+                      transition: "all .12s",
+                      background: statusFilter === key ? C.ink : "transparent",
+                      color: statusFilter === key ? "white" : C.sub,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (statusFilter !== key) {
+                        e.currentTarget.style.borderColor = C.dashed;
+                        e.currentTarget.style.background = C.divider;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (statusFilter !== key) {
+                        e.currentTarget.style.borderColor = "transparent";
+                        e.currentTarget.style.background = "transparent";
+                      }
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {hasFilters && (
+                <button
+                  onClick={() => {
+                    setTypeFilter("all");
+                    setStatusFilter("all");
+                  }}
+                  className="flex items-center gap-1 transition-colors"
+                  style={{
+                    marginLeft: "auto",
+                    padding: "5px 10px",
+                    border: `1px solid ${C.red}33`,
+                    borderRadius: "2px",
+                    color: C.red,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: "10px",
+                    textTransform: "uppercase",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = `${C.red}08`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "";
+                  }}
+                >
+                  <RotateCcw style={{ width: "11px", height: "11px" }} /> রিসেট
+                </button>
+              )}
+            </div>
+
+            {/* Column labels */}
+            <div className="flex items-center gap-3 px-6 pt-3 pb-1">
+              <span
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: "9px",
+                  textTransform: "uppercase",
+                  letterSpacing: ".08em",
+                  color: C.muted,
+                  width: "20px",
+                }}
+              >
+                #
+              </span>
+              <span
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: "9px",
+                  textTransform: "uppercase",
+                  letterSpacing: ".08em",
+                  color: C.muted,
+                  flex: 1,
+                }}
+              >
+                রেফারার
+              </span>
+              <span
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: "9px",
+                  textTransform: "uppercase",
+                  letterSpacing: ".08em",
+                  color: C.muted,
+                  flexShrink: 0,
+                }}
+              >
+                কমিশন
+              </span>
+            </div>
+
+            {/* Rows */}
+            <div className="px-6 pb-4">
+              {filteredReferrers.length === 0 ? (
+                <div className="flex items-center gap-2 py-8" style={{ color: C.muted }}>
+                  <AlertCircle style={{ width: "13px", height: "13px" }} />
+                  <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px" }}>
+                    {hasFilters || search ? "কোনো রেফারার পাওয়া যায়নি" : "এখনো কোনো রেফারার যোগ করা হয়নি"}
+                  </p>
+                </div>
+              ) : (
+                filteredReferrers.map((item, index) => (
+                  <Referrer
+                    key={item._id}
+                    input={item}
+                    index={index}
+                    onEdit={() => {
+                      setFormData({ ...item, formType: "editReferrer" });
+                      setIsModalOpen(true);
+                    }}
+                    onDelete={() =>
+                      setPopup({
+                        type: "warning",
+                        message: `${item.name} কে মুছে ফেলবেন?`,
+                        action: "delete",
+                        _id: item._id,
+                      })
+                    }
+                    onDeactivate={() =>
+                      setPopup({
+                        type: "warning",
+                        message: `${item.name} কে নিষ্ক্রিয় করবেন?`,
+                        action: "deactivate",
+                        _id: item._id,
+                      })
+                    }
+                    onActivate={() =>
+                      setPopup({
+                        type: "warning",
+                        message: `${item.name} কে সক্রিয় করবেন?`,
+                        action: "activate",
+                        _id: item._id,
+                      })
+                    }
+                  />
+                ))
+              )}
+            </div>
+
+            <div className="px-6 py-2.5" style={{ borderTop: `1px solid ${C.border}`, background: C.paper }}>
+              <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", color: C.muted }}>
+                * শুধুমাত্র সক্রিয় রেফারারের কমিশন প্রযোজ্য
+              </p>
+            </div>
+          </div>
+        )}
+
+        <Modal
+          isOpen={isModalOpen}
+          size="md"
+          onClose={() => {
+            setIsModalOpen(false);
+            setFormData(initialData);
+          }}
+        >
+          <ReferrerForm
+            formData={formData}
+            onChange={handleFormChange}
+            onSubmit={handleSubmit}
+            onClose={() => {
+              setIsModalOpen(false);
+              setFormData(initialData);
+            }}
+          />
+        </Modal>
+
+        <p
+          style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: "11px",
+            color: C.muted,
+            textAlign: "center",
+            marginTop: "16px",
+            paddingBottom: "24px",
+          }}
+        >
+          LabPilotPro · রেফারার ম্যানেজমেন্ট সিস্টেম
+        </p>
       </div>
     </section>
   );
