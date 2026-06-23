@@ -33,203 +33,6 @@ const buildLabel = (mode, a, b) => {
   }
 };
 
-// ─── inline styles ────────────────────────────────────────────────────────────
-const css = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
-
-  .tf-root {
-    font-family: 'DM Sans', sans-serif;
-    background: #fff;
-    border: 1.5px solid #e8e8f0;
-    border-radius: 16px;
-    padding: 14px 16px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 4px 12px rgba(80,60,180,.04);
-  }
-
-  .tf-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-
-  .tf-tab {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 13px;
-    border-radius: 10px;
-    border: 1.5px solid #ebebf5;
-    background: #fafafd;
-    color: #6b6b8a;
-    font-size: 12.5px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all .15s ease;
-    white-space: nowrap;
-    letter-spacing: -.01em;
-    outline: none;
-    position: relative;
-    overflow: hidden;
-  }
-  .tf-tab:hover {
-    border-color: #c8c4f0;
-    color: #4a3fbe;
-    background: #f4f2ff;
-  }
-  .tf-tab.active {
-    background: #4a3fbe;
-    border-color: #4a3fbe;
-    color: #fff;
-    box-shadow: 0 2px 8px rgba(74,63,190,.28);
-  }
-  .tf-tab.open {
-    background: #f0eeff;
-    border-color: #c4bcf8;
-    color: #4a3fbe;
-  }
-
-  .tf-badge {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 6px 12px 6px 10px;
-    border-radius: 10px;
-    background: #f6f5ff;
-    border: 1.5px solid #e0dcfc;
-    color: #4a3fbe;
-    font-size: 12px;
-    font-weight: 600;
-    font-family: 'DM Mono', monospace;
-    letter-spacing: -.02em;
-    white-space: nowrap;
-    max-width: 240px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .tf-badge-dot {
-    color: #7c6ff5;
-    flex-shrink: 0;
-    animation: tf-pulse 2s ease infinite;
-  }
-  @keyframes tf-pulse {
-    0%,100% { opacity: 1; }
-    50% { opacity: .4; }
-  }
-
-  /* picker panel */
-  .tf-picker {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1.5px dashed #ebebf5;
-    display: flex;
-    align-items: flex-end;
-    gap: 10px;
-    flex-wrap: wrap;
-    animation: tf-drop .15s ease;
-  }
-  @keyframes tf-drop {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .tf-field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
-    min-width: 140px;
-  }
-  .tf-label {
-    font-size: 10.5px;
-    font-weight: 600;
-    color: #9898b8;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-  }
-  .tf-input {
-    width: 100%;
-    padding: 8px 11px;
-    font-size: 12.5px;
-    font-family: 'DM Mono', monospace;
-    font-weight: 500;
-    border: 1.5px solid #e0ddf8;
-    border-radius: 9px;
-    background: #f8f7ff;
-    color: #2d2b55;
-    outline: none;
-    transition: all .15s;
-    box-sizing: border-box;
-  }
-  .tf-input:focus {
-    border-color: #7c6ff5;
-    background: #fff;
-    box-shadow: 0 0 0 3px rgba(124,111,245,.12);
-  }
-
-  .tf-actions {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    flex-shrink: 0;
-    padding-bottom: 1px;
-  }
-  .tf-cancel {
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
-    border: 1.5px solid #e8e8f0;
-    background: #fafafd;
-    color: #9898b8;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all .15s;
-    outline: none;
-  }
-  .tf-cancel:hover {
-    border-color: #f0a0a0;
-    color: #d05050;
-    background: #fff4f4;
-  }
-  .tf-apply {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    border-radius: 9px;
-    background: #4a3fbe;
-    border: none;
-    color: #fff;
-    font-size: 12.5px;
-    font-weight: 600;
-    font-family: 'DM Sans', sans-serif;
-    cursor: pointer;
-    transition: all .15s;
-    outline: none;
-    white-space: nowrap;
-  }
-  .tf-apply:hover:not(:disabled) {
-    background: #3b31a8;
-    box-shadow: 0 3px 10px rgba(74,63,190,.3);
-    transform: translateY(-1px);
-  }
-  .tf-apply:disabled {
-    opacity: .38;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  .tf-err {
-    width: 100%;
-    font-size: 11px;
-    color: #d05050;
-    margin-top: -4px;
-  }
-`;
-
 // ─── PickerPanel ──────────────────────────────────────────────────────────────
 const PickerPanel = ({ mode, onConfirm, onCancel }) => {
   const today = new Date().toISOString().split("T")[0];
@@ -244,56 +47,66 @@ const PickerPanel = ({ mode, onConfirm, onCancel }) => {
     if (valid) onConfirm(mode, a, mode === "dateRange" ? b : a);
   };
 
+  const inputClass =
+    "w-full py-2 px-[11px] text-[12.5px] font-['DM_Mono',_monospace] font-medium border-[1.5px] border-[#e0ddf8] rounded-[9px] bg-[#f8f7ff] text-[#2d2b55] outline-none transition-all duration-150 focus:border-[#7c6ff5] focus:bg-white focus:shadow-[0_0_0_3px_rgba(124,111,245,0.12)] box-border";
+
   return (
-    <div className="tf-picker">
+    <div className="mt-3 pt-3 border-t-[1.5px] border-dashed border-[#ebebf5] flex items-end gap-2.5 flex-wrap animate-[tf-drop_0.15s_ease]">
       {mode === "date" && (
-        <div className="tf-field">
-          <span className="tf-label">Date</span>
-          <input type="date" value={a} max={today} onChange={(e) => setA(e.target.value)} className="tf-input" />
+        <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
+          <span className="text-[10.5px] font-semibold text-[#9898b8] uppercase tracking-[0.06em]">Date</span>
+          <input type="date" value={a} max={today} onChange={(e) => setA(e.target.value)} className={inputClass} />
         </div>
       )}
       {mode === "month" && (
-        <div className="tf-field">
-          <span className="tf-label">Month</span>
+        <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
+          <span className="text-[10.5px] font-semibold text-[#9898b8] uppercase tracking-[0.06em]">Month</span>
           <input
             type="month"
             value={a.slice(0, 7)}
             max={thisMonth}
             onChange={(e) => setA(e.target.value + "-01")}
-            className="tf-input"
+            className={inputClass}
           />
         </div>
       )}
       {mode === "dateRange" && (
         <>
-          <div className="tf-field">
-            <span className="tf-label">From</span>
-            <input type="date" value={a} max={today} onChange={(e) => setA(e.target.value)} className="tf-input" />
+          <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
+            <span className="text-[10.5px] font-semibold text-[#9898b8] uppercase tracking-[0.06em]">From</span>
+            <input type="date" value={a} max={today} onChange={(e) => setA(e.target.value)} className={inputClass} />
           </div>
-          <div className="tf-field">
-            <span className="tf-label">To</span>
+          <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
+            <span className="text-[10.5px] font-semibold text-[#9898b8] uppercase tracking-[0.06em]">To</span>
             <input
               type="date"
               value={b}
               min={a}
               max={today}
               onChange={(e) => setB(e.target.value)}
-              className="tf-input"
+              className={inputClass}
             />
           </div>
         </>
       )}
 
-      <div className="tf-actions">
-        <button className="tf-cancel" onClick={onCancel}>
+      <div className="flex gap-1.5 items-center shrink-0 pb-[1px]">
+        <button
+          className="w-[34px] h-[34px] rounded-[9px] border-[1.5px] border-[#e8e8f0] bg-[#fafafd] text-[#9898b8] flex items-center justify-center cursor-pointer transition-all duration-150 outline-none hover:border-[#f0a0a0] hover:text-[#d05050] hover:bg-[#fff4f4]"
+          onClick={onCancel}
+        >
           <X size={13} strokeWidth={2.5} />
         </button>
-        <button className="tf-apply" onClick={apply} disabled={!valid}>
+        <button
+          className="inline-flex items-center gap-1.5 py-2 px-4 rounded-[9px] bg-[#4a3fbe] border-none text-white text-[12.5px] font-semibold font-['DM_Sans',_sans-serif] cursor-pointer transition-all duration-150 outline-none whitespace-nowrap enabled:hover:bg-[#3b31a8] enabled:hover:shadow-[0_3px_10px_rgba(74,63,190,0.3)] enabled:hover:-translate-y-[1px] disabled:opacity-[0.38] disabled:cursor-not-allowed disabled:transform-none"
+          onClick={apply}
+          disabled={!valid}
+        >
           <ArrowRight size={12} strokeWidth={2.5} /> Apply
         </button>
       </div>
 
-      {rangeErr && <p className="tf-err">End date must be after start date.</p>}
+      {rangeErr && <p className="w-full text-[11px] text-[#d05050] mt-[-4px]">End date must be after start date.</p>}
     </div>
   );
 };
@@ -338,22 +151,41 @@ const TimeFrame = ({ onFetchData }) => {
 
   return (
     <>
-      <style>{css}</style>
-      <div className="tf-root">
-        <div className="tf-row">
-          {FILTERS.map(({ key, label, icon: TabIcon }) => (
-            <button
-              key={key}
-              onClick={() => handleTab(key)}
-              className={`tf-tab${activeMode === key ? " active" : pickerMode === key ? " open" : ""}`}
-            >
-              <TabIcon size={14} strokeWidth={2.2} />
-              {label}
-            </button>
-          ))}
+      {/* Retaining the entry keyframe definition locally to preserve dropdown behavior seamlessly */}
+      <style>{`
+        @keyframes tf-drop {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
 
-          <div className="tf-badge">
-            <span className="tf-badge-dot">
+      <div className="font-['DM_Sans',_sans-serif] bg-white border-[1.5px] border-[#e8e8f0] rounded-[16px] pt-[14px] pb-[14px] px-4 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_4px_12px_rgba(80,60,180,0.04)]">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {FILTERS.map(({ key, label, icon: TabIcon }) => {
+            const isActive = activeMode === key;
+            const isOpen = pickerMode === key;
+
+            return (
+              <button
+                key={key}
+                onClick={() => handleTab(key)}
+                className={`inline-flex items-center gap-1.5 py-[7px] px-[13px] rounded-[10px] border-[1.5px] text-[12.5px] font-medium cursor-pointer transition-all duration-150 whitespace-nowrap tracking-[-0.01em] outline-none relative overflow-hidden
+                  ${
+                    isActive
+                      ? "bg-[#4a3fbe] border-[#4a3fbe] text-white shadow-[0_2px_8px_rgba(74,63,190,0.28)]"
+                      : isOpen
+                        ? "bg-[#f0eeff] border-[#c4bcf8] text-[#4a3fbe]"
+                        : "border-[#ebebf5] bg-[#fafafd] text-[#6b6b8a] hover:border-[#c8c4f0] hover:text-[#4a3fbe] hover:bg-[#f4f2ff]"
+                  }`}
+              >
+                <TabIcon size={14} strokeWidth={2.2} />
+                {label}
+              </button>
+            );
+          })}
+
+          <div className="ml-auto inline-flex items-center gap-[7px] pt-1.5 pb-1.5 pr-3 pl-2.5 rounded-[10px] bg-[#f6f5ff] border-[1.5px] border-[#e0dcfc] text-[#4a3fbe] text-xs font-semibold font-['DM_Mono',_monospace] tracking-[-0.02em] whitespace-nowrap max-w-[240px] truncate">
+            <span className="text-[#7c6ff5] shrink-0 animate-pulse">
               <Circle size={6} fill="currentColor" strokeWidth={0} />
             </span>
             {activeLabel}

@@ -6,163 +6,19 @@ import ReportViewer from "./ReportViewer";
 import reportService from "../../api/report";
 import { useAuthStore } from "../../store/authStore";
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-
-  #ur-portal-root {
-    position: fixed;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    z-index: 99999 !important;
-    overflow: hidden;
-    height: 100dvh !important;
-  }
-
-  .ur-drawer {
-    position: absolute;
-    inset: 0;
-    background: #f7f8fa;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    animation: ur-slide-in 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
-  }
-  @keyframes ur-slide-in  { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-  .ur-drawer.closing      { animation: ur-slide-out 0.25s cubic-bezier(0.32, 0, 0.67, 0) forwards; }
-  @keyframes ur-slide-out { from { transform: translateX(0); } to { transform: translateX(-100%); } }
-
-  .ur-drawer-header {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    min-height: 56px;
-    padding-top: max(12px, env(safe-area-inset-top, 12px));
-    padding-bottom: 12px;
-    padding-left: 12px;
-    padding-right: 12px;
-    background: #0d1117;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    flex-shrink: 0;
-    overflow: visible;
-  }
-
-  .ur-drawer-icon {
-    width: 32px; height: 32px; min-width: 32px;
-    border-radius: 9px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .ur-drawer-icon.view { background: rgba(5, 150, 105, 0.25); }
-
-  .ur-drawer-title {
-    flex: 1 1 0%;
-    min-width: 0;
-    overflow: hidden;
-  }
-  .ur-drawer-title h2 {
-    font-family: 'Outfit', sans-serif;
-    font-size: 13px; font-weight: 700; color: #f1f5f9;
-    letter-spacing: -0.01em; margin: 0; line-height: 1.25;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .ur-drawer-title p {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 9px; color: rgba(255,255,255,0.3);
-    margin: 3px 0 0; text-transform: uppercase; letter-spacing: 0.07em;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-
-  .ur-print-badge {
-    display: flex; align-items: center; gap: 5px;
-    padding: 3px 8px;
-    border-radius: 20px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 9px; font-weight: 500;
-    letter-spacing: 0.06em; text-transform: uppercase;
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-  @media (max-width: 400px) { .ur-print-badge { display: none !important; } }
-  .ur-print-badge.pad   { background: rgba(124,58,237,0.18); border: 1px solid rgba(124,58,237,0.35); color: #c4b5fd; }
-  .ur-print-badge.plain { background: rgba(37,99,235,0.18);  border: 1px solid rgba(37,99,235,0.35);  color: #93c5fd; }
-
-  .ur-close-btn {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 40px !important;
-    height: 40px !important;
-    min-width: 40px !important;
-    min-height: 40px !important;
-    flex-shrink: 0 !important;
-    flex-grow: 0 !important;
-    border-radius: 10px;
-    background: rgba(255,255,255,0.10);
-    border: 1.5px solid rgba(255,255,255,0.18);
-    cursor: pointer;
-    color: #ffffff;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
-    padding: 0;
-    box-sizing: border-box;
-  }
-  .ur-close-btn:hover,
-  .ur-close-btn:active {
-    background: rgba(220,38,38,0.30) !important;
-    border-color: rgba(220,38,38,0.50) !important;
-    color: #fca5a5 !important;
-  }
-
-  .ur-drawer-body {
-    flex: 1 1 0%;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-    background: #f7f8fa;
-  }
-  .ur-drawer-body::-webkit-scrollbar { width: 4px; }
-  .ur-drawer-body::-webkit-scrollbar-track { background: transparent; }
-  .ur-drawer-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-
-  .ur-loading {
-    display: flex; align-items: center; justify-content: center;
-    padding: 80px 24px; flex-direction: column; gap: 12px;
-  }
-  .ur-spinner {
-    width: 28px; height: 28px; border-radius: 50%;
-    border: 2.5px solid rgba(0,0,0,0.08);
-    border-top-color: #60a5fa;
-    animation: ur-spin 0.7s linear infinite;
-  }
-  @keyframes ur-spin { to { transform: rotate(360deg); } }
-`;
-
 // ─── Portal hook ──────────────────────────────────────────────────────────────
 function useBodyPortal() {
   const [el, setEl] = useState(null);
 
   useEffect(() => {
-    const styleId = "ur-styles-v4";
-    if (!document.getElementById(styleId)) {
-      const style = document.createElement("style");
-      style.id = styleId;
-      style.textContent = STYLES;
-      document.head.appendChild(style);
-    }
-    ["ur-styles-v2", "ur-styles-v3"].forEach((id) => {
+    // Clean up any old injected styles if they exist from previous versions
+    ["ur-styles-v2", "ur-styles-v3", "ur-styles-v4"].forEach((id) => {
       document.getElementById(id)?.remove();
     });
 
     const div = document.createElement("div");
-    div.id = "ur-portal-root";
+    // Tailwind classes applied directly to the portal root
+    div.className = "fixed inset-0 w-full h-full z-[99999] overflow-hidden h-[100dvh]";
     document.body.appendChild(div);
     setEl(div);
 
@@ -200,66 +56,18 @@ function buildLabInfo(storeLab) {
 // ─── Error state ──────────────────────────────────────────────────────────────
 function ErrorState({ message, onClose }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "60px 24px",
-        fontFamily: "'Outfit', sans-serif",
-      }}
-    >
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #e4e7ed",
-          borderRadius: 16,
-          padding: "36px 32px",
-          maxWidth: 360,
-          width: "100%",
-          textAlign: "center",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
-        }}
-      >
-        <div
-          style={{
-            width: 48,
-            height: 48,
-            background: "#fef2f2",
-            border: "1.5px solid rgba(220,38,38,0.2)",
-            borderRadius: 12,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            margin: "0 auto 16px",
-          }}
-        >
-          <Eye style={{ width: 20, height: 20, color: "#dc2626" }} />
+    <div className="flex items-center justify-center py-[60px] px-6 font-['Outfit',_sans-serif]">
+      <div className="bg-white border border-[#e4e7ed] rounded-[16px] py-9 px-8 max-w-[360px] w-full text-center shadow-[0_4px_16px_rgba(0,0,0,0.06)]">
+        <div className="w-12 h-12 bg-[#fef2f2] border-[1.5px] border-[#dc2626]/20 rounded-[12px] flex items-center justify-center mx-auto mb-4">
+          <Eye className="w-5 h-5 text-[#dc2626]" />
         </div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#0d1117", marginBottom: 8 }}>
-          {message || "Failed to load report"}
-        </div>
-        <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.6, marginBottom: 20 }}>
-          Please go back and try again.
-        </div>
+        <div className="text-base font-bold text-[#0d1117] mb-2">{message || "Failed to load report"}</div>
+        <div className="text-[13px] text-[#6b7280] leading-[1.6] mb-5">Please go back and try again.</div>
         <button
           onClick={onClose}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 7,
-            padding: "10px 20px",
-            background: "#0d1117",
-            color: "#fff",
-            border: "none",
-            borderRadius: 9,
-            fontFamily: "'Outfit', sans-serif",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
+          className="inline-flex items-center gap-[7px] py-2.5 px-5 bg-[#0d1117] text-white border-none rounded-[9px] font-['Outfit',_sans-serif] text-[13px] font-semibold cursor-pointer"
         >
-          <ArrowLeft style={{ width: 13, height: 13 }} /> Go Back
+          <ArrowLeft className="w-[13px] h-[13px]" /> Go Back
         </button>
       </div>
     </div>
@@ -343,67 +151,82 @@ export default function ReportDownload() {
   if (!portalEl) return null;
 
   return createPortal(
-    <div className={`ur-drawer${closing ? " closing" : ""}`}>
-      {/* ── Header ── */}
-      <div className="ur-drawer-header">
-        <div className="ur-drawer-icon view">
-          <Eye style={{ width: 15, height: 15, color: "#6ee7b7" }} />
-        </div>
+    <>
+      <style>{`
+        @keyframes ur-slide-in  { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+        @keyframes ur-slide-out { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+        @keyframes ur-spin { to { transform: rotate(360deg); } }
 
-        <div className="ur-drawer-title">
-          <h2>View — {testName}</h2>
-          <p>
-            {displayId
-              ? `${isIndoor ? "Admission" : "Invoice"} #${displayId}`
-              : isIndoor
-                ? "Indoor Patient"
-                : "Report Details"}
-          </p>
-        </div>
+        .ur-drawer-body-scroll::-webkit-scrollbar { width: 4px; }
+        .ur-drawer-body-scroll::-webkit-scrollbar-track { background: transparent; }
+        .ur-drawer-body-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+      `}</style>
 
-        <div className={`ur-print-badge ${isPad ? "pad" : "plain"}`}>
-          <Printer style={{ width: 10, height: 10 }} />
-          {isPad ? "Pad" : "Plain A4"}
-        </div>
-
-        <button className="ur-close-btn" onClick={handleClose} title="Close (Esc)" aria-label="Close report">
-          <X style={{ width: 18, height: 18, display: "block" }} />
-        </button>
-      </div>
-
-      {/* ── Body ── */}
-      <div className="ur-drawer-body">
-        {loading && (
-          <div className="ur-loading">
-            <div className="ur-spinner" />
-            <span
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 11,
-                color: "#64748b",
-                textTransform: "uppercase",
-                letterSpacing: "0.07em",
-              }}
-            >
-              Loading report…
-            </span>
+      <div
+        className={`absolute inset-0 bg-[#f7f8fa] flex flex-col overflow-hidden ${closing ? "animate-[ur-slide-out_0.25s_cubic-bezier(0.32,0,0.67,0)_forwards]" : "animate-[ur-slide-in_0.3s_cubic-bezier(0.32,0.72,0,1)_forwards]"}`}
+      >
+        {/* ── Header ── */}
+        <div className="flex flex-row items-center gap-2 min-h-[56px] pt-[max(12px,env(safe-area-inset-top,12px))] pb-3 px-3 bg-[#0d1117] border-b border-white/5 shrink-0 overflow-visible">
+          <div className="w-8 h-8 min-w-[32px] rounded-[9px] bg-[#059669]/25 flex items-center justify-center shrink-0">
+            <Eye className="w-[15px] h-[15px] text-[#6ee7b7]" />
           </div>
-        )}
-        {!loading && error && <ErrorState message={error} onClose={handleClose} />}
-        {!loading && !error && report && (
-          <div style={{ padding: "20px 16px" }}>
-            <ReportViewer
-              report={report}
-              patient={patient}
-              printType={printType}
-              invoiceId={displayId}
-              isIndoor={isIndoor}
-              {...(labInfo && { labInfo })}
-            />
+
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <h2 className="font-['Outfit',_sans-serif] text-[13px] font-bold text-[#f1f5f9] tracking-[-0.01em] m-0 leading-[1.25] whitespace-nowrap overflow-hidden text-ellipsis">
+              View — {testName}
+            </h2>
+            <p className="font-['JetBrains_Mono',_monospace] text-[9px] text-white/30 mt-[3px] uppercase tracking-[0.07em] whitespace-nowrap overflow-hidden text-ellipsis">
+              {displayId
+                ? `${isIndoor ? "Admission" : "Invoice"} #${displayId}`
+                : isIndoor
+                  ? "Indoor Patient"
+                  : "Report Details"}
+            </p>
           </div>
-        )}
+
+          <div
+            className={`hidden min-[400px]:flex items-center gap-[5px] px-2 py-[3px] rounded-[20px] font-['JetBrains_Mono',_monospace] text-[9px] font-medium tracking-[0.06em] uppercase shrink-0 whitespace-nowrap ${isPad ? "bg-[#7c3aed]/20 border border-[#7c3aed]/35 text-[#c4b5fd]" : "bg-[#2563eb]/20 border border-[#2563eb]/35 text-[#93c5fd]"}`}
+          >
+            <Printer className="w-[10px] h-[10px]" />
+            {isPad ? "Pad" : "Plain A4"}
+          </div>
+
+          <button
+            className="flex items-center justify-center w-10 h-10 min-w-[40px] min-h-[40px] shrink-0 grow-0 rounded-[10px] bg-white/10 border-[1.5px] border-white/20 cursor-pointer text-white touch-manipulation transition-colors duration-150 p-0 box-border hover:bg-[#dc2626]/30 hover:border-[#dc2626]/50 hover:text-[#fca5a5] active:bg-[#dc2626]/30 active:border-[#dc2626]/50 active:text-[#fca5a5]"
+            onClick={handleClose}
+            title="Close (Esc)"
+            aria-label="Close report"
+          >
+            <X className="w-[18px] h-[18px] block" />
+          </button>
+        </div>
+
+        {/* ── Body ── */}
+        <div className="ur-drawer-body-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain bg-[#f7f8fa]">
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-[80px] px-6 gap-3">
+              <div className="w-7 h-7 rounded-full border-[2.5px] border-black/10 border-t-[#60a5fa] animate-[ur-spin_0.7s_linear_infinite]" />
+              <span className="font-['JetBrains_Mono',_monospace] text-[11px] text-[#64748b] uppercase tracking-[0.07em]">
+                Loading report…
+              </span>
+            </div>
+          )}
+          {!loading && error && <ErrorState message={error} onClose={handleClose} />}
+          {!loading && !error && report && (
+            <div className="py-5 px-4">
+              <ReportViewer
+                report={report}
+                patient={patient}
+                printType={printType}
+                invoiceId={displayId}
+                isIndoor={isIndoor}
+                {...(labInfo && { labInfo })}
+              />
+            </div>
+          )}
+        </div>
       </div>
-    </div>,
+    </>,
     portalEl,
   );
 }
