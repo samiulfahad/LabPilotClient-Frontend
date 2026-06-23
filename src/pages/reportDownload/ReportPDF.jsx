@@ -248,7 +248,7 @@ function PDFSection({ sectionName, sectionData, showHeader }) {
   );
 }
 
-export function ReportPDFDocument({ report, reportName, shortId, patient, labInfo }) {
+export function ReportPDFDocument({ report, reportName, shortId, patient, labInfo, isIndoor = false }) {
   const sections = Object.entries(report).filter(
     ([key, val]) =>
       key !== "_id" && key !== "name" && val !== null && typeof val === "object" && !Array.isArray(val) && !val.$oid,
@@ -297,7 +297,11 @@ export function ReportPDFDocument({ report, reportName, shortId, patient, labInf
         {/* Title bar */}
         <View style={s.titleBar}>
           <Text style={s.titleText}>{reportName}</Text>
-          {shortId ? <Text style={s.invoiceText}>Invoice: {shortId}</Text> : null}
+          {shortId ? (
+            <Text style={s.invoiceText}>
+              {isIndoor ? "Admission" : "Invoice"}: {shortId}
+            </Text>
+          ) : null}
         </View>
 
         {/* Patient grid */}

@@ -303,8 +303,8 @@ function PatientGrid({ patient }) {
   );
 }
 
-// ── Print HTML builder — flat, no gradients, no rounded corners ──────────────
-function buildPrintHTML({ reportName, shortId, patient, labInfo, sections, printType }) {
+// ── Print HTML builder ────────────────────────────────────────────────────────
+function buildPrintHTML({ reportName, shortId, patient, labInfo, sections, printType, isIndoor = false }) {
   const isPad = printType === "PAD";
 
   const statusInfo = (value, ref) => {
@@ -476,7 +476,7 @@ function buildPrintHTML({ reportName, shortId, patient, labInfo, sections, print
   ${topBlock}
   <div style="background:#f8fafc;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;border-top:1px solid #e2e8f0;margin-bottom:0;">
     <div style="font-size:13px;font-weight:700;color:#0f172a;">${reportName}</div>
-    ${shortId ? `<div style="font-size:8.5px;color:#64748b;font-family:monospace;font-weight:600;">Invoice: ${shortId}</div>` : ""}
+    ${shortId ? `<div style="font-size:8.5px;color:#64748b;font-family:monospace;font-weight:600;">${isIndoor ? "Admission" : "Invoice"}: ${shortId}</div>` : ""}
   </div>
   <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-top:none;">
     <tr style="border-bottom:1px solid #e2e8f0;">${mainCells}</tr>
@@ -510,6 +510,7 @@ function ReportViewer({
   labInfo = LAB_INFO,
   printType = "PLAIN",
   invoiceId = null,
+  isIndoor = false,
 }) {
   const [dlStatus, setDlStatus] = useState("idle");
   const [shareStatus, setShareStatus] = useState("idle");
@@ -533,6 +534,7 @@ function ReportViewer({
         shortId={shortId}
         patient={resolvedPatient}
         labInfo={labInfo}
+        isIndoor={isIndoor}
       />,
     ).toBlob();
 
@@ -544,6 +546,7 @@ function ReportViewer({
       labInfo,
       sections,
       printType,
+      isIndoor,
     });
     const existing = document.getElementById("ur-print-frame");
     if (existing) existing.remove();
@@ -667,7 +670,7 @@ function ReportViewer({
 
       {/* Report card */}
       <div className="bg-white border border-slate-200 overflow-hidden">
-        {/* Lab header — flat, no gradient */}
+        {/* Lab header */}
         {!isPad && (
           <div className="px-5 py-4 flex items-start justify-between gap-4 border-b-2 border-slate-800 bg-white">
             <div className="flex items-start gap-3">
@@ -707,7 +710,11 @@ function ReportViewer({
             <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
             <h2 className="text-sm font-bold text-slate-800">{resolvedReportName}</h2>
           </div>
-          {shortId && <p className="text-[10px] text-slate-400 font-mono font-semibold">Invoice: {shortId}</p>}
+          {shortId && (
+            <p className="text-[10px] text-slate-400 font-mono font-semibold">
+              {isIndoor ? "Admission" : "Invoice"}: {shortId}
+            </p>
+          )}
         </div>
 
         <PatientGrid patient={resolvedPatient} />

@@ -185,7 +185,6 @@ const formatDate = (val) => {
   return isNaN(d) ? "" : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
 
-// Map the store's lab shape → ReportViewer's labInfo shape
 function buildLabInfo(storeLab) {
   if (!storeLab) return null;
   return {
@@ -272,11 +271,15 @@ export default function ReportDownload() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // ── Pull lab from Zustand auth store ────────────────────────────────────────
   const storeLab = useAuthStore((s) => s.lab);
   const labInfo = buildLabInfo(storeLab);
 
+  // ── Params — indoor uses patientId + type=indoor, outdoor uses invoiceId ────
+  const type = searchParams.get("type") ?? "outdoor";
+  const isIndoor = type === "indoor";
+
   const invoiceId = searchParams.get("invoiceId");
+  const patientId = searchParams.get("patientId");
   const testId = searchParams.get("testId");
   const testName = searchParams.get("testName") ?? "Report";
   const printType = searchParams.get("printType") ?? "PLAIN";
@@ -284,6 +287,7 @@ export default function ReportDownload() {
 
   const [report, setReport] = useState(null);
   const [patient, setPatient] = useState(null);
+  const [displayId, setDisplayId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [closing, setClosing] = useState(false);
@@ -291,14 +295,20 @@ export default function ReportDownload() {
   const portalEl = useBodyPortal();
 
   useEffect(() => {
-    if (!invoiceId || !testId) {
-      setError("Missing invoice or test information.");
+    const hasIds = isIndoor ? patientId && testId : invoiceId && testId;
+    if (!hasIds) {
+      setError("Missing patient or test information.");
       setLoading(false);
       return;
     }
-    reportService
-      .getReport(invoiceId, testId)
+
+    const fetch = isIndoor
+      ? reportService.getIndoorReport(patientId, testId)
+      : reportService.getReport(invoiceId, testId);
+
+    fetch
       .then(({ data }) => {
+        setDisplayId(isIndoor ? data.admissionId : data.invoiceId);
         setReport(data.report);
         setPatient({
           name: data.patient?.name ?? "",
@@ -312,7 +322,7 @@ export default function ReportDownload() {
       })
       .catch(() => setError("Failed to load report."))
       .finally(() => setLoading(false));
-  }, [invoiceId, testId]);
+  }, []);
 
   const handleClose = () => {
     setClosing(true);
@@ -342,7 +352,13 @@ export default function ReportDownload() {
 
         <div className="ur-drawer-title">
           <h2>View — {testName}</h2>
-          <p>{invoiceId ? `Invoice #${invoiceId}` : "Report Details"}</p>
+          <p>
+            {displayId
+              ? `${isIndoor ? "Admission" : "Invoice"} #${displayId}`
+              : isIndoor
+                ? "Indoor Patient"
+                : "Report Details"}
+          </p>
         </div>
 
         <div className={`ur-print-badge ${isPad ? "pad" : "plain"}`}>
@@ -380,9 +396,8 @@ export default function ReportDownload() {
               report={report}
               patient={patient}
               printType={printType}
-              invoiceId={invoiceId}
-              //  Pass dynamic lab info; ReportViewer falls back to its own
-              //     LAB_INFO constant if labInfo is null (e.g. store cleared)
+              invoiceId={displayId}
+              isIndoor={isIndoor}
               {...(labInfo && { labInfo })}
             />
           </div>
