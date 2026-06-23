@@ -1,18 +1,17 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
-  Plus,
+  Users,
+  ArrowLeft,
   Search,
   X,
-  Users,
-  Filter,
   RotateCcw,
   UserPlus,
   Activity,
   Shield,
   ShieldCheck,
   ShieldOff,
-  ArrowLeft,
+  AlertCircle,
 } from "lucide-react";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
@@ -37,47 +36,51 @@ const initialData = {
 };
 
 const STATS_CONFIG = [
-  { key: "total", label: "Total Staff", icon: Users, color: "indigo", textColor: "text-gray-900" },
-  { key: "active", label: "Active", icon: ShieldCheck, color: "green", textColor: "text-green-600" },
-  { key: "inactive", label: "Inactive", icon: ShieldOff, color: "red", textColor: "text-red-600" },
-  { key: "withFullAccess", label: "Full Access", icon: Shield, color: "purple", textColor: "text-purple-600" },
+  { key: "total", label: "মোট", icon: Users, color: "text-indigo-600", bg: "bg-indigo-50" },
+  { key: "active", label: "সক্রিয়", icon: ShieldCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
+  { key: "inactive", label: "নিষ্ক্রিয়", icon: ShieldOff, color: "text-rose-600", bg: "bg-rose-50" },
+  { key: "withFullAccess", label: "সম্পূর্ণ অ্যাক্সেস", icon: Shield, color: "text-purple-600", bg: "bg-purple-50" },
 ];
 
 const PERMISSION_FILTERS = [
-  { value: "all", label: "All" },
-  { value: "createInvoice", label: "Create" },
-  { value: "editInvoice", label: "Edit" },
-  { value: "deleteInvoice", label: "Delete" },
-  { value: "cashmemo", label: "Cashmemo" },
-  { value: "uploadReport", label: "Upload" },
-  { value: "downloadReport", label: "Download" },
+  { value: "all", label: "সব অনুমতি" },
+  { value: "createInvoice", label: "ইনভয়েস তৈরি" },
+  { value: "editInvoice", label: "ইনভয়েস সম্পাদনা" },
+  { value: "deleteInvoice", label: "ইনভয়েস মুছুন" },
+  { value: "cashmemo", label: "ক্যাশমেমু" },
+  { value: "uploadReport", label: "রিপোর্ট আপলোড" },
+  { value: "downloadReport", label: "রিপোর্ট ডাউনলোড" },
+];
+
+const STATUS_FILTERS = [
+  { value: "all", label: "সব স্ট্যাটাস" },
+  { value: "active", label: "সক্রিয়" },
+  { value: "inactive", label: "নিষ্ক্রিয়" },
 ];
 
 const SkeletonStaff = () => (
-  <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 animate-pulse">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4 flex-1">
-        <div className="w-12 h-12 rounded-full bg-gray-200" />
-        <div className="flex-1">
-          <div className="h-5 bg-gray-200 rounded w-1/3 mb-2" />
-          <div className="h-4 bg-gray-100 rounded w-1/4" />
-        </div>
+  <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden animate-pulse">
+    <div className="px-4 py-3 flex items-center gap-3">
+      <div className="w-10 h-10 rounded-full bg-slate-200" />
+      <div className="flex-1">
+        <div className="h-4 bg-slate-200 rounded w-1/3 mb-1.5" />
+        <div className="h-3 bg-slate-100 rounded w-1/4" />
       </div>
-      <div className="flex gap-2">
-        <div className="h-9 w-20 bg-gray-200 rounded-lg" />
-        <div className="h-9 w-20 bg-gray-200 rounded-lg" />
+      <div className="flex gap-1.5">
+        <div className="h-7 w-16 bg-slate-200 rounded-lg" />
+        <div className="h-7 w-16 bg-slate-200 rounded-lg" />
       </div>
     </div>
   </div>
 );
 
-const SectionHeader = ({ title, count, colorClass }) => (
+const SectionHeader = ({ title, count }) => (
   <div className="flex items-center gap-3 mb-3">
-    <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{title}</h2>
-    <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${colorClass}`}>
-      {count} {count === 1 ? title.slice(0, -1).toLowerCase() : title.toLowerCase()}
+    <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">{title}</h2>
+    <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200">
+      {count}
     </span>
-    <div className="flex-1 h-px bg-gray-200" />
+    <div className="flex-1 h-px bg-slate-200/60" />
   </div>
 );
 
@@ -85,7 +88,7 @@ const ManageStaff = () => {
   const [staff, setStaff] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState("Processing request");
+  const [loadingMessage, setLoadingMessage] = useState("প্রক্রিয়াকরণ");
   const [popup, setPopup] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState(initialData);
@@ -98,7 +101,7 @@ const ManageStaff = () => {
       const response = await staffService.getStaffs();
       setStaff(response.data);
     } catch {
-      setPopup({ type: "error", message: "Could not load staff" });
+      setPopup({ type: "error", message: "কর্মী লোড করতে ব্যর্থ" });
     } finally {
       setInitialLoading(false);
     }
@@ -136,127 +139,87 @@ const ManageStaff = () => {
 
   const admins = useMemo(() => filteredStaff.filter((s) => s.role === "admin"), [filteredStaff]);
   const staffMembers = useMemo(() => filteredStaff.filter((s) => s.role === "staff"), [filteredStaff]);
+  const others = useMemo(
+    () => filteredStaff.filter((s) => s.role !== "admin" && s.role !== "staff"),
+    [filteredStaff],
+  );
 
   const handleFormChange = (field, value) => setFormData((prev) => ({ ...prev, [field]: value }));
   const handleClose = () => {
     setIsModalOpen(false);
     setFormData(initialData);
   };
-  const hasFilters = permissionFilter !== "all" || statusFilter !== "all";
+  const hasFilters = permissionFilter !== "all" || statusFilter !== "all" || searchQuery !== "";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name?.trim()) {
-      setPopup({ type: "error", message: "Name is required" });
+      setPopup({ type: "error", message: "নাম প্রয়োজন" });
       return;
     }
     if (!formData.phone?.trim()) {
-      setPopup({ type: "error", message: "Phone number is required" });
+      setPopup({ type: "error", message: "ফোন নম্বর প্রয়োজন" });
       return;
     }
 
     try {
       setLoading(true);
       if (formData.type === "addStaff") {
-        setLoadingMessage("Creating staff member");
+        setLoadingMessage("নতুন কর্মী তৈরি");
         const response = await staffService.addStaff(formData);
         setStaff((prev) => [...prev, { _id: response.data._id, ...formData }]);
-        setPopup({ type: "success", message: "Staff created successfully" });
+        setPopup({ type: "success", message: "কর্মী তৈরি সফল" });
       } else {
-        setLoadingMessage("Updating staff member");
+        setLoadingMessage("কর্মী আপডেট");
         await staffService.editStaff(formData);
         setStaff((prev) => prev.map((item) => (item._id === formData._id ? { ...item, ...formData } : item)));
-        setPopup({ type: "success", message: "Staff updated successfully" });
+        setPopup({ type: "success", message: "কর্মী আপডেট সফল" });
       }
       setIsModalOpen(false);
       setFormData(initialData);
     } catch (e) {
       setPopup({
         type: "error",
-        message:
-          e?.response?.data?.error || (formData.type === "editStaff" ? "Could not edit staff" : "Could not add staff"),
+        message: e?.response?.data?.error || "কর্মী সংরক্ষণ ব্যর্থ",
       });
     } finally {
       setLoading(false);
-      setLoadingMessage("Processing request");
+      setLoadingMessage("প্রক্রিয়াকরণ");
     }
   };
 
   const handleDelete = async () => {
     try {
       setLoading(true);
-      setLoadingMessage("Deleting staff member");
+      setLoadingMessage("কর্মী মুছুন");
       await staffService.deleteStaff(popup._id);
       setStaff((prev) => prev.filter((m) => m._id !== popup._id));
-      setPopup({ type: "success", message: "Staff deleted successfully" });
+      setPopup({ type: "success", message: "কর্মী মুছে ফেলা হয়েছে" });
     } catch {
-      setPopup({ type: "error", message: "Could not delete staff" });
+      setPopup({ type: "error", message: "কর্মী মুছতে ব্যর্থ" });
     } finally {
       setLoading(false);
-      setLoadingMessage("Processing request");
+      setLoadingMessage("প্রক্রিয়াকরণ");
     }
   };
 
   const handleToggleStatus = async (isActivating) => {
     try {
       setLoading(true);
-      setLoadingMessage(isActivating ? "Activating staff member" : "Deactivating staff member");
+      setLoadingMessage(isActivating ? "কর্মী সক্রিয়" : "কর্মী নিষ্ক্রিয়");
       await (isActivating ? staffService.activateStaff(popup._id) : staffService.deactivateStaff(popup._id));
       setStaff((prev) => prev.map((m) => (m._id === popup._id ? { ...m, isActive: isActivating } : m)));
-      setPopup({ type: "success", message: `Staff ${isActivating ? "activated" : "deactivated"} successfully` });
+      setPopup({ type: "success", message: `কর্মী ${isActivating ? "সক্রিয়" : "নিষ্ক্রিয়"} করা হয়েছে` });
     } catch {
-      setPopup({ type: "error", message: `Could not ${isActivating ? "activate" : "deactivate"} staff` });
+      setPopup({ type: "error", message: `কর্মী ${isActivating ? "সক্রিয়" : "নিষ্ক্রিয়"} করতে ব্যর্থ` });
     } finally {
       setLoading(false);
-      setLoadingMessage("Processing request");
+      setLoadingMessage("প্রক্রিয়াকরণ");
     }
   };
 
-  const renderStaffCard = (item) => (
-    <Staff
-      key={item._id}
-      input={item}
-      onEdit={() => {
-        setFormData({
-          name: item.name || "",
-          email: item.email || "",
-          phone: item.phone || "",
-          permissions: item.permissions || initialData.permissions,
-          isActive: item.isActive ?? true,
-          type: "editStaff",
-          _id: item._id,
-        });
-        setIsModalOpen(true);
-      }}
-      onDelete={() =>
-        setPopup({
-          type: "warning",
-          message: `Are you sure you want to delete ${item.name}?`,
-          action: "delete",
-          _id: item._id,
-        })
-      }
-      onDeactivate={() =>
-        setPopup({
-          type: "warning",
-          message: `Are you sure you want to deactivate ${item.name}?`,
-          action: "deactivate",
-          _id: item._id,
-        })
-      }
-      onActivate={() =>
-        setPopup({
-          type: "warning",
-          message: `Are you sure you want to activate ${item.name}?`,
-          action: "activate",
-          _id: item._id,
-        })
-      }
-    />
-  );
-
   return (
-    <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
       {loading && <LoadingScreen message={loadingMessage} />}
 
       {popup && (
@@ -268,239 +231,350 @@ const ManageStaff = () => {
             popup.type === "warning" && popup.action === "delete"
               ? handleDelete
               : popup.type === "warning" && popup.action === "deactivate"
-                ? () => handleToggleStatus(false)
-                : popup.type === "warning" && popup.action === "activate"
-                  ? () => handleToggleStatus(true)
-                  : null
+              ? () => handleToggleStatus(false)
+              : popup.type === "warning" && popup.action === "activate"
+              ? () => handleToggleStatus(true)
+              : null
           }
         />
       )}
 
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-2 sm:mb-4">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <Shield className="w-7 h-7 sm:w-8 sm:h-8 text-indigo-600" /> Staff Management
-            </h1>
-            <p className="text-sm text-gray-600 mt-1 hidden sm:flex items-center gap-1.5">
-              <Activity className="w-4 h-4 text-indigo-500" /> Manage staff accounts & permissions
-            </p>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-md shadow-indigo-200">
+              <Shield className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight">কর্মী ব্যবস্থাপনা</h1>
+              <p className="text-sm text-slate-400">অ্যাকাউন্ট ও অনুমতি পরিচালনা করুন</p>
+            </div>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-3">
             <Link
               to="/lab-management"
-              className="px-2 md:px-4 py-2.5 rounded-xl border border-gray-200 bg-white/50 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white/60 text-slate-600 hover:bg-slate-50 transition-all text-sm font-medium"
             >
-              <ArrowLeft className="w-4 h-4" /> <span>Back</span>
+              <ArrowLeft className="w-4 h-4" /> ফিরে
             </Link>
             <button
               onClick={() => {
                 setFormData({ ...initialData, type: "addStaff" });
                 setIsModalOpen(true);
               }}
-              className="hidden sm:flex bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all items-center gap-2 text-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow-lg shadow-indigo-200 transition-all active:scale-95"
             >
-              <Plus className="w-5 h-5" /> Add Staff
+              <UserPlus className="w-4 h-4" /> নতুন কর্মী
             </button>
           </div>
         </div>
 
-        {/* Mobile add button */}
-        <div className="flex flex-col gap-3 sm:hidden mb-6">
-          <p className="text-sm text-gray-600 flex items-center gap-1.5">
-            <Activity className="w-4 h-4 text-indigo-500" /> Manage staff accounts & permissions
-          </p>
-          <button
-            onClick={() => {
-              setFormData({ ...initialData, type: "addStaff" });
-              setIsModalOpen(true);
-            }}
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 text-sm"
-          >
-            <Plus className="w-5 h-5" /> Add Staff
-          </button>
-        </div>
-
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {STATS_CONFIG.map(({ key, label, icon: Icon, color, textColor }) => (
-            <div
-              key={key}
-              className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center gap-2">
-                <div className={`p-2 bg-${color}-50 rounded-lg`}>
-                  <Icon className={`w-6 h-6 text-${color}-600`} />
+        {!initialLoading && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {STATS_CONFIG.map(({ key, label, icon: Icon, color, bg }) => (
+              <div
+                key={key}
+                className={`${bg} border border-slate-200/80 rounded-2xl px-3 py-3 shadow-sm flex items-center gap-2`}
+              >
+                <div className={`${bg} p-1.5 rounded-xl`}>
+                  <Icon className={`w-4 h-4 ${color}`} />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-600 font-medium">{label}</p>
-                  {initialLoading ? (
-                    <div className="h-8 w-12 bg-gray-200 rounded animate-pulse" />
-                  ) : (
-                    <p className={`text-2xl font-bold ${textColor}`}>{stats[key]}</p>
-                  )}
+                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">{label}</p>
+                  <p className={`text-lg font-bold ${color}`}>{stats[key]}</p>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-          <div className="flex flex-wrap items-start gap-4">
-            <div className="flex items-center gap-2 mt-1">
-              <Filter className="w-4 h-4 text-gray-500" />
-              <span className="text-sm font-semibold text-gray-700">Filters:</span>
-            </div>
-            <div className="flex items-start gap-2 w-full sm:w-auto">
-              <span className="text-xs font-medium text-gray-500 mt-2 shrink-0">Permission</span>
-              <div className="flex flex-wrap gap-1 rounded-lg bg-gray-100 p-1">
-                {PERMISSION_FILTERS.map(({ value, label }) => (
-                  <button
-                    key={value}
-                    onClick={() => setPermissionFilter(value)}
-                    disabled={initialLoading}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${permissionFilter === value ? "bg-white text-indigo-600 shadow-sm" : "text-gray-600 hover:text-gray-900"} disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    {label}
-                  </button>
-                ))}
+        {/* Main Card */}
+        {initialLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3, 4].map((i) => (
+              <SkeletonStaff key={i} />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-200/30 overflow-hidden">
+            {/* Card Header */}
+            <div className="px-6 py-4 border-b border-slate-200/80 bg-slate-50/50 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider">কর্মী লেজার</p>
+                <p className="text-sm text-slate-500">মোট {stats.total} জন</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-500">Status</span>
-              <div className="flex rounded-lg bg-gray-100 p-1">
-                {["all", "active", "inactive"].map((s) => (
+
+            {/* Filter Bar */}
+            <div className="px-4 py-3 border-b border-slate-200/80 bg-slate-50/30 flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[160px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="নাম, ইমেইল বা ফোন…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  disabled={initialLoading}
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                />
+                {searchQuery && (
                   <button
-                    key={s}
-                    onClick={() => setStatusFilter(s)}
-                    disabled={initialLoading}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${statusFilter === s ? "bg-white text-indigo-600 shadow-sm" : "text-gray-600 hover:text-gray-900"} disabled:opacity-50 disabled:cursor-not-allowed`}
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   >
-                    {s}
+                    <X className="w-4 h-4" />
                   </button>
-                ))}
+                )}
               </div>
-            </div>
-            {hasFilters && (
-              <button
-                onClick={() => {
-                  setPermissionFilter("all");
-                  setStatusFilter("all");
+
+              <select
+                value={permissionFilter}
+                onChange={(e) => setPermissionFilter(e.target.value)}
+                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all appearance-none cursor-pointer"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right 10px center",
+                  paddingRight: "32px",
                 }}
                 disabled={initialLoading}
-                className="ml-auto text-xs text-gray-500 hover:text-indigo-600 flex items-center gap-1.5 font-medium px-3 py-1.5 hover:bg-indigo-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <RotateCcw className="w-3.5 h-3.5" /> Reset Filters
-              </button>
-            )}
-          </div>
-        </div>
+                {PERMISSION_FILTERS.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
 
-        {/* Search */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by name, email, or phone number..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              disabled={initialLoading}
-              className="w-full pl-11 pr-11 py-2.5 text-sm border border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all appearance-none cursor-pointer"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right 10px center",
+                  paddingRight: "32px",
+                }}
                 disabled={initialLoading}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1 transition-colors disabled:opacity-50"
               >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+                {STATUS_FILTERS.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+
+              {hasFilters && (
+                <button
+                  onClick={() => {
+                    setPermissionFilter("all");
+                    setStatusFilter("all");
+                    setSearchQuery("");
+                  }}
+                  disabled={initialLoading}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-rose-600 hover:bg-rose-50 border border-rose-200/60 transition-all disabled:opacity-50"
+                >
+                  <RotateCcw className="w-4 h-4" /> রিসেট
+                </button>
+              )}
+            </div>
+
+            {/* List Header */}
+            <div className="px-6 pt-3 pb-1 flex items-center gap-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              <span className="w-6">#</span>
+              <span className="flex-1">কর্মী</span>
+              <span className="w-24 text-right">অনুমতি</span>
+              <span className="w-8" />
+            </div>
+
+            {/* Rows */}
+            <div className="px-6 pb-4">
+              {filteredStaff.length === 0 ? (
+                <div className="flex items-center gap-2 py-8 text-slate-400">
+                  <AlertCircle className="w-5 h-5" />
+                  <p className="text-sm">
+                    {hasFilters ? "কোনো কর্মী পাওয়া যায়নি" : "এখনো কোনো কর্মী যোগ করা হয়নি"}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Admins */}
+                  {admins.length > 0 && (
+                    <>
+                      <SectionHeader title="প্রশাসক" count={admins.length} />
+                      <div className="space-y-2">
+                        {admins.map((item, index) => (
+                          <Staff
+                            key={item._id}
+                            input={item}
+                            index={index}
+                            onEdit={() => {
+                              setFormData({
+                                name: item.name || "",
+                                email: item.email || "",
+                                phone: item.phone || "",
+                                permissions: item.permissions || initialData.permissions,
+                                isActive: item.isActive ?? true,
+                                type: "editStaff",
+                                _id: item._id,
+                              });
+                              setIsModalOpen(true);
+                            }}
+                            onDelete={() =>
+                              setPopup({
+                                type: "warning",
+                                message: `${item.name} কে মুছে ফেলবেন?`,
+                                action: "delete",
+                                _id: item._id,
+                              })
+                            }
+                            onDeactivate={() =>
+                              setPopup({
+                                type: "warning",
+                                message: `${item.name} কে নিষ্ক্রিয় করবেন?`,
+                                action: "deactivate",
+                                _id: item._id,
+                              })
+                            }
+                            onActivate={() =>
+                              setPopup({
+                                type: "warning",
+                                message: `${item.name} কে সক্রিয় করবেন?`,
+                                action: "activate",
+                                _id: item._id,
+                              })
+                            }
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Staff */}
+                  {staffMembers.length > 0 && (
+                    <>
+                      <SectionHeader title="কর্মী" count={staffMembers.length} />
+                      <div className="space-y-2">
+                        {staffMembers.map((item, index) => (
+                          <Staff
+                            key={item._id}
+                            input={item}
+                            index={index}
+                            onEdit={() => {
+                              setFormData({
+                                name: item.name || "",
+                                email: item.email || "",
+                                phone: item.phone || "",
+                                permissions: item.permissions || initialData.permissions,
+                                isActive: item.isActive ?? true,
+                                type: "editStaff",
+                                _id: item._id,
+                              });
+                              setIsModalOpen(true);
+                            }}
+                            onDelete={() =>
+                              setPopup({
+                                type: "warning",
+                                message: `${item.name} কে মুছে ফেলবেন?`,
+                                action: "delete",
+                                _id: item._id,
+                              })
+                            }
+                            onDeactivate={() =>
+                              setPopup({
+                                type: "warning",
+                                message: `${item.name} কে নিষ্ক্রিয় করবেন?`,
+                                action: "deactivate",
+                                _id: item._id,
+                              })
+                            }
+                            onActivate={() =>
+                              setPopup({
+                                type: "warning",
+                                message: `${item.name} কে সক্রিয় করবেন?`,
+                                action: "activate",
+                                _id: item._id,
+                              })
+                            }
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Others */}
+                  {others.length > 0 && (
+                    <>
+                      <SectionHeader title="অন্যান্য" count={others.length} />
+                      <div className="space-y-2">
+                        {others.map((item, index) => (
+                          <Staff
+                            key={item._id}
+                            input={item}
+                            index={index}
+                            onEdit={() => {
+                              setFormData({
+                                name: item.name || "",
+                                email: item.email || "",
+                                phone: item.phone || "",
+                                permissions: item.permissions || initialData.permissions,
+                                isActive: item.isActive ?? true,
+                                type: "editStaff",
+                                _id: item._id,
+                              });
+                              setIsModalOpen(true);
+                            }}
+                            onDelete={() =>
+                              setPopup({
+                                type: "warning",
+                                message: `${item.name} কে মুছে ফেলবেন?`,
+                                action: "delete",
+                                _id: item._id,
+                              })
+                            }
+                            onDeactivate={() =>
+                              setPopup({
+                                type: "warning",
+                                message: `${item.name} কে নিষ্ক্রিয় করবেন?`,
+                                action: "deactivate",
+                                _id: item._id,
+                              })
+                            }
+                            onActivate={() =>
+                              setPopup({
+                                type: "warning",
+                                message: `${item.name} কে সক্রিয় করবেন?`,
+                                action: "activate",
+                                _id: item._id,
+                              })
+                            }
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="px-6 py-2.5 border-t border-slate-200/80 bg-slate-50/30">
+              <p className="text-[10px] text-slate-400">* শুধুমাত্র সক্রিয় কর্মীরা সিস্টেমে প্রবেশ করতে পারবেন</p>
+            </div>
           </div>
-        </div>
+        )}
 
         <Modal isOpen={isModalOpen} size="lg" onClose={handleClose}>
           <StaffForm formData={formData} onChange={handleFormChange} onSubmit={handleSubmit} onClose={handleClose} />
         </Modal>
 
-        {/* List */}
-        {initialLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => (
-              <SkeletonStaff key={i} />
-            ))}
-          </div>
-        ) : filteredStaff.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users className="w-8 h-8 text-indigo-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">
-              {hasFilters || searchQuery ? "No staff found" : "No staff yet"}
-            </h3>
-            <p className="text-gray-500 text-sm mb-4 max-w-md mx-auto">
-              {hasFilters || searchQuery
-                ? "Try adjusting your filters or search criteria to find what you're looking for"
-                : "Get started by adding your first staff member to manage access and permissions"}
-            </p>
-            {!hasFilters && !searchQuery && (
-              <button
-                onClick={() => {
-                  setFormData({ ...initialData, type: "addStaff" });
-                  setIsModalOpen(true);
-                }}
-                className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm hover:shadow transition-all"
-              >
-                <UserPlus className="w-4 h-4" /> Add Your First Staff
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-8">
-            {/* Admins Section */}
-            {admins.length > 0 && (
-              <div>
-                <SectionHeader
-                  title="Admins"
-                  count={admins.length}
-                  colorClass="bg-purple-50 text-purple-700 border-purple-200"
-                />
-                <div className="space-y-3">{admins.map(renderStaffCard)}</div>
-              </div>
-            )}
-
-            {/* Staff Section */}
-            {staffMembers.length > 0 && (
-              <div>
-                <SectionHeader
-                  title="Staff"
-                  count={staffMembers.length}
-                  colorClass="bg-indigo-50 text-indigo-700 border-indigo-200"
-                />
-                <div className="space-y-3">{staffMembers.map(renderStaffCard)}</div>
-              </div>
-            )}
-
-            {/* Fallback: entries with no role or unknown role */}
-            {filteredStaff.filter((s) => s.role !== "admin" && s.role !== "staff").length > 0 && (
-              <div>
-                <SectionHeader
-                  title="Others"
-                  count={filteredStaff.filter((s) => s.role !== "admin" && s.role !== "staff").length}
-                  colorClass="bg-gray-100 text-gray-600 border-gray-200"
-                />
-                <div className="space-y-3">
-                  {filteredStaff.filter((s) => s.role !== "admin" && s.role !== "staff").map(renderStaffCard)}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        <p className="text-center text-xs text-slate-400 mt-6 pb-4 border-t border-slate-200/50 pt-4">
+          ল্যাবপাইলটপ্রো · কর্মী ব্যবস্থাপনা সিস্টেম
+        </p>
       </div>
-    </section>
+    </div>
   );
 };
 

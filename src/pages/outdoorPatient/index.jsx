@@ -71,30 +71,8 @@ const OutdoorPatient = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#f0f1f7] relative overflow-hidden font-noto">
-      {/* ── Background blobs ── */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div
-          className="absolute -top-48 -left-48 w-[560px] h-[560px] rounded-full opacity-[0.18] blur-3xl"
-          style={{ background: "radial-gradient(circle, #818cf8, transparent 70%)" }}
-        />
-        <div
-          className="absolute top-1/2 -right-48 w-[420px] h-[420px] rounded-full opacity-[0.12] blur-3xl"
-          style={{ background: "radial-gradient(circle, #34d399, transparent 70%)" }}
-        />
-      </div>
-
-      {/* ── Fine grid ── */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage: `linear-gradient(rgba(99,102,241,0.035) 1px, transparent 1px),
-                            linear-gradient(90deg, rgba(99,102,241,0.035) 1px, transparent 1px)`,
-          backgroundSize: "36px 36px",
-        }}
-      />
-
-      <div className="relative max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
+      <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-md shadow-indigo-200 shrink-0">
@@ -102,7 +80,7 @@ const OutdoorPatient = () => {
           </div>
           <div>
             <h1 className="text-[22px] font-black text-slate-900 tracking-tight leading-tight font-noto">
-              আউটডোর রোগী{" "}
+              আউটডোর রোগী
             </h1>
             <p className="text-[15px] text-slate-400 mt-0.5 font-noto">যে কাজটি করতে চান তা নির্বাচন করুন</p>
           </div>

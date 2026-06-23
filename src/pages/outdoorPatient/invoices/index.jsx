@@ -409,13 +409,8 @@ const InvoiceList = () => {
     setInvoices((prev) => prev.map((inv) => (inv.invoiceId === id ? { ...inv, ...fields } : inv)));
 
   return (
-    <section className="min-h-full manifest-bg px-4 py-6 font-noto">
+    <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
       <style>{`
-        .manifest-bg {
-          background-color: #F5F4EF;
-          background-image: radial-gradient(circle, rgba(28,31,30,0.05) 1px, transparent 1px);
-          background-size: 18px 18px;
-        }
         @media print {
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           body * { visibility: hidden; }

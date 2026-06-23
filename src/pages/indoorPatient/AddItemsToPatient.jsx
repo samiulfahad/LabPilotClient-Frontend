@@ -44,7 +44,6 @@ const PatientSearch = ({ onSelect }) => {
         <p className="text-xs font-black text-gray-400 uppercase tracking-widest font-noto">ভর্তি রোগী খুঁজুন</p>
       </div>
       <div className="p-5">
-        {/* Search input */}
         <div className="relative mb-4">
           <svg
             className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300"
@@ -177,7 +176,7 @@ const TypeBadge = ({ type }) => {
   );
 };
 
-// ─── Catalog row (search result, with explicit add button) ───────────────────
+// ─── Catalog row (with out‑of‑stock badge beside name) ──────────────────────
 
 const CatalogRow = ({ type, name, price, added, disabled, onAdd }) => (
   <button
@@ -185,12 +184,17 @@ const CatalogRow = ({ type, name, price, added, disabled, onAdd }) => (
     disabled={disabled || added}
     onClick={onAdd}
     className={`w-full flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 text-left transition-colors
-      ${added ? "bg-indigo-50/60 cursor-default" : disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-50 active:bg-gray-100"}`}
+      ${added ? "bg-indigo-50/60 cursor-default" : disabled ? "opacity-60 cursor-not-allowed" : "hover:bg-gray-50 active:bg-gray-100"}`}
   >
     <TypeBadge type={type} />
     <span className={`flex-1 text-sm font-noto truncate ${added ? "text-indigo-700 font-semibold" : "text-gray-800"}`}>
       {name}
     </span>
+    {disabled && (
+      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-50 text-red-500 border border-red-200 shrink-0 ml-1">
+        স্টক শেষ
+      </span>
+    )}
     <span className="font-mono text-sm text-gray-500 shrink-0">{fmt.currency(price)}</span>
     <span
       className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0
@@ -378,7 +382,6 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
 
   return (
     <div className="space-y-4">
-      {/* Patient strip */}
       <div className="bg-white border border-gray-100 rounded-2xl px-5 py-3.5 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm font-black shrink-0">
@@ -407,7 +410,6 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
         </button>
       </div>
 
-      {/* Catalog panel */}
       <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <p className="text-xs font-black text-gray-400 uppercase tracking-widest font-noto">টেস্ট ও পণ্য</p>
@@ -418,7 +420,6 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
           )}
         </div>
 
-        {/* Search */}
         <div className="px-5 pt-4 pb-3 border-b border-gray-100">
           <div className="relative">
             <svg
@@ -448,8 +449,7 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
             ))}
           </div>
         ) : !q ? (
-          <div className="py-1 text-center text-gray-300">
-          </div>
+          <div className="py-1 text-center text-gray-300"></div>
         ) : allTests.length === 0 && allProducts.length === 0 ? (
           <div className="py-10 text-center text-gray-300">
             <p className="text-sm font-noto">কোনো ফলাফল নেই</p>
@@ -462,7 +462,6 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
         )}
       </div>
 
-      {/* Selected items */}
       {selected.length > 0 && (
         <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -509,7 +508,6 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
             ))}
           </div>
 
-          {/* Payment summary */}
           <div className="mx-5 my-4 rounded-2xl border border-gray-100 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
               <span className="text-xs font-bold text-gray-500 font-noto">মোট</span>
@@ -615,29 +613,8 @@ const AddItemsToPatient = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f0f1f7] relative overflow-hidden font-noto">
-      {/* Background blobs — same as Home */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div
-          className="absolute -top-48 -left-48 w-[560px] h-[560px] rounded-full opacity-[0.18] blur-3xl"
-          style={{ background: "radial-gradient(circle, #818cf8, transparent 70%)" }}
-        />
-        <div
-          className="absolute top-1/2 -right-48 w-[420px] h-[420px] rounded-full opacity-[0.12] blur-3xl"
-          style={{ background: "radial-gradient(circle, #34d399, transparent 70%)" }}
-        />
-      </div>
-      {/* Fine grid — same as Home */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage: `linear-gradient(rgba(99,102,241,0.035) 1px, transparent 1px),
-                            linear-gradient(90deg, rgba(99,102,241,0.035) 1px, transparent 1px)`,
-          backgroundSize: "36px 36px",
-        }}
-      />
-
-      <div className="relative max-w-2xl mx-auto px-4 pt-7 pb-16">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
+      <div className="max-w-2xl mx-auto">
         <PageHeader
           title="টেস্ট / পণ্য যোগ করুন"
           subtitle={

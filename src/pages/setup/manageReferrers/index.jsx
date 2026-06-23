@@ -1,19 +1,18 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
-  Plus,
-  Search,
-  X,
   Users,
   ArrowLeft,
-  AlertCircle,
+  Search,
+  X,
   RotateCcw,
   UserPlus,
+  UserCheck,
+  UserX,
   Stethoscope,
   Briefcase,
   Building2,
-  UserCheck,
-  ChevronDown,
+  AlertCircle,
 } from "lucide-react";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
@@ -21,21 +20,6 @@ import Referrer from "./Referrer";
 import ReferrerForm from "./ReferrerForm";
 import referrerService from "../../../api/referrer";
 import LoadingScreen from "../../../components/loadingPage";
-
-const C = {
-  ink: "#1C1F1E",
-  muted: "#A8ACA3",
-  sub: "#6F756F",
-  border: "#E3E0D6",
-  dashed: "#D8D5CB",
-  paper: "#FAF9F5",
-  hover: "#F0EFE9",
-  divider: "#EDEBE3",
-  teal: "#0F6E5C",
-  blue: "#1E4FA0",
-  red: "#C0312B",
-  amber: "#92400E",
-};
 
 const initialData = {
   name: "",
@@ -49,17 +33,17 @@ const initialData = {
 };
 
 const Skeleton = () => (
-  <div className="bg-white animate-pulse" style={{ border: `1px solid ${C.border}`, borderRadius: "3px" }}>
-    <div className="px-6 py-4 flex gap-4" style={{ borderBottom: `1px solid ${C.border}`, background: C.paper }}>
+  <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden animate-pulse">
+    <div className="px-6 py-4 bg-slate-50/50 border-b border-slate-100 flex gap-4">
       {[120, 70, 90].map((w, i) => (
-        <div key={i} style={{ height: "11px", width: `${w}px`, background: "#E5E3DB", borderRadius: "2px" }} />
+        <div key={i} className="h-3 bg-slate-200 rounded" style={{ width: w }} />
       ))}
     </div>
     {[1, 2, 3, 4].map((i) => (
-      <div key={i} className="flex items-center gap-3 px-6 py-3" style={{ borderBottom: `1px solid ${C.divider}` }}>
-        <div style={{ width: "20px", height: "10px", background: "#E5E3DB", borderRadius: "2px" }} />
-        <div style={{ flex: 1, height: "12px", background: "#E5E3DB", borderRadius: "2px" }} />
-        <div style={{ width: "60px", height: "12px", background: "#E5E3DB", borderRadius: "2px" }} />
+      <div key={i} className="flex items-center gap-3 px-6 py-3 border-b border-slate-100">
+        <div className="w-5 h-3 bg-slate-200 rounded" />
+        <div className="flex-1 h-3 bg-slate-200 rounded" />
+        <div className="w-16 h-3 bg-slate-200 rounded" />
       </div>
     ))}
   </div>
@@ -127,9 +111,11 @@ const ManageReferrer = () => {
     try {
       setLoading(true);
       setLoadingMessage(formData.formType === "addReferrer" ? "Creating referrer" : "Updating referrer");
-      formData.formType === "addReferrer"
-        ? await referrerService.addReferrer(formData)
-        : await referrerService.editReferrer(formData);
+      if (formData.formType === "addReferrer") {
+        await referrerService.addReferrer(formData);
+      } else {
+        await referrerService.editReferrer(formData);
+      }
       await loadReferrers();
       setPopup({
         type: "success",
@@ -163,11 +149,16 @@ const ManageReferrer = () => {
     try {
       setLoading(true);
       setLoadingMessage(isActivating ? "Activating referrer" : "Deactivating referrer");
-      await (isActivating
-        ? referrerService.activateReferrer(popup._id)
-        : referrerService.deactivateReferrer(popup._id));
+      if (isActivating) {
+        await referrerService.activateReferrer(popup._id);
+      } else {
+        await referrerService.deactivateReferrer(popup._id);
+      }
       setReferrers((prev) => prev.map((r) => (r._id === popup._id ? { ...r, isActive: isActivating } : r)));
-      setPopup({ type: "success", message: `Referrer ${isActivating ? "activated" : "deactivated"} successfully` });
+      setPopup({
+        type: "success",
+        message: `Referrer ${isActivating ? "activated" : "deactivated"} successfully`,
+      });
     } catch (e) {
       setPopup({ type: "error", message: e?.response?.data?.error || "Could not update status" });
     } finally {
@@ -177,37 +168,16 @@ const ManageReferrer = () => {
 
   const hasFilters = typeFilter !== "all" || statusFilter !== "all";
 
-  const inputStyle = {
-    border: `1px solid ${C.dashed}`,
-    borderRadius: "2px",
-    background: C.paper,
-    color: C.ink,
-    fontFamily: "'IBM Plex Mono', monospace",
-  };
-
-  const TYPE_FILTERS = [
-    { key: "all", label: "সব" },
-    { key: "doctor", label: "ডাক্তার" },
-    { key: "agent", label: "এজেন্ট" },
-    { key: "institute", label: "প্রতিষ্ঠান" },
-  ];
-
-  const STATUS_FILTERS = [
-    { key: "all", label: "সব" },
-    { key: "active", label: "সক্রিয়" },
-    { key: "inactive", label: "নিষ্ক্রিয়" },
+  // Removed "সক্রিয়" from stat items
+  const statItems = [
+    { label: "মোট", value: stats.total, icon: Users, color: "text-indigo-600", bg: "bg-indigo-50" },
+    { label: "ডাক্তার", value: stats.doctors, icon: Stethoscope, color: "text-blue-600", bg: "bg-blue-50" },
+    { label: "এজেন্ট", value: stats.agents, icon: Briefcase, color: "text-amber-600", bg: "bg-amber-50" },
+    { label: "প্রতিষ্ঠান", value: stats.institutes, icon: Building2, color: "text-teal-600", bg: "bg-teal-50" },
   ];
 
   return (
-    <section
-      className="min-h-screen px-4 py-6"
-      style={{
-        backgroundColor: "#F5F4EF",
-        backgroundImage: "radial-gradient(circle, rgba(28,31,30,0.045) 1px, transparent 1px)",
-        backgroundSize: "18px 18px",
-        fontFamily: "'IBM Plex Sans', sans-serif",
-      }}
-    >
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
       {loading && <LoadingScreen message={loadingMessage} />}
       {popup && (
         <Popup
@@ -228,382 +198,150 @@ const ManageReferrer = () => {
 
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="flex items-start justify-between mb-5">
-          <div>
-            <p
-              style={{
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: "10px",
-                textTransform: "uppercase",
-                letterSpacing: ".1em",
-                color: C.teal,
-                marginBottom: "4px",
-              }}
-            >
-              ল্যাব অপারেশন
-            </p>
-            <h1
-              style={{
-                fontFamily: "'IBM Plex Sans', sans-serif",
-                fontSize: "26px",
-                fontWeight: 600,
-                color: C.ink,
-                lineHeight: 1.2,
-                margin: 0,
-              }}
-            >
-              রেফারার ব্যবস্থাপনা
-            </h1>
-            <p style={{ fontSize: "14px", color: "#767D78", marginTop: "4px" }}>রেফারেল ও কমিশন পরিচালনা।</p>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-md shadow-indigo-200">
+              <Users className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight">রেফারার ব্যবস্থাপনা</h1>
+              <p className="text-sm text-slate-400">রেফারেল ও কমিশন পরিচালনা করুন</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex items-center gap-3">
             <Link
               to="/lab-management"
-              className="flex items-center gap-1.5 transition-colors"
-              style={{
-                padding: "7px 12px",
-                border: `1px solid ${C.ink}18`,
-                borderRadius: "2px",
-                color: C.sub,
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: "11px",
-                textTransform: "uppercase",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = C.ink;
-                e.currentTarget.style.color = "white";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "";
-                e.currentTarget.style.color = C.sub;
-              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white/60 text-slate-600 hover:bg-slate-50 transition-all text-sm font-medium"
             >
-              <ArrowLeft style={{ width: "13px", height: "13px" }} /> ফিরে
+              <ArrowLeft className="w-4 h-4" /> ফিরে
             </Link>
             <button
               onClick={() => {
                 setFormData({ ...initialData, formType: "addReferrer" });
                 setIsModalOpen(true);
               }}
-              className="flex items-center gap-1.5 transition-colors"
-              style={{
-                padding: "7px 14px",
-                border: `1px solid ${C.teal}`,
-                borderRadius: "2px",
-                color: C.teal,
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: "11px",
-                textTransform: "uppercase",
-                fontWeight: 600,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = C.teal;
-                e.currentTarget.style.color = "white";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "";
-                e.currentTarget.style.color = C.teal;
-              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow-lg shadow-indigo-200 transition-all active:scale-95"
             >
-              <UserPlus style={{ width: "13px", height: "13px" }} /> নতুন
+              <UserPlus className="w-4 h-4" /> নতুন রেফারার
             </button>
           </div>
         </div>
 
-        {/* Stats strip */}
+        {/* Stats */}
         {!initialLoading && (
-          <div className="grid grid-cols-5 gap-2 mb-4">
-            {[
-              { label: "মোট", value: stats.total, color: C.ink },
-              { label: "সক্রিয়", value: stats.active, color: C.teal },
-              { label: "ডাক্তার", value: stats.doctors, color: C.blue },
-              { label: "এজেন্ট", value: stats.agents, color: C.amber },
-              { label: "প্রতিষ্ঠান", value: stats.institutes, color: C.teal },
-            ].map(({ label, value, color }) => (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {statItems.map(({ label, value, icon: Icon, color, bg }) => (
               <div
                 key={label}
-                className="bg-white"
-                style={{ border: `1px solid ${C.border}`, borderRadius: "3px", padding: "10px 14px" }}
+                className={`${bg} border border-slate-200/80 rounded-2xl px-3 py-3 shadow-sm flex items-center gap-2`}
               >
-                <p
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: "9px",
-                    textTransform: "uppercase",
-                    letterSpacing: ".06em",
-                    color: C.muted,
-                    marginBottom: "5px",
-                  }}
-                >
-                  {label}
-                </p>
-                <p
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: "22px",
-                    fontWeight: 700,
-                    color,
-                    lineHeight: 1,
-                    margin: 0,
-                  }}
-                >
-                  {value}
-                </p>
+                <div className={`${bg} p-1.5 rounded-xl`}>
+                  <Icon className={`w-4 h-4 ${color}`} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">{label}</p>
+                  <p className={`text-lg font-bold ${color}`}>{value}</p>
+                </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Ledger card */}
+        {/* Main Card */}
         {initialLoading ? (
           <Skeleton />
         ) : (
-          <div
-            className="bg-white"
-            style={{ border: `1px solid ${C.border}`, borderRadius: "3px", boxShadow: "0 1px 3px rgba(28,31,30,0.05)" }}
-          >
-            {/* Card head */}
-            <div
-              className="flex items-center justify-between px-6 py-4"
-              style={{ borderBottom: `1px solid ${C.border}`, background: C.paper }}
-            >
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-200/30 overflow-hidden">
+            {/* Card Header */}
+            <div className="px-6 py-4 border-b border-slate-200/80 bg-slate-50/50 flex items-center justify-between">
               <div>
-                <p
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: "10px",
-                    textTransform: "uppercase",
-                    letterSpacing: ".1em",
-                    color: C.teal,
-                    marginBottom: "4px",
-                  }}
-                >
-                  রেফারার লেজার
-                </p>
-                <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "13px", color: C.sub }}>
-                  মোট {stats.total}জন · {stats.active}জন সক্রিয়
-                </p>
+                <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider">রেফারার লেজার</p>
+                <p className="text-sm text-slate-500">মোট {stats.total} জন</p>
               </div>
             </div>
 
-            {/* Toolbar */}
-            <div
-              className="px-6 py-3 flex flex-wrap items-center gap-3"
-              style={{ borderBottom: `1px solid ${C.border}`, background: C.paper }}
-            >
-              <div className="relative" style={{ flex: "1 1 160px" }}>
-                <Search
-                  style={{
-                    width: "12px",
-                    height: "12px",
-                    color: C.muted,
-                    position: "absolute",
-                    left: "9px",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    pointerEvents: "none",
-                  }}
-                />
+            {/* Filter Bar */}
+            <div className="px-4 py-3 border-b border-slate-200/80 bg-slate-50/30 flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[160px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
                   placeholder="নাম, নম্বর বা ডিগ্রি…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  style={{
-                    ...inputStyle,
-                    width: "100%",
-                    padding: "7px 28px 7px 28px",
-                    fontSize: "11px",
-                    outline: "none",
-                  }}
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all"
                 />
                 {search && (
                   <button
                     onClick={() => setSearch("")}
-                    style={{
-                      position: "absolute",
-                      right: "8px",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: C.muted,
-                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   >
-                    <X style={{ width: "12px", height: "12px" }} />
+                    <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
 
-              <div className="flex items-center gap-1">
-                <span
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: "9.5px",
-                    textTransform: "uppercase",
-                    letterSpacing: ".07em",
-                    color: C.muted,
-                    marginRight: "4px",
-                  }}
-                >
-                  ধরন
-                </span>
-                {TYPE_FILTERS.map(({ key, label }) => (
-                  <button
-                    key={key}
-                    onClick={() => setTypeFilter(key)}
-                    style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: "10px",
-                      textTransform: "uppercase",
-                      letterSpacing: ".06em",
-                      border: `1px solid ${typeFilter === key ? `${C.ink}44` : "transparent"}`,
-                      borderRadius: "2px",
-                      padding: "4px 10px",
-                      cursor: "pointer",
-                      transition: "all .12s",
-                      background: typeFilter === key ? C.ink : "transparent",
-                      color: typeFilter === key ? "white" : C.sub,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (typeFilter !== key) {
-                        e.currentTarget.style.borderColor = C.dashed;
-                        e.currentTarget.style.background = C.divider;
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (typeFilter !== key) {
-                        e.currentTarget.style.borderColor = "transparent";
-                        e.currentTarget.style.background = "transparent";
-                      }
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all appearance-none cursor-pointer"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right 10px center",
+                  paddingRight: "32px",
+                }}
+              >
+                <option value="all">সব ধরন</option>
+                <option value="doctor">ডাক্তার</option>
+                <option value="agent">এজেন্ট</option>
+                <option value="institute">প্রতিষ্ঠান</option>
+              </select>
 
-              <div className="flex items-center gap-1">
-                <span
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: "9.5px",
-                    textTransform: "uppercase",
-                    letterSpacing: ".07em",
-                    color: C.muted,
-                    marginRight: "4px",
-                  }}
-                >
-                  স্ট্যাটাস
-                </span>
-                {STATUS_FILTERS.map(({ key, label }) => (
-                  <button
-                    key={key}
-                    onClick={() => setStatusFilter(key)}
-                    style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: "10px",
-                      textTransform: "uppercase",
-                      letterSpacing: ".06em",
-                      border: `1px solid ${statusFilter === key ? `${C.ink}44` : "transparent"}`,
-                      borderRadius: "2px",
-                      padding: "4px 10px",
-                      cursor: "pointer",
-                      transition: "all .12s",
-                      background: statusFilter === key ? C.ink : "transparent",
-                      color: statusFilter === key ? "white" : C.sub,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (statusFilter !== key) {
-                        e.currentTarget.style.borderColor = C.dashed;
-                        e.currentTarget.style.background = C.divider;
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (statusFilter !== key) {
-                        e.currentTarget.style.borderColor = "transparent";
-                        e.currentTarget.style.background = "transparent";
-                      }
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all appearance-none cursor-pointer"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right 10px center",
+                  paddingRight: "32px",
+                }}
+              >
+                <option value="all">সব স্ট্যাটাস</option>
+                <option value="active">সক্রিয়</option>
+                <option value="inactive">নিষ্ক্রিয়</option>
+              </select>
 
               {hasFilters && (
                 <button
                   onClick={() => {
                     setTypeFilter("all");
                     setStatusFilter("all");
+                    setSearch("");
                   }}
-                  className="flex items-center gap-1 transition-colors"
-                  style={{
-                    marginLeft: "auto",
-                    padding: "5px 10px",
-                    border: `1px solid ${C.red}33`,
-                    borderRadius: "2px",
-                    color: C.red,
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: "10px",
-                    textTransform: "uppercase",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = `${C.red}08`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "";
-                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-rose-600 hover:bg-rose-50 border border-rose-200/60 transition-all"
                 >
-                  <RotateCcw style={{ width: "11px", height: "11px" }} /> রিসেট
+                  <RotateCcw className="w-4 h-4" /> রিসেট
                 </button>
               )}
             </div>
 
-            {/* Column labels */}
-            <div className="flex items-center gap-3 px-6 pt-3 pb-1">
-              <span
-                style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: "9px",
-                  textTransform: "uppercase",
-                  letterSpacing: ".08em",
-                  color: C.muted,
-                  width: "20px",
-                }}
-              >
-                #
-              </span>
-              <span
-                style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: "9px",
-                  textTransform: "uppercase",
-                  letterSpacing: ".08em",
-                  color: C.muted,
-                  flex: 1,
-                }}
-              >
-                রেফারার
-              </span>
-              <span
-                style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: "9px",
-                  textTransform: "uppercase",
-                  letterSpacing: ".08em",
-                  color: C.muted,
-                  flexShrink: 0,
-                }}
-              >
-                কমিশন
-              </span>
+            {/* List Header */}
+            <div className="px-6 pt-3 pb-1 flex items-center gap-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              <span className="w-6">#</span>
+              <span className="flex-1">রেফারার</span>
+              <span className="w-24 text-right">কমিশন</span>
+              <span className="w-8" />
             </div>
 
             {/* Rows */}
             <div className="px-6 pb-4">
               {filteredReferrers.length === 0 ? (
-                <div className="flex items-center gap-2 py-8" style={{ color: C.muted }}>
-                  <AlertCircle style={{ width: "13px", height: "13px" }} />
-                  <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px" }}>
+                <div className="flex items-center gap-2 py-8 text-slate-400">
+                  <AlertCircle className="w-5 h-5" />
+                  <p className="text-sm">
                     {hasFilters || search ? "কোনো রেফারার পাওয়া যায়নি" : "এখনো কোনো রেফারার যোগ করা হয়নি"}
                   </p>
                 </div>
@@ -646,10 +384,8 @@ const ManageReferrer = () => {
               )}
             </div>
 
-            <div className="px-6 py-2.5" style={{ borderTop: `1px solid ${C.border}`, background: C.paper }}>
-              <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", color: C.muted }}>
-                * শুধুমাত্র সক্রিয় রেফারারের কমিশন প্রযোজ্য
-              </p>
+            <div className="px-6 py-2.5 border-t border-slate-200/80 bg-slate-50/30">
+              <p className="text-[10px] text-slate-400">* শুধুমাত্র সক্রিয় রেফারারের কমিশন প্রযোজ্য</p>
             </div>
           </div>
         )}
@@ -673,20 +409,11 @@ const ManageReferrer = () => {
           />
         </Modal>
 
-        <p
-          style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: "11px",
-            color: C.muted,
-            textAlign: "center",
-            marginTop: "16px",
-            paddingBottom: "24px",
-          }}
-        >
-          LabPilotPro · রেফারার ম্যানেজমেন্ট সিস্টেম
+        <p className="text-center text-xs text-slate-400 mt-6 pb-4 border-t border-slate-200/50 pt-4">
+          ল্যাবপাইলটপ্রো · রেফারার ম্যানেজমেন্ট সিস্টেম
         </p>
       </div>
-    </section>
+    </div>
   );
 };
 

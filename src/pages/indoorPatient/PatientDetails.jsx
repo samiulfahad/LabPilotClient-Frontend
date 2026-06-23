@@ -301,8 +301,8 @@ const PatientDetails = () => {
 
   if (loading) {
     return (
-      <div className="min-h-full bg-slate-50/50">
-        <div className="max-w-4xl mx-auto p-4 sm:p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
+        <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-9 h-9 rounded-xl bg-slate-200 animate-pulse" />
             <div className="space-y-1.5">
@@ -322,7 +322,7 @@ const PatientDetails = () => {
 
   if (!patient) {
     return (
-      <div className="min-h-full bg-slate-50/50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto flex items-center justify-center">
         <div className="text-center">
           <div className="text-4xl mb-3">🔍</div>
           <p className="font-semibold text-slate-500">Patient not found</p>
@@ -343,8 +343,8 @@ const PatientDetails = () => {
   const txSelectedSpace = spaces.find((s) => s._id === txForm.spaceId) ?? null;
 
   return (
-    <div className="min-h-full bg-slate-50/50">
-      <div className="max-w-4xl mx-auto p-4 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
         <PageHeader
           title={patient.patient.name}

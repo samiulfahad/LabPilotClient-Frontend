@@ -165,30 +165,8 @@ const Home = () => {
   const greetingEmoji = greeting === "শুভ সকাল" ? "☀️" : greeting === "শুভ দুপুর" ? "🌤️" : "🌙";
 
   return (
-    <div className="min-h-screen bg-[#f0f1f7] relative overflow-hidden font-noto">
-      {/* ── Background blobs ── */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div
-          className="absolute -top-48 -left-48 w-[560px] h-[560px] rounded-full opacity-[0.18] blur-3xl"
-          style={{ background: "radial-gradient(circle, #818cf8, transparent 70%)" }}
-        />
-        <div
-          className="absolute top-1/2 -right-48 w-[420px] h-[420px] rounded-full opacity-[0.12] blur-3xl"
-          style={{ background: "radial-gradient(circle, #34d399, transparent 70%)" }}
-        />
-      </div>
-
-      {/* ── Fine grid ── */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage: `linear-gradient(rgba(99,102,241,0.035) 1px, transparent 1px),
-                            linear-gradient(90deg, rgba(99,102,241,0.035) 1px, transparent 1px)`,
-          backgroundSize: "36px 36px",
-        }}
-      />
-
-      <div className="relative max-w-3xl mx-auto px-4 pt-7 pb-16">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
+      <div className="relative max-w-3xl mx-auto pt-7 pb-16">
         {/* ══════════════════════════════════════
             TOP NAV BAR
         ══════════════════════════════════════ */}

@@ -484,7 +484,7 @@ const Billing = () => {
   const paidCount = history.filter((b) => b.status === "paid").length;
 
   return (
-    <div className="min-h-full p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
       <div className="max-w-4xl mx-auto">
         {/* ── Page Header ──────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-6">

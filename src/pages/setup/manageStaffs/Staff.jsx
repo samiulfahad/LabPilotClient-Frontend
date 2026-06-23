@@ -1,24 +1,10 @@
-import {
-  Phone,
-  User,
-  Edit2,
-  UserX,
-  UserCheck,
-  Trash2,
-  Shield,
-  FileText,
-  FilePlus,
-  FileEdit,
-  Trash,
-  Upload,
-  Download,
-  Mail,
-} from "lucide-react";
+import { useState } from "react";
+import { Phone, Mail, Shield, FileText, FilePlus, FileEdit, Trash, Upload, Download, ChevronDown } from "lucide-react";
 
 const PERMISSIONS_LIST = [
-  { key: "createInvoice", label: "Create Invoice", icon: FilePlus, color: "blue" },
-  { key: "editInvoice", label: "Edit Invoice", icon: FileEdit, color: "amber" },
-  { key: "deleteInvoice", label: "Delete Invoice", icon: Trash, color: "red" },
+  { key: "createInvoice", label: "Invoice Create", icon: FilePlus, color: "blue" },
+  { key: "editInvoice", label: "Invoice Edit", icon: FileEdit, color: "amber" },
+  { key: "deleteInvoice", label: "Invoice Delete", icon: Trash, color: "red" },
   { key: "cashmemo", label: "Cashmemo", icon: FileText, color: "green" },
   { key: "uploadReport", label: "Upload Report", icon: Upload, color: "purple" },
   { key: "downloadReport", label: "Download Report", icon: Download, color: "teal" },
@@ -33,119 +19,154 @@ const CHIP_COLORS = {
   teal: "bg-teal-50 text-teal-700 border-teal-200",
 };
 
-const Staff = ({ input, onEdit, onDelete, onDeactivate, onActivate }) => {
+// ─── Action chip with gradient border (no icons) ────────────────────────────
+
+const ActionChip = ({ onClick, label, color }) => {
+  const gradientMap = {
+    indigo: "linear-gradient(135deg, #6366f1, #4f46e5)",
+    amber: "linear-gradient(135deg, #f59e0b, #d97706)",
+    emerald: "linear-gradient(135deg, #10b981, #059669)",
+    rose: "linear-gradient(135deg, #f43f5e, #e11d48)",
+  };
+  const grad = gradientMap[color] || gradientMap.indigo;
+
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-normal transition-all hover:scale-105 active:scale-95 text-slate-900"
+      style={{
+        border: "1px solid transparent",
+        borderImage: `${grad} 1`,
+        background: "white",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+      }}
+    >
+      {label}
+    </button>
+  );
+};
+
+// ─── Main Staff Row ──────────────────────────────────────────────────────────
+
+const Staff = ({ input, index, onEdit, onDelete, onDeactivate, onActivate }) => {
+  const [expanded, setExpanded] = useState(false);
   const activePermissions = PERMISSIONS_LIST.filter((p) => input.permissions[p.key]);
   const hasFullAccess = activePermissions.length === PERMISSIONS_LIST.length;
 
+  // Determine role label (as per backend: admin, staff, or other)
+  const role = input.role === "admin" ? "প্রশাসক" : input.role === "staff" ? "কর্মী" : "অন্যান্য";
+  const roleColor =
+    input.role === "admin"
+      ? "text-purple-600 bg-purple-50 border-purple-200"
+      : input.role === "staff"
+        ? "text-indigo-600 bg-indigo-50 border-indigo-200"
+        : "text-slate-600 bg-slate-50 border-slate-200";
+
   return (
-    <div className="group relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.04)] transition-all duration-300 p-5 border border-white/20 hover:border-indigo-200">
-      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-        {/* Left */}
-        <div className="flex-1 min-w-0 flex items-start gap-4">
-          {/* Avatar */}
-          <div className="relative flex-shrink-0">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-50 text-indigo-700 font-semibold text-base shadow-sm ring-1 ring-black/5">
-              {input.name.charAt(0).toUpperCase()}
-            </div>
-            <div
-              className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm ${input.isActive ? "bg-emerald-500" : "bg-slate-400"}`}
+    <div
+      className={`border-b border-slate-100 last:border-0 transition-opacity ${
+        input.isActive ? "opacity-100" : "opacity-60"
+      }`}
+    >
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full group transition-colors rounded-xl hover:bg-slate-50/80 px-2 -mx-2"
+      >
+        <div className="flex items-center gap-3 py-3">
+          {/* Index */}
+          <span className="font-mono text-xs text-slate-400 w-6 flex-shrink-0 text-center">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+
+          {/* Name + Role */}
+          <div className="flex-1 min-w-0 flex items-baseline gap-2">
+            <span className="font-semibold text-sm text-slate-800 group-hover:text-slate-900 transition-colors">
+              {input.name}
+            </span>
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${roleColor}`}
+            >
+              {role}
+            </span>
+          </div>
+
+          {/* Right side */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Status indicator */}
+            <span className={`text-[10px] font-mono ${input.isActive ? "text-emerald-600" : "text-slate-400"}`}>
+              {input.isActive ? "সক্রিয়" : "নিষ্ক্রিয়"}
+            </span>
+
+            {/* Permission count / Full access badge */}
+            {hasFullAccess && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">
+                <Shield className="w-3 h-3" /> সম্পূর্ণ
+              </span>
+            )}
+
+            {/* Expand icon */}
+            <ChevronDown
+              className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
             />
           </div>
+        </div>
+      </button>
 
-          {/* Info */}
-          <div className="flex-1 min-w-0 space-y-2">
-            {/* Name + badges */}
-            <div className="flex items-center flex-wrap gap-2">
-              <h3 className="text-lg font-semibold text-gray-900 tracking-tight truncate">{input.name}</h3>
-              {hasFullAccess && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  <Shield className="w-3 h-3" /> Full Access
-                </span>
-              )}
-              <span
-                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${input.isActive ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-slate-100 text-slate-600 border border-slate-200"}`}
-              >
-                {input.isActive ? "Active" : "Inactive"}
+      {/* Expanded details */}
+      {expanded && (
+        <div className="ml-8 pl-4 py-3 space-y-3 border-t border-slate-100 bg-slate-50/50 rounded-b-xl -mx-2 px-4">
+          {/* Contact info */}
+          <div className="space-y-1.5 text-sm text-slate-600">
+            {input.email && (
+              <p className="flex items-center gap-2">
+                <Mail className="w-3.5 h-3.5 text-slate-400" />
+                <span className="font-mono text-xs">{input.email}</span>
+              </p>
+            )}
+            {input.phone && (
+              <p className="flex items-center gap-2">
+                <Phone className="w-3.5 h-3.5 text-slate-400" />
+                <span className="font-mono text-xs">{input.phone}</span>
+              </p>
+            )}
+          </div>
+
+          {/* Permissions */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <Shield className="w-3.5 h-3.5" />
+              <span>
+                অনুমতি ({activePermissions.length}/{PERMISSIONS_LIST.length})
               </span>
             </div>
-
-            {/* Contact pills */}
-            <div className="flex flex-wrap items-center gap-2">
-              {[
-                { icon: Mail, bg: "bg-blue-100", color: "text-blue-600", value: input.email, truncate: true },
-                { icon: Phone, bg: "bg-purple-100", color: "text-purple-600", value: input.phone },
-              ].map(({ icon: Icon, bg, color, value, truncate }) => (
-                <div
-                  key={value}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 rounded-full text-xs"
-                >
-                  <div className={`${bg} p-1 rounded-full`}>
-                    <Icon className={`w-3 h-3 ${color}`} />
-                  </div>
-                  <span className={`font-medium text-gray-700 ${truncate ? "truncate max-w-[180px]" : ""}`}>
-                    {value}
+            {activePermissions.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {activePermissions.map(({ key, label, icon: Icon, color }) => (
+                  <span
+                    key={key}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${CHIP_COLORS[color]}`}
+                  >
+                    <Icon className="w-3 h-3" /> {label}
                   </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Permissions */}
-            <div className="mt-3 pt-2 border-t border-gray-100">
-              <div className="flex items-center gap-1.5 mb-2 text-xs font-medium text-gray-500">
-                <Shield className="w-3.5 h-3.5 text-indigo-500" />
-                <span>
-                  Permissions ({activePermissions.length}/{PERMISSIONS_LIST.length})
-                </span>
+                ))}
               </div>
-              {activePermissions.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {activePermissions.map(({ key, label, icon: Icon, color }) => (
-                    <span
-                      key={key}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${CHIP_COLORS[color]}`}
-                    >
-                      <Icon className="w-3 h-3" /> {label}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-400 italic">No permissions assigned</p>
-              )}
-            </div>
+            ) : (
+              <p className="text-xs text-slate-400 italic">কোনো অনুমতি নেই</p>
+            )}
+          </div>
+
+          {/* Actions — no icons, only text with gradient border */}
+          <div className="flex items-center gap-2 flex-wrap pt-1">
+            <ActionChip onClick={onEdit} label="সম্পাদনা" color="indigo" />
+            {input.isActive ? (
+              <ActionChip onClick={onDeactivate} label="নিষ্ক্রিয় করুন" color="amber" />
+            ) : (
+              <ActionChip onClick={onActivate} label="সক্রিয় করুন" color="emerald" />
+            )}
+            <ActionChip onClick={onDelete} label="মুছুন" color="rose" />
           </div>
         </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-2 shrink-0 flex-wrap mx-auto lg:mx-0">
-          <button
-            onClick={onEdit}
-            className="px-4 py-2 rounded-lg text-xs font-medium bg-white border border-indigo-300 text-gray-700 hover:bg-indigo-50 hover:border-indigo-400 hover:text-indigo-700 transition-all inline-flex items-center gap-1.5 shadow-sm hover:shadow"
-          >
-            <Edit2 className="w-3.5 h-3.5" /> Edit
-          </button>
-          {input.isActive ? (
-            <button
-              onClick={onDeactivate}
-              className="px-4 py-2 rounded-lg text-xs font-medium bg-white border border-amber-300 text-gray-700 hover:bg-amber-50 hover:border-amber-400 hover:text-amber-700 transition-all inline-flex items-center gap-1.5 shadow-sm hover:shadow"
-            >
-              <UserX className="w-3.5 h-3.5" /> Deactivate
-            </button>
-          ) : (
-            <button
-              onClick={onActivate}
-              className="px-4 py-2 rounded-lg text-xs font-medium bg-white border border-emerald-300 text-gray-700 hover:bg-emerald-50 hover:border-emerald-400 hover:text-emerald-700 transition-all inline-flex items-center gap-1.5 shadow-sm hover:shadow"
-            >
-              <UserCheck className="w-3.5 h-3.5" /> Activate
-            </button>
-          )}
-          <button
-            onClick={onDelete}
-            className="px-4 py-2 rounded-lg text-xs font-medium bg-white border border-rose-300 text-gray-700 hover:bg-rose-50 hover:border-rose-400 hover:text-rose-600 transition-all inline-flex items-center gap-1.5 shadow-sm hover:shadow"
-          >
-            <Trash2 className="w-3.5 h-3.5" /> Delete
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
