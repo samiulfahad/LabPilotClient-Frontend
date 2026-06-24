@@ -3,35 +3,35 @@ import { FlaskConical, Package, Users, UserCheck, BedDouble, Stethoscope } from 
 
 const CARDS = [
   {
-    title: "টেস্ট ব্যবস্থাপনা",
+    title: "ল্যাব টেস্ট",
     subtitle: "পরীক্ষা সংক্রান্ত সকল তথ্য",
     icon: FlaskConical,
     link: "/manage-tests",
     color: "blue",
   },
   {
-    title: "পণ্য তালিকা",
-    subtitle: "পণ্যের ইনভেন্টরি ও স্টক",
+    title: "ঔষধ,পণ্য, সেবা",
+    subtitle: "ইনভেন্টরি ও স্টক",
     icon: Package,
     link: "/manage-products",
     color: "amber",
   },
   {
-    title: "কর্মী ব্যবস্থাপনা",
-    subtitle: "স্টাফদের তথ্য ও রোল",
+    title: "ল্যাব টাফ",
+    subtitle: "স্টাফদের তথ্য",
     icon: Users,
     link: "/manage-staffs",
     color: "emerald",
   },
   {
-    title: "রেফারার ব্যবস্থাপনা",
+    title: "রোগী রেফারার",
     subtitle: "রেফারারদের তালিকা ও কমিশন",
     icon: UserCheck,
     link: "/manage-referrers",
     color: "purple",
   },
   {
-    title: "ভর্তি স্থান",
+    title: "ইনডোর রোগীর ভর্তির স্থান",
     subtitle: "ওয়ার্ড, কেবিন, আইসিইউ ব্যবস্থাপনা",
     icon: BedDouble,
     link: "/manage-spaces",

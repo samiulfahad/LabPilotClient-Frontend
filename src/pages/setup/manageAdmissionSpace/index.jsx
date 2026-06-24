@@ -4,22 +4,25 @@
  * Reservation only — booking is handled via invoice flow.
  * Bed states (display only): booked | reserved | available
  * departments is now an array (multi-select), fetched from backend.
+ *
+ * Styled to match the Referrer ledger/paper aesthetic:
+ * IBM Plex Mono/Sans, ModalShell + ConfirmModal pattern, ActionChip rows,
+ * StatCard grid, numbered expandable ledger rows.
  */
 
 // React Compiler handles memoisation — no useCallback/useMemo
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   BedDouble,
   Plus,
   Pencil,
   Trash2,
   X,
-  CheckCircle2,
   AlertTriangle,
   Loader2,
   ChevronDown,
-  ChevronUp,
   Hash,
   Building2,
   Banknote,
@@ -27,8 +30,12 @@ import {
   BookMarked,
   BookX,
   Check,
+  Search,
+  RotateCcw,
+  AlertCircle,
 } from "lucide-react";
 
+import Popup from "../../../components/popup";
 import spaceService from "../../../api/admissionSpace";
 
 const fmt = (n) =>
@@ -36,65 +43,135 @@ const fmt = (n) =>
 
 const deptLabel = (val, departments) => departments.find((d) => d.value === val)?.label ?? val;
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
-const Toast = ({ message, type, onClose }) => {
+// ── Shared input helpers ───────────────────────────────────────────────────────
+
+const inputBase =
+  "w-full outline-none transition-all rounded-xl border-[1.5px] border-[#E2E8F0] bg-white text-[#0F172A] font-['IBM_Plex_Mono',monospace]";
+const focusInput = (e) => {
+  e.target.style.borderColor = "#6366F1";
+  e.target.style.boxShadow = "0 0 0 3px #6366F120";
+};
+const blurInput = (e) => {
+  e.target.style.borderColor = "#E2E8F0";
+  e.target.style.boxShadow = "";
+};
+
+// ── FormField ──────────────────────────────────────────────────────────────────
+
+const FormField = ({ label, required, children, hint }) => (
+  <div>
+    <label className="block mb-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748B]">
+      {label}
+      {required && <span className="text-[#EF4444] ml-[3px]">*</span>}
+      {hint && <span className="ml-1.5 text-[#94A3B8] font-normal normal-case tracking-normal">{hint}</span>}
+    </label>
+    {children}
+  </div>
+);
+
+// ── Modal Shell ────────────────────────────────────────────────────────────────
+
+const ModalShell = ({ onClose, children, wide }) => {
   useEffect(() => {
-    const t = setTimeout(onClose, 3500);
-    return () => clearTimeout(t);
-  }, [onClose]);
-  const styles =
-    type === "success" ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700";
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   return (
-    <div
-      className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-lg text-sm font-semibold ${styles}`}
-    >
-      {type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-      {message}
-      <button onClick={onClose} className="ml-2 opacity-60 hover:opacity-100">
-        <X className="w-3.5 h-3.5" />
-      </button>
+    <div className="fixed inset-0 flex items-center justify-center px-4 z-[9999]">
+      <div
+        className="absolute inset-0 backdrop-blur-[6px]"
+        style={{ background: "rgba(15,23,42,0.6)" }}
+        onClick={onClose}
+      />
+      <div
+        className={`relative w-full ${wide ? "max-w-[560px]" : "max-w-[520px]"} max-h-[calc(100svh-48px)] overflow-y-auto`}
+      >
+        {children}
+      </div>
     </div>
   );
 };
 
-// ─── Confirm Popup ────────────────────────────────────────────────────────────
-const ConfirmPopup = ({ message, onConfirm, onCancel, confirmText = "Confirm", danger = true }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-7 max-w-sm w-full">
-      <div className="flex flex-col items-center text-center">
-        <div
-          className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 border ${danger ? "bg-red-50 border-red-100" : "bg-amber-50 border-amber-100"}`}
-        >
-          <AlertTriangle className={`w-7 h-7 ${danger ? "text-red-500" : "text-amber-500"}`} />
+// ── Confirm Modal ──────────────────────────────────────────────────────────────
+
+const TONE = {
+  danger: {
+    border: "border-[#FECACA]",
+    bgGrad: "linear-gradient(135deg,#FEF2F2,#FFE4E6)",
+    iconGrad: "linear-gradient(135deg,#EF4444,#DC2626)",
+    shadow: "shadow-[0_8px_20px_rgba(239,68,68,0.35)]",
+    label: "text-[#DC2626]",
+    btnGrad: "linear-gradient(135deg,#EF4444,#DC2626)",
+    btnShadow: "shadow-[0_4px_14px_rgba(239,68,68,0.4)]",
+  },
+  warning: {
+    border: "border-[#FDE68A]",
+    bgGrad: "linear-gradient(135deg,#FFFBEB,#FEF3C7)",
+    iconGrad: "linear-gradient(135deg,#F59E0B,#D97706)",
+    shadow: "shadow-[0_8px_20px_rgba(245,158,11,0.35)]",
+    label: "text-[#D97706]",
+    btnGrad: "linear-gradient(135deg,#F59E0B,#D97706)",
+    btnShadow: "shadow-[0_4px_14px_rgba(245,158,11,0.4)]",
+  },
+};
+
+const ConfirmModal = ({ message, tone = "danger", confirmLabel = "নিশ্চিত", onConfirm, onCancel, loading }) => {
+  const t = TONE[tone];
+  return (
+    <ModalShell onClose={onCancel}>
+      <div className="bg-white overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
+        <div className={`px-6 py-6 flex items-center gap-4 border-b ${t.border}`} style={{ background: t.bgGrad }}>
+          <div
+            className={`flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] ${t.shadow}`}
+            style={{ background: t.iconGrad }}
+          >
+            <AlertTriangle className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <p
+              className={`font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] ${t.label}`}
+            >
+              নিশ্চিত করুন
+            </p>
+            <p className="font-['IBM_Plex_Sans',sans-serif] text-[15px] font-bold text-[#0F172A]">{message}</p>
+          </div>
         </div>
-        <p className="text-sm text-gray-600 mb-6 leading-relaxed">{message}</p>
-        <div className="flex w-full gap-3">
+        <div className="px-6 py-5 flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+            disabled={loading}
+            className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
           >
-            Cancel
+            বাতিল
           </button>
           <button
             onClick={onConfirm}
-            className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 shadow-lg ${danger ? "bg-red-500 hover:bg-red-600 shadow-red-200" : "bg-amber-500 hover:bg-amber-600 shadow-amber-200"}`}
+            disabled={loading}
+            className={`flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs ${t.btnShadow}`}
+            style={{ background: t.btnGrad, opacity: loading ? 0.7 : 1 }}
           >
-            {confirmText}
+            {loading ? (
+              <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+            ) : (
+              <Check className="w-[14px] h-[14px]" />
+            )}
+            {confirmLabel}
           </button>
         </div>
       </div>
-    </div>
-  </div>
-);
+    </ModalShell>
+  );
+};
 
-// ─── Reserve Note Modal ───────────────────────────────────────────────────────
-const ReserveNoteModal = ({ isOpen, onClose, onConfirm, title, bedNumber }) => {
+// ── Reserve Note Modal ─────────────────────────────────────────────────────────
+
+const ReserveNoteModal = ({ title, bedNumber, onClose, onConfirm }) => {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) setNote("");
-  }, [isOpen]);
 
   const handleConfirm = async () => {
     setBusy(true);
@@ -106,70 +183,94 @@ const ReserveNoteModal = ({ isOpen, onClose, onConfirm, title, bedNumber }) => {
     }
   };
 
-  if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-sm">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center">
-              <BookMarked className="w-4 h-4 text-amber-500" />
+    <ModalShell onClose={onClose}>
+      <div className="bg-white flex flex-col overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)] max-h-[calc(100svh-48px)]">
+        <div
+          className="shrink-0 px-6 py-5 flex items-center justify-between border-b border-[#FDE68A]"
+          style={{ background: "linear-gradient(135deg,#FFFBEB,#FEF3C7)" }}
+        >
+          <div className="flex items-center gap-3.5">
+            <div
+              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] shadow-[0_8px_20px_rgba(245,158,11,0.35)]"
+              style={{ background: "linear-gradient(135deg,#F59E0B,#D97706)" }}
+            >
+              <BookMarked className="w-[18px] h-[18px] text-white" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-gray-900">{title}</h3>
-              {bedNumber !== undefined && <p className="text-xs text-gray-400">Bed #{bedNumber}</p>}
+              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] text-[#D97706]">
+                সংরক্ষণ
+              </p>
+              <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">{title}</p>
+              {bedNumber !== undefined && (
+                <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8]">শয্যা #{bedNumber}</p>
+              )}
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
+            className="flex items-center justify-center w-8 h-8 rounded-[10px] text-[#94A3B8] border-[1.5px] border-[#E2E8F0] bg-white transition-all hover:bg-[#F1F5F9] hover:text-[#0F172A]"
           >
-            <X className="w-4 h-4" />
+            <X className="w-[15px] h-[15px]" />
           </button>
         </div>
-        <div className="px-5 py-4">
-          <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-            Note <span className="text-gray-400 font-normal">(optional)</span>
-          </label>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={3}
-            maxLength={300}
-            placeholder="e.g. Reserved for patient admission tomorrow"
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400 transition-all"
-          />
-          <p className="text-right text-[10px] text-gray-400 mt-1">{note.length}/300</p>
+
+        <div className="px-6 py-5 bg-[#F8FAFC] overflow-y-auto">
+          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8]">
+                নোট <span className="text-[#94A3B8] font-normal normal-case">(ঐচ্ছিক)</span>
+              </p>
+              <span className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">{note.length}/300</span>
+            </div>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+              maxLength={300}
+              placeholder="যেমন: আগামীকাল রোগী ভর্তির জন্য সংরক্ষিত"
+              className={`${inputBase} px-3 py-2.5 text-sm resize-none`}
+              onFocus={focusInput}
+              onBlur={blurInput}
+            />
+          </div>
         </div>
-        <div className="px-5 pb-5 flex gap-3">
+
+        <div className="shrink-0 px-6 py-4 flex gap-3 bg-white border-t border-[#E2E8F0]">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+            disabled={busy}
+            className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
           >
-            Cancel
+            বাতিল
           </button>
           <button
             onClick={handleConfirm}
             disabled={busy}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 shadow-lg shadow-amber-200 transition-all active:scale-95 disabled:opacity-60"
+            className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs shadow-[0_4px_14px_rgba(245,158,11,0.4)]"
+            style={{ background: busy ? "#94A3B8" : "linear-gradient(135deg,#F59E0B,#D97706)" }}
           >
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <BookMarked className="w-4 h-4" />}
-            Reserve
+            {busy ? (
+              <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+            ) : (
+              <BookMarked className="w-[13px] h-[13px]" />
+            )}
+            সংরক্ষণ করুন
           </button>
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 };
 
-// ─── Department Multi-Select Dropdown ─────────────────────────────────────────
+// ── Department Multi-Select Dropdown ───────────────────────────────────────────
+
 const DeptMultiSelect = ({ value, onChange, error, departments }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const ref = useRef(null);
   const searchRef = useRef(null);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e) => {
       if (ref.current && !ref.current.contains(e.target)) {
@@ -181,25 +282,21 @@ const DeptMultiSelect = ({ value, onChange, error, departments }) => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Focus search when dropdown opens
   useEffect(() => {
     if (open) setTimeout(() => searchRef.current?.focus(), 50);
     else setSearch("");
   }, [open]);
 
   const toggle = (val) => {
-    if (value.includes(val)) {
-      onChange(value.filter((v) => v !== val)); // allow removing even the last one
-    } else {
-      onChange([...value, val]);
-    }
+    if (value.includes(val)) onChange(value.filter((v) => v !== val));
+    else onChange([...value, val]);
   };
 
   if (!departments.length) {
     return (
-      <div className="flex items-center gap-2 px-4 py-3 text-xs rounded-xl border border-amber-200 bg-amber-50 text-amber-700">
+      <div className="flex items-center gap-2 px-4 py-3 font-['IBM_Plex_Mono',monospace] text-xs rounded-xl border-[1.5px] border-[#F59E0B30] bg-[#F59E0B0C] text-[#D97706]">
         <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-        No departments available. Please try again.
+        কোনো বিভাগ পাওয়া যায়নি। আবার চেষ্টা করুন।
       </div>
     );
   }
@@ -207,49 +304,45 @@ const DeptMultiSelect = ({ value, onChange, error, departments }) => {
   const filtered = departments.filter((d) => d.label.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div ref={ref}>
-      <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-        Department(s) * <span className="text-gray-400 font-normal">(select all that apply)</span>
+    <div ref={ref} className="relative">
+      <label className="block mb-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748B]">
+        বিভাগ(সমূহ) <span className="text-[#EF4444]">*</span>
+        <span className="ml-1.5 text-[#94A3B8] font-normal normal-case tracking-normal">প্রযোজ্য সব নির্বাচন করুন</span>
       </label>
 
-      {/* Trigger button */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`w-full flex items-center justify-between px-3.5 py-2.5 text-sm border rounded-xl bg-white transition-all focus:outline-none focus:ring-2 focus:ring-indigo-100 ${
+        className={`${inputBase} flex items-center justify-between px-3.5 py-2.5 text-sm cursor-pointer`}
+        style={
           error
-            ? "border-red-300 bg-red-50"
+            ? { borderColor: "#EF4444", background: "#EF444408" }
             : open
-              ? "border-indigo-400 ring-2 ring-indigo-100"
-              : "border-gray-200 hover:border-indigo-300"
-        }`}
+              ? { borderColor: "#6366F1", boxShadow: "0 0 0 3px #6366F120" }
+              : undefined
+        }
       >
-        <span className={`truncate text-left ${value.length === 0 ? "text-gray-400" : "text-gray-800"}`}>
+        <span className={`truncate text-left ${value.length === 0 ? "text-[#94A3B8]" : "text-[#0F172A]"}`}>
           {value.length === 0
-            ? "Select departments…"
+            ? "বিভাগ নির্বাচন করুন…"
             : value.length === 1
               ? deptLabel(value[0], departments)
-              : `${value.length} departments selected`}
+              : `${value.length}টি বিভাগ নির্বাচিত`}
         </span>
         <ChevronDown
-          className={`w-4 h-4 text-gray-400 shrink-0 ml-2 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-[#94A3B8] shrink-0 ml-2 transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
 
-      {/* Selected chips — always shown when any selected */}
       {value.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-1.5">
+        <div className="flex flex-wrap gap-1.5 mt-2">
           {value.map((v) => (
             <span
               key={v}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-indigo-50 text-indigo-600 border border-indigo-100"
+              className="inline-flex items-center gap-1 px-2 py-[3px] rounded-lg font-['IBM_Plex_Mono',monospace] text-[11px] font-semibold bg-[#6366F112] text-[#6366F1] border-[1.5px] border-[#6366F130]"
             >
               {deptLabel(v, departments)}
-              <button
-                type="button"
-                onClick={() => toggle(v)}
-                className="text-indigo-400 hover:text-red-500 transition-colors"
-              >
+              <button type="button" onClick={() => toggle(v)} className="text-[#6366F1] opacity-60 hover:opacity-100">
                 <X className="w-3 h-3" />
               </button>
             </span>
@@ -257,45 +350,32 @@ const DeptMultiSelect = ({ value, onChange, error, departments }) => {
         </div>
       )}
 
-      {/* Dropdown with search */}
       {open && (
-        <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-          {/* Search input */}
-          <div className="px-2.5 pt-2.5 pb-1.5 border-b border-gray-100">
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
-              <svg
-                className="w-3.5 h-3.5 text-gray-400 shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"
-                />
-              </svg>
+        <div className="absolute z-30 mt-1.5 w-full bg-white border-[1.5px] border-[#E2E8F0] rounded-xl shadow-[0_12px_28px_rgba(15,23,42,0.12)] overflow-hidden">
+          <div className="px-2.5 pt-2.5 pb-1.5 border-b border-[#E2E8F0]">
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#F8FAFC] border-[1.5px] border-[#E2E8F0]">
+              <Search className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
               <input
                 ref={searchRef}
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search departments…"
-                className="flex-1 text-xs bg-transparent outline-none text-gray-700 placeholder-gray-400"
+                placeholder="বিভাগ অনুসন্ধান করুন…"
+                className="flex-1 font-['IBM_Plex_Mono',monospace] text-xs bg-transparent outline-none text-[#0F172A] placeholder-[#94A3B8]"
               />
               {search && (
-                <button type="button" onClick={() => setSearch("")} className="text-gray-400 hover:text-gray-600">
+                <button type="button" onClick={() => setSearch("")} className="text-[#94A3B8] hover:text-[#0F172A]">
                   <X className="w-3 h-3" />
                 </button>
               )}
             </div>
           </div>
 
-          {/* Options list */}
           <div className="max-h-48 overflow-y-auto py-1">
             {filtered.length === 0 ? (
-              <p className="px-4 py-3 text-xs text-gray-400 text-center">No departments match</p>
+              <p className="px-4 py-3 font-['IBM_Plex_Mono',monospace] text-xs text-[#94A3B8] text-center">
+                কোনো বিভাগ মেলেনি
+              </p>
             ) : (
               filtered.map((d) => {
                 const selected = value.includes(d.value);
@@ -304,12 +384,11 @@ const DeptMultiSelect = ({ value, onChange, error, departments }) => {
                     key={d.value}
                     type="button"
                     onClick={() => toggle(d.value)}
-                    className={`w-full flex items-center justify-between px-3.5 py-2 text-sm transition-colors text-left ${
-                      selected ? "bg-indigo-50 text-indigo-700 font-semibold" : "text-gray-700 hover:bg-gray-50"
-                    }`}
+                    className={`w-full flex items-center justify-between px-3.5 py-2 font-['IBM_Plex_Sans',sans-serif] text-sm transition-colors text-left
+                      ${selected ? "bg-[#6366F110] text-[#6366F1] font-semibold" : "text-[#0F172A] hover:bg-[#F1F5F9]"}`}
                   >
                     <span>{d.label}</span>
-                    {selected && <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
+                    {selected && <Check className="w-3.5 h-3.5 text-[#6366F1] shrink-0" />}
                   </button>
                 );
               })
@@ -318,12 +397,13 @@ const DeptMultiSelect = ({ value, onChange, error, departments }) => {
         </div>
       )}
 
-      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+      {error && <p className="text-[11px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] mt-1">{error}</p>}
     </div>
   );
 };
 
-// ─── Space Form Modal ─────────────────────────────────────────────────────────
+// ── Space Form Modal ────────────────────────────────────────────────────────────
+
 const EMPTY_FORM = {
   name: "",
   chargePerDay: "",
@@ -333,15 +413,18 @@ const EMPTY_FORM = {
   bedStartingNumber: 1,
 };
 
-const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace, departments }) => {
+const SpaceFormModal = ({ editSpace, departments, onSubmit, onClose, saving }) => {
   const [form, setForm] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
+  const isEdit = !!editSpace;
+  const gradFrom = isEdit ? "#8B5CF6" : "#3B82F6";
+  const gradTo = isEdit ? "#7C3AED" : "#2563EB";
+  const accentText = isEdit ? "text-[#8B5CF6]" : "text-[#3B82F6]";
+  const accentBorder = isEdit ? "border-[#8B5CF620]" : "border-[#3B82F620]";
+  const accentShadow = isEdit ? "shadow-[0_8px_20px_#8B5CF640]" : "shadow-[0_8px_20px_#3B82F640]";
 
   useEffect(() => {
-    if (!isOpen) return;
     if (editSpace) {
-      // normalise: legacy single `department` string → array
       const depts = editSpace.departments ? editSpace.departments : editSpace.department ? [editSpace.department] : [];
       setForm({
         name: editSpace.name,
@@ -355,7 +438,7 @@ const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace, departments }) =>
       setForm({ ...EMPTY_FORM });
     }
     setErrors({});
-  }, [isOpen, editSpace]);
+  }, [editSpace]);
 
   const set = (key, val) => {
     setForm((p) => ({ ...p, [key]: val }));
@@ -364,110 +447,122 @@ const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace, departments }) =>
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim()) e.name = "Name is required";
+    if (!form.name.trim()) e.name = "নাম আবশ্যক";
     if (!form.chargePerDay || isNaN(form.chargePerDay) || Number(form.chargePerDay) < 0)
-      e.chargePerDay = "Enter a valid charge";
-    if (!form.departments.length) e.departments = "Select at least one department";
+      e.chargePerDay = "সঠিক চার্জ লিখুন";
+    if (!form.departments.length) e.departments = "অন্তত একটি বিভাগ নির্বাচন করুন";
     if (form.multiBed) {
       if (!form.totalNumberOfBed || isNaN(form.totalNumberOfBed) || Number(form.totalNumberOfBed) < 1)
-        e.totalNumberOfBed = "Enter total beds (≥ 1)";
+        e.totalNumberOfBed = "মোট শয্যা লিখুন (≥ ১)";
       if (form.bedStartingNumber === "" || isNaN(form.bedStartingNumber) || Number(form.bedStartingNumber) < 0)
-        e.bedStartingNumber = "Enter a valid starting number";
+        e.bedStartingNumber = "সঠিক শুরুর নম্বর লিখুন";
     }
     return e;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     const e = validate();
     if (Object.keys(e).length) {
       setErrors(e);
       return;
     }
-    setSaving(true);
-    try {
-      const payload = {
-        name: form.name.trim(),
-        chargePerDay: Number(form.chargePerDay),
-        departments: form.departments,
-        multiBed: form.multiBed,
-        multiBedConf: form.multiBed
-          ? {
-              totalNumberOfBed: Number(form.totalNumberOfBed),
-              bedStartingNumber: Number(form.bedStartingNumber),
-              booked: editSpace?.multiBedConf?.booked ?? [],
-            }
-          : null,
-      };
-      if (editSpace) {
-        await spaceService.update(editSpace._id, payload);
-        onSaved("updated", { ...editSpace, ...payload });
-      } else {
-        const res = await spaceService.create(payload);
-        onSaved("created", { ...res.data, ...payload });
-      }
-      onClose();
-    } catch {
-      setErrors({ general: "Failed to save. Please try again." });
-    } finally {
-      setSaving(false);
-    }
+    onSubmit(form);
   };
 
-  if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12 bg-black/30 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-lg">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-200">
-              <BedDouble className="w-4 h-4 text-white" />
+    <ModalShell onClose={onClose} wide>
+      <div className="bg-white flex flex-col overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)] max-h-[calc(100svh-48px)]">
+        {/* Header — fixed */}
+        <div
+          className={`shrink-0 px-6 py-5 flex items-center justify-between border-b ${accentBorder}`}
+          style={{ background: `linear-gradient(135deg,${gradFrom}15 0%,${gradTo}08 100%)` }}
+        >
+          <div className="flex items-center gap-3.5">
+            <div
+              className={`flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] ${accentShadow}`}
+              style={{ background: `linear-gradient(135deg,${gradFrom},${gradTo})` }}
+            >
+              {isEdit ? (
+                <Pencil className="w-[18px] h-[18px] text-white" />
+              ) : (
+                <BedDouble className="w-[18px] h-[18px] text-white" />
+              )}
             </div>
             <div>
-              <h2 className="font-bold text-gray-900 text-base">{editSpace ? "Edit Space" : "Add New Space"}</h2>
-              <p className="text-xs text-gray-400">Ward, cabin, ICU, or any patient space</p>
+              <p
+                className={`font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] ${accentText}`}
+              >
+                {isEdit ? "সম্পাদনা" : "নতুন আইটেম"}
+              </p>
+              <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">
+                {isEdit ? editSpace.name : "নতুন কক্ষ"}
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="flex items-center justify-center w-8 h-8 rounded-[10px] text-[#94A3B8] border-[1.5px] border-[#E2E8F0] transition-all hover:bg-[#F1F5F9] hover:text-[#0F172A]"
           >
-            <X className="w-4 h-4" />
+            <X className="w-[15px] h-[15px]" />
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-4">
+        {/* Body — scrollable */}
+        <div className="px-6 py-5 bg-[#F8FAFC] space-y-4 max-h-[60vh] overflow-y-auto">
           {errors.general && (
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
-              <AlertTriangle className="w-4 h-4 shrink-0" /> {errors.general}
+            <div className="flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{errors.general}</span>
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Space Name *</label>
+          {/* Name */}
+          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+            <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-2">
+              কক্ষের নাম
+            </p>
             <input
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
-              placeholder="e.g. Ward-1, Cabin-A, ICU"
-              className={`w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all ${errors.name ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+              placeholder="যেমন: Ward-1, Cabin-A, ICU"
+              className={`${inputBase} px-3 py-2 text-sm ${errors.name ? "border-[#EF444460]" : ""}`}
+              onFocus={focusInput}
+              onBlur={blurInput}
             />
-            {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
+            {errors.name && (
+              <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#EF4444] mt-1.5">{errors.name}</p>
+            )}
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Charge / Day (৳) *</label>
-            <input
-              type="number"
-              min={0}
-              value={form.chargePerDay}
-              onChange={(e) => set("chargePerDay", e.target.value)}
-              placeholder="500"
-              className={`w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all ${errors.chargePerDay ? "border-red-300 bg-red-50" : "border-gray-200"}`}
-            />
-            {errors.chargePerDay && <p className="text-xs text-red-500 mt-1">{errors.chargePerDay}</p>}
+          {/* Charge */}
+          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+            <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-2">
+              চার্জ / দিন
+            </p>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#0D9488]">
+                ৳
+              </span>
+              <input
+                type="number"
+                min={0}
+                value={form.chargePerDay}
+                onChange={(e) => set("chargePerDay", e.target.value)}
+                placeholder="০.০০"
+                className={`${inputBase} pl-7 pr-3 py-2 text-sm ${errors.chargePerDay ? "border-[#EF444460]" : ""}`}
+                onFocus={focusInput}
+                onBlur={blurInput}
+              />
+            </div>
+            {errors.chargePerDay && (
+              <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#EF4444] mt-1.5">
+                {errors.chargePerDay}
+              </p>
+            )}
           </div>
 
-          {/* ── Department dropdown (replaces pill buttons) ── */}
-          <div className="relative">
+          {/* Departments */}
+          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
             <DeptMultiSelect
               value={form.departments}
               onChange={(val) => set("departments", val)}
@@ -476,199 +571,148 @@ const SpaceFormModal = ({ isOpen, onClose, onSaved, editSpace, departments }) =>
             />
           </div>
 
-          <div
-            onClick={() => set("multiBed", !form.multiBed)}
-            className={`flex items-center justify-between px-4 py-3 rounded-xl border cursor-pointer transition-all ${form.multiBed ? "border-blue-200 bg-blue-50/60" : "border-gray-200 bg-gray-50/60"}`}
-          >
-            <div>
-              <p className="text-sm font-semibold text-gray-700">Multi-Bed Space</p>
-              <p className="text-xs text-gray-400 mt-0.5">Enable for wards with multiple beds</p>
-            </div>
-            <div
-              className={`w-10 h-6 rounded-full transition-colors flex items-center px-0.5 ${form.multiBed ? "bg-blue-600" : "bg-gray-300"}`}
-            >
-              <div
-                className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${form.multiBed ? "translate-x-4" : "translate-x-0"}`}
-              />
+          {/* Bed configuration */}
+          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+            <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-3">
+              শয্যা কনফিগারেশন
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: false, label: "একক শয্যা", Icon: Hash },
+                { value: true, label: "মাল্টি-শয্যা", Icon: Layers },
+              ].map(({ value, label, Icon }) => {
+                const active = form.multiBed === value;
+                return (
+                  <button
+                    key={String(value)}
+                    type="button"
+                    onClick={() => set("multiBed", value)}
+                    className="flex items-center gap-2 px-3 py-3 transition-all font-semibold rounded-xl border-[1.5px] font-['IBM_Plex_Mono',monospace] text-xs"
+                    style={
+                      active
+                        ? {
+                            background: `linear-gradient(135deg,${gradFrom},${gradTo})`,
+                            color: "white",
+                            borderColor: "transparent",
+                            boxShadow: `0 4px 10px ${gradFrom}30`,
+                          }
+                        : { background: "white", color: "#64748B", borderColor: "#E2E8F0" }
+                    }
+                  >
+                    <Icon className="w-[14px] h-[14px] shrink-0" />
+                    {label}
+                    {active && <Check className="w-[11px] h-[11px] ml-auto" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
+          {/* Bed layout */}
           {form.multiBed && (
-            <div className="grid grid-cols-2 gap-3 px-4 py-4 rounded-xl border border-blue-100 bg-blue-50/40">
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Total Beds *</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={form.totalNumberOfBed}
-                  onChange={(e) => set("totalNumberOfBed", e.target.value)}
-                  placeholder="20"
-                  className={`w-full px-3 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white transition-all ${errors.totalNumberOfBed ? "border-red-300" : "border-gray-200"}`}
-                />
-                {errors.totalNumberOfBed && <p className="text-xs text-red-500 mt-1">{errors.totalNumberOfBed}</p>}
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Bed Starting No.</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.bedStartingNumber}
-                  onChange={(e) => set("bedStartingNumber", e.target.value)}
-                  className={`w-full px-3 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white transition-all ${errors.bedStartingNumber ? "border-red-300" : "border-gray-200"}`}
-                />
+            <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+              <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-3">
+                শয্যা লেআউট
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-semibold text-[#64748B] mb-1.5">
+                    মোট শয্যা <span className="text-[#EF4444]">*</span>
+                  </p>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.totalNumberOfBed}
+                    onChange={(e) => set("totalNumberOfBed", e.target.value)}
+                    placeholder="২০"
+                    className={`${inputBase} px-3 py-2.5 text-sm ${errors.totalNumberOfBed ? "border-[#EF444460]" : ""}`}
+                    onFocus={focusInput}
+                    onBlur={blurInput}
+                  />
+                  {errors.totalNumberOfBed && (
+                    <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#EF4444] mt-1.5">
+                      {errors.totalNumberOfBed}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-semibold text-[#64748B] mb-1.5">
+                    শয্যা শুরুর নম্বর
+                  </p>
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.bedStartingNumber}
+                    onChange={(e) => set("bedStartingNumber", e.target.value)}
+                    className={`${inputBase} px-3 py-2.5 text-sm`}
+                    onFocus={focusInput}
+                    onBlur={blurInput}
+                  />
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+        {/* Footer — fixed */}
+        <div className="shrink-0 px-6 py-4 flex gap-3 bg-white border-t border-[#E2E8F0]">
           <button
+            type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+            disabled={saving}
+            className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
           >
-            Cancel
+            বাতিল
           </button>
           <button
             onClick={handleSubmit}
             disabled={saving || !departments.length}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200/60 transition-all active:scale-95 disabled:opacity-60"
+            className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+            style={{
+              background: saving ? "#94A3B8" : `linear-gradient(135deg,${gradFrom},${gradTo})`,
+              cursor: saving ? "not-allowed" : "pointer",
+            }}
           >
             {saving ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Saving…
-              </>
-            ) : editSpace ? (
-              "Save Changes"
+              <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+            ) : isEdit ? (
+              <Pencil className="w-[13px] h-[13px]" />
             ) : (
-              "Add Space"
+              <Plus className="w-[13px] h-[13px]" />
             )}
+            {isEdit ? "পরিবর্তন সংরক্ষণ" : "তৈরি করুন"}
           </button>
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 };
 
-// ─── Bed Grid ─────────────────────────────────────────────────────────────────
-const BedGrid = ({ conf, spaceId, onUpdate, showToast }) => {
-  const [reserveModal, setReserveModal] = useState(null);
-  const [busy, setBusy] = useState(null);
+// ── Action Chip ────────────────────────────────────────────────────────────────
 
-  if (!conf) return null;
-  const { totalNumberOfBed, bedStartingNumber, booked = [], reserved = [] } = conf;
-  const beds = Array.from({ length: totalNumberOfBed }, (_, i) => bedStartingNumber + i);
+const ActionChip = ({ onClick, icon: Icon, label, color, disabled }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className="inline-flex items-center gap-1.5 transition-all font-semibold px-3 py-[5px] rounded-lg font-['IBM_Plex_Mono',monospace] text-[11px] disabled:opacity-50"
+    style={{ border: `1.5px solid ${color}25`, color, background: `${color}08` }}
+    onMouseEnter={(e) => {
+      if (disabled) return;
+      e.currentTarget.style.background = `${color}18`;
+      e.currentTarget.style.borderColor = `${color}50`;
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.background = `${color}08`;
+      e.currentTarget.style.borderColor = `${color}25`;
+    }}
+  >
+    {disabled ? <Loader2 className="w-[11px] h-[11px] animate-spin" /> : <Icon className="w-[11px] h-[11px]" />}
+    {label}
+  </button>
+);
 
-  const statusOf = (b) => {
-    if (booked.includes(b)) return "booked";
-    if (reserved.some((r) => r.bedNumber === b)) return "reserved";
-    return "available";
-  };
-  const reservedNoteOf = (b) => reserved.find((r) => r.bedNumber === b)?.note ?? "";
+// ── Dept Badges ────────────────────────────────────────────────────────────────
 
-  const doReserve = async (b, note) => {
-    setBusy(b);
-    try {
-      await spaceService.reserveBed(spaceId, b, note);
-      onUpdate((prev) => ({
-        ...prev,
-        multiBedConf: {
-          ...prev.multiBedConf,
-          reserved: [...(prev.multiBedConf.reserved ?? []), { bedNumber: b, note }],
-        },
-      }));
-      showToast(`Bed ${b} reserved`);
-    } catch (e) {
-      showToast(e?.response?.data?.error ?? "Failed to reserve bed", "error");
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const doReleaseReservation = async (b) => {
-    setBusy(b);
-    try {
-      await spaceService.releaseBedReservation(spaceId, b);
-      onUpdate((prev) => ({
-        ...prev,
-        multiBedConf: {
-          ...prev.multiBedConf,
-          reserved: (prev.multiBedConf.reserved ?? []).filter((r) => r.bedNumber !== b),
-        },
-      }));
-      showToast(`Bed ${b} reservation released`);
-    } catch (e) {
-      showToast(e?.response?.data?.error ?? "Failed to release reservation", "error");
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  return (
-    <div>
-      <ReserveNoteModal
-        isOpen={!!reserveModal}
-        bedNumber={reserveModal}
-        title="Reserve Bed"
-        onClose={() => setReserveModal(null)}
-        onConfirm={(note) => doReserve(reserveModal, note)}
-      />
-      <div className="flex flex-wrap gap-1.5 mt-2">
-        {beds.map((b) => {
-          const s = statusOf(b);
-          const isBusy = busy === b;
-          const note = s === "reserved" ? reservedNoteOf(b) : "";
-          const colorClass =
-            s === "booked"
-              ? "bg-red-50 text-red-400 border-red-200 cursor-default"
-              : s === "reserved"
-                ? "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 cursor-pointer"
-                : "bg-green-50 text-green-600 border-green-200 hover:bg-green-100 cursor-pointer";
-          const handleClick = () => {
-            if (s === "booked" || isBusy) return;
-            if (s === "available") setReserveModal(b);
-            if (s === "reserved") doReleaseReservation(b);
-          };
-          return (
-            <button
-              key={b}
-              onClick={handleClick}
-              disabled={s === "booked" || isBusy}
-              title={
-                s === "booked"
-                  ? `Bed ${b} — booked (managed via invoices)`
-                  : s === "reserved"
-                    ? `Bed ${b} — reserved${note ? `: ${note}` : ""} · click to release`
-                    : `Bed ${b} — available · click to reserve`
-              }
-              className={`w-8 h-8 rounded-lg text-xs font-bold flex items-center justify-center border transition-colors relative ${colorClass} ${isBusy ? "opacity-50" : ""}`}
-            >
-              {isBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : b}
-              {s === "reserved" && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 border border-white" />
-              )}
-            </button>
-          );
-        })}
-      </div>
-      <div className="flex items-center gap-4 mt-3 text-[10px] font-medium">
-        <span className="flex items-center gap-1 text-green-600">
-          <span className="w-2.5 h-2.5 rounded bg-green-200 inline-block" /> Available
-        </span>
-        <span className="flex items-center gap-1 text-amber-600">
-          <span className="w-2.5 h-2.5 rounded bg-amber-200 inline-block" /> Reserved
-        </span>
-        <span className="flex items-center gap-1 text-red-400">
-          <span className="w-2.5 h-2.5 rounded bg-red-200 inline-block" /> Booked
-        </span>
-      </div>
-      <p className="text-[10px] text-gray-400 mt-1.5">
-        Click available bed to reserve · click reserved bed to release · booked beds are managed via invoices
-      </p>
-    </div>
-  );
-};
-
-// ─── Dept Badges (card display) ───────────────────────────────────────────────
 const DeptBadges = ({ departments: deptValues = [], allDepartments = [], maxVisible = 2 }) => {
   const visible = deptValues.slice(0, maxVisible);
   const overflow = deptValues.length - maxVisible;
@@ -677,14 +721,14 @@ const DeptBadges = ({ departments: deptValues = [], allDepartments = [], maxVisi
       {visible.map((d) => (
         <span
           key={d}
-          className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 text-indigo-600 border border-indigo-100"
+          className="px-1.5 py-[1px] rounded-md font-['IBM_Plex_Mono',monospace] text-[10px] font-semibold bg-[#6366F112] text-[#6366F1] border border-[#6366F125]"
         >
           {deptLabel(d, allDepartments)}
         </span>
       ))}
       {overflow > 0 && (
         <span
-          className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 text-gray-500 border border-gray-200"
+          className="px-1.5 py-[1px] rounded-md font-['IBM_Plex_Mono',monospace] text-[10px] font-semibold bg-[#F1F5F9] text-[#64748B] border border-[#E2E8F0]"
           title={deptValues
             .slice(maxVisible)
             .map((d) => deptLabel(d, allDepartments))
@@ -697,305 +741,305 @@ const DeptBadges = ({ departments: deptValues = [], allDepartments = [], maxVisi
   );
 };
 
-// ─── Space Card ───────────────────────────────────────────────────────────────
-const SpaceCard = ({ space, onEdit, onDelete, showToast, onSpaceUpdate, allDepartments }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [reserveModal, setReserveModal] = useState(false);
-  const [confirmRelease, setConfirmRelease] = useState(false);
+// ── Bed Grid ───────────────────────────────────────────────────────────────────
 
-  const handleSpaceUpdate = useCallback(
-    (updater) => {
-      const next = typeof updater === "function" ? updater(space) : updater;
-      onSpaceUpdate(next);
-    },
-    [onSpaceUpdate, space],
+const BedGrid = ({ conf, spaceId, onUpdate, onReserveClick }) => {
+  const [busy, setBusy] = useState(null);
+  const { totalNumberOfBed, bedStartingNumber, booked = [], reserved = [] } = conf;
+  const beds = Array.from({ length: totalNumberOfBed }, (_, i) => bedStartingNumber + i);
+
+  const statusOf = (b) => {
+    if (booked.includes(b)) return "booked";
+    if (reserved.some((r) => r.bedNumber === b)) return "reserved";
+    return "available";
+  };
+  const reservedNoteOf = (b) => reserved.find((r) => r.bedNumber === b)?.note ?? "";
+
+  const doReleaseReservation = async (b) => {
+    setBusy(b);
+    try {
+      await spaceService.releaseBedReservation(spaceId, b);
+      onUpdate((prev) => ({
+        ...prev,
+        multiBedConf: {
+          ...prev.multiBedConf,
+          reserved: (prev.multiBedConf.reserved ?? []).filter((r) => r.bedNumber !== b),
+        },
+      }));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-1.5">
+        {beds.map((b) => {
+          const s = statusOf(b);
+          const isBusy = busy === b;
+          const note = s === "reserved" ? reservedNoteOf(b) : "";
+          const colorClass =
+            s === "booked"
+              ? "bg-[#EF444408] text-[#EF444480] border-[#EF444430] cursor-default"
+              : s === "reserved"
+                ? "bg-[#F59E0B0C] text-[#D97706] border-[#F59E0B40] hover:bg-[#F59E0B18] cursor-pointer"
+                : "bg-[#10B9810C] text-[#0D9488] border-[#10B98140] hover:bg-[#10B98118] cursor-pointer";
+          const handleClick = () => {
+            if (s === "booked" || isBusy) return;
+            if (s === "available") onReserveClick(b);
+            if (s === "reserved") doReleaseReservation(b);
+          };
+          return (
+            <button
+              key={b}
+              onClick={handleClick}
+              disabled={s === "booked" || isBusy}
+              title={
+                s === "booked"
+                  ? `শয্যা ${b} — বুক করা (ইনভয়েস অনুযায়ী পরিচালিত)`
+                  : s === "reserved"
+                    ? `শয্যা ${b} — সংরক্ষিত${note ? `: ${note}` : ""} · মুক্ত করতে ক্লিক করুন`
+                    : `শয্যা ${b} — খালি · সংরক্ষণ করতে ক্লিক করুন`
+              }
+              className={`w-8 h-8 rounded-lg font-['IBM_Plex_Mono',monospace] text-xs font-bold flex items-center justify-center border-[1.5px] transition-colors relative ${colorClass} ${isBusy ? "opacity-50" : ""}`}
+            >
+              {isBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : b}
+              {s === "reserved" && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#F59E0B] border border-white" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-4 mt-3 font-['IBM_Plex_Mono',monospace] text-[10px] font-medium">
+        <span className="flex items-center gap-1 text-[#0D9488]">
+          <span className="w-2.5 h-2.5 rounded bg-[#0D948830] inline-block" /> খালি
+        </span>
+        <span className="flex items-center gap-1 text-[#D97706]">
+          <span className="w-2.5 h-2.5 rounded bg-[#F59E0B30] inline-block" /> সংরক্ষিত
+        </span>
+        <span className="flex items-center gap-1 text-[#EF444480]">
+          <span className="w-2.5 h-2.5 rounded bg-[#EF444430] inline-block" /> বুক করা
+        </span>
+      </div>
+      <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8] mt-1.5">
+        খালি শয্যায় ক্লিক করে সংরক্ষণ করুন · সংরক্ষিত শয্যায় ক্লিক করে মুক্ত করুন · বুক করা শয্যা ইনভয়েস অনুযায়ী
+        পরিচালিত হয়
+      </p>
+    </div>
   );
+};
 
-  const doReserveSingle = async (note) => {
-    setBusy(true);
-    try {
-      await spaceService.reserve(space._id, note);
-      handleSpaceUpdate((p) => ({ ...p, reserved: true, reservedNote: note }));
-      showToast(`"${space.name}" reserved`);
-    } catch (e) {
-      showToast(e?.response?.data?.error ?? "Failed to reserve", "error");
-    } finally {
-      setBusy(false);
-    }
-  };
+// ── Space Row ──────────────────────────────────────────────────────────────────
 
-  const doReleaseSingle = async () => {
-    setConfirmRelease(false);
-    setBusy(true);
-    try {
-      await spaceService.releaseReservation(space._id);
-      handleSpaceUpdate((p) => ({ ...p, reserved: false, reservedNote: "" }));
-      showToast(`"${space.name}" reservation released`);
-    } catch (e) {
-      showToast(e?.response?.data?.error ?? "Failed to release", "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
+const SpaceRow = ({
+  space,
+  index,
+  allDepartments,
+  onEdit,
+  onDelete,
+  onReserveSingle,
+  onReleaseSingle,
+  onUpdate,
+  onReserveBed,
+  busy,
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const depts = space.departments ?? (space.department ? [space.department] : []);
   const totalBeds = space.multiBedConf?.totalNumberOfBed ?? 0;
   const bookedCount = space.multiBedConf?.booked?.length ?? 0;
   const reservedCount = space.multiBedConf?.reserved?.length ?? 0;
   const availableCount = totalBeds - bookedCount - reservedCount;
 
-  // normalise legacy single dept string
-  const depts = space.departments ?? (space.department ? [space.department] : []);
-
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all duration-200 overflow-hidden">
-      {confirmRelease && (
-        <ConfirmPopup
-          message={`Release reservation on "${space.name}"?`}
-          confirmText="Release"
-          danger={false}
-          onConfirm={doReleaseSingle}
-          onCancel={() => setConfirmRelease(false)}
-        />
-      )}
-      <ReserveNoteModal
-        isOpen={reserveModal}
-        title={`Reserve "${space.name}"`}
-        onClose={() => setReserveModal(false)}
-        onConfirm={doReserveSingle}
-      />
-
-      <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 shadow-sm">
-          <BedDouble className="w-5 h-5 text-white" />
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-gray-900 text-sm">{space.name}</span>
-            {!space.multiBed &&
-              (space.reserved ? (
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-600 border border-amber-200">
-                  Reserved
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-green-50 text-green-600 border border-green-200">
-                  Available
-                </span>
-              ))}
-          </div>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
+    <div className="border-b border-[#E2E8F0]">
+      <button onClick={() => setExpanded((v) => !v)} className="w-full text-left">
+        <div className="flex items-center gap-3 py-3 px-2 rounded-xl transition-all hover:bg-[#F1F5F9]">
+          <span className="flex items-center justify-center shrink-0 w-[26px] h-[26px] rounded-lg bg-[#EEF2FF] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#64748B]">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+            <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A]">{space.name}</span>
             <DeptBadges departments={depts} allDepartments={allDepartments} maxVisible={2} />
-            <span className="text-xs text-gray-500 flex items-center gap-1">
-              <Banknote className="w-3 h-3" /> {fmt(space.chargePerDay)}/day
-            </span>
-            {space.multiBed && space.multiBedConf ? (
-              <span className="text-xs text-gray-500 flex items-center gap-1">
-                <Layers className="w-3 h-3" />
-                <span className="text-green-600 font-semibold">{availableCount}</span>
-                {reservedCount > 0 && (
-                  <>
-                    <span className="text-gray-300">·</span>
-                    <span className="text-amber-600 font-semibold">{reservedCount} reserved</span>
-                  </>
-                )}
-                {bookedCount > 0 && (
-                  <>
-                    <span className="text-gray-300">·</span>
-                    <span className="text-red-400 font-semibold">{bookedCount} booked</span>
-                  </>
-                )}
-                <span className="text-gray-400">/ {totalBeds}</span>
-              </span>
-            ) : (
-              <span className="text-xs text-gray-400 flex items-center gap-1">
-                <Hash className="w-3 h-3" /> Single bed
-              </span>
-            )}
           </div>
-        </div>
 
-        <div className="flex items-center gap-1 shrink-0">
-          {!space.multiBed &&
-            (space.reserved ? (
-              <button
-                onClick={() => setConfirmRelease(true)}
-                disabled={busy}
-                title="Release reservation"
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-amber-500 hover:text-amber-700 hover:bg-amber-50 transition-colors disabled:opacity-50"
-              >
-                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookX className="w-3.5 h-3.5" />}
-              </button>
-            ) : (
-              <button
-                onClick={() => setReserveModal(true)}
-                disabled={busy}
-                title="Reserve this space"
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50"
-              >
-                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookMarked className="w-3.5 h-3.5" />}
-              </button>
-            ))}
-          {space.multiBed && (
-            <button
-              onClick={() => setExpanded((v) => !v)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+          {space.multiBed ? (
+            <span className="shrink-0 hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg border-[1.5px] border-[#6366F130] bg-[#6366F112] text-[#6366F1] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold">
+              <Layers className="w-[10px] h-[10px]" /> {availableCount}/{totalBeds}
+            </span>
+          ) : (
+            <span
+              className={`shrink-0 hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg border-[1.5px] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold
+                ${space.reserved ? "bg-[#F59E0B12] border-[#F59E0B30] text-[#D97706]" : "bg-[#0D948812] border-[#0D948830] text-[#0D9488]"}`}
             >
-              {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
+              {space.reserved ? <BookMarked className="w-[10px] h-[10px]" /> : <Hash className="w-[10px] h-[10px]" />}
+              {space.reserved ? "সংরক্ষিত" : "খালি"}
+            </span>
           )}
-          <button
-            onClick={() => onEdit(space)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+
+          <span
+            className="shrink-0 flex items-center gap-1 px-3 py-1 rounded-[20px] text-white font-['IBM_Plex_Mono',monospace] text-xs font-bold shadow-[0_3px_8px_#3B82F630]"
+            style={{ background: "linear-gradient(135deg,#3B82F6,#2563EB)" }}
           >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => onDelete(space)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+            <Banknote className="w-[11px] h-[11px]" />
+            {fmt(space.chargePerDay)}
+          </span>
+          <ChevronDown
+            className={`w-[14px] h-[14px] text-[#94A3B8] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
+          />
         </div>
-      </div>
-
-      {!space.multiBed && space.reserved && space.reservedNote && (
-        <div className="px-4 pb-3">
-          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5">
-            <span className="font-semibold">Note:</span> {space.reservedNote}
-          </p>
-        </div>
-      )}
-
-      {expanded && space.multiBed && space.multiBedConf && (
-        <div className="px-4 pb-4 pt-1 border-t border-gray-50">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Bed Layout</p>
-          <BedGrid conf={space.multiBedConf} spaceId={space._id} showToast={showToast} onUpdate={handleSpaceUpdate} />
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ─── Dept Filter Dropdown (main page) ────────────────────────────────────────
-const DeptFilterDropdown = ({ value, onChange, departments }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const allOptions = [{ value: "all", label: "All Departments" }, ...departments];
-  const selected = allOptions.find((d) => d.value === value) ?? allOptions[0];
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold border bg-white transition-all shadow-sm ${
-          open
-            ? "border-indigo-400 ring-2 ring-indigo-100 text-indigo-700"
-            : value === "all"
-              ? "border-gray-200 text-gray-600 hover:border-indigo-300"
-              : "border-indigo-300 text-indigo-700 bg-indigo-50"
-        }`}
-      >
-        <Building2 className="w-4 h-4 shrink-0 text-indigo-400" />
-        <span>{selected.label}</span>
-        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
-      {open && (
-        <div className="absolute left-0 top-full mt-1.5 z-30 w-64 max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg py-1">
-          {allOptions.map((d) => (
-            <button
-              key={d.value}
-              type="button"
-              onClick={() => {
-                onChange(d.value);
-                setOpen(false);
-              }}
-              className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left transition-colors ${
-                value === d.value ? "bg-indigo-50 text-indigo-700 font-semibold" : "text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              {d.label}
-              {value === d.value && <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
-            </button>
-          ))}
+      {expanded && (
+        <div
+          className="mx-2 mb-3 px-4 py-3 rounded-xl border border-[#E2E8F0]"
+          style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
+        >
+          <div className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B] leading-loose mb-3 space-y-1">
+            <p className="flex items-center gap-1.5">
+              <Building2 className="w-3 h-3 text-[#6366F1]" />
+              {depts.map((d) => deptLabel(d, allDepartments)).join(", ")}
+            </p>
+            {!space.multiBed && space.reserved && space.reservedNote && (
+              <p className="flex items-start gap-1.5 text-[#D97706]">
+                <BookMarked className="w-3 h-3 mt-[2px] shrink-0" />
+                {space.reservedNote}
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <ActionChip onClick={() => onEdit(space)} icon={Pencil} label="সম্পাদনা" color="#6366F1" />
+            {!space.multiBed &&
+              (space.reserved ? (
+                <ActionChip
+                  onClick={() => onReleaseSingle(space)}
+                  icon={BookX}
+                  label="মুক্ত করুন"
+                  color="#F59E0B"
+                  disabled={busy === space._id}
+                />
+              ) : (
+                <ActionChip
+                  onClick={() => onReserveSingle(space)}
+                  icon={BookMarked}
+                  label="সংরক্ষণ"
+                  color="#F59E0B"
+                  disabled={busy === space._id}
+                />
+              ))}
+            <ActionChip onClick={() => onDelete(space)} icon={Trash2} label="মুছুন" color="#EF4444" />
+          </div>
+
+          {space.multiBed && space.multiBedConf && (
+            <div className="mt-3 pt-3 border-t border-[#E2E8F0]">
+              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] mb-2">
+                শয্যা লেআউট
+              </p>
+              <BedGrid
+                conf={space.multiBedConf}
+                spaceId={space._id}
+                onUpdate={onUpdate}
+                onReserveClick={(bedNumber) => onReserveBed(space, bedNumber)}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 };
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ── Stat Card ──────────────────────────────────────────────────────────────────
+
+const StatCard = ({ label, value, color, grad, icon: Icon }) => (
+  <div className="bg-white relative overflow-hidden border border-[#E2E8F0] rounded-2xl p-[14px_16px] shadow-[0_2px_8px_rgba(15,23,42,0.05)]">
+    <div className="absolute top-0 right-0 w-16 h-16 opacity-5 rounded-[0_16px_0_100%]" style={{ background: grad }} />
+    <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center justify-center w-[26px] h-[26px] rounded-lg" style={{ background: grad }}>
+        <Icon className="w-[13px] h-[13px] text-white" />
+      </div>
+      <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.06em] text-[#94A3B8]">
+        {label}
+      </p>
+    </div>
+    <p className="font-['IBM_Plex_Mono',monospace] text-[26px] font-extrabold leading-none" style={{ color }}>
+      {value}
+    </p>
+  </div>
+);
+
+// ── Filter Dropdown ─────────────────────────────────────────────────────────────
+
+const FilterDropdown = ({ value, onChange, options, placeholder }) => (
+  <div className="relative">
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`appearance-none outline-none cursor-pointer transition-all font-['IBM_Plex_Mono',monospace] text-xs rounded-[10px] py-[7px] pl-3 pr-[30px] border-[1.5px]
+        ${value !== "all" ? "border-[#6366F160] bg-[#6366F108] text-[#0F172A] shadow-[0_2px_8px_#6366F115]" : "border-[#E2E8F0] bg-white text-[#64748B]"}`}
+    >
+      <option value="all">{placeholder}</option>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+    <ChevronDown className="w-3 h-3 text-[#94A3B8] absolute right-[9px] top-1/2 -translate-y-1/2 pointer-events-none" />
+  </div>
+);
+
+// ── Skeleton ───────────────────────────────────────────────────────────────────
+
+const Skeleton = () => (
+  <div className="bg-white animate-pulse overflow-hidden border border-[#E2E8F0] rounded-[20px]">
+    <div className="px-6 py-4 flex gap-4 border-b border-[#E2E8F0]">
+      {[120, 70, 90].map((w, i) => (
+        <div key={i} className="h-3 bg-[#E2E8F0] rounded-md" style={{ width: w }} />
+      ))}
+    </div>
+    {[1, 2, 3, 4].map((i) => (
+      <div key={i} className="flex items-center gap-3 px-6 py-3.5 border-b border-[#E2E8F0]">
+        <div className="w-[26px] h-[26px] bg-[#E2E8F0] rounded-lg" />
+        <div className="flex-1 h-[13px] bg-[#E2E8F0] rounded-md" />
+        <div className="w-[65px] h-[26px] bg-[#E2E8F0] rounded-[20px]" />
+      </div>
+    ))}
+  </div>
+);
+
+// ── Main Page ────────────────────────────────────────────────────────────────────
+
 const ManageSpaces = () => {
   const [spaces, setSpaces] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editSpace, setEditSpace] = useState(null);
-  const [confirm, setConfirm] = useState(null);
-  const [toast, setToast] = useState(null);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [filterDept, setFilterDept] = useState("all");
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [popup, setPopup] = useState(null);
+  const [formModal, setFormModal] = useState(null); // null | { editSpace } | { editSpace: null } for "add"
+  const [showForm, setShowForm] = useState(false);
+  const [confirmModal, setConfirmModal] = useState(null);
+  const [reserveModal, setReserveModal] = useState(null); // { space, bedNumber? }
+  const [search, setSearch] = useState("");
+  const [deptFilter, setDeptFilter] = useState("all");
+  const [busyId, setBusyId] = useState(null);
 
-  const showToast = useCallback((message, type = "success") => setToast({ message, type }), []);
-
-  // Fetch departments and spaces in parallel on mount
-  useEffect(() => {
-    Promise.all([spaceService.getDepartments(), spaceService.getAll()])
-      .then(([deptRes, spacesRes]) => {
-        setDepartments(deptRes.data.departments ?? []);
-        setSpaces(spacesRes.data);
-      })
-      .catch(() => showToast("Failed to load data", "error"))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const handleSaved = (mode, space) => {
-    if (mode === "created") {
-      setSpaces((p) => [space, ...p]);
-      showToast(`"${space.name}" added successfully`);
-    } else {
-      setSpaces((p) => p.map((s) => (s._id === space._id ? space : s)));
-      showToast(`"${space.name}" updated`);
-    }
-  };
-
-  const handleSpaceUpdate = useCallback((updated) => {
-    setSpaces((prev) => prev.map((s) => (s._id === updated._id ? updated : s)));
-  }, []);
-
-  const handleDeleteConfirm = async () => {
-    const { space } = confirm;
-    setConfirm(null);
-    setActionLoading(true);
+  const loadAll = async () => {
     try {
-      await spaceService.delete(space._id);
-      setSpaces((p) => p.filter((s) => s._id !== space._id));
-      showToast(`"${space.name}" deleted`);
+      const [deptRes, spacesRes] = await Promise.all([spaceService.getDepartments(), spaceService.getAll()]);
+      setDepartments(deptRes.data.departments ?? []);
+      setSpaces(spacesRes.data);
     } catch {
-      showToast("Failed to delete space", "error");
+      setPopup({ type: "error", message: "কক্ষ লোড করতে ব্যর্থ।" });
     } finally {
-      setActionLoading(false);
+      setInitialLoading(false);
     }
   };
 
-  // Filter: space matches if filterDept is "all" or its departments array includes filterDept
-  // Normalise legacy docs that still have a singular `department` string
-  const filtered = spaces.filter((s) => {
-    if (filterDept === "all") return true;
-    const depts = s.departments ?? (s.department ? [s.department] : []);
-    return depts.includes(filterDept);
-  });
+  useEffect(() => {
+    loadAll();
+  }, []);
 
   const stats = {
     total: spaces.length,
@@ -1015,104 +1059,368 @@ const ManageSpaces = () => {
     }, 0),
   };
 
+  const filtered = spaces.filter((s) => {
+    const depts = s.departments ?? (s.department ? [s.department] : []);
+    if (deptFilter !== "all" && !depts.includes(deptFilter)) return false;
+    if (search.trim()) return s.name.toLowerCase().includes(search.trim().toLowerCase());
+    return true;
+  });
+
+  const hasFilters = deptFilter !== "all";
+
+  // ── Create / Edit ──
+  const openAdd = () => {
+    setFormModal({ editSpace: null });
+    setShowForm(true);
+  };
+  const openEdit = (space) => {
+    setFormModal({ editSpace: space });
+    setShowForm(true);
+  };
+  const closeForm = () => {
+    setShowForm(false);
+    setFormModal(null);
+  };
+
+  const handleFormSubmit = async (form) => {
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        chargePerDay: Number(form.chargePerDay),
+        departments: form.departments,
+        multiBed: form.multiBed,
+        multiBedConf: form.multiBed
+          ? {
+              totalNumberOfBed: Number(form.totalNumberOfBed),
+              bedStartingNumber: Number(form.bedStartingNumber),
+              booked: formModal.editSpace?.multiBedConf?.booked ?? [],
+            }
+          : null,
+      };
+      if (formModal.editSpace) {
+        await spaceService.update(formModal.editSpace._id, payload);
+        setSpaces((p) => p.map((s) => (s._id === formModal.editSpace._id ? { ...s, ...payload } : s)));
+        setPopup({ type: "success", message: `"${payload.name}" updated.` });
+      } else {
+        const res = await spaceService.create(payload);
+        setSpaces((p) => [{ ...res.data, ...payload }, ...p]);
+        setPopup({ type: "success", message: `"${payload.name}" added successfully.` });
+      }
+      closeForm();
+    } catch (err) {
+      setPopup({ type: "error", message: err?.response?.data?.error ?? "Failed to save. Please try again." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Delete ──
+  const handleDelete = async (space) => {
+    setBusyId(space._id);
+    try {
+      await spaceService.delete(space._id);
+      setSpaces((p) => p.filter((s) => s._id !== space._id));
+      setPopup({ type: "success", message: `"${space.name}" deleted.` });
+    } catch {
+      setPopup({ type: "error", message: "Failed to delete space." });
+    } finally {
+      setBusyId(null);
+      setConfirmModal(null);
+    }
+  };
+
+  // ── Single-space reserve / release ──
+  const handleReserveSingle = async (space, note) => {
+    setBusyId(space._id);
+    try {
+      await spaceService.reserve(space._id, note);
+      setSpaces((p) => p.map((s) => (s._id === space._id ? { ...s, reserved: true, reservedNote: note } : s)));
+      setPopup({ type: "success", message: `"${space.name}" reserved.` });
+    } catch (e) {
+      setPopup({ type: "error", message: e?.response?.data?.error ?? "Failed to reserve." });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleReleaseSingle = async (space) => {
+    setBusyId(space._id);
+    try {
+      await spaceService.releaseReservation(space._id);
+      setSpaces((p) => p.map((s) => (s._id === space._id ? { ...s, reserved: false, reservedNote: "" } : s)));
+      setPopup({ type: "success", message: `"${space.name}" reservation released.` });
+    } catch (e) {
+      setPopup({ type: "error", message: e?.response?.data?.error ?? "Failed to release." });
+    } finally {
+      setBusyId(null);
+      setConfirmModal(null);
+    }
+  };
+
+  // ── Bed-level reserve ──
+  const handleReserveBed = async (space, note) => {
+    const bedNumber = reserveModal.bedNumber;
+    await spaceService.reserveBed(space._id, bedNumber, note);
+    setSpaces((p) =>
+      p.map((s) =>
+        s._id === space._id
+          ? {
+              ...s,
+              multiBedConf: { ...s.multiBedConf, reserved: [...(s.multiBedConf.reserved ?? []), { bedNumber, note }] },
+            }
+          : s,
+      ),
+    );
+    setPopup({ type: "success", message: `Bed ${bedNumber} reserved.` });
+  };
+
+  const handleSpaceUpdate = (space, updater) => {
+    setSpaces((prev) =>
+      prev.map((s) => {
+        if (s._id !== space._id) return s;
+        return typeof updater === "function" ? updater(s) : updater;
+      }),
+    );
+  };
+
   return (
-    <section className="min-h-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
-      {actionLoading && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-white/60 backdrop-blur-sm">
-          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-        </div>
-      )}
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      {confirm?.type === "delete" && (
-        <ConfirmPopup
-          message={`Delete "${confirm.space.name}"? This cannot be undone.`}
-          confirmText="Delete"
-          onConfirm={handleDeleteConfirm}
-          onCancel={() => setConfirm(null)}
-        />
-      )}
+    <section
+      className="min-h-screen px-4 py-6 font-['IBM_Plex_Sans',sans-serif]"
+      style={{ background: "linear-gradient(to bottom right,#f8fafc,#eff6ff,#eef2ff)" }}
+    >
+      {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      <SpaceFormModal
-        isOpen={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditSpace(null);
-        }}
-        onSaved={handleSaved}
-        editSpace={editSpace}
-        departments={departments}
-      />
+      {showForm &&
+        createPortal(
+          <SpaceFormModal
+            editSpace={formModal?.editSpace ?? null}
+            departments={departments}
+            onSubmit={handleFormSubmit}
+            onClose={closeForm}
+            saving={saving}
+          />,
+          document.body,
+        )}
 
-      <div className="max-w-3xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+      {confirmModal &&
+        createPortal(
+          <ConfirmModal
+            message={confirmModal.message}
+            tone={confirmModal.tone}
+            confirmLabel={confirmModal.confirmLabel}
+            onConfirm={confirmModal.onConfirm}
+            onCancel={() => setConfirmModal(null)}
+            loading={busyId !== null}
+          />,
+          document.body,
+        )}
+
+      {reserveModal &&
+        createPortal(
+          <ReserveNoteModal
+            title={reserveModal.bedNumber !== undefined ? "Reserve Bed" : `Reserve "${reserveModal.space.name}"`}
+            bedNumber={reserveModal.bedNumber}
+            onClose={() => setReserveModal(null)}
+            onConfirm={(note) =>
+              reserveModal.bedNumber !== undefined
+                ? handleReserveBed(reserveModal.space, note)
+                : handleReserveSingle(reserveModal.space, note)
+            }
+          />,
+          document.body,
+        )}
+
+      <div className="max-w-2xl mx-auto">
+        {/* Page header */}
+        <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-              <Building2 className="w-6 h-6 text-indigo-600 shrink-0" /> Manage Spaces
+            <p className="font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-[0.1em] text-[#6366F1] mb-1">
+              LAB OPERATIONS
+            </p>
+            <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[26px] font-bold text-[#0F172A] leading-tight">
+              Manage Spaces
             </h1>
-            <p className="text-sm text-gray-500 mt-1">Wards, cabins, and indoor patient spaces</p>
+            <p className="text-sm text-[#64748B] mt-1">Wards, cabins, and indoor patient spaces.</p>
           </div>
-          <div className="flex items-center gap-2">
-            <DeptFilterDropdown value={filterDept} onChange={setFilterDept} departments={departments} />
+          <div className="flex items-center gap-2 pt-1">
             <button
-              onClick={() => {
-                setEditSpace(null);
-                setFormOpen(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200/60 transition-all active:scale-95"
+              onClick={openAdd}
+              className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none shadow-[0_4px_14px_rgba(99,102,241,0.4)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.5)]"
+              style={{ background: "linear-gradient(135deg,#6366F1,#4F46E5)" }}
             >
-              <Plus className="w-4 h-4" /> Add Space
+              <Plus className="w-[13px] h-[13px]" /> New
             </button>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-3 mb-6">
-          {[
-            { label: "Total Spaces", value: stats.total, color: "text-gray-900", bg: "bg-white" },
-            { label: "Total Beds", value: stats.totalBeds, color: "text-indigo-700", bg: "bg-indigo-50" },
-            { label: "Available", value: stats.available, color: "text-green-700", bg: "bg-green-50" },
-            { label: "Reserved", value: stats.reserved, color: "text-amber-600", bg: "bg-amber-50" },
-          ].map((s) => (
-            <div key={s.label} className={`${s.bg} rounded-2xl border border-gray-100 px-4 py-3 shadow-sm`}>
-              <p className="text-xs text-gray-400 font-medium">{s.label}</p>
-              <p className={`text-2xl font-black mt-0.5 ${s.color}`}>{s.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* List */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="bg-white border border-gray-100 rounded-2xl py-16 text-center shadow-sm">
-            <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
-              <BedDouble className="w-5 h-5 text-gray-300" />
-            </div>
-            <p className="text-sm font-bold text-gray-400">No spaces found</p>
-            <p className="text-xs text-gray-300 mt-1">
-              {spaces.length === 0 ? "Add your first space to get started" : "Try adjusting the department filter"}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filtered.map((space) => (
-              <SpaceCard
-                key={space._id}
-                space={space}
-                showToast={showToast}
-                onSpaceUpdate={handleSpaceUpdate}
-                allDepartments={departments}
-                onEdit={(s) => {
-                  setEditSpace(s);
-                  setFormOpen(true);
-                }}
-                onDelete={(s) => setConfirm({ type: "delete", space: s })}
-              />
-            ))}
+        {!initialLoading && (
+          <div className="grid grid-cols-4 gap-3 mb-5">
+            <StatCard
+              label="Total"
+              value={stats.total}
+              color="#6366F1"
+              grad="linear-gradient(135deg,#6366F1,#4F46E5)"
+              icon={Building2}
+            />
+            <StatCard
+              label="Beds"
+              value={stats.totalBeds}
+              color="#3B82F6"
+              grad="linear-gradient(135deg,#3B82F6,#2563EB)"
+              icon={BedDouble}
+            />
+            <StatCard
+              label="Available"
+              value={stats.available}
+              color="#0D9488"
+              grad="linear-gradient(135deg,#0D9488,#0F766E)"
+              icon={Hash}
+            />
+            <StatCard
+              label="Reserved"
+              value={stats.reserved}
+              color="#F59E0B"
+              grad="linear-gradient(135deg,#F59E0B,#D97706)"
+              icon={BookMarked}
+            />
           </div>
         )}
+
+        {/* Main card */}
+        {initialLoading ? (
+          <Skeleton />
+        ) : (
+          <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)]">
+            {/* Card header */}
+            <div
+              className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0]"
+              style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
+            >
+              <div>
+                <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#6366F1] mb-1">
+                  SPACE LEDGER
+                </p>
+                <div className="flex items-center gap-3">
+                  <span className="font-['IBM_Plex_Mono',monospace] text-[13px] font-semibold text-[#64748B]">
+                    {stats.total} spaces
+                  </span>
+                  {stats.available > 0 && (
+                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#10B981] bg-[#10B98110] rounded-[6px] border border-[#10B98125]">
+                      {stats.available} beds free
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Toolbar */}
+            <div className="px-4 py-3 flex flex-wrap items-center gap-2 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+              <div className="relative flex-[1_1_160px]">
+                <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search space name…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className={`${inputBase} pl-8 ${search ? "pr-8" : "pr-3"} py-2 text-xs`}
+                  onFocus={focusInput}
+                  onBlur={blurInput}
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]"
+                  >
+                    <X className="w-[13px] h-[13px]" />
+                  </button>
+                )}
+              </div>
+              <FilterDropdown
+                value={deptFilter}
+                onChange={setDeptFilter}
+                options={departments}
+                placeholder="All Departments"
+              />
+              {hasFilters && (
+                <button
+                  onClick={() => setDeptFilter("all")}
+                  className="flex items-center gap-1.5 transition-all font-semibold py-[7px] px-3 border-[1.5px] border-[#EF444430] rounded-[10px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] text-[11px] bg-[#EF444406] hover:bg-[#EF444412]"
+                >
+                  <RotateCcw className="w-3 h-3" /> Reset
+                </button>
+              )}
+            </div>
+
+            {/* Column labels */}
+            <div className="flex items-center gap-3 px-4 pt-3 pb-1">
+              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] w-[26px] shrink-0">
+                #
+              </span>
+              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] flex-1">
+                SPACE
+              </span>
+              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] shrink-0">
+                CHARGE
+              </span>
+              <span className="w-[14px] shrink-0" />
+            </div>
+
+            {/* Rows */}
+            <div className="px-4 pb-4">
+              {filtered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8]">
+                  <AlertCircle className="w-7 h-7 opacity-40" />
+                  <p className="font-['IBM_Plex_Mono',monospace] text-xs">
+                    {hasFilters || search ? "No spaces found" : "No spaces added yet"}
+                  </p>
+                </div>
+              ) : (
+                filtered.map((space, index) => (
+                  <SpaceRow
+                    key={space._id}
+                    space={space}
+                    index={index}
+                    allDepartments={departments}
+                    busy={busyId}
+                    onEdit={openEdit}
+                    onDelete={(s) =>
+                      setConfirmModal({
+                        message: `Delete "${s.name}"? This cannot be undone.`,
+                        tone: "danger",
+                        confirmLabel: "Delete",
+                        onConfirm: () => handleDelete(s),
+                      })
+                    }
+                    onReserveSingle={(s) => setReserveModal({ space: s })}
+                    onReleaseSingle={(s) =>
+                      setConfirmModal({
+                        message: `Release reservation on "${s.name}"?`,
+                        tone: "warning",
+                        confirmLabel: "Release",
+                        onConfirm: () => handleReleaseSingle(s),
+                      })
+                    }
+                    onReserveBed={(s, bedNumber) => setReserveModal({ space: s, bedNumber })}
+                    onUpdate={(updater) => handleSpaceUpdate(space, updater)}
+                  />
+                ))
+              )}
+            </div>
+
+            {/* Footer note */}
+            <div className="px-6 py-3 border-t border-[#E2E8F0] bg-[#F8FAFC]">
+              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
+                * Booked beds are managed automatically via the invoice flow
+              </p>
+            </div>
+          </div>
+        )}
+
+        <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] text-center mt-4 pb-6">
+          LabPilotPro · Indoor Patient Space Management
+        </p>
       </div>
     </section>
   );

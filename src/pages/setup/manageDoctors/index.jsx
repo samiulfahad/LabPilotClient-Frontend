@@ -3,8 +3,8 @@
  * babel-plugin-react-compiler handles all memoization automatically.
  */
 import { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
-  Stethoscope,
   UserPlus,
   Search,
   ArrowLeft,
@@ -31,52 +31,50 @@ import Popup from "../../../components/popup";
 // ── Palette ────────────────────────────────────────────────────────────────────
 
 const C = {
-  ink:     "#1C1F1E",
-  muted:   "#A8ACA3",
-  sub:     "#6F756F",
-  border:  "#E3E0D6",
-  dashed:  "#D8D5CB",
-  paper:   "#FAF9F5",
-  hover:   "#F0EFE9",
-  divider: "#EDEBE3",
-  teal:    "#0F6E5C",
-  blue:    "#1E4FA0",
-  red:     "#C0312B",
-  amber:   "#92400E",
-  purple:  "#7C3AED",
+  ink: "#0F172A",
+  muted: "#94A3B8",
+  sub: "#64748B",
+  border: "#E2E8F0",
+  dashed: "#CBD5E1",
+  paper: "#F8FAFC",
+  hover: "#F1F5F9",
+  divider: "#EEF2FF",
+  teal: "#0D9488",
+  blue: "#3B82F6",
+  indigo: "#6366F1",
+  red: "#EF4444",
+  amber: "#F59E0B",
+  purple: "#8B5CF6",
+  green: "#10B981",
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const fmt = (n, type) =>
-  type === "percentage"
-    ? `${n}%`
-    : `৳${typeof n === "number" ? n.toLocaleString("en-IN") : n}`;
+  type === "percentage" ? `${n}%` : `৳${typeof n === "number" ? n.toLocaleString("en-IN") : n}`;
 
 const EMPTY_FORM = {
-  name: "", degree: "", contactNumber: "", designation: "",
-  departments: [], commissionType: "percentage", commissionValue: "",
+  name: "",
+  degree: "",
+  contactNumber: "",
+  designation: "",
+  departments: [],
+  commissionType: "percentage",
+  commissionValue: "",
 };
 
 // ── Shared input style ─────────────────────────────────────────────────────────
 
-const inputStyle = {
-  border: `1px solid ${C.dashed}`,
-  borderRadius: "2px",
-  background: C.paper,
-  color: C.ink,
-  fontFamily: "'IBM Plex Mono', monospace",
-};
+const inputBase =
+  "w-full outline-none transition-all rounded-xl border-[1.5px] border-[#E2E8F0] bg-white text-[#0F172A] font-['IBM_Plex_Mono',monospace]";
 
 const focusInput = (e) => {
-  e.target.style.borderColor = C.blue;
-  e.target.style.boxShadow = `0 0 0 1px ${C.blue}`;
-  e.target.style.background = "white";
+  e.target.style.borderColor = "#6366F1";
+  e.target.style.boxShadow = "0 0 0 3px #6366F120";
 };
 const blurInput = (e) => {
-  e.target.style.borderColor = C.dashed;
+  e.target.style.borderColor = "#E2E8F0";
   e.target.style.boxShadow = "";
-  e.target.style.background = C.paper;
 };
 
 // ── Modal Shell ────────────────────────────────────────────────────────────────
@@ -85,21 +83,19 @@ const Modal = ({ onClose, children }) => {
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, []);
 
   return (
-    <div className="fixed inset-0" style={{ zIndex: 9999 }}>
+    <div className="fixed inset-0 flex items-center justify-center px-4 z-[9999]">
       <div
-        className="absolute inset-0"
-        style={{ background: "rgba(28,31,30,0.5)", backdropFilter: "blur(3px)" }}
+        className="absolute inset-0 backdrop-blur-[6px]"
+        style={{ background: "rgba(15,23,42,0.6)" }}
         onClick={onClose}
       />
-      <div className="absolute inset-0 flex items-start justify-center px-4 pt-12 pb-6 overflow-y-auto">
-        <div className="relative w-full" style={{ maxWidth: "520px" }}>
-          {children}
-        </div>
-      </div>
+      <div className="relative w-full max-w-[520px] max-h-[calc(100svh-48px)] overflow-y-auto">{children}</div>
     </div>
   );
 };
@@ -108,11 +104,9 @@ const Modal = ({ onClose, children }) => {
 
 const FormField = ({ label, required, children }) => (
   <div>
-    <label
-      className="block mb-1.5"
-      style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.05em", color: C.sub }}
-    >
-      {label}{required && <span style={{ color: C.red, marginLeft: "2px" }}>*</span>}
+    <label className="block mb-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748B]">
+      {label}
+      {required && <span className="text-[#EF4444] ml-[3px]">*</span>}
     </label>
     {children}
   </div>
@@ -126,7 +120,9 @@ const DepartmentMultiSelect = ({ departments, selected, onChange }) => {
   const ref = useRef(null);
 
   useEffect(() => {
-    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const h = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
@@ -139,78 +135,80 @@ const DepartmentMultiSelect = ({ departments, selected, onChange }) => {
     <div ref={ref} className="relative">
       <div
         onClick={() => setOpen((o) => !o)}
-        className="min-h-[38px] w-full px-2.5 py-1.5 cursor-pointer flex flex-wrap items-center gap-1.5 transition-all"
-        style={{
-          ...inputStyle,
-          borderColor: open ? C.blue : C.dashed,
-          boxShadow: open ? `0 0 0 1px ${C.blue}` : undefined,
-          background: open ? "white" : C.paper,
-        }}
+        className={`min-h-[42px] w-full px-3 py-2 cursor-pointer flex flex-wrap items-center gap-1.5 transition-all rounded-xl border-[1.5px] bg-white font-['IBM_Plex_Mono',monospace] ${open ? "border-[#6366F1] shadow-[0_0_0_3px_#6366F120]" : "border-[#E2E8F0]"}`}
       >
         {selected.length === 0 ? (
-          <span style={{ fontSize: "12px", color: C.muted }}>বিভাগ নির্বাচন করুন</span>
+          <span className="text-[13px] text-[#94A3B8]">বিভাগ নির্বাচন করুন</span>
         ) : (
           selectedDepts.map((d) => (
             <span
               key={d.value}
-              className="inline-flex items-center gap-1 px-2 py-0.5"
-              style={{ background: `${C.blue}0D`, border: `1px solid ${C.blue}33`, borderRadius: "2px", color: C.blue, fontSize: "10px", fontFamily: "'IBM Plex Mono', monospace" }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#6366F115] border-[1.5px] border-[#6366F130] rounded-lg text-[#6366F1] text-[11px] font-['IBM_Plex_Mono',monospace] font-semibold"
             >
               {d.label}
-              <button type="button" onClick={(e) => { e.stopPropagation(); onChange(selected.filter((v) => v !== d.value)); }}>
-                <X style={{ width: "8px", height: "8px" }} />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChange(selected.filter((v) => v !== d.value));
+                }}
+              >
+                <X className="w-[9px] h-[9px]" />
               </button>
             </span>
           ))
         )}
-        <ChevronDown style={{ width: "14px", height: "14px", color: C.muted, marginLeft: "auto", flexShrink: 0, transition: "transform 0.15s", transform: open ? "rotate(180deg)" : undefined }} />
+        <ChevronDown
+          className={`w-[14px] h-[14px] text-[#94A3B8] ml-auto shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
       </div>
-
       {open && (
-        <div
-          className="absolute z-50 mt-1 w-full bg-white overflow-hidden"
-          style={{ border: `1px solid ${C.dashed}`, borderRadius: "2px", boxShadow: "0 4px 16px rgba(28,31,30,0.1)" }}
-        >
-          <div className="p-2" style={{ borderBottom: `1px solid ${C.border}` }}>
+        <div className="absolute z-50 mt-2 w-full bg-white overflow-hidden rounded-2xl border-[1.5px] border-[#E2E8F0] shadow-[0_20px_40px_rgba(15,23,42,0.12)]">
+          <div className="p-2.5 border-b border-[#E2E8F0]">
             <div className="relative">
-              <Search style={{ width: "11px", height: "11px", color: C.muted, position: "absolute", left: "8px", top: "50%", transform: "translateY(-50%)" }} />
+              <Search className="w-3 h-3 text-[#94A3B8] absolute left-[10px] top-1/2 -translate-y-1/2" />
               <input
-                autoFocus value={search}
+                autoFocus
+                value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="অনুসন্ধান…"
-                className="w-full outline-none"
-                style={{ ...inputStyle, paddingLeft: "24px", paddingRight: "8px", paddingTop: "6px", paddingBottom: "6px", fontSize: "11px", background: "white", borderColor: C.border }}
+                className={`${inputBase} pl-7 pr-2.5 py-[7px] text-xs`}
               />
             </div>
           </div>
-          <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+          <div className="max-h-[200px] overflow-y-auto">
             {filtered.length === 0 ? (
-              <p style={{ textAlign: "center", padding: "16px", fontSize: "11px", color: C.muted, fontFamily: "'IBM Plex Mono', monospace" }}>কোনো ফলাফল নেই</p>
-            ) : filtered.map((d) => {
-              const checked = selected.includes(d.value);
-              return (
-                <button
-                  key={d.value} type="button" onClick={() => toggle(d.value)}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors"
-                  style={{ background: checked ? `${C.blue}08` : undefined, fontSize: "12px", fontFamily: "'IBM Plex Mono', monospace", color: checked ? C.blue : C.ink }}
-                  onMouseEnter={(e) => { if (!checked) e.currentTarget.style.background = C.divider; }}
-                  onMouseLeave={(e) => { if (!checked) e.currentTarget.style.background = ""; }}
-                >
-                  <span
-                    className="flex items-center justify-center shrink-0"
-                    style={{ width: "14px", height: "14px", border: `1px solid ${checked ? C.blue : C.dashed}`, borderRadius: "2px", background: checked ? C.blue : undefined }}
+              <p className="text-center p-4 text-xs text-[#94A3B8] font-['IBM_Plex_Mono',monospace]">কোনো ফলাফল নেই</p>
+            ) : (
+              filtered.map((d) => {
+                const checked = selected.includes(d.value);
+                return (
+                  <button
+                    key={d.value}
+                    type="button"
+                    onClick={() => toggle(d.value)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors text-[13px] font-['IBM_Plex_Mono',monospace] ${checked ? "bg-[#6366F108] text-[#6366F1]" : "text-[#0F172A] hover:bg-[#F1F5F9]"}`}
                   >
-                    {checked && <Check style={{ width: "8px", height: "8px", color: "white" }} />}
-                  </span>
-                  {d.label}
-                </button>
-              );
-            })}
+                    <span
+                      className={`flex items-center justify-center shrink-0 w-4 h-4 rounded-[5px] border-[1.5px] ${checked ? "border-[#6366F1] bg-[#6366F1]" : "border-[#CBD5E1]"}`}
+                    >
+                      {checked && <Check className="w-[9px] h-[9px] text-white" />}
+                    </span>
+                    {d.label}
+                  </button>
+                );
+              })
+            )}
           </div>
           {selected.length > 0 && (
-            <div className="flex justify-between items-center px-3 py-2" style={{ borderTop: `1px solid ${C.border}` }}>
-              <span style={{ fontSize: "10px", color: C.muted, fontFamily: "'IBM Plex Mono', monospace" }}>{selected.length}টি নির্বাচিত</span>
-              <button onClick={() => onChange([])} style={{ fontSize: "10px", color: C.red, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, textTransform: "uppercase" }}>
+            <div className="flex justify-between items-center px-3 py-2 border-t border-[#E2E8F0]">
+              <span className="text-[11px] text-[#94A3B8] font-['IBM_Plex_Mono',monospace]">
+                {selected.length}টি নির্বাচিত
+              </span>
+              <button
+                onClick={() => onChange([])}
+                className="text-[11px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] font-bold"
+              >
                 সব বাদ
               </button>
             </div>
@@ -225,35 +223,53 @@ const DepartmentMultiSelect = ({ departments, selected, onChange }) => {
 
 const DeleteModal = ({ doctor, onConfirm, onCancel, loading }) => (
   <Modal onClose={onCancel}>
-    <div className="bg-white" style={{ border: `1px solid ${C.border}`, borderRadius: "3px", boxShadow: "0 8px 32px rgba(28,31,30,0.15)" }}>
-      <div className="px-6 py-5 flex items-center gap-3" style={{ borderBottom: `1px solid ${C.border}`, background: C.paper }}>
-        <div className="flex items-center justify-center shrink-0" style={{ width: "32px", height: "32px", border: `1px solid ${C.red}33`, borderRadius: "2px", background: `${C.red}08` }}>
-          <Trash2 style={{ width: "14px", height: "14px", color: C.red }} />
+    <div className="bg-white overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
+      <div
+        className="px-6 py-6 flex items-center gap-4 border-b border-[#FECACA]"
+        style={{ background: "linear-gradient(135deg,#FEF2F2,#FFE4E6)" }}
+      >
+        <div
+          className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] shadow-[0_8px_20px_rgba(239,68,68,0.35)]"
+          style={{ background: "linear-gradient(135deg,#EF4444,#DC2626)" }}
+        >
+          <Trash2 className="w-[18px] h-[18px] text-white" />
         </div>
         <div>
-          <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: C.red }}>বিপজ্জনক অপারেশন</p>
-          <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: "14px", fontWeight: 700, color: C.ink, marginTop: "1px" }}>ডাক্তার মুছে ফেলবেন?</p>
+          <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#DC2626] mb-[2px]">
+            বিপজ্জনক অপারেশন
+          </p>
+          <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">ডাক্তার মুছে ফেলবেন?</p>
         </div>
       </div>
       <div className="px-6 py-5">
-        <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "12px", lineHeight: "1.6", color: C.sub }}>
-          <span style={{ fontWeight: 700, color: C.ink }}>{doctor.name}</span> এবং তার সমস্ত তথ্য স্থায়ীভাবে মুছে যাবে।
+        <p className="font-['IBM_Plex_Mono',monospace] text-[13px] leading-[1.7] text-[#64748B]">
+          <span className="font-bold text-[#0F172A]">{doctor.name}</span>-এর সমস্ত তথ্য স্থায়ীভাবে মুছে যাবে। এই কাজ
+          পূর্বাবস্থায় ফেরানো যাবে না।
         </p>
       </div>
-      <div className="px-6 pb-5 flex gap-2" style={{ borderTop: `1px solid ${C.border}`, paddingTop: "16px" }}>
-        <button onClick={onCancel} disabled={loading} className="flex-1 py-2.5 transition-colors"
-          style={{ border: `1px solid ${C.dashed}`, borderRadius: "2px", color: C.sub, fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", textTransform: "uppercase" }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = C.divider; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
-        >রাখুন</button>
-        <button onClick={onConfirm} disabled={loading} className="flex-1 py-2.5 flex items-center justify-center gap-1.5 transition-colors"
-          style={{ border: `1px solid ${C.red}`, borderRadius: "2px", color: C.red, fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", textTransform: "uppercase" }}
-          onMouseEnter={(e) => { if (!loading) { e.currentTarget.style.background = C.red; e.currentTarget.style.color = "white"; } }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = ""; e.currentTarget.style.color = C.red; }}
+      <div className="px-6 pb-6 flex gap-3">
+        <button
+          onClick={onCancel}
+          disabled={loading}
+          className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
         >
-          {loading
-            ? <span className="animate-spin" style={{ width: "13px", height: "13px", border: `2px solid ${C.red}30`, borderTopColor: C.red, borderRadius: "50%", display: "inline-block" }} />
-            : <Trash2 style={{ width: "12px", height: "12px" }} />}
+          রাখুন
+        </button>
+        <button
+          onClick={onConfirm}
+          disabled={loading}
+          className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+          style={{
+            background: "linear-gradient(135deg,#EF4444,#DC2626)",
+            boxShadow: loading ? "none" : "0 4px 14px rgba(239,68,68,0.4)",
+            opacity: loading ? 0.7 : 1,
+          }}
+        >
+          {loading ? (
+            <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+          ) : (
+            <Trash2 className="w-[13px] h-[13px]" />
+          )}
           হ্যাঁ, মুছুন
         </button>
       </div>
@@ -266,13 +282,17 @@ const DeleteModal = ({ doctor, onConfirm, onCancel, loading }) => (
 const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations }) => {
   const isEdit = !!initial?._id;
   const [form, setForm] = useState(() =>
-    initial ? {
-      name: initial.name ?? "", degree: initial.degree ?? "",
-      contactNumber: initial.contactNumber ?? "", designation: initial.designation ?? "",
-      departments: initial.departments ?? (initial.department ? [initial.department] : []),
-      commissionType: initial.commissionType ?? "percentage",
-      commissionValue: initial.commissionValue ?? "",
-    } : EMPTY_FORM,
+    initial
+      ? {
+          name: initial.name ?? "",
+          degree: initial.degree ?? "",
+          contactNumber: initial.contactNumber ?? "",
+          designation: initial.designation ?? "",
+          departments: initial.departments ?? (initial.department ? [initial.department] : []),
+          commissionType: initial.commissionType ?? "percentage",
+          commissionValue: initial.commissionValue ?? "",
+        }
+      : EMPTY_FORM,
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -294,148 +314,251 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
       onSaved(isEdit);
     } catch (err) {
       setError(err?.response?.data?.error ?? "সমস্যা হয়েছে। আবার চেষ্টা করুন।");
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const accentColor = isEdit ? C.purple : C.teal;
+  const accent = isEdit ? C.purple : C.teal;
+  const gradFrom = isEdit ? "#7C3AED" : "#0D9488";
+  const gradTo = isEdit ? "#6D28D9" : "#0F766E";
+  const accentText = isEdit ? "text-[#8B5CF6]" : "text-[#0D9488]";
+  const accentBorder = isEdit ? "border-[#8B5CF620]" : "border-[#0D948820]";
 
   return (
     <Modal onClose={onClose}>
-      <div className="bg-white flex flex-col" style={{ height: "min(660px, calc(100svh - 48px))", border: `1px solid ${C.border}`, borderRadius: "3px", boxShadow: "0 8px 32px rgba(28,31,30,0.15)" }}>
-        {/* Header */}
-        <div className="shrink-0 flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${C.border}`, background: C.paper }}>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center shrink-0" style={{ width: "32px", height: "32px", border: `1px solid ${accentColor}33`, borderRadius: "2px", background: `${accentColor}08` }}>
-              {isEdit ? <Pencil style={{ width: "14px", height: "14px", color: accentColor }} /> : <UserPlus style={{ width: "14px", height: "14px", color: accentColor }} />}
+      <div className="bg-white flex flex-col overflow-hidden rounded-[0px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
+        {/* Gradient header */}
+        <div
+          className={`shrink-0 px-6 py-5 flex items-center justify-between border-b ${accentBorder}`}
+          style={{ background: `linear-gradient(135deg,${gradFrom}15 0%,${gradTo}08 100%)` }}
+        >
+          <div className="flex items-center gap-3.5">
+            <div
+              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px]"
+              style={{
+                background: `linear-gradient(135deg,${gradFrom},${gradTo})`,
+                boxShadow: `0 8px 20px ${accent}40`,
+              }}
+            >
+              {isEdit ? (
+                <Pencil className="w-[18px] h-[18px] text-white" />
+              ) : (
+                <UserPlus className="w-[18px] h-[18px] text-white" />
+              )}
             </div>
             <div>
-              <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: accentColor }}>
+              <p
+                className={`font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] ${accentText}`}
+              >
                 {isEdit ? "তথ্য সম্পাদনা" : "নতুন নিবন্ধন"}
               </p>
-              <p style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: "14px", fontWeight: 700, color: C.ink, marginTop: "1px" }}>
+              <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">
                 {isEdit ? "ডাক্তার সম্পাদনা" : "ডাক্তার নিবন্ধন"}
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="flex items-center justify-center transition-colors"
-            style={{ width: "28px", height: "28px", borderRadius: "2px", color: C.muted }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = C.divider; e.currentTarget.style.color = C.ink; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = ""; e.currentTarget.style.color = C.muted; }}
-          ><X style={{ width: "15px", height: "15px" }} /></button>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-8 h-8 rounded-[10px] text-[#94A3B8] border-[1.5px] border-[#E2E8F0] transition-all hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+          >
+            <X className="w-[15px] h-[15px]" />
+          </button>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+        <div className="px-6 py-5 space-y-4 bg-[#F8FAFC]">
           <FormField label="পূর্ণ নাম" required>
-            <input name="name" value={form.name} onChange={handle} required placeholder="ডা. আমিনুর রহমান"
-              className="w-full px-3 py-2.5 text-sm outline-none transition-all"
-              style={inputStyle} onFocus={focusInput} onBlur={blurInput} />
+            <input
+              name="name"
+              value={form.name}
+              onChange={handle}
+              required
+              placeholder="ডা. আমিনুর রহমান"
+              className={`${inputBase} px-3 py-2.5 text-sm`}
+              onFocus={focusInput}
+              onBlur={blurInput}
+            />
           </FormField>
 
           <div className="grid grid-cols-2 gap-3">
             <FormField label="ডিগ্রি">
-              <input name="degree" value={form.degree} onChange={handle} placeholder="MBBS, MD…"
-                className="w-full px-3 py-2.5 text-sm outline-none transition-all"
-                style={inputStyle} onFocus={focusInput} onBlur={blurInput} />
+              <input
+                name="degree"
+                value={form.degree}
+                onChange={handle}
+                placeholder="MBBS, MD…"
+                className={`${inputBase} px-3 py-2.5 text-sm`}
+                onFocus={focusInput}
+                onBlur={blurInput}
+              />
             </FormField>
             <FormField label="যোগাযোগ নম্বর" required>
-              <input name="contactNumber" value={form.contactNumber} onChange={handle} required placeholder="01XXXXXXXXX"
-                className="w-full px-3 py-2.5 text-sm outline-none transition-all"
-                style={inputStyle} onFocus={focusInput} onBlur={blurInput} />
+              <input
+                name="contactNumber"
+                value={form.contactNumber}
+                onChange={handle}
+                required
+                placeholder="01XXXXXXXXX"
+                className={`${inputBase} px-3 py-2.5 text-sm`}
+                onFocus={focusInput}
+                onBlur={blurInput}
+              />
             </FormField>
           </div>
 
           <FormField label="পদবি">
             <div className="relative">
-              <select name="designation" value={form.designation} onChange={handle}
-                className="w-full px-3 py-2.5 text-sm appearance-none outline-none transition-all"
-                style={{ ...inputStyle, color: form.designation ? C.ink : C.muted }}
-                onFocus={focusInput} onBlur={blurInput}
+              <select
+                name="designation"
+                value={form.designation}
+                onChange={handle}
+                className={`w-full appearance-none outline-none transition-all rounded-xl border-[1.5px] border-[#E2E8F0] bg-white font-['IBM_Plex_Mono',monospace] text-[13px] py-[10px] pl-3 pr-9 ${form.designation ? "text-[#0F172A]" : "text-[#94A3B8]"}`}
+                onFocus={focusInput}
+                onBlur={blurInput}
               >
                 <option value="">পদবি নির্বাচন করুন</option>
-                {designations.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {designations.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
               </select>
-              <ChevronDown style={{ width: "13px", height: "13px", color: C.muted, position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+              <ChevronDown className="w-[14px] h-[14px] text-[#94A3B8] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </FormField>
 
           <FormField label="বিভাগ" required>
             {departments.length === 0 ? (
-              <div className="flex items-center gap-2 px-3 py-2.5" style={{ border: `1px solid #FCD34D4D`, borderRadius: "2px", background: "#FFFBEB" }}>
-                <AlertTriangle style={{ width: "13px", height: "13px", color: C.amber, flexShrink: 0 }} />
-                <span style={{ fontSize: "11px", fontFamily: "'IBM Plex Mono', monospace", color: C.amber }}>কোনো বিভাগ পাওয়া যায়নি।</span>
+              <div className="flex items-center gap-2 px-3 py-3 border-[1.5px] border-[#FCD34D60] rounded-xl bg-[#FFFBEB]">
+                <AlertTriangle className="w-[14px] h-[14px] text-[#F59E0B] shrink-0" />
+                <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#F59E0B]">
+                  কোনো বিভাগ পাওয়া যায়নি।
+                </span>
               </div>
             ) : (
-              <DepartmentMultiSelect departments={departments} selected={form.departments} onChange={(v) => set("departments", v)} />
+              <DepartmentMultiSelect
+                departments={departments}
+                selected={form.departments}
+                onChange={(v) => set("departments", v)}
+              />
             )}
           </FormField>
 
           {/* Commission */}
-          <div style={{ border: `1px solid ${C.border}`, borderRadius: "2px", overflow: "hidden" }}>
-            <div className="px-4 py-2.5 flex items-center gap-2" style={{ background: C.paper, borderBottom: `1px solid ${C.border}` }}>
-              <BadgePercent style={{ width: "12px", height: "12px", color: C.muted }} />
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.1em", color: C.muted, fontWeight: 700 }}>কমিশন</span>
+          <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 flex items-center gap-2 bg-white border-b border-[#E2E8F0]">
+              <BadgePercent className="w-[13px] h-[13px] text-[#6366F1]" />
+              <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
+                কমিশন
+              </span>
             </div>
-            <div className="p-4 space-y-3 bg-white">
+            <div className="p-4 space-y-3 bg-[#F8FAFC]">
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { type: "percentage", label: "শতাংশ (%)", Icon: BadgePercent, color: C.amber },
-                  { type: "fixed",      label: "নির্দিষ্ট (৳)",  Icon: Banknote,    color: C.teal  },
-                ].map(({ type, label, Icon, color }) => {
+                  {
+                    type: "percentage",
+                    label: "শতাংশ (%)",
+                    Icon: BadgePercent,
+                    color: C.amber,
+                    bg: "bg-[#F59E0B12]",
+                    border: "border-[#F59E0B60]",
+                    text: "text-[#F59E0B]",
+                  },
+                  {
+                    type: "fixed",
+                    label: "নির্দিষ্ট (৳)",
+                    Icon: Banknote,
+                    color: C.teal,
+                    bg: "bg-[#0D948812]",
+                    border: "border-[#0D948860]",
+                    text: "text-[#0D9488]",
+                  },
+                ].map(({ type, label, Icon, color, bg, border, text }) => {
                   const active = form.commissionType === type;
                   return (
-                    <button key={type} type="button"
-                      onClick={() => { set("commissionType", type); set("commissionValue", ""); }}
-                      className="flex items-center gap-2 px-3 py-2.5 transition-all"
-                      style={{ border: `1px solid ${active ? color + "55" : C.dashed}`, borderRadius: "2px", background: active ? `${color}0A` : "white", color: active ? color : C.muted, fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px" }}
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => {
+                        set("commissionType", type);
+                        set("commissionValue", "");
+                      }}
+                      className={`flex items-center gap-2 px-3 py-3 transition-all font-semibold rounded-xl border-[1.5px] font-['IBM_Plex_Mono',monospace] text-xs
+                        ${active ? `${bg} ${border} ${text}` : "bg-white border-[#E2E8F0] text-[#64748B]"}`}
                     >
-                      <Icon style={{ width: "13px", height: "13px", flexShrink: 0 }} />
+                      <Icon className="w-[14px] h-[14px] shrink-0" />
                       {label}
                     </button>
                   );
                 })}
               </div>
               <div className="relative">
-                <input name="commissionValue" type="number" min="0" step="0.01"
+                <input
+                  name="commissionValue"
+                  type="number"
+                  min="0"
+                  step="0.01"
                   max={form.commissionType === "percentage" ? 100 : undefined}
-                  value={form.commissionValue} onChange={handle} required
+                  value={form.commissionValue}
+                  onChange={handle}
+                  required
                   placeholder={form.commissionType === "percentage" ? "০ – ১০০" : "পরিমাণ লিখুন"}
-                  className="w-full outline-none transition-all"
-                  style={{ ...inputStyle, padding: form.commissionType === "percentage" ? "10px 32px 10px 12px" : "10px 12px 10px 28px", fontSize: "13px" }}
-                  onFocus={focusInput} onBlur={blurInput}
+                  className={`${inputBase} text-sm ${form.commissionType === "percentage" ? "pl-3.5 pr-9" : "pl-8 pr-3.5"} py-2.5`}
+                  onFocus={focusInput}
+                  onBlur={blurInput}
                 />
-                {form.commissionType === "percentage"
-                  ? <span style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", fontFamily: "'IBM Plex Mono', monospace", fontSize: "13px", fontWeight: 700, color: C.amber }}>%</span>
-                  : <span style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", fontFamily: "'IBM Plex Mono', monospace", fontSize: "13px", fontWeight: 700, color: C.teal }}>৳</span>
-                }
+                {form.commissionType === "percentage" ? (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#F59E0B]">
+                    %
+                  </span>
+                ) : (
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#0D9488]">
+                    ৳
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
           {error && (
-            <div className="flex items-start gap-2.5 px-4 py-3" style={{ background: `${C.red}08`, border: `1px solid ${C.red}33`, borderRadius: "2px" }}>
-              <AlertTriangle style={{ width: "13px", height: "13px", color: C.red, flexShrink: 0, marginTop: "1px" }} />
-              <span style={{ fontSize: "11px", fontFamily: "'IBM Plex Mono', monospace", color: C.red }}>{error}</span>
+            <div className="flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{error}</span>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 px-6 py-4 flex gap-2" style={{ borderTop: `1px solid ${C.border}` }}>
-          <button type="button" onClick={onClose} disabled={saving} className="flex-1 py-2.5 transition-colors"
-            style={{ border: `1px solid ${C.dashed}`, borderRadius: "2px", color: C.sub, fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", textTransform: "uppercase" }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = C.divider; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
-          >বাতিল</button>
-          <button onClick={handleSubmit} disabled={saving || !departments.length}
-            className="flex-1 py-2.5 flex items-center justify-center gap-1.5 transition-colors"
-            style={{ border: `1px solid ${accentColor}`, borderRadius: "2px", color: accentColor, fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", textTransform: "uppercase", opacity: (saving || !departments.length) ? 0.4 : 1, cursor: (saving || !departments.length) ? "not-allowed" : "pointer" }}
-            onMouseEnter={(e) => { if (!saving && departments.length) { e.currentTarget.style.background = accentColor; e.currentTarget.style.color = "white"; } }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = ""; e.currentTarget.style.color = accentColor; }}
+        <div className="shrink-0 px-6 py-4 flex gap-3 bg-white border-t border-[#E2E8F0]">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
           >
-            {saving
-              ? <span className="animate-spin" style={{ width: "13px", height: "13px", border: `2px solid ${accentColor}30`, borderTopColor: accentColor, borderRadius: "50%", display: "inline-block" }} />
-              : isEdit ? <Pencil style={{ width: "12px", height: "12px" }} /> : <UserPlus style={{ width: "12px", height: "12px" }} />}
+            বাতিল
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={saving || !departments.length}
+            className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+            style={{
+              background:
+                saving || !departments.length
+                  ? C.muted
+                  : `linear-gradient(135deg,${accent === C.purple ? "#8B5CF6,#7C3AED" : "#0D9488,#0F766E"})`,
+              boxShadow: saving || !departments.length ? "none" : `0 4px 14px ${accent}40`,
+              cursor: saving || !departments.length ? "not-allowed" : "pointer",
+            }}
+          >
+            {saving ? (
+              <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+            ) : isEdit ? (
+              <Pencil className="w-[13px] h-[13px]" />
+            ) : (
+              <UserPlus className="w-[13px] h-[13px]" />
+            )}
             {isEdit ? "পরিবর্তন সংরক্ষণ" : "নিবন্ধন করুন"}
           </button>
         </div>
@@ -446,73 +569,89 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
 
 // ── Action Chip ────────────────────────────────────────────────────────────────
 
-const ActionChip = ({ onClick, icon: Icon, label, color }) => {
-  const col = color ?? C.sub;
-  return (
-    <button onClick={onClick}
-      className="inline-flex items-center gap-1 transition-colors"
-      style={{ padding: "4px 10px", border: `1px solid ${col}33`, borderRadius: "2px", color: col, fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.05em" }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = `${col}0D`; e.currentTarget.style.borderColor = `${col}55`; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = ""; e.currentTarget.style.borderColor = `${col}33`; }}
-    >
-      <Icon style={{ width: "11px", height: "11px" }} />
-      {label}
-    </button>
-  );
-};
+const ActionChip = ({ onClick, icon: Icon, label, color }) => (
+  <button
+    onClick={onClick}
+    className="inline-flex items-center gap-1.5 transition-all font-semibold px-3 py-[5px] rounded-lg font-['IBM_Plex_Mono',monospace] text-[11px]"
+    style={{
+      border: `1.5px solid ${color}25`,
+      color,
+      background: `${color}08`,
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.background = `${color}18`;
+      e.currentTarget.style.borderColor = `${color}50`;
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.background = `${color}08`;
+      e.currentTarget.style.borderColor = `${color}25`;
+    }}
+  >
+    <Icon className="w-[11px] h-[11px]" />
+    {label}
+  </button>
+);
 
 // ── Doctor Row ─────────────────────────────────────────────────────────────────
 
 const DoctorRow = ({ doctor, index, deptLabelMap, desigLabelMap, onEdit, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
   const isPercent = doctor.commissionType === "percentage";
+  const commGrad = isPercent ? "linear-gradient(135deg,#F59E0B,#D97706)" : "linear-gradient(135deg,#0D9488,#0F766E)";
+  const commShadow = isPercent ? "shadow-[0_3px_8px_#F59E0B30]" : "shadow-[0_3px_8px_#0D948830]";
 
   return (
-    <div style={{ borderBottom: `1px solid ${C.divider}` }}>
+    <div className="transition-all border-b border-[#E2E8F0]">
       <button onClick={() => setExpanded((v) => !v)} className="w-full text-left">
-        <div
-          className="flex items-center gap-3 py-2.5 px-1 transition-colors rounded-sm"
-          onMouseEnter={(e) => { e.currentTarget.style.background = C.hover; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
-        >
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", color: C.muted, width: "20px", flexShrink: 0 }}>
+        <div className="flex items-center gap-3 py-3 px-2 rounded-xl transition-all hover:bg-[#F1F5F9]">
+          <span className="flex items-center justify-center shrink-0 w-[26px] h-[26px] rounded-lg bg-[#EEF2FF] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#64748B]">
             {String(index + 1).padStart(2, "0")}
           </span>
-          <div className="flex-1 min-w-0 flex items-baseline gap-2">
-            <span style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: "13px", fontWeight: 600, color: C.ink }}>{doctor.name}</span>
+          <div className="flex-1 min-w-0">
+            <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A]">
+              {doctor.name}
+            </span>
             {doctor.degree && (
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", color: C.muted }}>{doctor.degree}</span>
+              <span className="ml-2 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8]">{doctor.degree}</span>
             )}
           </div>
-          <span className="flex-1 hidden sm:block" style={{ borderBottom: `1px dotted ${C.dashed}`, transform: "translateY(-3px)" }} />
-          <div className="flex items-center gap-3 shrink-0">
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "12px", fontWeight: 600, color: isPercent ? C.amber : C.teal }}>
-              {fmt(doctor.commissionValue, doctor.commissionType)}
-            </span>
-            <ChevronDown style={{ width: "13px", height: "13px", color: C.muted, transition: "transform 0.15s", transform: expanded ? "rotate(180deg)" : undefined }} />
-          </div>
+          <span
+            className={`shrink-0 flex items-center gap-1 px-3 py-1 rounded-[20px] text-white font-['IBM_Plex_Mono',monospace] text-xs font-bold ${commShadow}`}
+            style={{ background: commGrad }}
+          >
+            {isPercent ? <BadgePercent className="w-[11px] h-[11px]" /> : <Banknote className="w-[11px] h-[11px]" />}
+            {fmt(doctor.commissionValue, doctor.commissionType)}
+          </span>
+          <ChevronDown
+            className={`w-[14px] h-[14px] text-[#94A3B8] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
+          />
         </div>
       </button>
 
       {expanded && (
-        <div className="pl-8 pr-1 py-3" style={{ background: C.paper, borderTop: `1px solid ${C.border}` }}>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", color: C.sub, lineHeight: "1.8" }} className="mb-3">
-            {doctor.designation && <p>{desigLabelMap[doctor.designation] ?? doctor.designation}</p>}
+        <div
+          className="mx-2 mb-3 px-4 py-3 rounded-xl border border-[#E2E8F0]"
+          style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
+        >
+          <div className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B] leading-loose mb-3">
+            {doctor.designation && (
+              <p className="text-[#0F172A] font-semibold">{desigLabelMap[doctor.designation] ?? doctor.designation}</p>
+            )}
             {doctor.contactNumber && (
               <p className="flex items-center gap-1.5">
-                <Phone style={{ width: "11px", height: "11px" }} />
+                <Phone className="w-3 h-3 text-[#6366F1]" />
                 {doctor.contactNumber}
               </p>
             )}
             {doctor.departments?.length > 0 && (
               <p className="flex items-center gap-1.5 flex-wrap">
-                <Layers style={{ width: "11px", height: "11px", flexShrink: 0 }} />
+                <Layers className="w-3 h-3 text-[#6366F1] shrink-0" />
                 {doctor.departments.map((d) => deptLabelMap[d] ?? d).join(" · ")}
               </p>
             )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <ActionChip onClick={onEdit} icon={Pencil} label="সম্পাদনা" />
+          <div className="flex items-center gap-2">
+            <ActionChip onClick={onEdit} icon={Pencil} label="সম্পাদনা" color={C.indigo} />
             <ActionChip onClick={onDelete} icon={Trash2} label="মুছুন" color={C.red} />
           </div>
         </div>
@@ -527,23 +666,52 @@ const Pagination = ({ page, totalPages, onPage }) => {
   if (totalPages <= 1) return null;
   const delta = 1;
   const start = Math.max(1, page - delta);
-  const end   = Math.min(totalPages, page + delta);
+  const end = Math.min(totalPages, page + delta);
   const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
 
   const Btn = ({ onClick, disabled, active, children }) => (
-    <button onClick={onClick} disabled={disabled}
-      className="flex items-center justify-center transition-colors"
-      style={{ width: "28px", height: "28px", border: `1px solid ${active ? C.ink : C.dashed}`, borderRadius: "2px", background: active ? C.ink : "white", color: active ? "white" : disabled ? C.muted : C.sub, fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", fontWeight: 700, opacity: disabled ? 0.35 : 1, cursor: disabled ? "not-allowed" : "pointer" }}
-    >{children}</button>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center justify-center transition-all w-8 h-8 rounded-[10px] font-['IBM_Plex_Mono',monospace] text-xs font-bold"
+      style={{
+        background: active ? "linear-gradient(135deg,#6366F1,#4F46E5)" : "white",
+        border: `1.5px solid ${active ? "transparent" : C.border}`,
+        color: active ? "white" : disabled ? C.muted : C.sub,
+        opacity: disabled ? 0.35 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
+        boxShadow: active ? "0 4px 10px rgba(99,102,241,0.35)" : undefined,
+      }}
+    >
+      {children}
+    </button>
   );
 
   return (
-    <div className="flex items-center justify-center gap-1">
-      <Btn onClick={() => onPage(page - 1)} disabled={page === 1}><ChevronLeft style={{ width: "13px", height: "13px" }} /></Btn>
-      {start > 1 && (<><Btn onClick={() => onPage(1)}>1</Btn>{start > 2 && <span style={{ color: C.muted, fontSize: "10px", padding: "0 2px" }}>…</span>}</>)}
-      {pages.map((p) => <Btn key={p} onClick={() => onPage(p)} active={p === page}>{p}</Btn>)}
-      {end < totalPages && (<>{end < totalPages - 1 && <span style={{ color: C.muted, fontSize: "10px", padding: "0 2px" }}>…</span>}<Btn onClick={() => onPage(totalPages)}>{totalPages}</Btn></>)}
-      <Btn onClick={() => onPage(page + 1)} disabled={page === totalPages}><ChevronRight style={{ width: "13px", height: "13px" }} /></Btn>
+    <div className="flex items-center justify-center gap-1.5">
+      <Btn onClick={() => onPage(page - 1)} disabled={page === 1}>
+        <ChevronLeft className="w-[14px] h-[14px]" />
+      </Btn>
+      {start > 1 && (
+        <>
+          <Btn onClick={() => onPage(1)}>1</Btn>
+          {start > 2 && <span className="text-[#94A3B8] text-xs">…</span>}
+        </>
+      )}
+      {pages.map((p) => (
+        <Btn key={p} onClick={() => onPage(p)} active={p === page}>
+          {p}
+        </Btn>
+      ))}
+      {end < totalPages && (
+        <>
+          {end < totalPages - 1 && <span className="text-[#94A3B8] text-xs">…</span>}
+          <Btn onClick={() => onPage(totalPages)}>{totalPages}</Btn>
+        </>
+      )}
+      <Btn onClick={() => onPage(page + 1)} disabled={page === totalPages}>
+        <ChevronRight className="w-[14px] h-[14px]" />
+      </Btn>
     </div>
   );
 };
@@ -552,57 +720,87 @@ const Pagination = ({ page, totalPages, onPage }) => {
 
 const FilterDropdown = ({ value, onChange, options, placeholder }) => (
   <div className="relative">
-    <select value={value} onChange={(e) => onChange(e.target.value)}
-      className="appearance-none outline-none cursor-pointer transition-all"
-      style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", color: value === "all" ? C.sub : C.ink, border: `1px solid ${value !== "all" ? C.ink + "55" : C.dashed}`, borderRadius: "2px", background: value !== "all" ? C.divider : "white", padding: "6px 26px 6px 10px" }}
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`appearance-none outline-none cursor-pointer transition-all font-['IBM_Plex_Mono',monospace] text-xs rounded-[10px] py-[7px] pl-3 pr-[30px] border-[1.5px]
+        ${value !== "all" ? "border-[#6366F160] bg-[#6366F108] text-[#0F172A] shadow-[0_2px_8px_#6366F115]" : "border-[#E2E8F0] bg-white text-[#64748B]"}`}
     >
       <option value="all">{placeholder}</option>
-      {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
     </select>
-    <ChevronDown style={{ width: "11px", height: "11px", color: C.muted, position: "absolute", right: "7px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+    <ChevronDown className="w-3 h-3 text-[#94A3B8] absolute right-[9px] top-1/2 -translate-y-1/2 pointer-events-none" />
   </div>
 );
 
 // ── Skeleton ───────────────────────────────────────────────────────────────────
 
 const Skeleton = () => (
-  <div className="bg-white animate-pulse" style={{ border: `1px solid ${C.border}`, borderRadius: "3px" }}>
-    <div className="px-6 py-4 flex gap-4" style={{ borderBottom: `1px solid ${C.border}`, background: C.paper }}>
-      {[120, 70, 90].map((w, i) => <div key={i} style={{ height: "11px", width: `${w}px`, background: "#E5E3DB", borderRadius: "2px" }} />)}
+  <div className="bg-white animate-pulse overflow-hidden border border-[#E2E8F0] rounded-[20px]">
+    <div className="px-6 py-4 flex gap-4 border-b border-[#E2E8F0]">
+      {[120, 70, 90].map((w, i) => (
+        <div key={i} className="h-3 bg-[#E2E8F0] rounded-md" style={{ width: w }} />
+      ))}
     </div>
     {[1, 2, 3, 4, 5].map((i) => (
-      <div key={i} className="flex items-center gap-3 px-6 py-3" style={{ borderBottom: `1px solid ${C.divider}` }}>
-        <div style={{ width: "20px", height: "10px", background: "#E5E3DB", borderRadius: "2px" }} />
-        <div style={{ flex: 1, height: "12px", background: "#E5E3DB", borderRadius: "2px" }} />
-        <div style={{ width: "55px", height: "12px", background: "#E5E3DB", borderRadius: "2px" }} />
+      <div key={i} className="flex items-center gap-3 px-6 py-3.5 border-b border-[#E2E8F0]">
+        <div className="w-[26px] h-[26px] bg-[#E2E8F0] rounded-lg" />
+        <div className="flex-1 h-[13px] bg-[#E2E8F0] rounded-md" />
+        <div className="w-[65px] h-[26px] bg-[#E2E8F0] rounded-[20px]" />
       </div>
     ))}
+  </div>
+);
+
+// ── Stats Card ─────────────────────────────────────────────────────────────────
+
+const StatCard = ({ label, value, color, grad, icon: Icon }) => (
+  <div className="bg-white relative overflow-hidden border border-[#E2E8F0] rounded-2xl p-[14px_16px] shadow-[0_2px_8px_rgba(15,23,42,0.05)]">
+    <div className="absolute top-0 right-0 w-16 h-16 opacity-5 rounded-[0_16px_0_100%]" style={{ background: grad }} />
+    <div className="flex items-center gap-2 mb-2">
+      <div
+        className="flex items-center justify-center w-[26px] h-[26px] rounded-lg"
+        style={{ background: grad, boxShadow: `0 3px 8px ${color}30` }}
+      >
+        <Icon className="w-[13px] h-[13px] text-white" />
+      </div>
+      <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.06em] text-[#94A3B8]">
+        {label}
+      </p>
+    </div>
+    <p className="font-['IBM_Plex_Mono',monospace] text-[26px] font-extrabold leading-none" style={{ color }}>
+      {value}
+    </p>
   </div>
 );
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 const COMM_OPTIONS = [
-  { value: "percentage", label: "শতাংশ (%)  " },
-  { value: "fixed",      label: "নির্দিষ্ট (৳)" },
+  { value: "percentage", label: "শতাংশ (%)" },
+  { value: "fixed", label: "নির্দিষ্ট (৳)" },
 ];
 
 const ManageDoctors = () => {
-  const [doctors,        setDoctors]        = useState([]);
-  const [departments,    setDepartments]    = useState([]);
-  const [designations,   setDesignations]   = useState([]);
-  const [pagination,     setPagination]     = useState({ page: 1, totalPages: 1, total: 0 });
+  const [doctors, setDoctors] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [designations, setDesignations] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [initialLoading, setInitialLoading] = useState(true);
-  const [search,         setSearch]         = useState("");
-  const [deptFilter,     setDeptFilter]     = useState("all");
-  const [commFilter,     setCommFilter]     = useState("all");
-  const [popup,          setPopup]          = useState(null);
-  const [formModal,      setFormModal]      = useState(null);
-  const [deleteTarget,   setDeleteTarget]   = useState(null);
-  const [deleting,       setDeleting]       = useState(false);
+  const [search, setSearch] = useState("");
+  const [deptFilter, setDeptFilter] = useState("all");
+  const [commFilter, setCommFilter] = useState("all");
+  const [popup, setPopup] = useState(null);
+  const [formModal, setFormModal] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const debounceRef = useRef(null);
 
-  const deptLabelMap  = Object.fromEntries(departments.map((d) => [d.value, d.label]));
+  const deptLabelMap = Object.fromEntries(departments.map((d) => [d.value, d.label]));
   const desigLabelMap = Object.fromEntries(designations.map((d) => [d.value, d.label]));
 
   useEffect(() => {
@@ -622,10 +820,14 @@ const ManageDoctors = () => {
       setPagination({ page: cur, totalPages, total });
     } catch {
       setPopup({ type: "error", message: "ডাক্তার লোড করতে ব্যর্থ।" });
-    } finally { setInitialLoading(false); }
+    } finally {
+      setInitialLoading(false);
+    }
   };
 
-  useEffect(() => { fetchDoctors(); }, []);
+  useEffect(() => {
+    fetchDoctors();
+  }, []);
 
   useEffect(() => {
     clearTimeout(debounceRef.current);
@@ -636,8 +838,7 @@ const ManageDoctors = () => {
     return () => clearTimeout(debounceRef.current);
   }, [search, deptFilter]);
 
-  const handlePage = (page) =>
-    fetchDoctors({ search, department: deptFilter !== "all" ? deptFilter : "", page });
+  const handlePage = (page) => fetchDoctors({ search, department: deptFilter !== "all" ? deptFilter : "", page });
 
   const handleSaved = (isEdit) => {
     setFormModal(null);
@@ -656,187 +857,221 @@ const ManageDoctors = () => {
       setPopup({ type: "success", message: "ডাক্তার মুছে ফেলা হয়েছে।" });
     } catch {
       setPopup({ type: "error", message: "ডাক্তার মুছতে ব্যর্থ।" });
-    } finally { setDeleting(false); }
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const visibleDoctors = useMemo(
-    () => commFilter !== "all" ? doctors.filter((d) => d.commissionType === commFilter) : doctors,
+    () => (commFilter !== "all" ? doctors.filter((d) => d.commissionType === commFilter) : doctors),
     [doctors, commFilter],
   );
 
-  const stats = useMemo(() => ({
-    total:      pagination.total,
-    percentage: doctors.filter((d) => d.commissionType === "percentage").length,
-    fixed:      doctors.filter((d) => d.commissionType === "fixed").length,
-    multiDept:  doctors.filter((d) => (d.departments?.length ?? 0) > 1).length,
-  }), [doctors, pagination.total]);
+  const stats = useMemo(
+    () => ({
+      total: pagination.total,
+      percentage: doctors.filter((d) => d.commissionType === "percentage").length,
+      fixed: doctors.filter((d) => d.commissionType === "fixed").length,
+      multiDept: doctors.filter((d) => (d.departments?.length ?? 0) > 1).length,
+    }),
+    [doctors, pagination.total],
+  );
 
   const hasFilters = deptFilter !== "all" || commFilter !== "all";
   const deptOptions = departments.map((d) => ({ value: d.value, label: d.label }));
 
   return (
     <section
-      className="min-h-screen px-4 py-6"
-      style={{
-        backgroundColor: "#F5F4EF",
-        backgroundImage: "radial-gradient(circle, rgba(28,31,30,0.045) 1px, transparent 1px)",
-        backgroundSize: "18px 18px",
-        fontFamily: "Noto Sans Bengali, sans-serif",
-      }}
+      className="min-h-screen px-4 py-6 font-[Noto_Sans_Bengali,sans-serif]"
+      style={{ background: "linear-gradient(to bottom right,#f8fafc,#eff6ff,#eef2ff)" }}
     >
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      {formModal !== null && (
-        <DoctorFormModal
-          initial={formModal._id ? formModal : null}
-          onClose={() => setFormModal(null)}
-          onSaved={handleSaved}
-          departments={departments}
-          designations={designations}
-        />
-      )}
+      {formModal !== null &&
+        createPortal(
+          <DoctorFormModal
+            initial={formModal._id ? formModal : null}
+            onClose={() => setFormModal(null)}
+            onSaved={handleSaved}
+            departments={departments}
+            designations={designations}
+          />,
+          document.body,
+        )}
 
-      {deleteTarget && (
-        <DeleteModal
-          doctor={deleteTarget}
-          onConfirm={handleDelete}
-          onCancel={() => setDeleteTarget(null)}
-          loading={deleting}
-        />
-      )}
+      {deleteTarget &&
+        createPortal(
+          <DeleteModal
+            doctor={deleteTarget}
+            onConfirm={handleDelete}
+            onCancel={() => setDeleteTarget(null)}
+            loading={deleting}
+          />,
+          document.body,
+        )}
 
       <div className="max-w-2xl mx-auto">
-
-        {/* ── Page header ── */}
-        <div className="flex items-start justify-between mb-5">
+        {/* Page header */}
+        <div className="flex items-start justify-between mb-6">
           <div>
-            <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.1em", color: C.teal, marginBottom: "4px" }}>
+            <p className="font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-[0.1em] text-[#0D9488] mb-1">
               ল্যাব অপারেশন
             </p>
-            <h1 style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: "26px", fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>
+            <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[26px] font-bold text-[#0F172A] leading-tight">
               ডাক্তার তালিকা
             </h1>
-            <p style={{ fontSize: "14px", color: "#767D78", marginTop: "4px" }}>
-              কমিশন ও রেফারেল ডাক্তার পরিচালনা।
-            </p>
+            <p className="text-sm text-[#64748B] mt-1">কমিশন ও রেফারেল ডাক্তার পরিচালনা।</p>
           </div>
           <div className="flex items-center gap-2 pt-1">
-            <Link to="/lab-management"
-              className="flex items-center gap-1.5 transition-colors"
-              style={{ padding: "7px 12px", border: `1px solid ${C.ink}18`, borderRadius: "2px", color: C.sub, fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", textTransform: "uppercase" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = C.ink; e.currentTarget.style.color = "white"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = ""; e.currentTarget.style.color = C.sub; }}
+            <Link
+              to="/lab-management"
+              className="flex items-center gap-1.5 transition-all font-semibold px-[14px] py-2 border-[1.5px] border-[#E2E8F0] rounded-xl text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9] hover:text-[#0F172A]"
             >
-              <ArrowLeft style={{ width: "13px", height: "13px" }} /> ফিরে
+              <ArrowLeft className="w-[13px] h-[13px]" /> ফিরে
             </Link>
-            <button onClick={() => setFormModal({})}
-              className="flex items-center gap-1.5 transition-colors"
-              style={{ padding: "7px 14px", border: `1px solid ${C.teal}`, borderRadius: "2px", color: C.teal, fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", textTransform: "uppercase", fontWeight: 600 }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = C.teal; e.currentTarget.style.color = "white"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = ""; e.currentTarget.style.color = C.teal; }}
+            <button
+              onClick={() => setFormModal({})}
+              className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none shadow-[0_4px_14px_rgba(13,148,136,0.4)] hover:shadow-[0_6px_20px_rgba(13,148,136,0.5)]"
+              style={{ background: "linear-gradient(135deg,#0D9488,#0F766E)" }}
             >
-              <UserPlus style={{ width: "13px", height: "13px" }} /> নতুন
+              <UserPlus className="w-[13px] h-[13px]" /> নতুন
             </button>
           </div>
         </div>
 
-        {/* ── Stats strip ── */}
+        {/* Stats strip */}
         {!initialLoading && (
-          <div className="grid grid-cols-4 gap-2 mb-4">
-            {[
-              { label: "মোট ডাক্তার", value: stats.total,      color: C.blue   },
-              { label: "শতাংশ কমিশন", value: stats.percentage, color: C.amber  },
-              { label: "নির্দিষ্ট কমিশন", value: stats.fixed,  color: C.teal   },
-              { label: "বহু-বিভাগ",   value: stats.multiDept,  color: C.purple },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="bg-white" style={{ border: `1px solid ${C.border}`, borderRadius: "3px", padding: "10px 14px" }}>
-                <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: C.muted, marginBottom: "5px" }}>{label}</p>
-                <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "22px", fontWeight: 700, color, lineHeight: 1 }}>{value}</p>
-              </div>
-            ))}
+          <div className="grid grid-cols-4 gap-3 mb-5">
+            <StatCard
+              label="মোট ডাক্তার"
+              value={stats.total}
+              color={C.indigo}
+              grad="linear-gradient(135deg,#6366F1,#4F46E5)"
+              icon={UserPlus}
+            />
+            <StatCard
+              label="শতাংশ কমিশন"
+              value={stats.percentage}
+              color={C.amber}
+              grad="linear-gradient(135deg,#F59E0B,#D97706)"
+              icon={BadgePercent}
+            />
+            <StatCard
+              label="নির্দিষ্ট কমিশন"
+              value={stats.fixed}
+              color={C.teal}
+              grad="linear-gradient(135deg,#0D9488,#0F766E)"
+              icon={Banknote}
+            />
+            <StatCard
+              label="বহু-বিভাগ"
+              value={stats.multiDept}
+              color={C.purple}
+              grad="linear-gradient(135deg,#8B5CF6,#7C3AED)"
+              icon={Layers}
+            />
           </div>
         )}
 
-        {/* ── Ledger card ── */}
-        {initialLoading ? <Skeleton /> : (
-          <div className="bg-white" style={{ border: `1px solid ${C.border}`, borderRadius: "3px", boxShadow: "0 1px 3px rgba(28,31,30,0.05)" }}>
-
-            {/* Ledger head */}
-            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${C.border}`, background: C.paper }}>
+        {/* Ledger card */}
+        {initialLoading ? (
+          <Skeleton />
+        ) : (
+          <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)]">
+            {/* Header */}
+            <div
+              className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0]"
+              style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
+            >
               <div>
-                <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.1em", color: C.teal, marginBottom: "4px" }}>
+                <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#6366F1] mb-1">
                   ডাক্তার লেজার
                 </p>
-                <div className="flex items-baseline gap-4">
-                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "13px", color: C.sub }}>
+                <div className="flex items-center gap-3">
+                  <span className="font-['IBM_Plex_Mono',monospace] text-[13px] font-semibold text-[#64748B]">
                     মোট {pagination.total}জন
                   </span>
                   {stats.percentage > 0 && (
-                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", color: C.amber }}>
+                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#F59E0B] bg-[#F59E0B10] rounded-[6px] border border-[#F59E0B25]">
                       % {stats.percentage}জন
                     </span>
                   )}
                   {stats.fixed > 0 && (
-                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", color: C.teal }}>
-                      নির্দিষ্ট {stats.fixed}জন
+                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#0D9488] bg-[#0D948810] rounded-[6px] border border-[#0D948825]">
+                      ৳ {stats.fixed}জন
                     </span>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Toolbar: search + filters */}
-            <div className="px-6 py-3 flex flex-wrap items-center gap-2" style={{ borderBottom: `1px solid ${C.border}`, background: C.paper }}>
-              {/* Search */}
-              <div className="relative" style={{ flex: "1 1 160px" }}>
-                <Search style={{ width: "12px", height: "12px", color: C.muted, position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+            {/* Toolbar */}
+            <div className="px-4 py-3 flex flex-wrap items-center gap-2 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+              <div className="relative flex-[1_1_160px]">
+                <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
-                  type="text" placeholder="নাম, ডিগ্রি বা নম্বর…"
-                  value={search} onChange={(e) => setSearch(e.target.value)}
-                  className="w-full outline-none transition-all"
-                  style={{ ...inputStyle, paddingLeft: "28px", paddingRight: search ? "28px" : "10px", paddingTop: "7px", paddingBottom: "7px", fontSize: "11px" }}
-                  onFocus={focusInput} onBlur={blurInput}
+                  type="text"
+                  placeholder="নাম, ডিগ্রি বা নম্বর…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className={`${inputBase} pl-8 ${search ? "pr-8" : "pr-3"} py-2 text-xs`}
+                  onFocus={focusInput}
+                  onBlur={blurInput}
                 />
                 {search && (
-                  <button onClick={() => setSearch("")} style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", color: C.muted }}>
-                    <X style={{ width: "12px", height: "12px" }} />
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]"
+                  >
+                    <X className="w-[13px] h-[13px]" />
                   </button>
                 )}
               </div>
-
-              {/* Department filter */}
-              <FilterDropdown value={deptFilter} onChange={setDeptFilter} options={deptOptions} placeholder="সব বিভাগ" />
-
-              {/* Commission filter */}
-              <FilterDropdown value={commFilter} onChange={setCommFilter} options={COMM_OPTIONS} placeholder="সব কমিশন" />
-
-              {/* Reset */}
+              <FilterDropdown
+                value={deptFilter}
+                onChange={setDeptFilter}
+                options={deptOptions}
+                placeholder="সব বিভাগ"
+              />
+              <FilterDropdown
+                value={commFilter}
+                onChange={setCommFilter}
+                options={COMM_OPTIONS}
+                placeholder="সব কমিশন"
+              />
               {hasFilters && (
                 <button
-                  onClick={() => { setDeptFilter("all"); setCommFilter("all"); }}
-                  className="flex items-center gap-1 transition-colors"
-                  style={{ padding: "6px 10px", border: `1px solid ${C.red}33`, borderRadius: "2px", color: C.red, fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", textTransform: "uppercase" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = `${C.red}08`; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
+                  onClick={() => {
+                    setDeptFilter("all");
+                    setCommFilter("all");
+                  }}
+                  className="flex items-center gap-1.5 transition-all font-semibold py-[7px] px-3 border-[1.5px] border-[#EF444430] rounded-[10px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] text-[11px] bg-[#EF444406] hover:bg-[#EF444412]"
                 >
-                  <RotateCcw style={{ width: "11px", height: "11px" }} /> রিসেট
+                  <RotateCcw className="w-3 h-3" /> রিসেট
                 </button>
               )}
             </div>
 
             {/* Column labels */}
-            <div className="flex items-center gap-3 px-6 pt-3 pb-1">
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.08em", color: C.muted, width: "20px", flexShrink: 0 }}>#</span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.08em", color: C.muted, flex: 1 }}>ডাক্তার</span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.08em", color: C.muted, flexShrink: 0 }}>কমিশন</span>
+            <div className="flex items-center gap-3 px-4 pt-3 pb-1">
+              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] w-[26px] shrink-0">
+                #
+              </span>
+              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] flex-1">
+                ডাক্তার
+              </span>
+              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] shrink-0">
+                কমিশন
+              </span>
+              <span className="w-[14px] shrink-0" />
             </div>
 
             {/* Doctor rows */}
-            <div className="px-6 pb-4">
+            <div className="px-4 pb-4">
               {visibleDoctors.length === 0 ? (
-                <div className="flex items-center gap-2 py-8" style={{ color: C.muted }}>
-                  <AlertCircle style={{ width: "13px", height: "13px" }} />
-                  <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px" }}>
+                <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8]">
+                  <AlertCircle className="w-7 h-7 opacity-40" />
+                  <p className="font-['IBM_Plex_Mono',monospace] text-xs">
                     {hasFilters || search ? "কোনো ডাক্তার পাওয়া যায়নি" : "এখনো কোনো ডাক্তার নিবন্ধিত হয়নি"}
                   </p>
                 </div>
@@ -857,21 +1092,21 @@ const ManageDoctors = () => {
 
             {/* Pagination */}
             {pagination.totalPages > 1 && (
-              <div className="px-6 py-4" style={{ borderTop: `1px solid ${C.border}` }}>
+              <div className="px-6 py-4 border-t border-[#E2E8F0]">
                 <Pagination page={pagination.page} totalPages={pagination.totalPages} onPage={handlePage} />
               </div>
             )}
 
             {/* Footer note */}
-            <div className="px-6 py-2.5" style={{ borderTop: `1px solid ${C.border}`, background: C.paper }}>
-              <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", color: C.muted }}>
+            <div className="px-6 py-3 border-t border-[#E2E8F0] bg-[#F8FAFC]">
+              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
                 * শুধুমাত্র সক্রিয় ডাক্তারের তথ্য অন্তর্ভুক্ত
               </p>
             </div>
           </div>
         )}
 
-        <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", color: C.muted, textAlign: "center", marginTop: "16px", paddingBottom: "24px" }}>
+        <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] text-center mt-4 pb-6">
           LabPilotPro · ডাক্তার ম্যানেজমেন্ট সিস্টেম
         </p>
       </div>

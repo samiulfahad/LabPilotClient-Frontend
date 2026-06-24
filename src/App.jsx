@@ -11,19 +11,18 @@ import Help from "./pages/help";
 
 // Account
 import Account from "./pages/account";
+
 // Billing
 import Billing from "./pages/billing";
-// Products
-import Products from "./pages/setup/manageProducts";
 
 // Setup
 import Setup from "./pages/setup";
 import ManageTests from "./pages/setup/manageTests";
-import AddTest from "./pages/setup/manageTests/AddTest";
+import ManageProducts from "./pages/setup/manageProducts";
 import ManageStaffs from "./pages/setup/manageStaffs";
 import ManageReferrers from "./pages/setup/manageReferrers";
-import ManageSpaces from "./pages/setup/manageAdmissionSpace";
 import ManageDoctors from "./pages/setup/manageDoctors";
+import ManageSpaces from "./pages/setup/manageAdmissionSpace";
 
 // Daily Reports
 import DailyReports from "./pages/dailyReports";
@@ -111,8 +110,7 @@ function App() {
         {/* Set up */}
         <Route path="/setup" element={<Setup />} />
         <Route path="/manage-tests" element={<ManageTests />} />
-        <Route path="/manage-tests/add" element={<AddTest />} />
-        <Route path="/manage-products" element={<Products />} />
+        <Route path="/manage-products" element={<ManageProducts />} />
         <Route path="/manage-staffs" element={<ManageStaffs />} />
         <Route path="/manage-referrers" element={<ManageReferrers />} />
         <Route path="/manage-doctors" element={<ManageDoctors />} />

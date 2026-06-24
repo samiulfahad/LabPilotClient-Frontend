@@ -86,7 +86,7 @@ const ACTIONS = [
     glow: "rgba(6,182,212,0.3)",
   },
   {
-    to: "/commission",
+    to: "/commission-report",
     icon: Percent,
     label: "কমিশন",
     sub: "রেফারেল আয়",
