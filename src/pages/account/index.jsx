@@ -1,8 +1,14 @@
 /**
- * useCallback / useMemo are intentionally absent.
- * babel-plugin-react-compiler handles memoization automatically.
+ * Account.jsx
+ * Styled to match the ManageSpaces ledger/paper aesthetic:
+ * IBM Plex Mono/Sans, ModalShell + ConfirmModal (TONE) pattern,
+ * ActionChip rows, StatCard-style ribbons, ledger rows.
+ *
+ * React Compiler handles memoisation — no useCallback/useMemo
  */
+
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   User,
@@ -23,10 +29,10 @@ import {
   Upload,
   Download,
   KeyRound,
-  Edit3,
+  Pencil,
+  AlertTriangle,
   AlertCircle,
   Loader2,
-  BadgeCheck,
   Monitor,
   Smartphone,
   Tablet,
@@ -36,67 +42,52 @@ import {
   WifiOff,
   LogOut,
   ShieldAlert,
-  AlertTriangle,
   Mail,
+  X,
+  Check,
+  Building2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import accountService from "../../api/account";
 import { useAuthStore } from "../../store/authStore";
 import Popup from "../../components/popup";
-import Modal from "../../components/modal";
 import LoadingScreen from "../../components/loadingPage";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ROLE_META = {
   admin: {
-    label: "Lab Admin",
+    label: "ল্যাব অ্যাডমিন",
     icon: Crown,
-    gradient: "from-amber-500 to-orange-500",
-    badge: "bg-amber-50 text-amber-700 border-amber-200",
+    grad: "linear-gradient(135deg,#F59E0B,#D97706)",
   },
   supportAdmin: {
-    label: "Support Admin",
+    label: "সাপোর্ট অ্যাডমিন",
     icon: Headset,
-    gradient: "from-violet-500 to-purple-600",
-    badge: "bg-violet-50 text-violet-700 border-violet-200",
+    grad: "linear-gradient(135deg,#8B5CF6,#7C3AED)",
   },
   staff: {
-    label: "Staff",
+    label: "স্টাফ",
     icon: UserCog,
-    gradient: "from-blue-500 to-indigo-600",
-    badge: "bg-blue-50 text-blue-700 border-blue-200",
+    grad: "linear-gradient(135deg,#3B82F6,#2563EB)",
   },
 };
 
 const PERMISSIONS_META = [
-  { key: "createInvoice", label: "Create Invoice", icon: FilePlus, color: "blue" },
-  { key: "editInvoice", label: "Edit Invoice", icon: FileEdit, color: "amber" },
-  { key: "deleteInvoice", label: "Delete Invoice", icon: Trash2, color: "red" },
-  { key: "cashmemo", label: "Cashmemo", icon: FileText, color: "green" },
-  { key: "uploadReport", label: "Upload Report", icon: Upload, color: "purple" },
-  { key: "downloadReport", label: "Download Report", icon: Download, color: "teal" },
+  { key: "createInvoice", label: "ইনভয়েস তৈরি", icon: FilePlus, color: "#3B82F6" },
+  { key: "editInvoice", label: "ইনভয়েস সম্পাদনা", icon: FileEdit, color: "#F59E0B" },
+  { key: "deleteInvoice", label: "ইনভয়েস মুছুন", icon: Trash2, color: "#EF4444" },
+  { key: "cashmemo", label: "ক্যাশমেমো", icon: FileText, color: "#10B981" },
+  { key: "uploadReport", label: "রিপোর্ট আপলোড", icon: Upload, color: "#8B5CF6" },
+  { key: "downloadReport", label: "রিপোর্ট ডাউনলোড", icon: Download, color: "#0D9488" },
 ];
 
-const COLOR_MAP = {
-  blue: { active: "bg-blue-50 border-blue-200 text-blue-700", iconBg: "bg-blue-100", iconText: "text-blue-600" },
-  amber: { active: "bg-amber-50 border-amber-200 text-amber-700", iconBg: "bg-amber-100", iconText: "text-amber-600" },
-  red: { active: "bg-red-50 border-red-200 text-red-700", iconBg: "bg-red-100", iconText: "text-red-600" },
-  green: { active: "bg-green-50 border-green-200 text-green-700", iconBg: "bg-green-100", iconText: "text-green-600" },
-  purple: {
-    active: "bg-purple-50 border-purple-200 text-purple-700",
-    iconBg: "bg-purple-100",
-    iconText: "text-purple-600",
-  },
-  teal: { active: "bg-teal-50 border-teal-200 text-teal-700", iconBg: "bg-teal-100", iconText: "text-teal-600" },
-};
-
 const fmtDate = (d) =>
-  d ? new Date(d).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+  d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 const fmtDateTime = (d) =>
   d
-    ? new Date(d).toLocaleString("en-US", {
+    ? new Date(d).toLocaleString("en-GB", {
         day: "2-digit",
         month: "short",
         year: "numeric",
@@ -114,20 +105,17 @@ const initials = (name = "") =>
     .join("")
     .toUpperCase() || "?";
 
-const avatarGrad = (name = "") => {
-  const GRADS = [
-    "from-blue-500 to-indigo-600",
-    "from-violet-500 to-purple-600",
-    "from-emerald-500 to-teal-600",
-    "from-rose-500 to-pink-600",
-    "from-amber-500 to-orange-500",
-    "from-cyan-500 to-sky-600",
-  ];
-  const code = name.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  return GRADS[code % GRADS.length];
+const timeAgo = (d) => {
+  if (!d) return "কখনো না";
+  const diffMs = Date.now() - new Date(d).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "এখনই";
+  if (mins < 60) return `${mins} মিনিট আগে`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} ঘণ্টা আগে`;
+  const days = Math.floor(hrs / 24);
+  return `${days} দিন আগে`;
 };
-
-// ─── Device icon helper ───────────────────────────────────────────────────────
 
 const DeviceIcon = ({ type, className }) => {
   if (type === "mobile") return <Smartphone className={className} />;
@@ -135,64 +123,164 @@ const DeviceIcon = ({ type, className }) => {
   return <Monitor className={className} />;
 };
 
-// ─── Time ago helper ──────────────────────────────────────────────────────────
+// ─── Shared input helpers ──────────────────────────────────────────────────────
 
-const timeAgo = (d) => {
-  if (!d) return "Never";
-  const diffMs = Date.now() - new Date(d).getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+const inputBase =
+  "w-full outline-none transition-all rounded-xl border-[1.5px] border-[#E2E8F0] bg-white text-[#0F172A] font-['IBM_Plex_Mono',monospace]";
+const focusInput = (e) => {
+  e.target.style.borderColor = "#6366F1";
+  e.target.style.boxShadow = "0 0 0 3px #6366F120";
+};
+const blurInput = (e) => {
+  e.target.style.borderColor = "#E2E8F0";
+  e.target.style.boxShadow = "";
 };
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
+// ─── Modal Shell ────────────────────────────────────────────────────────────────
 
-const Skeleton = () => (
-  <div className="animate-pulse space-y-4">
-    <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
-      <div className="flex items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-gray-200" />
-        <div className="space-y-2 flex-1">
-          <div className="h-6 w-40 bg-gray-200 rounded" />
-          <div className="h-4 w-24 bg-gray-100 rounded" />
+const ModalShell = ({ onClose, children, wide }) => {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center px-4 z-[9999]">
+      <div
+        className="absolute inset-0 backdrop-blur-[6px]"
+        style={{ background: "rgba(15,23,42,0.6)" }}
+        onClick={onClose}
+      />
+      <div
+        className={`relative w-full ${wide ? "max-w-[560px]" : "max-w-[480px]"} max-h-[calc(100svh-48px)] overflow-y-auto`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+
+// ─── Confirm Modal (tone pattern) ──────────────────────────────────────────────
+
+const TONE = {
+  danger: {
+    border: "border-[#FECACA]",
+    bgGrad: "linear-gradient(135deg,#FEF2F2,#FFE4E6)",
+    iconGrad: "linear-gradient(135deg,#EF4444,#DC2626)",
+    shadow: "shadow-[0_8px_20px_rgba(239,68,68,0.35)]",
+    label: "text-[#DC2626]",
+    btnGrad: "linear-gradient(135deg,#EF4444,#DC2626)",
+    btnShadow: "shadow-[0_4px_14px_rgba(239,68,68,0.4)]",
+  },
+  warning: {
+    border: "border-[#FDE68A]",
+    bgGrad: "linear-gradient(135deg,#FFFBEB,#FEF3C7)",
+    iconGrad: "linear-gradient(135deg,#F59E0B,#D97706)",
+    shadow: "shadow-[0_8px_20px_rgba(245,158,11,0.35)]",
+    label: "text-[#D97706]",
+    btnGrad: "linear-gradient(135deg,#F59E0B,#D97706)",
+    btnShadow: "shadow-[0_4px_14px_rgba(245,158,11,0.4)]",
+  },
+};
+
+const ConfirmModal = ({
+  message,
+  description,
+  tone = "danger",
+  confirmLabel = "নিশ্চিত",
+  onConfirm,
+  onCancel,
+  loading,
+}) => {
+  const t = TONE[tone];
+  return (
+    <ModalShell onClose={onCancel}>
+      <div className="bg-white overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
+        <div className={`px-6 py-6 flex items-center gap-4 border-b ${t.border}`} style={{ background: t.bgGrad }}>
+          <div
+            className={`flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] ${t.shadow}`}
+            style={{ background: t.iconGrad }}
+          >
+            <AlertTriangle className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <p
+              className={`font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] ${t.label}`}
+            >
+              নিশ্চিত করুন
+            </p>
+            <p className="font-['IBM_Plex_Sans',sans-serif] text-[15px] font-bold text-[#0F172A]">{message}</p>
+            {description && (
+              <p className="font-['IBM_Plex_Sans',sans-serif] text-xs text-[#64748B] mt-1 leading-relaxed">
+                {description}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="px-6 py-5 flex gap-3">
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
+          >
+            বাতিল
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className={`flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs ${t.btnShadow}`}
+            style={{ background: t.btnGrad, opacity: loading ? 0.7 : 1 }}
+          >
+            {loading ? (
+              <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+            ) : (
+              <Check className="w-[14px] h-[14px]" />
+            )}
+            {confirmLabel}
+          </button>
         </div>
       </div>
-    </div>
-    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-      <div className="h-4 w-28 bg-gray-200 rounded mb-3" />
-      <div className="space-y-2">
-        {[1, 2].map((i) => (
-          <div key={i} className="h-16 bg-gray-100 rounded-xl" />
-        ))}
-      </div>
-    </div>
-  </div>
-);
+    </ModalShell>
+  );
+};
 
-// ─── Password input ───────────────────────────────────────────────────────────
+// ─── Error box ──────────────────────────────────────────────────────────────────
 
-const PasswordInput = ({ label, value, onChange, placeholder }) => {
+const ErrorBox = ({ msg }) =>
+  msg ? (
+    <div className="flex items-center gap-2 px-3.5 py-2.5 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+      <AlertCircle className="w-[14px] h-[14px] text-[#EF4444] shrink-0" />
+      <p className="font-['IBM_Plex_Mono',monospace] text-[11px] font-medium text-[#EF4444]">{msg}</p>
+    </div>
+  ) : null;
+
+// ─── Password input ─────────────────────────────────────────────────────────────
+
+const PasswordField = ({ label, value, onChange, placeholder }) => {
   const [show, setShow] = useState(false);
   return (
     <div>
-      <label className="block text-xs font-semibold text-gray-600 mb-1.5">{label}</label>
+      <label className="block mb-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748B]">
+        {label}
+      </label>
       <div className="relative">
-        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
         <input
           type={show ? "text" : "password"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all bg-gray-50 focus:bg-white"
+          className={`${inputBase} pl-10 pr-10 py-2.5 text-sm`}
+          onFocus={focusInput}
+          onBlur={blurInput}
         />
         <button
           type="button"
           onClick={() => setShow((p) => !p)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#0F172A] transition-colors"
         >
           {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
         </button>
@@ -201,421 +289,466 @@ const PasswordInput = ({ label, value, onChange, placeholder }) => {
   );
 };
 
-// ─── Error box ────────────────────────────────────────────────────────────────
+// ─── Modal header (shared style) ───────────────────────────────────────────────
 
-const ErrorBox = ({ msg }) =>
-  msg ? (
-    <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl">
-      <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-      <p className="text-xs font-medium text-red-600">{msg}</p>
-    </div>
-  ) : null;
-
-// ─── Confirm Modal ────────────────────────────────────────────────────────────
-
-const ConfirmModal = ({
-  isOpen,
-  onClose,
-  onConfirm,
-  title,
-  description,
-  confirmLabel = "Confirm",
-  loading = false,
-}) => (
-  <Modal isOpen={isOpen} onClose={onClose} size="sm">
-    <div className="p-8">
-      <div className="flex flex-col items-center text-center">
-        <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-4 border border-red-100">
-          <AlertTriangle className="w-8 h-8 text-red-500" />
-        </div>
-        <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
-        <p className="text-sm text-gray-500 mb-8 px-2 leading-relaxed">{description}</p>
-        <div className="flex w-full gap-3">
-          <button
-            onClick={onClose}
-            disabled={loading}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={loading}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-200 transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
-          >
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {confirmLabel}
-          </button>
-        </div>
+const ModalHeader = ({ icon: Icon, eyebrow, title, subtitle, gradFrom, gradTo, onClose }) => (
+  <div
+    className="shrink-0 px-6 py-5 flex items-center justify-between border-b"
+    style={{ background: `linear-gradient(135deg,${gradFrom}15 0%,${gradTo}08 100%)`, borderColor: `${gradFrom}25` }}
+  >
+    <div className="flex items-center gap-3.5">
+      <div
+        className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px]"
+        style={{ background: `linear-gradient(135deg,${gradFrom},${gradTo})`, boxShadow: `0 8px 20px ${gradFrom}40` }}
+      >
+        <Icon className="w-[18px] h-[18px] text-white" />
+      </div>
+      <div>
+        <p
+          className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px]"
+          style={{ color: gradFrom }}
+        >
+          {eyebrow}
+        </p>
+        <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">{title}</p>
+        {subtitle && <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8]">{subtitle}</p>}
       </div>
     </div>
-  </Modal>
+    <button
+      onClick={onClose}
+      className="flex items-center justify-center w-8 h-8 rounded-[10px] text-[#94A3B8] border-[1.5px] border-[#E2E8F0] bg-white transition-all hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+    >
+      <X className="w-[15px] h-[15px]" />
+    </button>
+  </div>
 );
 
-// ─── Phone Modal ──────────────────────────────────────────────────────────────
+// ─── Phone Modal ────────────────────────────────────────────────────────────────
 
-const PhoneModal = ({ isOpen, onClose, onSuccess }) => {
+const PhoneModal = ({ onClose, onSuccess }) => {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const reset = () => {
-    setPhone("");
-    setPassword("");
-    setError("");
-  };
-  const handleClose = () => {
-    reset();
-    onClose();
-  };
-
   const handleSubmit = async () => {
     setError("");
-    if (phone.trim().length < 10) return setError("Enter a valid phone number (min 10 digits)");
-    if (!password) return setError("Current password is required");
+    if (phone.trim().length < 10) return setError("সঠিক ফোন নম্বর লিখুন (ন্যূনতম ১০ সংখ্যা)");
+    if (!password) return setError("বর্তমান পাসওয়ার্ড আবশ্যক");
     try {
       setLoading(true);
       await accountService.changePhone({ phone: phone.trim(), currentPassword: password });
-      reset();
-      onSuccess("Phone number updated successfully!");
+      onSuccess("ফোন নম্বর সফলভাবে পরিবর্তন হয়েছে!");
     } catch (err) {
-      setError(err?.response?.data?.error ?? "Failed to update phone number");
+      setError(err?.response?.data?.error ?? "ফোন নম্বর পরিবর্তন করতে ব্যর্থ");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="sm">
-      <div className="p-6">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center">
-            <Phone className="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <h3 className="text-base font-black text-gray-900">Change Phone Number</h3>
-            <p className="text-xs text-gray-500">Confirm with your current password</p>
-          </div>
-        </div>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">New Phone Number</label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="01XXXXXXXXX"
-                maxLength={15}
-                className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all bg-gray-50 focus:bg-white"
-              />
+    <ModalShell onClose={onClose}>
+      <div className="bg-white flex flex-col overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)] max-h-[calc(100svh-48px)]">
+        <ModalHeader
+          icon={Phone}
+          eyebrow="যোগাযোগ"
+          title="ফোন নম্বর পরিবর্তন করুন"
+          subtitle="বর্তমান পাসওয়ার্ড দিয়ে নিশ্চিত করুন"
+          gradFrom="#3B82F6"
+          gradTo="#2563EB"
+          onClose={onClose}
+        />
+        <div className="px-6 py-5 bg-[#F8FAFC] space-y-3 overflow-y-auto">
+          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)] space-y-3">
+            <div>
+              <label className="block mb-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748B]">
+                নতুন ফোন নম্বর
+              </label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="01XXXXXXXXX"
+                  maxLength={15}
+                  className={`${inputBase} pl-10 pr-4 py-2.5 text-sm`}
+                  onFocus={focusInput}
+                  onBlur={blurInput}
+                />
+              </div>
             </div>
+            <PasswordField
+              label="বর্তমান পাসওয়ার্ড"
+              value={password}
+              onChange={setPassword}
+              placeholder="বর্তমান পাসওয়ার্ড লিখুন"
+            />
+            <ErrorBox msg={error} />
           </div>
-          <PasswordInput
-            label="Current Password"
-            value={password}
-            onChange={setPassword}
-            placeholder="Enter current password"
-          />
-          <ErrorBox msg={error} />
         </div>
-        <div className="flex gap-3 mt-5">
+        <div className="shrink-0 px-6 py-4 flex gap-3 bg-white border-t border-[#E2E8F0]">
           <button
-            onClick={handleClose}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
           >
-            Cancel
+            বাতিল
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 transition-all flex items-center justify-center gap-2 shadow-sm shadow-blue-200"
+            className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs shadow-[0_4px_14px_rgba(59,130,246,0.4)]"
+            style={{ background: loading ? "#94A3B8" : "linear-gradient(135deg,#3B82F6,#2563EB)" }}
           >
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {loading ? "Updating…" : "Update Phone"}
+            {loading && <Loader2 className="w-[14px] h-[14px] animate-spin" />}
+            {loading ? "পরিবর্তন হচ্ছে…" : "ফোন নম্বর পরিবর্তন করুন"}
           </button>
         </div>
       </div>
-    </Modal>
+    </ModalShell>
   );
 };
 
-// ─── Password Modal ───────────────────────────────────────────────────────────
+// ─── Email Modal ────────────────────────────────────────────────────────────────
 
-const PasswordModal = ({ isOpen, onClose, onSuccess }) => {
+const EmailModal = ({ onClose, onSuccess, currentEmail }) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async () => {
+    setError("");
+    const trimmed = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return setError("সঠিক ইমেইল ঠিকানা লিখুন");
+    if (!password) return setError("বর্তমান পাসওয়ার্ড আবশ্যক");
+    try {
+      setLoading(true);
+      await accountService.changeEmail({ email: trimmed, currentPassword: password });
+      onSuccess(currentEmail ? "ইমেইল সফলভাবে পরিবর্তন হয়েছে!" : "ইমেইল সফলভাবে যুক্ত হয়েছে!");
+    } catch (err) {
+      setError(err?.response?.data?.error ?? "ইমেইল পরিবর্তন করতে ব্যর্থ");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <ModalShell onClose={onClose}>
+      <div className="bg-white flex flex-col overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)] max-h-[calc(100svh-48px)]">
+        <ModalHeader
+          icon={Mail}
+          eyebrow="যোগাযোগ"
+          title={currentEmail ? "ইমেইল পরিবর্তন করুন" : "ইমেইল যুক্ত করুন"}
+          subtitle="বর্তমান পাসওয়ার্ড দিয়ে নিশ্চিত করুন"
+          gradFrom="#10B981"
+          gradTo="#0D9488"
+          onClose={onClose}
+        />
+        <div className="px-6 py-5 bg-[#F8FAFC] space-y-3 overflow-y-auto">
+          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)] space-y-3">
+            <div>
+              <label className="block mb-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748B]">
+                {currentEmail ? "নতুন ইমেইল ঠিকানা" : "ইমেইল ঠিকানা"}
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className={`${inputBase} pl-10 pr-4 py-2.5 text-sm`}
+                  onFocus={focusInput}
+                  onBlur={blurInput}
+                />
+              </div>
+            </div>
+            <PasswordField
+              label="বর্তমান পাসওয়ার্ড"
+              value={password}
+              onChange={setPassword}
+              placeholder="বর্তমান পাসওয়ার্ড লিখুন"
+            />
+            <ErrorBox msg={error} />
+          </div>
+        </div>
+        <div className="shrink-0 px-6 py-4 flex gap-3 bg-white border-t border-[#E2E8F0]">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
+          >
+            বাতিল
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs shadow-[0_4px_14px_rgba(16,185,129,0.4)]"
+            style={{ background: loading ? "#94A3B8" : "linear-gradient(135deg,#10B981,#0D9488)" }}
+          >
+            {loading && <Loader2 className="w-[14px] h-[14px] animate-spin" />}
+            {loading ? "সংরক্ষণ হচ্ছে…" : currentEmail ? "ইমেইল পরিবর্তন করুন" : "ইমেইল যুক্ত করুন"}
+          </button>
+        </div>
+      </div>
+    </ModalShell>
+  );
+};
+
+// ─── Password Modal ─────────────────────────────────────────────────────────────
+
+const PasswordModal = ({ onClose, onSuccess }) => {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const reset = () => {
-    setCurrent("");
-    setNext("");
-    setConfirm("");
-    setError("");
-  };
-  const handleClose = () => {
-    reset();
-    onClose();
-  };
-
   const handleSubmit = async () => {
     setError("");
-    if (!current) return setError("Current password is required");
-    if (next.length < 6) return setError("New password must be at least 6 characters");
-    if (next !== confirm) return setError("New passwords do not match");
+    if (!current) return setError("বর্তমান পাসওয়ার্ড আবশ্যক");
+    if (next.length < 6) return setError("নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে");
+    if (next !== confirm) return setError("নতুন পাসওয়ার্ড মিলছে না");
     try {
       setLoading(true);
       await accountService.changePassword({ currentPassword: current, newPassword: next });
-      reset();
-      onSuccess("Password changed successfully!");
+      onSuccess("পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে!");
     } catch (err) {
-      setError(err?.response?.data?.error ?? "Failed to change password");
+      setError(err?.response?.data?.error ?? "পাসওয়ার্ড পরিবর্তন করতে ব্যর্থ");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="sm">
-      <div className="p-6">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
-            <KeyRound className="w-5 h-5 text-indigo-600" />
-          </div>
-          <div>
-            <h3 className="text-base font-black text-gray-900">Change Password</h3>
-            <p className="text-xs text-gray-500">Minimum 6 characters required</p>
+    <ModalShell onClose={onClose}>
+      <div className="bg-white flex flex-col overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)] max-h-[calc(100svh-48px)]">
+        <ModalHeader
+          icon={KeyRound}
+          eyebrow="সুরক্ষা"
+          title="পাসওয়ার্ড পরিবর্তন করুন"
+          subtitle="ন্যূনতম ৬ অক্ষর আবশ্যক"
+          gradFrom="#6366F1"
+          gradTo="#4F46E5"
+          onClose={onClose}
+        />
+        <div className="px-6 py-5 bg-[#F8FAFC] space-y-3 overflow-y-auto">
+          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)] space-y-3">
+            <PasswordField
+              label="বর্তমান পাসওয়ার্ড"
+              value={current}
+              onChange={setCurrent}
+              placeholder="বর্তমান পাসওয়ার্ড লিখুন"
+            />
+            <PasswordField label="নতুন পাসওয়ার্ড" value={next} onChange={setNext} placeholder="ন্যূনতম ৬ অক্ষর" />
+            <PasswordField
+              label="নতুন পাসওয়ার্ড নিশ্চিত করুন"
+              value={confirm}
+              onChange={setConfirm}
+              placeholder="নতুন পাসওয়ার্ড পুনরায় লিখুন"
+            />
+            {next && confirm && next !== confirm && (
+              <div className="flex items-center gap-2 px-3.5 py-2.5 bg-[#F59E0B0C] border-[1.5px] border-[#F59E0B30] rounded-xl">
+                <AlertCircle className="w-[14px] h-[14px] text-[#D97706] shrink-0" />
+                <p className="font-['IBM_Plex_Mono',monospace] text-[11px] font-medium text-[#D97706]">
+                  পাসওয়ার্ড মিলছে না
+                </p>
+              </div>
+            )}
+            <ErrorBox msg={error} />
           </div>
         </div>
-        <div className="space-y-3">
-          <PasswordInput
-            label="Current Password"
-            value={current}
-            onChange={setCurrent}
-            placeholder="Enter current password"
-          />
-          <PasswordInput label="New Password" value={next} onChange={setNext} placeholder="Minimum 6 characters" />
-          <PasswordInput
-            label="Confirm New Password"
-            value={confirm}
-            onChange={setConfirm}
-            placeholder="Re-enter new password"
-          />
-          {next && confirm && next !== confirm && (
-            <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl">
-              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
-              <p className="text-xs font-medium text-amber-600">Passwords do not match</p>
-            </div>
-          )}
-          <ErrorBox msg={error} />
-        </div>
-        <div className="flex gap-3 mt-5">
+        <div className="shrink-0 px-6 py-4 flex gap-3 bg-white border-t border-[#E2E8F0]">
           <button
-            onClick={handleClose}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
           >
-            Cancel
+            বাতিল
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 transition-all flex items-center justify-center gap-2 shadow-sm shadow-indigo-200"
+            className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs shadow-[0_4px_14px_rgba(99,102,241,0.4)]"
+            style={{ background: loading ? "#94A3B8" : "linear-gradient(135deg,#6366F1,#4F46E5)" }}
           >
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {loading ? "Saving…" : "Change Password"}
+            {loading && <Loader2 className="w-[14px] h-[14px] animate-spin" />}
+            {loading ? "সংরক্ষণ হচ্ছে…" : "পাসওয়ার্ড পরিবর্তন করুন"}
           </button>
         </div>
       </div>
-    </Modal>
+    </ModalShell>
   );
 };
 
-// ─── Email Modal ──────────────────────────────────────────────────────────────
+// ─── Action Chip ────────────────────────────────────────────────────────────────
 
-const EmailModal = ({ isOpen, onClose, onSuccess, currentEmail }) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+const ActionChip = ({ onClick, icon: Icon, label, color, disabled }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className="inline-flex items-center gap-1.5 transition-all font-semibold px-3 py-[5px] rounded-lg font-['IBM_Plex_Mono',monospace] text-[11px] disabled:opacity-50"
+    style={{ border: `1.5px solid ${color}25`, color, background: `${color}08` }}
+    onMouseEnter={(e) => {
+      if (disabled) return;
+      e.currentTarget.style.background = `${color}18`;
+      e.currentTarget.style.borderColor = `${color}50`;
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.background = `${color}08`;
+      e.currentTarget.style.borderColor = `${color}25`;
+    }}
+  >
+    {disabled ? <Loader2 className="w-[11px] h-[11px] animate-spin" /> : <Icon className="w-[11px] h-[11px]" />}
+    {label}
+  </button>
+);
 
-  const reset = () => {
-    setEmail("");
-    setPassword("");
-    setError("");
-  };
-  const handleClose = () => {
-    reset();
-    onClose();
-  };
+// ─── Stat Card ──────────────────────────────────────────────────────────────────
 
-  const handleSubmit = async () => {
-    setError("");
-    const trimmed = email.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return setError("Enter a valid email address");
-    if (!password) return setError("Current password is required");
-    try {
-      setLoading(true);
-      await accountService.changeEmail({ email: trimmed, currentPassword: password });
-      reset();
-      onSuccess(currentEmail ? "Email updated successfully!" : "Email added successfully!");
-    } catch (err) {
-      setError(err?.response?.data?.error ?? "Failed to update email");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="sm">
-      <div className="p-6">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
-            <Mail className="w-5 h-5 text-emerald-600" />
-          </div>
-          <div>
-            <h3 className="text-base font-black text-gray-900">{currentEmail ? "Change Email" : "Add Email"}</h3>
-            <p className="text-xs text-gray-500">Confirm with your current password</p>
-          </div>
-        </div>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-              {currentEmail ? "New Email Address" : "Email Address"}
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white"
-              />
-            </div>
-          </div>
-          <PasswordInput
-            label="Current Password"
-            value={password}
-            onChange={setPassword}
-            placeholder="Enter current password"
-          />
-          <ErrorBox msg={error} />
-        </div>
-        <div className="flex gap-3 mt-5">
-          <button
-            onClick={handleClose}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 transition-all flex items-center justify-center gap-2 shadow-sm shadow-emerald-200"
-          >
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {loading ? "Saving…" : currentEmail ? "Update Email" : "Add Email"}
-          </button>
-        </div>
+const StatCard = ({ label, value, color, grad, icon: Icon }) => (
+  <div className="bg-white relative overflow-hidden border border-[#E2E8F0] rounded-2xl p-[14px_16px] shadow-[0_2px_8px_rgba(15,23,42,0.05)]">
+    <div className="absolute top-0 right-0 w-16 h-16 opacity-5 rounded-[0_16px_0_100%]" style={{ background: grad }} />
+    <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center justify-center w-[26px] h-[26px] rounded-lg" style={{ background: grad }}>
+        <Icon className="w-[13px] h-[13px] text-white" />
       </div>
-    </Modal>
-  );
-};
+      <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.06em] text-[#94A3B8]">
+        {label}
+      </p>
+    </div>
+    <p className="font-['IBM_Plex_Mono',monospace] text-[26px] font-extrabold leading-none" style={{ color }}>
+      {value}
+    </p>
+  </div>
+);
 
-// ─── Session Card ─────────────────────────────────────────────────────────────
+// ─── Settings Row ───────────────────────────────────────────────────────────────
 
-const SessionCard = ({ session, onRevoke, revoking }) => {
-  const { device = {}, isCurrent, lastUsedAt, createdAt, expiresAt, deviceId } = session;
-  const isExpired = expiresAt && new Date(expiresAt) < new Date();
+const SettingsRow = ({ icon: Icon, title, subtitle, color, onClick }) => (
+  <button
+    onClick={onClick}
+    className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl border-[1.5px] border-[#E2E8F0] hover:border-[color:var(--c)] transition-all group text-left"
+    style={{ "--c": `${color}50` }}
+    onMouseEnter={(e) => (e.currentTarget.style.background = `${color}06`)}
+    onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+  >
+    <div
+      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-[1.5px]"
+      style={{ background: `${color}10`, borderColor: `${color}25` }}
+    >
+      <Icon className="w-[18px] h-[18px]" style={{ color }} />
+    </div>
+    <div className="flex-1 min-w-0">
+      <p className="font-['IBM_Plex_Sans',sans-serif] text-sm font-bold text-[#0F172A]">{title}</p>
+      <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] mt-0.5 truncate">{subtitle}</p>
+    </div>
+    <Pencil className="w-[14px] h-[14px] text-[#CBD5E1] shrink-0" />
+  </button>
+);
 
+// ─── Session Row ────────────────────────────────────────────────────────────────
+
+const SessionRow = ({ session, onRevoke }) => {
+  const { device = {}, isCurrent, lastUsedAt, createdAt, deviceId } = session;
   return (
     <div
-      className={`relative rounded-2xl border p-4 transition-all ${
-        isCurrent
-          ? "border-emerald-200 bg-emerald-50/60"
-          : isExpired
-            ? "border-gray-100 bg-gray-50/50 opacity-60"
-            : "border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm"
+      className={`relative rounded-xl border-[1.5px] p-4 transition-all ${
+        isCurrent ? "border-[#10B98130] bg-[#10B98106]" : "border-[#E2E8F0] bg-white"
       }`}
     >
       {isCurrent && (
-        <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-          This device
+        <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-['IBM_Plex_Mono',monospace] text-[10px] font-bold bg-[#10B98112] text-[#0D9488] border border-[#10B98130]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse inline-block" />
+          এই ডিভাইস
         </span>
       )}
-
       <div className="flex items-start gap-3">
         <div
-          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isCurrent ? "bg-emerald-100" : "bg-gray-100"}`}
+          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: isCurrent ? "#10B98112" : "#F1F5F9" }}
         >
           <DeviceIcon
             type={device.deviceType}
-            className={`w-5 h-5 ${isCurrent ? "text-emerald-600" : "text-gray-500"}`}
+            className="w-5 h-5"
+            style={{ color: isCurrent ? "#0D9488" : "#64748B" }}
           />
         </div>
         <div className="flex-1 min-w-0 pr-20">
-          <p className="text-sm font-bold text-gray-700 capitalize">{device.deviceType || "unknown"}</p>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
+          <p className="font-['IBM_Plex_Sans',sans-serif] text-sm font-bold text-[#0F172A] capitalize">
+            {device.deviceType || "অজানা"}
+          </p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8]">
             {device.timezone && (
-              <span className="flex items-center gap-1 text-[11px] text-gray-500">
+              <span className="flex items-center gap-1">
                 <Globe className="w-3 h-3" /> {device.timezone}
               </span>
             )}
             {device.ip && device.ip !== "unknown" && (
-              <span className="flex items-center gap-1 text-[11px] text-gray-500">
+              <span className="flex items-center gap-1">
                 <Wifi className="w-3 h-3" /> {device.ip}
               </span>
             )}
             {lastUsedAt && (
-              <span className="flex items-center gap-1 text-[11px] text-gray-500">
+              <span className="flex items-center gap-1">
                 <Clock className="w-3 h-3" /> {timeAgo(lastUsedAt)}
               </span>
             )}
           </div>
-          <p className="text-[10px] text-gray-400 mt-1">Logged in {fmtDateTime(createdAt)}</p>
+          <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#CBD5E1] mt-1">
+            লগইন করেছেন {fmtDateTime(createdAt)}
+          </p>
         </div>
       </div>
-
       {!isCurrent && (
-        <button
-          onClick={() => onRevoke(deviceId)}
-          disabled={revoking === deviceId}
-          className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-100 hover:border-rose-200 transition-all disabled:opacity-50"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          Logout
-        </button>
+        <div className="mt-3">
+          <ActionChip onClick={() => onRevoke(deviceId)} icon={LogOut} label="লগআউট" color="#EF4444" />
+        </div>
       )}
     </div>
   );
 };
 
-// ─── Main Account Page ────────────────────────────────────────────────────────
+// ─── Skeleton ────────────────────────────────────────────────────────────────────
+
+const Skeleton = () => (
+  <div className="animate-pulse space-y-4">
+    <div className="bg-white rounded-[20px] p-6 border border-[#E2E8F0] shadow-sm space-y-4">
+      <div className="flex items-center gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-[#E2E8F0]" />
+        <div className="space-y-2 flex-1">
+          <div className="h-6 w-40 bg-[#E2E8F0] rounded" />
+          <div className="h-4 w-24 bg-[#F1F5F9] rounded" />
+        </div>
+      </div>
+    </div>
+    <div className="bg-white rounded-[20px] p-5 border border-[#E2E8F0] shadow-sm">
+      <div className="h-4 w-28 bg-[#E2E8F0] rounded mb-3" />
+      <div className="space-y-2">
+        {[1, 2].map((i) => (
+          <div key={i} className="h-16 bg-[#F1F5F9] rounded-xl" />
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+// ─── Main Account Page ───────────────────────────────────────────────────────────
 
 const Account = () => {
-  const logout = useAuthStore((s) => s.logout);
   const logoutAll = useAuthStore((s) => s.logoutAll);
 
   const [account, setAccount] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [loadingAcct, setLoadingAcct] = useState(true);
   const [loadingSess, setLoadingSess] = useState(true);
-  const [revoking, setRevoking] = useState(null);
   const [logoutAllBusy, setLogoutAllBusy] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [popup, setPopup] = useState(null);
-  const [showPhone, setShowPhone] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showEmail, setShowEmail] = useState(false);
-
-  // ── Confirm modal state ──────────────────────────────────────────────────
-  const [confirmRevoke, setConfirmRevoke] = useState(null);
-  const [confirmLogoutAll, setConfirmLogoutAll] = useState(false);
+  const [modal, setModal] = useState(null); // "phone" | "email" | "password" | null
+  const [confirmModal, setConfirmModal] = useState(null);
 
   useEffect(() => {
     fetchAccount();
@@ -628,7 +761,7 @@ const Account = () => {
       const res = await accountService.getMe();
       setAccount(res.data);
     } catch {
-      setPopup({ type: "error", message: "Failed to load account." });
+      setPopup({ type: "error", message: "অ্যাকাউন্ট লোড করতে ব্যর্থ।" });
     } finally {
       setLoadingAcct(false);
     }
@@ -646,27 +779,21 @@ const Account = () => {
     }
   };
 
-  const handleRevokeRequest = (deviceId) => setConfirmRevoke(deviceId);
-
-  const handleRevokeConfirm = async () => {
-    const deviceId = confirmRevoke;
-    setConfirmRevoke(null);
+  const handleRevokeConfirm = async (deviceId) => {
     try {
       setLoggingOut(true);
       await accountService.revokeSession(deviceId);
       setSessions((prev) => prev.filter((s) => s.deviceId !== deviceId));
-      setPopup({ type: "success", message: "Session logged out successfully." });
+      setPopup({ type: "success", message: "সেশন সফলভাবে লগআউট হয়েছে।" });
     } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error ?? "Failed to logout session." });
+      setPopup({ type: "error", message: err?.response?.data?.error ?? "সেশন লগআউট করতে ব্যর্থ।" });
     } finally {
       setLoggingOut(false);
+      setConfirmModal(null);
     }
   };
 
-  const handleLogoutAllRequest = () => setConfirmLogoutAll(true);
-
   const handleLogoutAllConfirm = async () => {
-    setConfirmLogoutAll(false);
     try {
       setLogoutAllBusy(true);
       setLoggingOut(true);
@@ -674,10 +801,12 @@ const Account = () => {
     } finally {
       setLogoutAllBusy(false);
       setLoggingOut(false);
+      setConfirmModal(null);
     }
   };
 
   const handleSuccess = (message) => {
+    setModal(null);
     setPopup({ type: "success", message });
     fetchAccount();
   };
@@ -691,101 +820,140 @@ const Account = () => {
 
   const currentSession = sessions.find((s) => s.isCurrent);
   const otherSessions = sessions.filter((s) => !s.isCurrent);
-  const revokeTarget = sessions.find((s) => s.deviceId === confirmRevoke);
 
   return (
-    <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
+    <section
+      className="min-h-screen px-4 py-6 font-['IBM_Plex_Sans',sans-serif]"
+      style={{ background: "linear-gradient(to bottom right,#f8fafc,#eff6ff,#eef2ff)" }}
+    >
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(14px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .fu  { animation: fadeUp 0.45s cubic-bezier(.22,1,.36,1) both; }
-        .fu1 { animation-delay: 60ms; }
-        .fu2 { animation-delay: 120ms; }
-        .fu3 { animation-delay: 180ms; }
-        .fu4 { animation-delay: 240ms; }
-      `}</style>
+      {modal === "phone" &&
+        createPortal(<PhoneModal onClose={() => setModal(null)} onSuccess={handleSuccess} />, document.body)}
+      {modal === "email" &&
+        createPortal(
+          <EmailModal onClose={() => setModal(null)} onSuccess={handleSuccess} currentEmail={account?.email} />,
+          document.body,
+        )}
+      {modal === "password" &&
+        createPortal(<PasswordModal onClose={() => setModal(null)} onSuccess={handleSuccess} />, document.body)}
 
-      <div className="max-w-lg mx-auto">
-        {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between mb-5 fu">
+      {confirmModal &&
+        createPortal(
+          <ConfirmModal
+            message={confirmModal.message}
+            description={confirmModal.description}
+            tone={confirmModal.tone}
+            confirmLabel={confirmModal.confirmLabel}
+            onConfirm={confirmModal.onConfirm}
+            onCancel={() => setConfirmModal(null)}
+            loading={loggingOut}
+          />,
+          document.body,
+        )}
+
+      <div className="max-w-2xl mx-auto">
+        {/* Page header */}
+        <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-black text-gray-900 leading-tight">Account</h1>
+            <p className="font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-[0.1em] text-[#6366F1] mb-1">
+              আমার প্রোফাইল
+            </p>
+            <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[26px] font-bold text-[#0F172A] leading-tight">
+              অ্যাকাউন্ট
+            </h1>
           </div>
           <Link
             to="/"
-            className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white/60 text-gray-700 hover:bg-gray-50 transition-all flex items-center gap-2 text-sm font-medium shadow-sm"
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border-[1.5px] border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F1F5F9] transition-all font-['IBM_Plex_Mono',monospace] text-xs font-semibold"
           >
-            <ArrowLeft className="w-4 h-4" /> Back
+            <ArrowLeft className="w-[13px] h-[13px]" /> ফিরে যান
           </Link>
         </div>
 
         {loadingAcct ? (
           <Skeleton />
         ) : !account ? (
-          <div className="bg-white border border-gray-100 rounded-2xl py-16 text-center shadow-sm">
-            <User className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-            <p className="text-sm font-bold text-gray-400">Could not load account</p>
+          <div className="bg-white border border-[#E2E8F0] rounded-[20px] py-16 text-center shadow-sm">
+            <User className="w-10 h-10 text-[#E2E8F0] mx-auto mb-3" />
+            <p className="font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#94A3B8]">
+              অ্যাকাউন্ট লোড করা যায়নি
+            </p>
           </div>
         ) : (
           <>
-            {/* ── Identity Card ──────────────────────────────────────────── */}
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden mb-4 fu fu1">
-              <div className={`h-1.5 w-full bg-gradient-to-r ${roleMeta.gradient}`} />
+            {/* ── Identity card ─────────────────────────────────────────── */}
+            <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)] mb-4">
+              <div
+                className="px-6 py-4 flex items-center justify-between border-b border-[#E2E8F0]"
+                style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
+              >
+                <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#6366F1]">
+                  অ্যাকাউন্ট লেজার
+                </p>
+                {account.isActive ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-['IBM_Plex_Mono',monospace] text-[10px] font-bold bg-[#10B98112] text-[#0D9488] border border-[#10B98130]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] inline-block" /> সক্রিয়
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-['IBM_Plex_Mono',monospace] text-[10px] font-bold bg-[#F1F5F9] text-[#94A3B8] border border-[#E2E8F0]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#94A3B8] inline-block" /> নিষ্ক্রিয়
+                  </span>
+                )}
+              </div>
+
               <div className="p-5">
                 <div className="flex items-start gap-4">
                   <div
-                    className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${avatarGrad(account.name)} flex items-center justify-center shadow-lg shrink-0`}
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-[0_8px_20px_rgba(99,102,241,0.3)]"
+                    style={{ background: "linear-gradient(135deg,#6366F1,#4F46E5)" }}
                   >
-                    <span className="text-xl font-black text-white">{initials(account.name)}</span>
+                    <span className="font-['IBM_Plex_Mono',monospace] text-xl font-black text-white">
+                      {initials(account.name)}
+                    </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-lg font-black text-gray-900 leading-tight">{account.name}</h2>
-                      {account.isActive ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" /> Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 border border-gray-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block" /> Inactive
-                        </span>
-                      )}
-                    </div>
+                    <h2 className="font-['IBM_Plex_Sans',sans-serif] text-lg font-black text-[#0F172A] leading-tight">
+                      {account.name}
+                    </h2>
                     <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border mt-1.5 ${roleMeta.badge}`}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-white mt-1.5"
+                      style={{ background: roleMeta.grad }}
                     >
                       <RoleIcon className="w-3 h-3" /> {roleMeta.label}
                     </span>
                     <div className="mt-3 space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                        <span className="text-sm font-semibold text-gray-700">{account.phone}</span>
+                        <Phone className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
+                        <span className="font-['IBM_Plex_Mono',monospace] text-sm font-semibold text-[#0F172A]">
+                          {account.phone}
+                        </span>
                       </div>
                       {account.email ? (
                         <div className="flex items-center gap-2">
-                          <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                          <span className="text-sm text-gray-600">{account.email}</span>
+                          <Mail className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
+                          <span className="font-['IBM_Plex_Mono',monospace] text-sm text-[#64748B]">
+                            {account.email}
+                          </span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <Mail className="w-3.5 h-3.5 text-gray-300 shrink-0" />
-                          <span className="text-sm text-gray-400 italic">No email set</span>
+                          <Mail className="w-3.5 h-3.5 text-[#CBD5E1] shrink-0" />
+                          <span className="font-['IBM_Plex_Mono',monospace] text-sm text-[#CBD5E1] italic">
+                            কোনো ইমেইল সেট করা নেই
+                          </span>
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
                 {account.created?.at && (
-                  <p className="text-[10px] text-gray-400 mt-4 pt-3 border-t border-gray-50">
-                    Member since <span className="font-semibold">{fmtDate(account.created.at)}</span>
+                  <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8] mt-4 pt-3 border-t border-[#F1F5F9]">
+                    সদস্য হয়েছেন <span className="font-semibold text-[#64748B]">{fmtDate(account.created.at)}</span>
                     {account.created?.by?.name && (
                       <>
                         {" "}
-                        · Added by <span className="font-semibold">{account.created.by.name}</span>
+                        · যুক্ত করেছেন <span className="font-semibold text-[#64748B]">{account.created.by.name}</span>
                       </>
                     )}
                   </p>
@@ -795,35 +963,47 @@ const Account = () => {
 
             {/* ── Permissions ────────────────────────────────────────────── */}
             {!isAdmin ? (
-              <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 mb-4 fu fu2">
-                <div className="flex items-center justify-between mb-4">
+              <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)] mb-4">
+                <div
+                  className="px-6 py-4 flex items-center justify-between border-b border-[#E2E8F0]"
+                  style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
+                >
                   <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-gray-500" />
-                    <h3 className="text-sm font-black text-gray-800">Permissions</h3>
+                    <Shield className="w-4 h-4 text-[#6366F1]" />
+                    <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#6366F1]">
+                      অনুমতিসমূহ
+                    </p>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
-                    {activePermCount} / {PERMISSIONS_META.length} active
+                  <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#6366F1] bg-[#6366F112] rounded-[6px] border border-[#6366F125]">
+                    {activePermCount} / {PERMISSIONS_META.length} সক্রিয়
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="p-4 grid grid-cols-2 gap-2">
                   {PERMISSIONS_META.map(({ key, label, icon: Icon, color }) => {
                     const granted = !!perms[key];
-                    const c = COLOR_MAP[color];
                     return (
                       <div
                         key={key}
-                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all ${granted ? c.active : "bg-gray-50 border-gray-100 text-gray-400"}`}
+                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-[1.5px] transition-all"
+                        style={
+                          granted
+                            ? { background: `${color}08`, borderColor: `${color}30`, color }
+                            : { background: "#F8FAFC", borderColor: "#E2E8F0", color: "#94A3B8" }
+                        }
                       >
                         <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${granted ? c.iconBg : "bg-gray-100"}`}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                          style={{ background: granted ? `${color}15` : "#F1F5F9" }}
                         >
-                          <Icon className={`w-3.5 h-3.5 ${granted ? c.iconText : "text-gray-300"}`} />
+                          <Icon className="w-3.5 h-3.5" style={{ color: granted ? color : "#CBD5E1" }} />
                         </div>
-                        <p className="text-[11px] font-bold leading-tight flex-1 truncate">{label}</p>
+                        <p className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold leading-tight flex-1 truncate">
+                          {label}
+                        </p>
                         {granted ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                          <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
                         ) : (
-                          <XCircle className="w-4 h-4 text-gray-300 shrink-0" />
+                          <XCircle className="w-4 h-4 text-[#CBD5E1] shrink-0" />
                         )}
                       </div>
                     );
@@ -831,131 +1011,145 @@ const Account = () => {
                 </div>
               </div>
             ) : (
-              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 mb-4 flex items-center gap-3 fu fu2">
-                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                  <Shield className="w-5 h-5 text-amber-600" />
+              <div
+                className="flex items-center gap-3 p-4 rounded-[20px] border-[1.5px] border-[#F59E0B30] mb-4 shadow-[0_4px_20px_rgba(15,23,42,0.07)]"
+                style={{ background: "linear-gradient(135deg,#FFFBEB,#FEF3C7)" }}
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#F59E0B18] flex items-center justify-center shrink-0">
+                  <Shield className="w-5 h-5 text-[#D97706]" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-black text-amber-800">Full System Access</p>
-                  <p className="text-xs text-amber-600 mt-0.5">All permissions are granted for your role</p>
+                  <p className="font-['IBM_Plex_Sans',sans-serif] text-sm font-black text-[#92400E]">
+                    সম্পূর্ণ সিস্টেম অ্যাক্সেস
+                  </p>
+                  <p className="font-['IBM_Plex_Mono',monospace] text-xs text-[#D97706] mt-0.5">
+                    আপনার রোলের জন্য সব অনুমতি প্রদান করা হয়েছে
+                  </p>
                 </div>
-                <CheckCircle2 className="w-5 h-5 text-amber-500 shrink-0" />
+                <CheckCircle2 className="w-5 h-5 text-[#D97706] shrink-0" />
               </div>
             )}
 
-            {/* ── Account Settings ────────────────────────────────────────── */}
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden mb-4 fu fu3">
-              <div className="px-5 pt-5 pb-3">
-                <h3 className="text-sm font-black text-gray-800 flex items-center gap-2">
-                  <Edit3 className="w-4 h-4 text-gray-500" /> Account Settings
-                </h3>
-                <p className="text-xs text-gray-400 mt-0.5">Change your contact details or password</p>
+            {/* ── Account settings ───────────────────────────────────────── */}
+            <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)] mb-4">
+              <div
+                className="px-6 py-4 border-b border-[#E2E8F0]"
+                style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
+              >
+                <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#6366F1]">
+                  অ্যাকাউন্ট সেটিংস
+                </p>
+                <p className="font-['IBM_Plex_Sans',sans-serif] text-xs text-[#94A3B8] mt-0.5">
+                  যোগাযোগের তথ্য বা পাসওয়ার্ড পরিবর্তন করুন
+                </p>
               </div>
-              <div className="px-4 pb-4 space-y-2">
-                {/* Phone */}
-                <button
-                  onClick={() => setShowPhone(true)}
-                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 transition-all group text-left"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
-                    <Phone className="w-[18px] h-[18px] text-blue-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-800 group-hover:text-blue-700 transition-colors">
-                      Change Phone Number
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5 truncate">Current: {account.phone}</p>
-                  </div>
-                  <Edit3 className="w-4 h-4 text-gray-300 group-hover:text-blue-400 transition-colors shrink-0" />
-                </button>
-
-                {/* Email */}
-                <button
-                  onClick={() => setShowEmail(true)}
-                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all group text-left"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
-                    <Mail className="w-[18px] h-[18px] text-emerald-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-800 group-hover:text-emerald-700 transition-colors">
-                      {account.email ? "Change Email" : "Add Email"}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5 truncate">
-                      {account.email ? `Current: ${account.email}` : "No email address set"}
-                    </p>
-                  </div>
-                  <Edit3 className="w-4 h-4 text-gray-300 group-hover:text-emerald-400 transition-colors shrink-0" />
-                </button>
-
-                {/* Password */}
-                <button
-                  onClick={() => setShowPassword(true)}
-                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all group text-left"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 group-hover:bg-indigo-100 transition-colors">
-                    <KeyRound className="w-[18px] h-[18px] text-indigo-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-800 group-hover:text-indigo-700 transition-colors">
-                      Change Password
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">Keep your account secure</p>
-                  </div>
-                  <Edit3 className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 transition-colors shrink-0" />
-                </button>
+              <div className="p-4 space-y-2">
+                <SettingsRow
+                  icon={Phone}
+                  title="ফোন নম্বর পরিবর্তন করুন"
+                  subtitle={`বর্তমান: ${account.phone}`}
+                  color="#3B82F6"
+                  onClick={() => setModal("phone")}
+                />
+                <SettingsRow
+                  icon={Mail}
+                  title={account.email ? "ইমেইল পরিবর্তন করুন" : "ইমেইল যুক্ত করুন"}
+                  subtitle={account.email ? `বর্তমান: ${account.email}` : "কোনো ইমেইল সেট করা নেই"}
+                  color="#10B981"
+                  onClick={() => setModal("email")}
+                />
+                <SettingsRow
+                  icon={KeyRound}
+                  title="পাসওয়ার্ড পরিবর্তন করুন"
+                  subtitle="আপনার অ্যাকাউন্ট সুরক্ষিত রাখুন"
+                  color="#6366F1"
+                  onClick={() => setModal("password")}
+                />
               </div>
             </div>
 
-            {/* ── Active Sessions ─────────────────────────────────────────── */}
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden fu fu4">
-              <div className="px-5 pt-5 pb-3 flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-black text-gray-800 flex items-center gap-2">
-                    <ShieldAlert className="w-4 h-4 text-gray-500" />
-                    Active Sessions
-                  </h3>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {loadingSess
-                      ? "Loading…"
-                      : `${sessions.length} device${sessions.length !== 1 ? "s" : ""} logged in`}
-                  </p>
+            {/* ── Active sessions ────────────────────────────────────────── */}
+            <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)]">
+              <div
+                className="px-6 py-4 flex items-center justify-between border-b border-[#E2E8F0]"
+                style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
+              >
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-[#6366F1]" />
+                  <div>
+                    <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#6366F1]">
+                      সক্রিয় সেশনসমূহ
+                    </p>
+                    <p className="font-['IBM_Plex_Sans',sans-serif] text-xs text-[#94A3B8] mt-0.5">
+                      {loadingSess ? "লোড হচ্ছে…" : `${sessions.length} টি ডিভাইস লগইন আছে`}
+                    </p>
+                  </div>
                 </div>
                 {sessions.length > 1 && (
-                  <button
-                    onClick={handleLogoutAllRequest}
+                  <ActionChip
+                    onClick={() =>
+                      setConfirmModal({
+                        message: "সব ডিভাইস লগআউট করুন",
+                        description: "এটি এই ডিভাইসসহ আপনাকে সব ডিভাইস থেকে সাইন আউট করবে। আপনাকে আবার লগইন করতে হবে।",
+                        tone: "danger",
+                        confirmLabel: "সব লগআউট",
+                        onConfirm: handleLogoutAllConfirm,
+                      })
+                    }
+                    icon={LogOut}
+                    label="সব লগআউট"
+                    color="#EF4444"
                     disabled={logoutAllBusy}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-100 hover:border-rose-200 transition-all disabled:opacity-50"
-                  >
-                    {logoutAllBusy ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <LogOut className="w-3.5 h-3.5" />
-                    )}
-                    Logout All
-                  </button>
+                  />
                 )}
               </div>
 
-              <div className="px-4 pb-4 space-y-2">
+              <div className="p-4 space-y-2">
                 {loadingSess ? (
                   <div className="space-y-2">
                     {[1, 2].map((i) => (
-                      <div key={i} className="h-20 bg-gray-100 rounded-2xl animate-pulse" />
+                      <div key={i} className="h-20 bg-[#F1F5F9] rounded-xl animate-pulse" />
                     ))}
                   </div>
                 ) : sessions.length === 0 ? (
                   <div className="py-8 text-center">
-                    <WifiOff className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                    <p className="text-xs font-bold text-gray-400">No active sessions found</p>
+                    <WifiOff className="w-8 h-8 text-[#E2E8F0] mx-auto mb-2" />
+                    <p className="font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#94A3B8]">
+                      কোনো সক্রিয় সেশন পাওয়া যায়নি
+                    </p>
                   </div>
                 ) : (
                   <>
                     {currentSession && (
-                      <SessionCard session={currentSession} onRevoke={handleRevokeRequest} revoking={revoking} />
+                      <SessionRow
+                        session={currentSession}
+                        onRevoke={(deviceId) =>
+                          setConfirmModal({
+                            deviceId,
+                            message: "ডিভাইস লগআউট করুন",
+                            description: "এটি নির্বাচিত ডিভাইসটি সাইন আউট করবে। তাদের আবার লগইন করতে হবে।",
+                            tone: "danger",
+                            confirmLabel: "লগআউট",
+                            onConfirm: () => handleRevokeConfirm(deviceId),
+                          })
+                        }
+                      />
                     )}
                     {otherSessions.map((s) => (
-                      <SessionCard key={s.deviceId} session={s} onRevoke={handleRevokeRequest} revoking={revoking} />
+                      <SessionRow
+                        key={s.deviceId}
+                        session={s}
+                        onRevoke={(deviceId) =>
+                          setConfirmModal({
+                            deviceId,
+                            message: "ডিভাইস লগআউট করুন",
+                            description: `এটি ${s.device?.deviceType || "ডিভাইস"} (${s.device?.ip || "অজানা আইপি"}) সাইন আউট করবে। তাদের আবার লগইন করতে হবে।`,
+                            tone: "danger",
+                            confirmLabel: "লগআউট",
+                            onConfirm: () => handleRevokeConfirm(deviceId),
+                          })
+                        }
+                      />
                     ))}
                   </>
                 )}
@@ -963,61 +1157,13 @@ const Account = () => {
             </div>
           </>
         )}
+
+        <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] text-center mt-4 pb-2">
+          LabPilotPro · অ্যাকাউন্ট ব্যবস্থাপনা
+        </p>
       </div>
 
-      {/* ── Modals ────────────────────────────────────────────────────────── */}
-      <PhoneModal
-        isOpen={showPhone}
-        onClose={() => setShowPhone(false)}
-        onSuccess={(m) => {
-          setShowPhone(false);
-          handleSuccess(m);
-        }}
-      />
-      <EmailModal
-        isOpen={showEmail}
-        onClose={() => setShowEmail(false)}
-        currentEmail={account?.email}
-        onSuccess={(m) => {
-          setShowEmail(false);
-          handleSuccess(m);
-        }}
-      />
-      <PasswordModal
-        isOpen={showPassword}
-        onClose={() => setShowPassword(false)}
-        onSuccess={(m) => {
-          setShowPassword(false);
-          handleSuccess(m);
-        }}
-      />
-
-      {/* Revoke single session */}
-      <ConfirmModal
-        isOpen={!!confirmRevoke}
-        onClose={() => setConfirmRevoke(null)}
-        onConfirm={handleRevokeConfirm}
-        title="Logout Device"
-        description={
-          revokeTarget
-            ? `This will sign out the ${revokeTarget.device?.deviceType || "device"} at ${revokeTarget.device?.ip || "unknown IP"}. They will need to log in again.`
-            : "This will sign out the selected device. They will need to log in again."
-        }
-        confirmLabel="Logout"
-      />
-
-      {/* Logout all devices */}
-      <ConfirmModal
-        isOpen={confirmLogoutAll}
-        onClose={() => setConfirmLogoutAll(false)}
-        onConfirm={handleLogoutAllConfirm}
-        title="Logout All Devices"
-        description="This will sign you out from all devices, including this one. You will need to log in again."
-        confirmLabel="Logout All"
-        loading={logoutAllBusy}
-      />
-
-      {loggingOut && <LoadingScreen message="Signing you out" />}
+      {loggingOut && <LoadingScreen message="সাইন আউট করা হচ্ছে" />}
     </section>
   );
 };
