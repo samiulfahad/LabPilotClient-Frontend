@@ -11,6 +11,7 @@ import {
   BadgeDollarSign,
   Tag,
   ReceiptText,
+  BarChart2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
@@ -76,6 +77,18 @@ const recordStamp = (start, end) => {
     return new Date(start).toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase();
   }
   return generatedStamp(end);
+};
+
+// Flatten all test names from invoices → sorted [name, count][] descending
+const buildTestCounts = (invoices) => {
+  const map = {};
+  for (const inv of invoices) {
+    if (!Array.isArray(inv.tests)) continue;
+    for (const name of inv.tests) {
+      if (name) map[name] = (map[name] || 0) + 1;
+    }
+  }
+  return Object.entries(map).sort((a, b) => b[1] - a[1]);
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -162,12 +175,65 @@ const InvoiceRow = ({ inv, idx }) => (
   </div>
 );
 
+// ─── Test count chart panel ───────────────────────────────────────────────────
+
+const TestCountChart = ({ testCounts, invoiceCount, accent }) => {
+  const maxCount = testCounts[0]?.[1] ?? 1;
+
+  return (
+    <div className="mt-2 ml-5 mr-1 border border-[#E3E0D6] rounded-sm overflow-hidden bg-[#FDFCF9]">
+      {/* header */}
+      <div
+        className="flex items-center justify-between px-4 py-2 border-b border-[#E3E0D6]"
+        style={{ borderLeftWidth: "3px", borderLeftColor: accent }}
+      >
+        <span className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">টেস্ট বিশ্লেষণ</span>
+        <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] font-noto">
+          {invoiceCount} টি ইনভয়েস · {testCounts.length} টি টেস্ট
+        </span>
+      </div>
+
+      {/* rows */}
+      {testCounts.map(([testName, count], i) => {
+        const barPct = Math.round((count / maxCount) * 100);
+        return (
+          <div
+            key={testName}
+            className="flex items-center gap-3 px-4 py-2 border-b border-dotted border-[#E3E0D6] last:border-b-0"
+          >
+            <span className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] w-5 shrink-0 tabular-nums">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <span className="flex-1 text-sm text-[#1C1F1E] font-noto truncate">{testName}</span>
+            <div className="flex items-center gap-2 shrink-0 w-32">
+              <div className="flex-1 h-1.5 bg-[#EDE9DF] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${barPct}%`, backgroundColor: accent, opacity: 0.75 }}
+                />
+              </div>
+              <span
+                className="font-['IBM_Plex_Mono'] text-xs font-semibold tabular-nums w-5 text-right"
+                style={{ color: accent }}
+              >
+                {count}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // ─── Referrer entry (receipt line + breakdown row + expandable invoice strip) ─
 
 const ReferrerEntry = ({ name, typeLabel, Icon, totalCommission, totalDiscount, invoices, accent }) => {
   const [open, setOpen] = useState(false);
+  const [showTests, setShowTests] = useState(false);
   const invoiceCount = invoices.length;
   const netCommission = totalCommission - totalDiscount;
+  const testCounts = buildTestCounts(invoices);
 
   return (
     <div className="py-3 border-b border-dashed border-[#E3E0D6] last:border-b-0">
@@ -202,6 +268,24 @@ const ReferrerEntry = ({ name, typeLabel, Icon, totalCommission, totalDiscount, 
         </div>
       </button>
 
+      {/* Test chart toggle button */}
+      {testCounts.length > 0 && (
+        <button
+          onClick={() => setShowTests((p) => !p)}
+          className="mt-2 ml-5 flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] hover:text-[#6F756F] transition-colors font-noto"
+        >
+          <BarChart2 className="w-3 h-3" />
+          {showTests ? "টেস্ট লুকান" : "টেস্ট বিশ্লেষণ"}
+          {showTests ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        </button>
+      )}
+
+      {/* Test count chart panel */}
+      {showTests && testCounts.length > 0 && (
+        <TestCountChart testCounts={testCounts} invoiceCount={invoiceCount} accent={accent} />
+      )}
+
+      {/* Invoice list */}
       {open && (
         <div className="mt-2 pl-5 pr-1">
           {invoices.map((inv, i) => (
@@ -217,7 +301,7 @@ const EmptySection = ({ label }) => (
   <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] py-3 font-noto">{label}</p>
 );
 
-// ─── Seal ───────────────────────────────────────────────────────────────────
+// ─── Seal ─────────────────────────────────────────────────────────────────────
 
 const RoundSeal = ({ dateLabel }) => {
   return (
@@ -369,7 +453,7 @@ const CommissionReport = () => {
               <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} />
             </div>
 
-            {/* Single summary split — the only place totals appear */}
+            {/* Single summary split */}
             <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
               <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
                 <LedgerCell
