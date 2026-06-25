@@ -95,7 +95,9 @@ const Modal = ({ onClose, children }) => {
         style={{ background: "rgba(15,23,42,0.6)" }}
         onClick={onClose}
       />
-      <div className="relative w-full max-w-[520px] max-h-[calc(100svh-48px)] overflow-y-auto">{children}</div>
+      <div className="relative w-full max-w-[520px] max-h-[calc(100svh-48px)] flex flex-col overflow-hidden">
+        {children}
+      </div>
     </div>
   );
 };
@@ -367,7 +369,7 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5 space-y-4 bg-[#F8FAFC]">
+        <div className="px-6 py-5 space-y-4 bg-[#F8FAFC] flex-1 min-h-0 overflow-y-auto">
           <FormField label="পূর্ণ নাম" required>
             <input
               name="name"
@@ -380,7 +382,6 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
               onBlur={blurInput}
             />
           </FormField>
-
           <div className="grid grid-cols-2 gap-3">
             <FormField label="ডিগ্রি">
               <input
@@ -406,7 +407,6 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
               />
             </FormField>
           </div>
-
           <FormField label="পদবি">
             <div className="relative">
               <select
@@ -427,7 +427,6 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
               <ChevronDown className="w-[14px] h-[14px] text-[#94A3B8] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </FormField>
-
           <FormField label="বিভাগ" required>
             {departments.length === 0 ? (
               <div className="flex items-center gap-2 px-3 py-3 border-[1.5px] border-[#FCD34D60] rounded-xl bg-[#FFFBEB]">
@@ -444,7 +443,6 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
               />
             )}
           </FormField>
-
           {/* Commission */}
           <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden">
             <div className="px-4 py-3 flex items-center gap-2 bg-white border-b border-[#E2E8F0]">
@@ -520,7 +518,6 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
               </div>
             </div>
           </div>
-
           {error && (
             <div className="flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
               <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />

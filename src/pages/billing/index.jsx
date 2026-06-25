@@ -1,4 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
+/**
+ * Billing.jsx
+ * Restyled to match the LabPilot ledger aesthetic:
+ * IBM Plex Mono/Sans, indigo/teal/amber/red accents,
+ * StatCard strip, ledger card with gradient header,
+ * ActionChip, ModalShell-safe ConfirmModal pattern.
+ *
+ * React Compiler handles memoisation — no useCallback/useMemo
+ */
+
+import { useState, useEffect } from "react";
 import {
   CreditCard,
   Clock,
@@ -10,31 +20,32 @@ import {
   Calendar,
   ChevronDown,
   ChevronUp,
-  Loader2,
+  AlertCircle,
+  Banknote,
+  ReceiptText,
+  BadgeCheck,
+  CircleDollarSign,
+  History,
 } from "lucide-react";
 import billingService from "../../api/billing";
 
+// ── Formatters ─────────────────────────────────────────────────────────────────
+
 const fmt = {
-  currency: (amount) =>
-    new Intl.NumberFormat("en-BD", {
-      style: "currency",
-      currency: "BDT",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount ?? 0),
+  currency: (amount) => `৳${(amount ?? 0).toLocaleString("en-IN")}`,
 
   date: (ts) =>
     ts
-      ? new Date(ts).toLocaleDateString("en-BD", {
-          year: "numeric",
+      ? new Date(ts).toLocaleDateString("en-GB", {
+          day: "2-digit",
           month: "short",
-          day: "numeric",
+          year: "numeric",
         })
       : "—",
 
   period: (ts) =>
     ts
-      ? new Date(ts).toLocaleDateString("en-BD", {
+      ? new Date(ts).toLocaleDateString("en-GB", {
           year: "numeric",
           month: "long",
         })
@@ -42,169 +53,127 @@ const fmt = {
 
   datetime: (ts) =>
     ts
-      ? new Date(ts).toLocaleString("en-BD", {
-          year: "numeric",
+      ? new Date(ts).toLocaleString("en-GB", {
+          day: "2-digit",
           month: "short",
-          day: "numeric",
+          year: "numeric",
           hour: "2-digit",
           minute: "2-digit",
+          hour12: true,
         })
       : "—",
 };
 
-// ─── Skeleton primitives ──────────────────────────────────────────────────────
+// ── Shared input style (unused here but kept for consistency) ──────────────────
 
-const Sk = ({ className = "" }) => <div className={`animate-pulse rounded-lg bg-gray-200/80 ${className}`} />;
+// ── Stat Card ──────────────────────────────────────────────────────────────────
 
-const StatusCardSkeleton = () => (
-  <div className="rounded-2xl border border-gray-200/80 bg-gray-50/60 p-6">
-    <div className="flex items-start justify-between gap-4 mb-5">
-      <div className="flex items-start gap-3">
-        <Sk className="w-12 h-12 rounded-xl flex-shrink-0" />
-        <div className="space-y-2 pt-1">
-          <Sk className="h-4 w-32" />
-          <Sk className="h-3 w-44" />
-        </div>
-      </div>
-      <Sk className="h-6 w-16 rounded-lg" />
-    </div>
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
-      {[...Array(3)].map((_, i) => (
-        <div key={i} className="bg-white/70 rounded-xl border border-white/80 px-4 py-3 space-y-2">
-          <Sk className="h-2.5 w-16" />
-          <Sk className="h-6 w-24" />
-        </div>
-      ))}
-    </div>
-    <Sk className="h-11 w-full rounded-xl mt-4" />
-  </div>
-);
-
-const StatsSkeleton = () => (
-  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-    {[...Array(3)].map((_, i) => (
+const StatCard = ({ label, value, color, grad, icon: Icon }) => (
+  <div className="bg-white relative overflow-hidden border border-[#E2E8F0] rounded-2xl p-[14px_16px] shadow-[0_2px_8px_rgba(15,23,42,0.05)]">
+    <div className="absolute top-0 right-0 w-16 h-16 opacity-5 rounded-[0_16px_0_100%]" style={{ background: grad }} />
+    <div className="flex items-center gap-2 mb-2">
       <div
-        key={i}
-        className={`bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm space-y-2 ${
-          i === 2 ? "col-span-2 sm:col-span-1" : ""
-        }`}
+        className="flex items-center justify-center w-[26px] h-[26px] rounded-lg"
+        style={{ background: grad, boxShadow: `0 3px 8px ${color}30` }}
       >
-        <Sk className="h-2.5 w-16" />
-        <Sk className="h-6 w-20" />
-        <Sk className="h-2.5 w-24" />
+        <Icon className="w-[13px] h-[13px] text-white" />
       </div>
-    ))}
-  </div>
-);
-
-const TableSkeleton = () => (
-  <div className="border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
-    <div className="overflow-x-auto">
-      <table className="w-full text-left border-collapse">
-        <thead>
-          <tr className="bg-gray-50/80 border-b border-gray-200/80">
-            {["Period", "Amount", "Status", "Due Date", "Invoices"].map((h, i) => (
-              <th
-                key={h}
-                className={`px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide ${
-                  i === 3 ? "hidden sm:table-cell" : i === 4 ? "hidden md:table-cell" : ""
-                }`}
-              >
-                {h}
-              </th>
-            ))}
-            <th className="px-4 py-3 w-8" />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {[...Array(5)].map((_, i) => (
-            <tr key={i} className="animate-pulse">
-              <td className="px-4 py-3.5">
-                <div className="flex items-center gap-2">
-                  <Sk className="w-3.5 h-3.5 rounded-md flex-shrink-0" />
-                  <Sk className="h-3.5 w-24" />
-                </div>
-              </td>
-              <td className="px-4 py-3.5">
-                <Sk className="h-3.5 w-20" />
-              </td>
-              <td className="px-4 py-3.5">
-                <Sk className="h-6 w-16 rounded-lg" />
-              </td>
-              <td className="px-4 py-3.5 hidden sm:table-cell">
-                <Sk className="h-3.5 w-24" />
-              </td>
-              <td className="px-4 py-3.5 hidden md:table-cell">
-                <Sk className="h-3.5 w-10" />
-              </td>
-              <td className="px-4 py-3.5 text-center">
-                <Sk className="w-4 h-4 rounded mx-auto" />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.06em] text-[#94A3B8]">
+        {label}
+      </p>
     </div>
+    <p className="font-['IBM_Plex_Mono',monospace] text-[26px] font-extrabold leading-none" style={{ color }}>
+      {value}
+    </p>
   </div>
 );
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
+// ── Action Chip ────────────────────────────────────────────────────────────────
+
+const ActionChip = ({ onClick, icon: Icon, label, color, disabled }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className="inline-flex items-center gap-1.5 transition-all font-semibold px-3 py-[5px] rounded-lg font-['IBM_Plex_Mono',monospace] text-[11px] disabled:opacity-50 disabled:cursor-not-allowed"
+    style={{ border: `1.5px solid ${color}25`, color, background: `${color}08` }}
+    onMouseEnter={(e) => {
+      if (disabled) return;
+      e.currentTarget.style.background = `${color}18`;
+      e.currentTarget.style.borderColor = `${color}50`;
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.background = `${color}08`;
+      e.currentTarget.style.borderColor = `${color}25`;
+    }}
+  >
+    <Icon className="w-[11px] h-[11px]" />
+    {label}
+  </button>
+);
+
+// ── Status Badge ───────────────────────────────────────────────────────────────
 
 const StatusBadge = ({ status, isOverdue }) => {
   if (status === "paid")
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
-        <CheckCircle2 className="w-3 h-3" />
-        Paid
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-['IBM_Plex_Mono',monospace] text-[10px] font-bold bg-[#10B98110] text-[#0D9488] border border-[#10B98125]">
+        <CheckCircle2 className="w-[10px] h-[10px]" />
+        পরিশোধিত
       </span>
     );
   if (isOverdue)
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-        <AlertTriangle className="w-3 h-3" />
-        Overdue
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-['IBM_Plex_Mono',monospace] text-[10px] font-bold bg-[#EF444410] text-[#EF4444] border border-[#EF444425]">
+        <AlertTriangle className="w-[10px] h-[10px]" />
+        মেয়াদোত্তীর্ণ
       </span>
     );
   return (
-    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-      <Clock className="w-3 h-3" />
-      Unpaid
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-['IBM_Plex_Mono',monospace] text-[10px] font-bold bg-[#F59E0B10] text-[#F59E0B] border border-[#F59E0B25]">
+      <Clock className="w-[10px] h-[10px]" />
+      বকেয়া
     </span>
   );
 };
 
-// ─── Breakdown Accordion ──────────────────────────────────────────────────────
+// ── Breakdown Accordion ────────────────────────────────────────────────────────
 
 const BreakdownAccordion = ({ breakdown }) => {
   const [open, setOpen] = useState(false);
   if (!breakdown || Object.keys(breakdown).length === 0) return null;
 
   const rows = [
-    { label: "Monthly fee", value: breakdown.monthlyFee },
-    { label: "Per-invoice fee (patient charge)", value: breakdown.perInvoiceFee },
-    { label: "Commission per invoice", value: breakdown.commission },
-    { label: "Net per invoice (software)", value: breakdown.perInvoiceNet },
+    { label: "মাসিক ফি", value: breakdown.monthlyFee },
+    { label: "প্রতি-ইনভয়েস ফি (রোগী চার্জ)", value: breakdown.perInvoiceFee },
+    { label: "প্রতি-ইনভয়েস কমিশন", value: breakdown.commission },
+    { label: "প্রতি-ইনভয়েস নেট (সফটওয়্যার)", value: breakdown.perInvoiceNet },
   ].filter((r) => r.value != null && r.value !== 0);
 
   return (
-    <div className="mt-3 border border-gray-200/80 rounded-xl overflow-hidden">
+    <div className="mt-3 border-[1.5px] border-[#E2E8F0] rounded-xl overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-left transition-colors hover:bg-[#F1F5F9]"
       >
-        <span className="flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-blue-500" />
-          View charge breakdown
+        <span className="flex items-center gap-2 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold uppercase tracking-[0.06em] text-[#64748B]">
+          <TrendingUp className="w-[13px] h-[13px] text-[#6366F1]" />
+          চার্জ বিস্তারিত
         </span>
-        {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+        {open ? (
+          <ChevronUp className="w-[13px] h-[13px] text-[#94A3B8]" />
+        ) : (
+          <ChevronDown className="w-[13px] h-[13px] text-[#94A3B8]" />
+        )}
       </button>
 
       {open && (
-        <div className="border-t border-gray-200/80 divide-y divide-gray-100">
+        <div className="border-t border-[#E2E8F0] divide-y divide-[#F1F5F9] bg-[#F8FAFC]">
           {rows.map((r) => (
-            <div key={r.label} className="flex justify-between px-4 py-2.5 text-sm">
-              <span className="text-gray-500">{r.label}</span>
-              <span className="font-medium text-gray-800">{fmt.currency(r.value)}</span>
+            <div key={r.label} className="flex justify-between px-4 py-2.5">
+              <span className="font-['IBM_Plex_Mono',monospace] text-[12px] text-[#64748B]">{r.label}</span>
+              <span className="font-['IBM_Plex_Mono',monospace] text-[12px] font-bold text-[#0F172A]">
+                {fmt.currency(r.value)}
+              </span>
             </div>
           ))}
         </div>
@@ -213,7 +182,7 @@ const BreakdownAccordion = ({ breakdown }) => {
   );
 };
 
-// ─── Current Bill Card ────────────────────────────────────────────────────────
+// ── Current Bill Card ──────────────────────────────────────────────────────────
 
 const CurrentBillCard = ({ status, onPaySuccess }) => {
   const [paying, setPaying] = useState(false);
@@ -221,24 +190,34 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
 
   if (!status?.hasUnpaidBill) {
     return (
-      <div className="bg-green-50 border border-green-200 rounded-2xl p-6 flex items-start gap-4">
-        <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0 border border-green-200">
-          <CheckCircle2 className="w-6 h-6 text-green-600" />
+      <div
+        className="flex items-center gap-4 p-5 rounded-2xl border-[1.5px] border-[#10B98130]"
+        style={{ background: "linear-gradient(135deg,#F0FDF9,#ECFDF5)" }}
+      >
+        <div className="w-11 h-11 rounded-[14px] bg-[#10B98118] border border-[#10B98130] flex items-center justify-center shrink-0">
+          <BadgeCheck className="w-5 h-5 text-[#0D9488]" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-green-800">No outstanding balance</h3>
-          <p className="text-sm text-green-700 mt-1">Your account is up to date. All bills have been paid.</p>
+          <p className="font-['IBM_Plex_Sans',sans-serif] text-sm font-bold text-[#0F172A]">কোনো বকেয়া নেই</p>
+          <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#0D9488] mt-0.5">
+            আপনার অ্যাকাউন্ট আপ-টু-ডেট। সব বিল পরিশোধিত।
+          </p>
         </div>
       </div>
     );
   }
 
   const { bill, isOverdue } = status;
+  const billId = bill._id || bill.id;
+  const periodTs = bill.billingPeriodStart || bill.billingPeriod;
+  const amount = bill.totalAmount ?? bill.amount;
 
-  // Support the exact data structure provided (uses _id, billingPeriodStart, totalAmount, etc.)
-  const billId = bill._id || bill.id; // MongoDB _id or legacy id
-  const periodTs = bill.billingPeriodStart || bill.billingPeriod; // fallback for older responses
-  const amount = bill.totalAmount ?? bill.amount; // support both field names
+  const accentColor = isOverdue ? "#EF4444" : "#F59E0B";
+  const accentLight = isOverdue ? "#EF444410" : "#F59E0B10";
+  const accentBorder = isOverdue ? "#EF444425" : "#F59E0B25";
+  const gradFrom = isOverdue ? "#FEF2F2" : "#FFFBEB";
+  const gradTo = isOverdue ? "#FFE4E6" : "#FEF3C7";
+  const borderColor = isOverdue ? "#FECACA" : "#FDE68A";
 
   const handlePay = async () => {
     if (!billId) return;
@@ -248,7 +227,7 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
       await billingService.pay(billId);
       onPaySuccess();
     } catch (err) {
-      setError(err?.response?.data?.error || "Payment failed. Please try again.");
+      setError(err?.response?.data?.error || "পেমেন্ট ব্যর্থ হয়েছে। আবার চেষ্টা করুন।");
     } finally {
       setPaying(false);
     }
@@ -256,182 +235,282 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
 
   return (
     <div
-      className={`rounded-2xl border p-6 ${
-        isOverdue ? "bg-red-50/60 border-red-200" : "bg-amber-50/60 border-amber-200"
-      }`}
+      className="rounded-2xl border-[1.5px] p-5"
+      style={{ background: `linear-gradient(135deg,${gradFrom},${gradTo})`, borderColor }}
     >
-      <div className="flex items-start justify-between gap-4 mb-5">
+      {/* Bill header */}
+      <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-start gap-3">
           <div
-            className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 border ${
-              isOverdue ? "bg-red-100 border-red-200" : "bg-amber-100 border-amber-200"
-            }`}
+            className="w-11 h-11 rounded-[14px] flex items-center justify-center shrink-0 border"
+            style={{ background: accentLight, borderColor: accentBorder }}
           >
             {isOverdue ? (
-              <AlertTriangle className="w-6 h-6 text-red-600" />
+              <AlertTriangle className="w-5 h-5" style={{ color: accentColor }} />
             ) : (
-              <Clock className="w-6 h-6 text-amber-600" />
+              <Clock className="w-5 h-5" style={{ color: accentColor }} />
             )}
           </div>
           <div>
-            <h3 className={`text-base font-semibold ${isOverdue ? "text-red-800" : "text-amber-800"}`}>
-              {isOverdue ? "Payment Overdue" : "Payment Due"}
-            </h3>
-            <p className={`text-sm mt-0.5 ${isOverdue ? "text-red-600" : "text-amber-600"}`}>
-              Billing period: {fmt.period(periodTs)}
+            <p
+              className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px]"
+              style={{ color: accentColor }}
+            >
+              {isOverdue ? "পেমেন্ট মেয়াদোত্তীর্ণ" : "পেমেন্ট বকেয়া"}
             </p>
+            <p className="font-['IBM_Plex_Sans',sans-serif] text-sm font-bold text-[#0F172A]">{fmt.period(periodTs)}</p>
           </div>
         </div>
         <StatusBadge status="unpaid" isOverdue={isOverdue} />
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
-        <div className="bg-white/70 rounded-xl border border-white/80 px-4 py-3">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Amount Due</p>
-          <p className="text-xl font-bold text-gray-900">{fmt.currency(amount)}</p>
-        </div>
-        <div className="bg-white/70 rounded-xl border border-white/80 px-4 py-3">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Due Date</p>
-          <p className={`text-sm font-semibold ${isOverdue ? "text-red-700" : "text-gray-800"}`}>
-            {fmt.date(bill.dueDate)}
-          </p>
-        </div>
-        <div className="bg-white/70 rounded-xl border border-white/80 px-4 py-3">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Invoices</p>
-          <p className="text-sm font-semibold text-gray-800">{bill.invoiceCount ?? 0} invoices</p>
-        </div>
+      {/* Metric mini-cards */}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {[
+          { label: "বকেয়া পরিমাণ", value: fmt.currency(amount), bold: true },
+          { label: "শেষ তারিখ", value: fmt.date(bill.dueDate) },
+          { label: "ইনভয়েস", value: `${bill.invoiceCount ?? 0}টি` },
+        ].map(({ label, value, bold }) => (
+          <div key={label} className="bg-white/70 rounded-xl border border-white/80 px-3 py-2.5">
+            <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.06em] text-[#94A3B8] mb-1">
+              {label}
+            </p>
+            <p
+              className={`font-['IBM_Plex_Mono',monospace] leading-tight ${bold ? "text-[18px] font-extrabold text-[#0F172A]" : "text-[13px] font-semibold text-[#0F172A]"}`}
+            >
+              {value}
+            </p>
+          </div>
+        ))}
       </div>
 
       <BreakdownAccordion breakdown={bill.breakdown} />
 
       {error && (
-        <div className="mt-3 flex items-center gap-2 text-sm text-red-700 bg-red-100 border border-red-200 rounded-xl px-4 py-3">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-          {error}
+        <div className="mt-3 flex items-center gap-2 px-3.5 py-2.5 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+          <AlertCircle className="w-[13px] h-[13px] text-[#EF4444] shrink-0" />
+          <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#EF4444]">{error}</p>
         </div>
       )}
 
       <button
         onClick={handlePay}
         disabled={paying || !billId}
-        className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all active:scale-[0.98] shadow-lg shadow-blue-200"
+        className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl font-['IBM_Plex_Mono',monospace] text-xs font-semibold text-white border-none transition-all"
+        style={{
+          background: paying || !billId ? "#94A3B8" : "linear-gradient(135deg,#6366F1,#4F46E5)",
+          boxShadow: paying || !billId ? "none" : "0 4px 14px rgba(99,102,241,0.4)",
+          cursor: paying || !billId ? "not-allowed" : "pointer",
+        }}
       >
         {paying ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Processing...
-          </>
+          <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
         ) : (
-          <>
-            <CreditCard className="w-4 h-4" />
-            Mark as Paid — {fmt.currency(amount)}
-          </>
+          <CreditCard className="w-[13px] h-[13px]" />
         )}
+        {paying ? "প্রক্রিয়াকরণ হচ্ছে…" : `পরিশোধ করুন — ${fmt.currency(amount)}`}
       </button>
     </div>
   );
 };
 
-// ─── History Row ──────────────────────────────────────────────────────────────
+// ── History Row ────────────────────────────────────────────────────────────────
 
-const HistoryRow = ({ bill }) => {
+const HistoryRow = ({ bill, index }) => {
   const [expanded, setExpanded] = useState(false);
-  const isOverdue = bill.status === "unpaid" && Date.now() > bill.dueDate;
+  const isOverdue = bill.status === "unpaid" && Date.now() > new Date(bill.dueDate).getTime();
+  const isPaid = bill.status === "paid";
 
   return (
-    <>
-      <tr className="hover:bg-gray-50/80 transition-colors cursor-pointer" onClick={() => setExpanded((v) => !v)}>
-        <td className="px-4 py-3.5 text-sm text-gray-700 whitespace-nowrap">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-            {fmt.period(bill.billingPeriodStart)}
+    <div className={`transition-all border-b border-[#E2E8F0] ${isPaid ? "opacity-100" : "opacity-90"}`}>
+      <button onClick={() => setExpanded((v) => !v)} className="w-full text-left">
+        <div className="flex items-center gap-3 py-3 px-2 rounded-xl transition-all hover:bg-[#F1F5F9]">
+          {/* Index */}
+          <span className="flex items-center justify-center shrink-0 w-[26px] h-[26px] rounded-lg bg-[#EEF2FF] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#64748B]">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+
+          {/* Period */}
+          <div className="flex-1 min-w-0">
+            <p className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A] flex items-center gap-1.5">
+              <Calendar className="w-[11px] h-[11px] text-[#94A3B8] shrink-0" />
+              {fmt.period(bill.billingPeriodStart)}
+            </p>
           </div>
-        </td>
-        <td className="px-4 py-3.5 text-sm font-semibold text-gray-900 whitespace-nowrap">
-          {fmt.currency(bill.totalAmount)}
-        </td>
-        <td className="px-4 py-3.5 whitespace-nowrap">
-          <StatusBadge status={bill.status} isOverdue={isOverdue} />
-        </td>
-        <td className="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap hidden sm:table-cell">
-          {fmt.date(bill.dueDate)}
-        </td>
-        <td className="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap hidden md:table-cell">
-          {bill.invoiceCount ?? 0}
-        </td>
-        <td className="px-4 py-3.5 text-center">
-          {expanded ? (
-            <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-gray-400 mx-auto" />
-          )}
-        </td>
-      </tr>
+
+          {/* Amount */}
+          <span className="font-['IBM_Plex_Mono',monospace] text-[13px] font-bold text-[#0F172A] shrink-0">
+            {fmt.currency(bill.totalAmount)}
+          </span>
+
+          {/* Status badge */}
+          <div className="shrink-0">
+            <StatusBadge status={bill.status} isOverdue={isOverdue} />
+          </div>
+
+          <ChevronDown
+            className={`w-[14px] h-[14px] text-[#94A3B8] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
+          />
+        </div>
+      </button>
 
       {expanded && (
-        <tr className="bg-gray-50/60">
-          <td colSpan={6} className="px-4 pb-4 pt-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-              {bill.breakdown && Object.keys(bill.breakdown).length > 0 && (
-                <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden">
-                  <p className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
-                    Charge breakdown
-                  </p>
-                  {[
-                    { label: "Monthly fee", value: bill.breakdown.monthlyFee },
-                    { label: "Per-invoice fee (patient charge)", value: bill.breakdown.perInvoiceFee },
-                    { label: "Commission per invoice", value: bill.breakdown.commission },
-                    { label: "Net per invoice (software)", value: bill.breakdown.perInvoiceNet },
-                  ]
-                    .filter((r) => r.value != null && r.value !== 0)
-                    .map((r) => (
-                      <div
-                        key={r.label}
-                        className="flex justify-between px-4 py-2 border-b border-gray-50 last:border-b-0"
-                      >
-                        <span className="text-gray-500">{r.label}</span>
-                        <span className="font-medium text-gray-800">{fmt.currency(r.value)}</span>
-                      </div>
-                    ))}
-                </div>
-              )}
-
-              <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden">
-                <p className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
-                  Details
+        <div
+          className="mx-2 mb-3 rounded-xl border border-[#E2E8F0] overflow-hidden"
+          style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4">
+            {/* Breakdown */}
+            {bill.breakdown && Object.keys(bill.breakdown).length > 0 && (
+              <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+                <p className="px-4 py-2.5 font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] border-b border-[#E2E8F0]">
+                  চার্জ বিস্তারিত
                 </p>
-                <div className="divide-y divide-gray-50">
-                  <div className="flex justify-between px-4 py-2">
-                    <span className="text-gray-500">Period</span>
-                    <span className="font-medium text-gray-800">
-                      {fmt.date(bill.billingPeriodStart)} – {fmt.date(bill.billingPeriodEnd)}
-                    </span>
-                  </div>
-                  {bill.status === "paid" && (
-                    <>
-                      <div className="flex justify-between px-4 py-2">
-                        <span className="text-gray-500">Paid at</span>
-                        <span className="font-medium text-gray-800">{fmt.datetime(bill.paidAt)}</span>
-                      </div>
-                      {bill.paidBy?.name && (
-                        <div className="flex justify-between px-4 py-2">
-                          <span className="text-gray-500">Paid by</span>
-                          <span className="font-medium text-gray-800">{bill.paidBy.name}</span>
-                        </div>
-                      )}
-                    </>
-                  )}
+                {[
+                  { label: "মাসিক ফি", value: bill.breakdown.monthlyFee },
+                  { label: "প্রতি-ইনভয়েস ফি", value: bill.breakdown.perInvoiceFee },
+                  { label: "কমিশন", value: bill.breakdown.commission },
+                  { label: "নেট (সফটওয়্যার)", value: bill.breakdown.perInvoiceNet },
+                ]
+                  .filter((r) => r.value != null && r.value !== 0)
+                  .map((r) => (
+                    <div
+                      key={r.label}
+                      className="flex justify-between px-4 py-2 border-b border-[#F1F5F9] last:border-b-0"
+                    >
+                      <span className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#64748B]">{r.label}</span>
+                      <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#0F172A]">
+                        {fmt.currency(r.value)}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            )}
+
+            {/* Details */}
+            <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+              <p className="px-4 py-2.5 font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] border-b border-[#E2E8F0]">
+                বিবরণ
+              </p>
+              <div className="divide-y divide-[#F1F5F9]">
+                <div className="flex justify-between px-4 py-2">
+                  <span className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#64748B]">মেয়াদ</span>
+                  <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#0F172A]">
+                    {fmt.date(bill.billingPeriodStart)} – {fmt.date(bill.billingPeriodEnd)}
+                  </span>
                 </div>
+                <div className="flex justify-between px-4 py-2">
+                  <span className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#64748B]">ইনভয়েস</span>
+                  <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#0F172A]">
+                    {bill.invoiceCount ?? 0}টি
+                  </span>
+                </div>
+                {bill.status === "paid" && (
+                  <>
+                    <div className="flex justify-between px-4 py-2">
+                      <span className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#64748B]">পরিশোধ সময়</span>
+                      <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#0F172A]">
+                        {fmt.datetime(bill.paidAt)}
+                      </span>
+                    </div>
+                    {bill.paidBy?.name && (
+                      <div className="flex justify-between px-4 py-2">
+                        <span className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#64748B]">পরিশোধকারী</span>
+                        <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#0F172A]">
+                          {bill.paidBy.name}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
-          </td>
-        </tr>
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 };
 
-// ─── Main Billing Page ────────────────────────────────────────────────────────
+// ── Skeleton ───────────────────────────────────────────────────────────────────
+
+const Skeleton = () => (
+  <div className="bg-white animate-pulse overflow-hidden border border-[#E2E8F0] rounded-[20px]">
+    <div className="px-6 py-4 flex gap-4 border-b border-[#E2E8F0]">
+      {[120, 70, 90].map((w, i) => (
+        <div key={i} className="h-3 bg-[#E2E8F0] rounded-md" style={{ width: w }} />
+      ))}
+    </div>
+    {[1, 2, 3, 4].map((i) => (
+      <div key={i} className="flex items-center gap-3 px-6 py-3.5 border-b border-[#E2E8F0]">
+        <div className="w-[26px] h-[26px] bg-[#E2E8F0] rounded-lg" />
+        <div className="flex-1 h-[13px] bg-[#E2E8F0] rounded-md" />
+        <div className="w-[65px] h-[22px] bg-[#E2E8F0] rounded-lg" />
+        <div className="w-[60px] h-[22px] bg-[#E2E8F0] rounded-lg" />
+      </div>
+    ))}
+  </div>
+);
+
+const StatsSkeleton = () => (
+  <div className="grid grid-cols-3 gap-3 mb-5">
+    {[1, 2, 3].map((i) => (
+      <div key={i} className="bg-white animate-pulse border border-[#E2E8F0] rounded-2xl p-[14px_16px]">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-[26px] h-[26px] bg-[#E2E8F0] rounded-lg" />
+          <div className="h-2 w-16 bg-[#E2E8F0] rounded-md" />
+        </div>
+        <div className="h-7 w-20 bg-[#E2E8F0] rounded-md" />
+      </div>
+    ))}
+  </div>
+);
+
+const CurrentBillSkeleton = () => (
+  <div className="bg-white animate-pulse border-[1.5px] border-[#E2E8F0] rounded-2xl p-5">
+    <div className="flex items-start gap-3 mb-4">
+      <div className="w-11 h-11 bg-[#E2E8F0] rounded-[14px] shrink-0" />
+      <div className="flex-1 space-y-2 pt-1">
+        <div className="h-2.5 w-24 bg-[#E2E8F0] rounded-md" />
+        <div className="h-4 w-32 bg-[#E2E8F0] rounded-md" />
+      </div>
+    </div>
+    <div className="grid grid-cols-3 gap-2 mb-4">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="bg-[#F1F5F9] rounded-xl p-3 space-y-2">
+          <div className="h-2 w-16 bg-[#E2E8F0] rounded-md" />
+          <div className="h-5 w-20 bg-[#E2E8F0] rounded-md" />
+        </div>
+      ))}
+    </div>
+    <div className="h-11 w-full bg-[#E2E8F0] rounded-xl" />
+  </div>
+);
+
+// ── Section Header ─────────────────────────────────────────────────────────────
+
+const SectionHeader = ({ icon: Icon, eyebrow, label, subtitle, accentColor, right }) => (
+  <div
+    className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0]"
+    style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
+  >
+    <div className="flex items-center gap-2">
+      <Icon className="w-4 h-4" style={{ color: accentColor }} />
+      <div>
+        <p
+          className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em]"
+          style={{ color: accentColor }}
+        >
+          {eyebrow}
+        </p>
+        {subtitle && <p className="font-['IBM_Plex_Sans',sans-serif] text-xs text-[#94A3B8] mt-0.5">{subtitle}</p>}
+      </div>
+    </div>
+    {right}
+  </div>
+);
+
+// ── Main Billing Page ──────────────────────────────────────────────────────────
 
 const Billing = () => {
   const [status, setStatus] = useState(null);
@@ -440,37 +519,44 @@ const Billing = () => {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [statusError, setStatusError] = useState(null);
   const [historyError, setHistoryError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchStatus = useCallback(async () => {
+  const fetchStatus = async () => {
     setLoadingStatus(true);
     setStatusError(null);
     try {
       const res = await billingService.getStatus();
       setStatus(res.data);
     } catch {
-      setStatusError("Failed to load billing status.");
+      setStatusError("বিলিং স্ট্যাটাস লোড করতে ব্যর্থ।");
     } finally {
       setLoadingStatus(false);
     }
-  }, []);
+  };
 
-  const fetchHistory = useCallback(async () => {
+  const fetchHistory = async () => {
     setLoadingHistory(true);
     setHistoryError(null);
     try {
       const res = await billingService.getHistory();
       setHistory(res.data.bills ?? []);
     } catch {
-      setHistoryError("Failed to load billing history.");
+      setHistoryError("বিলিং ইতিহাস লোড করতে ব্যর্থ।");
     } finally {
       setLoadingHistory(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     fetchStatus();
     fetchHistory();
-  }, [fetchStatus, fetchHistory]);
+  }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([fetchStatus(), fetchHistory()]);
+    setRefreshing(false);
+  };
 
   const handlePaySuccess = () => {
     fetchStatus();
@@ -478,141 +564,185 @@ const Billing = () => {
   };
 
   const totalPaid = history.filter((b) => b.status === "paid").reduce((s, b) => s + (b.totalAmount ?? 0), 0);
-
   const totalUnpaid = history.filter((b) => b.status === "unpaid").reduce((s, b) => s + (b.totalAmount ?? 0), 0);
-
   const paidCount = history.filter((b) => b.status === "paid").length;
 
+  const hasFilters = false;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
-      <div className="max-w-4xl mx-auto">
-        {/* ── Page Header ──────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between mb-6">
+    <section
+      className="min-h-screen px-4 py-6 font-['IBM_Plex_Sans',sans-serif]"
+      style={{ background: "linear-gradient(to bottom right,#f8fafc,#eff6ff,#eef2ff)" }}
+    >
+      <div className="max-w-2xl mx-auto">
+        {/* ── Page header ────────────────────────────────────────────────── */}
+        <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-xl font-bold text-gray-900 leading-tight">Billing</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Manage your subscription payments and view billing history</p>
+            <p className="font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-[0.1em] text-[#6366F1] mb-1">
+              ল্যাব অপারেশন
+            </p>
+            <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[26px] font-bold text-[#0F172A] leading-tight">
+              বিলিং
+            </h1>
+            <p className="text-sm text-[#64748B] mt-1">সাবস্ক্রিপশন পেমেন্ট ও বিলিং ইতিহাস পরিচালনা।</p>
           </div>
-          <button
-            onClick={() => {
-              fetchStatus();
-              fetchHistory();
-            }}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl border border-gray-200/80 transition-all"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Refresh
-          </button>
+          <div className="pt-1">
+            <ActionChip
+              onClick={handleRefresh}
+              icon={RefreshCw}
+              label="রিফ্রেশ"
+              color="#6366F1"
+              disabled={refreshing}
+            />
+          </div>
         </div>
 
-        {/* ── Summary Stats ─────────────────────────────────────────────── */}
+        {/* ── Stats strip ─────────────────────────────────────────────────── */}
         {loadingHistory ? (
           <StatsSkeleton />
         ) : history.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-            <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Paid</p>
-              <p className="text-lg font-bold text-green-700">{fmt.currency(totalPaid)}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{paidCount} bills settled</p>
-            </div>
-            <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Outstanding</p>
-              <p className={`text-lg font-bold ${totalUnpaid > 0 ? "text-red-600" : "text-gray-800"}`}>
-                {fmt.currency(totalUnpaid)}
-              </p>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {history.filter((b) => b.status === "unpaid").length} unpaid
-              </p>
-            </div>
-            <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm col-span-2 sm:col-span-1">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">History</p>
-              <p className="text-lg font-bold text-gray-800">{history.length}</p>
-              <p className="text-xs text-gray-400 mt-0.5">months on record</p>
-            </div>
+          <div className="grid grid-cols-3 gap-3 mb-5">
+            <StatCard
+              label="মোট পরিশোধ"
+              value={fmt.currency(totalPaid)}
+              color="#0D9488"
+              grad="linear-gradient(135deg,#0D9488,#0F766E)"
+              icon={CircleDollarSign}
+            />
+            <StatCard
+              label="বকেয়া"
+              value={fmt.currency(totalUnpaid)}
+              color={totalUnpaid > 0 ? "#EF4444" : "#94A3B8"}
+              grad={
+                totalUnpaid > 0 ? "linear-gradient(135deg,#EF4444,#DC2626)" : "linear-gradient(135deg,#94A3B8,#64748B)"
+              }
+              icon={Banknote}
+            />
+            <StatCard
+              label="মোট রেকর্ড"
+              value={`${history.length}`}
+              color="#6366F1"
+              grad="linear-gradient(135deg,#6366F1,#4F46E5)"
+              icon={History}
+            />
           </div>
         ) : null}
 
-        {/* ── Current Bill ──────────────────────────────────────────────── */}
-        <div className="mb-6">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-            <CreditCard className="w-4 h-4 text-blue-500" />
-            Current Bill
-          </h2>
-
-          {loadingStatus ? (
-            <StatusCardSkeleton />
-          ) : statusError ? (
-            <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
-              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-red-800">{statusError}</p>
-                <button onClick={fetchStatus} className="text-xs text-red-600 hover:underline mt-0.5">
-                  Try again
-                </button>
+        {/* ── Current Bill card ───────────────────────────────────────────── */}
+        <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)] mb-4">
+          <SectionHeader
+            icon={CreditCard}
+            eyebrow="বর্তমান বিল"
+            accentColor="#6366F1"
+            subtitle="এই মাসের পেমেন্ট স্ট্যাটাস"
+          />
+          <div className="p-4">
+            {loadingStatus ? (
+              <CurrentBillSkeleton />
+            ) : statusError ? (
+              <div className="flex items-center gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+                <AlertCircle className="w-[14px] h-[14px] text-[#EF4444] shrink-0" />
+                <div>
+                  <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#EF4444]">{statusError}</p>
+                  <button
+                    onClick={fetchStatus}
+                    className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#6366F1] mt-0.5 hover:underline"
+                  >
+                    আবার চেষ্টা করুন
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <CurrentBillCard status={status} onPaySuccess={handlePaySuccess} />
-          )}
-        </div>
-
-        {/* ── Billing History ───────────────────────────────────────────── */}
-        <div>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-            <FileText className="w-4 h-4 text-blue-500" />
-            Billing History
-            {!loadingHistory && (
-              <span className="ml-1 text-xs font-normal text-gray-400 normal-case">(last 24 months)</span>
+            ) : (
+              <CurrentBillCard status={status} onPaySuccess={handlePaySuccess} />
             )}
-          </h2>
+          </div>
+        </div>
 
-          {loadingHistory ? (
-            <TableSkeleton />
-          ) : historyError ? (
-            <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
-              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-red-800">{historyError}</p>
-                <button onClick={fetchHistory} className="text-xs text-red-600 hover:underline mt-0.5">
-                  Try again
-                </button>
-              </div>
-            </div>
-          ) : history.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-14 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-              <FileText className="w-8 h-8 text-gray-300 mb-3" />
-              <p className="text-sm font-medium text-gray-500">No billing history yet</p>
-              <p className="text-xs text-gray-400 mt-1">Bills will appear here once generated</p>
-            </div>
-          ) : (
-            <div className="border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50/80 border-b border-gray-200/80">
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Period</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Amount</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">
-                        Due Date
-                      </th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">
-                        Invoices
-                      </th>
-                      <th className="px-4 py-3 w-8" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {history.map((bill) => (
-                      <HistoryRow key={bill._id} bill={bill} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+        {/* ── History ledger card ─────────────────────────────────────────── */}
+        <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)]">
+          <SectionHeader
+            icon={FileText}
+            eyebrow="বিলিং লেজার"
+            accentColor="#6366F1"
+            subtitle={!loadingHistory ? `শেষ ২৪ মাস · ${history.length}টি রেকর্ড` : "লোড হচ্ছে…"}
+            right={
+              !loadingHistory && history.length > 0 ? (
+                <div className="flex items-center gap-2">
+                  {paidCount > 0 && (
+                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#0D9488] bg-[#0D948810] rounded-[6px] border border-[#0D948825]">
+                      পরিশোধিত {paidCount}টি
+                    </span>
+                  )}
+                  {history.length - paidCount > 0 && (
+                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#F59E0B] bg-[#F59E0B10] rounded-[6px] border border-[#F59E0B25]">
+                      বকেয়া {history.length - paidCount}টি
+                    </span>
+                  )}
+                </div>
+              ) : null
+            }
+          />
+
+          {/* Column labels */}
+          {!loadingHistory && history.length > 0 && (
+            <div className="flex items-center gap-3 px-4 pt-3 pb-1">
+              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] w-[26px] shrink-0">
+                #
+              </span>
+              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] flex-1">
+                মেয়াদ
+              </span>
+              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] shrink-0">
+                পরিমাণ
+              </span>
+              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] shrink-0 w-[80px] text-right">
+                স্ট্যাটাস
+              </span>
+              <span className="w-[14px] shrink-0" />
             </div>
           )}
+
+          {/* Rows */}
+          <div className="px-4 pb-4">
+            {loadingHistory ? (
+              <Skeleton />
+            ) : historyError ? (
+              <div className="flex items-center gap-2.5 px-4 py-3 my-2 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+                <AlertCircle className="w-[14px] h-[14px] text-[#EF4444] shrink-0" />
+                <div>
+                  <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#EF4444]">{historyError}</p>
+                  <button
+                    onClick={fetchHistory}
+                    className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#6366F1] mt-0.5 hover:underline"
+                  >
+                    আবার চেষ্টা করুন
+                  </button>
+                </div>
+              </div>
+            ) : history.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8]">
+                <ReceiptText className="w-7 h-7 opacity-40" />
+                <p className="font-['IBM_Plex_Mono',monospace] text-xs">এখনো কোনো বিলিং রেকর্ড নেই</p>
+                <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#CBD5E1]">বিল তৈরি হলে এখানে দেখাবে</p>
+              </div>
+            ) : (
+              history.map((bill, index) => <HistoryRow key={bill._id} bill={bill} index={index} />)
+            )}
+          </div>
+
+          {/* Footer note */}
+          <div className="px-6 py-3 border-t border-[#E2E8F0] bg-[#F8FAFC]">
+            <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
+              * শুধুমাত্র সক্রিয় সাবস্ক্রিপশনের বিল অন্তর্ভুক্ত
+            </p>
+          </div>
         </div>
+
+        <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] text-center mt-4 pb-6">
+          LabPilotPro · বিলিং ম্যানেজমেন্ট সিস্টেম
+        </p>
       </div>
-    </div>
+    </section>
   );
 };
 

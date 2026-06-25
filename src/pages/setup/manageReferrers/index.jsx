@@ -118,7 +118,9 @@ const ModalShell = ({ onClose, children }) => {
         style={{ background: "rgba(15,23,42,0.6)" }}
         onClick={onClose}
       />
-      <div className="relative w-full max-w-[520px] max-h-[calc(100svh-48px)] overflow-y-auto">{children}</div>
+      <div className="relative w-full max-w-[520px] max-h-[calc(100svh-48px)] flex flex-col overflow-hidden">
+        {children}
+      </div>
     </div>
   );
 };
@@ -189,8 +191,8 @@ const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving }) =>
 
   return (
     <ModalShell onClose={onClose}>
-      <div className="bg-white flex flex-col overflow-hidden rounded-[0px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
-        {/* Header */}
+      <div className="bg-white flex flex-col overflow-hidden rounded-[0px] shadow-[0_25px_60px_rgba(15,23,42,0.2)] min-h-0">
+        {/* Header — fixed, never scrolls */}
         <div
           className={`shrink-0 px-6 py-5 flex items-center justify-between border-b ${accentBorder}`}
           style={{ background: `linear-gradient(135deg,${gradFrom}15 0%,${gradTo}08 100%)` }}
@@ -225,8 +227,8 @@ const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving }) =>
           </button>
         </div>
 
-        {/* Body */}
-        <div className="px-6 py-5 space-y-4 bg-[#F8FAFC]">
+        {/* Body — the ONLY scrollable region, fills remaining space */}
+        <div className="px-6 py-5 space-y-4 bg-[#F8FAFC] flex-1 min-h-0 overflow-y-auto">
           {/* Type selector */}
           <FormField label="ধরন" required>
             <div className="grid grid-cols-3 gap-2">
@@ -418,7 +420,7 @@ const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving }) =>
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer — fixed, never scrolls */}
         <div className="shrink-0 px-6 py-4 flex gap-3 bg-white border-t border-[#E2E8F0]">
           <button
             type="button"
