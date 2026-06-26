@@ -59,9 +59,8 @@ const CollectPaymentModal = ({ open, patientId, onClose, onSuccess, isExtra = fa
     <Modal open={open} onClose={onClose} title={isExtra ? "Collect Extra Payment" : "Collect Payment"} width="max-w-md">
       <div className="space-y-3">
         {isExtra && (
-          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
-            <span className="mt-0.5">ℹ️</span>
-            <span>This patient has already paid in full. Recording an additional payment.</span>
+          <div className="px-3 py-2.5 rounded-[3px] bg-amber-50 border-l-2 border-amber-400 text-[13px] text-amber-700">
+            This patient has already paid in full. Recording an additional payment.
           </div>
         )}
         <ErrorMsg msg={error} />
@@ -203,6 +202,7 @@ const PatientDetails = () => {
   const handleTransfer = async () => {
     setActionError("");
     if (!txForm.spaceId) return setActionError("Select a space");
+    if (txForm.spaceId === patient.space?.spaceId) return setActionError("Patient is already in this cabin");
     const sp = spaces.find((s) => s._id === txForm.spaceId);
     if (sp?.multiBed && txForm.bedNumber == null) return setActionError("Select a bed");
     setActionLoading(true);
@@ -225,6 +225,8 @@ const PatientDetails = () => {
   const handleChangeDoc = async () => {
     setActionError("");
     if (!docForm.doctorId) return setActionError("Select a doctor");
+    if (docForm.doctorId === patient.supervisorDoctor?.doctorId)
+      return setActionError("Patient is already under this doctor");
     setActionLoading(true);
     try {
       await indoorPatientService.changeDoctor(patientId, { doctorId: docForm.doctorId, note: docForm.note });
@@ -290,57 +292,37 @@ const PatientDetails = () => {
   const isPackageFullyPaid = patient.dealType === "package" && due <= 0;
   const collectDefaultAmount = due > 0 ? String(Math.ceil(due)) : "";
   const txSelectedSpace = spaces.find((s) => s._id === txForm.spaceId) ?? null;
+  const transferableSpaces = spaces.filter((s) => s._id !== patient.space?.spaceId);
+  const transferableDoctors = doctors.filter((d) => d._id !== patient.supervisorDoctor?.doctorId);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
+    <div className="min-h-screen bg-slate-50 px-4 py-8 font-noto">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <PageHeader
           title={patient.patient.name}
           subtitle={`${patient.admissionId} · ${patient.patient.age}y · ${patient.patient.gender}${patient.patient.bloodGroup ? ` · ${patient.patient.bloodGroup}` : ""}`}
           back={() => navigate(-1)}
-          action={
-            isAdmitted && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <Btn variant="primary" size="sm" onClick={() => navigate(`/ipd/add-items?patientId=${patientId}`)}>
-                  ➕ Add Expenses
-                </Btn>
-                {due > 0 && (
-                  <Btn variant="success" size="sm" onClick={() => setShowCollectPayment(true)}>
-                    💳 Collect Payment
-                  </Btn>
-                )}
-                {isPackageFullyPaid && (
-                  <Btn variant="secondary" size="sm" onClick={() => setShowExtraPayment(true)}>
-                    ➕ Collect Extra
-                  </Btn>
-                )}
-                <Btn variant="danger" size="sm" onClick={() => setReleaseConfirm(true)}>
-                  Discharge
-                </Btn>
-              </div>
-            )
-          }
         />
 
         {/* Status strip */}
         <div className="flex items-center gap-2 mb-5 flex-wrap">
-          <Badge color={isAdmitted ? "blue" : "green"}>{isAdmitted ? "🏥 Admitted" : "✅ Released"}</Badge>
-          {patient.dealType === "package" && <Badge color="purple">📦 Package Deal</Badge>}
-          {isPackageFullyPaid && <Badge color="green">✅ Fully Paid</Badge>}
-          <span className="text-xs text-slate-400 ml-1">Since {fmt.date(patient.admittedAt)}</span>
+          <Badge color={isAdmitted ? "blue" : "green"}>{isAdmitted ? "Admitted" : "Released"}</Badge>
+          {patient.dealType === "package" && <Badge color="purple">Package Deal</Badge>}
+          {isPackageFullyPaid && <Badge color="green">Fully Paid</Badge>}
+          <span className="text-xs text-slate-400 font-mono ml-1">Since {fmt.date(patient.admittedAt)}</span>
         </div>
 
         <ErrorMsg msg={actionError} />
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-white border border-slate-200 p-1 rounded-xl mb-5 shadow-sm overflow-x-auto">
+        <div className="flex gap-1 bg-white border border-slate-200 p-1 rounded-[8px] mb-5 shadow-sm overflow-x-auto">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`flex-1 min-w-max py-1.5 px-3 text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${
-                activeTab === t.id ? "bg-slate-800 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+              className={`flex-1 min-w-max py-1.5 px-3 text-sm font-semibold rounded-[6px] transition-all whitespace-nowrap ${
+                activeTab === t.id ? "bg-[#0F6E5C] text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
               {t.label}
@@ -355,9 +337,16 @@ const PatientDetails = () => {
               title="Patient Information"
               icon="👤"
               action={
-                <Btn variant="ghost" size="sm" onClick={() => setEditInfo(!editInfo)}>
-                  {editInfo ? "Cancel" : "Edit"}
-                </Btn>
+                <div className="flex items-center gap-1.5">
+                  <Btn variant="ghost" size="sm" onClick={() => setEditInfo(!editInfo)}>
+                    {editInfo ? "Cancel" : "Edit"}
+                  </Btn>
+                  {isAdmitted && (
+                    <Btn variant="danger" size="sm" onClick={() => setReleaseConfirm(true)}>
+                      Discharge
+                    </Btn>
+                  )}
+                </div>
               }
             >
               {!editInfo ? (
@@ -366,7 +355,7 @@ const PatientDetails = () => {
                     ["Name", patient.patient.name],
                     ["Age / Gender", `${patient.patient.age}y / ${patient.patient.gender}`],
                     ["Blood Group", patient.patient.bloodGroup ?? "—"],
-                    ["Contact", patient.patient.contactNumber],
+                    ["Contact", patient.patient.contactNumber, true],
                     ["Address", patient.patient.address || "—"],
                     [
                       "Guardian",
@@ -374,10 +363,12 @@ const PatientDetails = () => {
                         ? `${patient.patient.guardian.name} (${patient.patient.guardian.relation}) — ${patient.patient.guardian.contactNumber}`
                         : "—",
                     ],
-                  ].map(([k, v]) => (
+                  ].map(([k, v, mono]) => (
                     <div key={k}>
-                      <span className="text-xs text-slate-400 uppercase tracking-wide">{k}</span>
-                      <div className="font-medium text-slate-700 mt-0.5">{v}</div>
+                      <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">{k}</span>
+                      <div className={`font-medium text-slate-700 mt-0.5 ${mono ? "font-mono text-[13px]" : ""}`}>
+                        {v}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -449,12 +440,16 @@ const PatientDetails = () => {
                 }
               >
                 {!transferWard ? (
-                  <div className="space-y-1 text-sm">
-                    <div className="font-semibold text-slate-800">{patient.space.spaceName}</div>
-                    {patient.space.bedNumber != null && (
-                      <div className="text-slate-500">Bed #{patient.space.bedNumber}</div>
-                    )}
-                    <div className="text-slate-500">{fmt.currency(patient.space.chargePerDay)}/day</div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-baseline justify-between">
+                      <span className="font-semibold text-slate-800">{patient.space.spaceName}</span>
+                      {patient.space.bedNumber != null && (
+                        <span className="font-mono text-[11px] text-slate-400">Bed #{patient.space.bedNumber}</span>
+                      )}
+                    </div>
+                    <div className="font-mono text-[12px] text-[#0F6E5C] font-semibold">
+                      {fmt.currency(patient.space.chargePerDay)} / day
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -467,13 +462,16 @@ const PatientDetails = () => {
                         }}
                       >
                         <option value="">— Select —</option>
-                        {spaces.map((s) => (
+                        {transferableSpaces.map((s) => (
                           <option key={s._id} value={s._id}>
                             {s.name}
                           </option>
                         ))}
                       </Select>
                     </Field>
+                    {!transferableSpaces.length && (
+                      <p className="text-[11px] text-slate-400 italic">No other cabins available to transfer to.</p>
+                    )}
                     {txSelectedSpace?.multiBed && (
                       <BedSelector
                         space={txSelectedSpace}
@@ -507,13 +505,13 @@ const PatientDetails = () => {
                 }
               >
                 {!changeDoc ? (
-                  <div className="space-y-1 text-sm">
+                  <div className="space-y-1.5 text-sm">
                     <div className="font-semibold text-slate-800">{patient.supervisorDoctor.name}</div>
                     {patient.supervisorDoctor.degree && (
-                      <div className="text-slate-500">{patient.supervisorDoctor.degree}</div>
+                      <div className="font-mono text-[12px] text-slate-500">{patient.supervisorDoctor.degree}</div>
                     )}
                     {patient.referrer?.name && (
-                      <div className="text-slate-400 text-xs mt-1">Referrer: {patient.referrer.name}</div>
+                      <div className="text-[11px] text-slate-400 mt-1">Referrer: {patient.referrer.name}</div>
                     )}
                   </div>
                 ) : (
@@ -524,13 +522,16 @@ const PatientDetails = () => {
                         onChange={(e) => setDocForm((f) => ({ ...f, doctorId: e.target.value }))}
                       >
                         <option value="">— Select —</option>
-                        {doctors.map((d) => (
+                        {transferableDoctors.map((d) => (
                           <option key={d._id} value={d._id}>
                             {d.name}
                           </option>
                         ))}
                       </Select>
                     </Field>
+                    {!transferableDoctors.length && (
+                      <p className="text-[11px] text-slate-400 italic">No other doctors available to assign.</p>
+                    )}
                     <Field label="Note">
                       <Input
                         placeholder="Reason..."
@@ -550,16 +551,20 @@ const PatientDetails = () => {
               <div className="space-y-3 text-sm">
                 {patient.disease?.description && (
                   <div>
-                    <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Diagnosis / Description</div>
-                    <p className="text-slate-700 bg-slate-50 rounded-lg p-3 border border-slate-100">
+                    <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider mb-1">
+                      Diagnosis / Description
+                    </div>
+                    <p className="text-slate-700 bg-slate-50 rounded-[3px] p-3 border border-slate-100">
                       {patient.disease.description}
                     </p>
                   </div>
                 )}
                 {patient.disease?.medicalHistory && (
                   <div>
-                    <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Medical History</div>
-                    <p className="text-slate-700 bg-slate-50 rounded-lg p-3 border border-slate-100">
+                    <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider mb-1">
+                      Medical History
+                    </div>
+                    <p className="text-slate-700 bg-slate-50 rounded-[3px] p-3 border border-slate-100">
                       {patient.disease.medicalHistory}
                     </p>
                   </div>
@@ -570,34 +575,32 @@ const PatientDetails = () => {
               </div>
             </SectionCard>
 
-            {/* Billing Summary in Overview */}
-            <BillingSummary
-              patient={patient}
-              onCollect={() => setShowCollectPayment(true)}
-              onExtra={() => setShowExtraPayment(true)}
-              patientId={patientId} 
-              onRefresh={fetchPatient} 
-            />
-
             {/* Ward Transfer History */}
             <SectionCard title="Ward Transfer History" icon="🔄">
               {!patient.wardHistory?.length ? (
                 <p className="text-slate-400 text-sm text-center py-4">No ward transfers recorded</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-1.5">
                   {patient.wardHistory.map((h, i) => (
-                    <div key={i} className="flex gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100 text-sm">
-                      <div className="flex-1">
-                        <span className="font-medium text-blue-800">{h.fromSpaceName}</span>
-                        {h.fromBedNumber != null && ` (Bed ${h.fromBedNumber})`}
-                        <span className="text-blue-500 mx-2">→</span>
-                        <span className="font-medium text-blue-800">{h.toSpaceName ?? "Discharged"}</span>
-                        {h.toBedNumber != null && ` (Bed ${h.toBedNumber})`}
+                    <div
+                      key={i}
+                      className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-[3px] bg-white border border-slate-200 hover:border-slate-300 transition-colors text-sm"
+                    >
+                      <div className="min-w-0">
+                        <span className="font-semibold text-slate-700">{h.fromSpaceName}</span>
+                        {h.fromBedNumber != null && (
+                          <span className="font-mono text-[11px] text-slate-400"> (Bed {h.fromBedNumber})</span>
+                        )}
+                        <span className="text-slate-300 mx-2">→</span>
+                        <span className="font-semibold text-slate-700">{h.toSpaceName ?? "Discharged"}</span>
+                        {h.toBedNumber != null && (
+                          <span className="font-mono text-[11px] text-slate-400"> (Bed {h.toBedNumber})</span>
+                        )}
+                        {h.note && <div className="text-[11px] text-slate-400 italic mt-0.5">{h.note}</div>}
                       </div>
-                      <div className="text-right text-xs text-blue-500">
+                      <div className="text-right text-[11px] font-mono text-slate-400 shrink-0">
                         <div>{fmt.date(h.movedAt)}</div>
                         <div>{h.movedBy?.name}</div>
-                        {h.note && <div className="text-blue-400">{h.note}</div>}
                       </div>
                     </div>
                   ))}
@@ -610,18 +613,21 @@ const PatientDetails = () => {
               {!patient.doctorHistory?.length ? (
                 <p className="text-slate-400 text-sm text-center py-4">No doctor changes recorded</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-1.5">
                   {patient.doctorHistory.map((h, i) => (
-                    <div key={i} className="flex gap-3 p-3 bg-purple-50 rounded-xl border border-purple-100 text-sm">
-                      <div className="flex-1">
-                        <span className="font-medium text-purple-800">{h.previousDoctorName}</span>
-                        <span className="text-purple-500 mx-2">→</span>
-                        <span className="font-medium text-purple-800">{h.newDoctorName}</span>
+                    <div
+                      key={i}
+                      className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-[3px] bg-white border border-slate-200 hover:border-slate-300 transition-colors text-sm"
+                    >
+                      <div className="min-w-0">
+                        <span className="font-semibold text-slate-700">{h.previousDoctorName}</span>
+                        <span className="text-slate-300 mx-2">→</span>
+                        <span className="font-semibold text-slate-700">{h.newDoctorName}</span>
+                        {h.note && <div className="text-[11px] text-slate-400 italic mt-0.5">{h.note}</div>}
                       </div>
-                      <div className="text-right text-xs text-purple-500">
+                      <div className="text-right text-[11px] font-mono text-slate-400 shrink-0">
                         <div>{fmt.date(h.changedAt)}</div>
                         <div>{h.changedBy?.name}</div>
-                        {h.note && <div className="text-purple-400">{h.note}</div>}
                       </div>
                     </div>
                   ))}
@@ -638,6 +644,9 @@ const PatientDetails = () => {
               patient={patient}
               onCollect={() => setShowCollectPayment(true)}
               onExtra={() => setShowExtraPayment(true)}
+              onAddExpenses={() => navigate(`/ipd/add-items?patientId=${patientId}`)}
+              patientId={patientId}
+              onRefresh={fetchPatient}
             />
 
             <SectionCard title={`Expense Log (${patient.expenses?.length ?? 0})`} icon="🧾">
@@ -651,7 +660,7 @@ const PatientDetails = () => {
                         {["Type", "Item", "Price", "Qty", "Total", "Date", "By"].map((h) => (
                           <th
                             key={h}
-                            className="text-left px-2 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide"
+                            className="text-left px-2 py-2 text-[11px] font-mono font-semibold text-slate-400 uppercase tracking-wider"
                           >
                             {h}
                           </th>
@@ -665,13 +674,13 @@ const PatientDetails = () => {
                             <Badge color="slate">{e.type}</Badge>
                           </td>
                           <td className="px-2 py-2.5 font-medium text-slate-700">{e.name}</td>
-                          <td className="px-2 py-2.5 text-slate-600">{fmt.currency(e.price)}</td>
-                          <td className="px-2 py-2.5 text-slate-600">{e.quantity}</td>
-                          <td className="px-2 py-2.5 font-semibold text-slate-800">
+                          <td className="px-2 py-2.5 font-mono text-slate-600">{fmt.currency(e.price)}</td>
+                          <td className="px-2 py-2.5 font-mono text-slate-600">{e.quantity}</td>
+                          <td className="px-2 py-2.5 font-mono font-semibold text-slate-800">
                             {fmt.currency(e.total ?? e.price * e.quantity)}
                           </td>
-                          <td className="px-2 py-2.5 text-slate-400 text-xs">{fmt.date(e.addedAt)}</td>
-                          <td className="px-2 py-2.5 text-slate-400 text-xs">{e.addedBy?.name}</td>
+                          <td className="px-2 py-2.5 font-mono text-slate-400 text-[11px]">{fmt.date(e.addedAt)}</td>
+                          <td className="px-2 py-2.5 text-slate-400 text-[11px]">{e.addedBy?.name}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -680,7 +689,7 @@ const PatientDetails = () => {
                         <td colSpan={4} className="px-2 py-2 text-sm font-bold text-slate-600">
                           Total
                         </td>
-                        <td className="px-2 py-2 text-sm font-bold text-slate-900">
+                        <td className="px-2 py-2 text-sm font-mono font-bold text-slate-900">
                           {fmt.currency(totalExpenses(patient.expenses))}
                         </td>
                         <td colSpan={2} />
@@ -695,7 +704,7 @@ const PatientDetails = () => {
               {!patient.payments?.length ? (
                 <p className="text-slate-400 text-sm text-center py-4">No payments recorded yet</p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {(() => {
                     let runningTotal = 0;
                     return patient.payments.map((p, i) => {
@@ -704,19 +713,21 @@ const PatientDetails = () => {
                       return (
                         <div
                           key={i}
-                          className={`flex items-center justify-between p-3 rounded-xl border ${
-                            isExtraPayment ? "bg-amber-50 border-amber-100" : "bg-emerald-50 border-emerald-100"
+                          className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-[3px] bg-white border-l-2 border border-slate-200 ${
+                            isExtraPayment ? "border-l-amber-400" : "border-l-[#0F6E5C]"
                           }`}
                         >
-                          <div>
-                            <div
-                              className={`text-sm font-semibold ${isExtraPayment ? "text-amber-800" : "text-emerald-800"}`}
-                            >
+                          <div className="min-w-0">
+                            <div className="font-mono text-sm font-bold text-slate-800">
                               {fmt.currency(p.amount)}
-                              {isExtraPayment && <span className="ml-2 text-xs font-normal text-amber-600">extra</span>}
+                              {isExtraPayment && (
+                                <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-amber-600">
+                                  extra
+                                </span>
+                              )}
                             </div>
-                            <div className={`text-xs mt-0.5 ${isExtraPayment ? "text-amber-600" : "text-emerald-600"}`}>
-                              {p.collectedBy?.name} · {fmt.datetime(p.collectedAt)}
+                            <div className="text-[11px] text-slate-400 mt-0.5">
+                              {p.collectedBy?.name} · <span className="font-mono">{fmt.datetime(p.collectedAt)}</span>
                               {p.note && ` · ${p.note}`}
                             </div>
                           </div>
@@ -727,9 +738,9 @@ const PatientDetails = () => {
                       );
                     });
                   })()}
-                  <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-sm font-bold">
+                  <div className="flex justify-between items-center pt-3 mt-1 border-t border-slate-200 text-sm font-bold">
                     <span className="text-slate-600">Total Collected</span>
-                    <span className="text-emerald-700">{fmt.currency(totalPayments(patient.payments))}</span>
+                    <span className="font-mono text-[#0F6E5C]">{fmt.currency(totalPayments(patient.payments))}</span>
                   </div>
                 </div>
               )}
@@ -757,16 +768,7 @@ const PatientDetails = () => {
 
       <Modal open={releaseConfirm} onClose={() => setReleaseConfirm(false)} title="Confirm Discharge" width="max-w-md">
         <div className="space-y-4">
-          <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-red-100 mx-auto">
-            <svg className="w-7 h-7 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </div>
-          <div className="text-center">
+          <div>
             <h3 className="text-base font-bold text-slate-800 mb-1">Discharge {patient.patient.name}?</h3>
             <p className="text-sm text-slate-500">
               This will release the patient and free up{" "}
@@ -775,9 +777,8 @@ const PatientDetails = () => {
             </p>
           </div>
           {due > 0 && (
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
-              <span>⚠️</span>
-              <span>{fmt.currency(due)} is still outstanding.</span>
+            <div className="px-3 py-2.5 rounded-[3px] bg-amber-50 border-l-2 border-amber-400 text-[13px] text-amber-700">
+              <span className="font-mono font-semibold">{fmt.currency(due)}</span> is still outstanding.
             </div>
           )}
           <ErrorMsg msg={actionError} />
