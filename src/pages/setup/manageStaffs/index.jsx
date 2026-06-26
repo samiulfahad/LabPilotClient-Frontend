@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import Popup from "../../../components/popup";
 import staffService from "../../../api/staff";
+import staticDataAPI from "../../../api/staticData";
 
 // ── Palette ────────────────────────────────────────────────────────────────────
 
@@ -52,49 +53,28 @@ const C = {
   green: "#10B981",
 };
 
-// ── Permissions config ─────────────────────────────────────────────────────────
+// ── Icon map — resolves string keys from the API to Lucide components ──────────
 
-const PERMISSIONS_LIST = [
-  { key: "createInvoice", label: "ইনভয়েস তৈরি", icon: FilePlus, color: "#3B82F6" },
-  { key: "editInvoice", label: "ইনভয়েস সম্পাদনা", icon: FileEdit, color: "#F59E0B" },
-  { key: "deleteInvoice", label: "ইনভয়েস মুছুন", icon: Trash2, color: "#EF4444" },
-  { key: "cashmemo", label: "ক্যাশমেমো", icon: FileText, color: "#10B981" },
-  { key: "uploadReport", label: "রিপোর্ট আপলোড", icon: Upload, color: "#8B5CF6" },
-  { key: "downloadReport", label: "রিপোর্ট ডাউনলোড", icon: Download, color: "#0D9488" },
-];
+const ICON_MAP = { FilePlus, FileEdit, Trash2, FileText, Upload, Download };
 
-const INITIAL_PERMISSIONS = {
-  createInvoice: false,
-  editInvoice: false,
-  deleteInvoice: false,
-  cashmemo: false,
-  uploadReport: false,
-  downloadReport: false,
-};
+const resolvePermissions = (raw) => raw.map((p) => ({ ...p, icon: ICON_MAP[p.icon] ?? FilePlus }));
 
-const EMPTY_FORM = {
-  name: "",
-  email: "",
-  phone: "",
-  permissions: INITIAL_PERMISSIONS,
-  isActive: true,
-};
+const buildInitialPerms = (list) => Object.fromEntries(list.map((p) => [p.key, false]));
 
-const PERMISSION_FILTER_OPTIONS = [
-  { value: "all", label: "সব অনুমতি" },
-  { value: "createInvoice", label: "ইনভয়েস তৈরি" },
-  { value: "editInvoice", label: "ইনভয়েস সম্পাদনা" },
-  { value: "deleteInvoice", label: "ইনভয়েস মুছুন" },
-  { value: "cashmemo", label: "ক্যাশমেমো" },
-  { value: "uploadReport", label: "রিপোর্ট আপলোড" },
-  { value: "downloadReport", label: "রিপোর্ট ডাউনলোড" },
-];
+// ── Status / filter options ───────────────────────────────────────────────────
 
 const STATUS_OPTIONS = [
   { value: "all", label: "সব স্ট্যাটাস" },
   { value: "active", label: "সক্রিয়" },
   { value: "inactive", label: "নিষ্ক্রিয়" },
 ];
+
+const EMPTY_FORM = {
+  name: "",
+  email: "",
+  phone: "",
+  isActive: true,
+};
 
 // ── Shared input helpers ───────────────────────────────────────────────────────
 
@@ -150,27 +130,31 @@ const FormField = ({ label, required, children, hint }) => (
 
 // ── Staff Form Modal ───────────────────────────────────────────────────────────
 
-const StaffFormModal = ({ initial, onClose, onSaved }) => {
+const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
   const isEdit = !!initial?._id;
-  const [form, setForm] = useState(() =>
-    initial
-      ? {
-          name: initial.name ?? "",
-          email: initial.email ?? "",
-          phone: initial.phone ?? "",
-          permissions: initial.permissions ?? INITIAL_PERMISSIONS,
-          isActive: initial.isActive ?? true,
-        }
-      : { ...EMPTY_FORM },
-  );
+
+  const [form, setForm] = useState(() => {
+    if (initial) {
+      return {
+        name: initial.name ?? "",
+        email: initial.email ?? "",
+        phone: initial.phone ?? "",
+        permissions: initial.permissions ?? buildInitialPerms(permissionsList),
+        isActive: initial.isActive ?? true,
+      };
+    }
+    return { ...EMPTY_FORM, permissions: buildInitialPerms(permissionsList) };
+  });
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
-  const allEnabled = PERMISSIONS_LIST.every((p) => form.permissions[p.key]);
+
+  const allEnabled = permissionsList.every((p) => form.permissions[p.key]);
 
   const toggleAll = () => {
-    const next = Object.fromEntries(PERMISSIONS_LIST.map((p) => [p.key, !allEnabled]));
+    const next = Object.fromEntries(permissionsList.map((p) => [p.key, !allEnabled]));
     set("permissions", next);
   };
 
@@ -202,7 +186,7 @@ const StaffFormModal = ({ initial, onClose, onSaved }) => {
   return (
     <ModalShell onClose={onClose}>
       <div className="bg-white flex flex-col overflow-hidden rounded-[0px] shadow-[0_25px_60px_rgba(15,23,42,0.2)] min-h-0">
-        {/* Header — fixed, never scrolls */}
+        {/* Header */}
         <div
           className={`shrink-0 px-6 py-5 flex items-center justify-between border-b ${accentBorder}`}
           style={{ background: `linear-gradient(135deg,${gradFrom}15 0%,${gradTo}08 100%)` }}
@@ -240,7 +224,7 @@ const StaffFormModal = ({ initial, onClose, onSaved }) => {
           </button>
         </div>
 
-        {/* Body — the ONLY scrollable region, fills remaining space */}
+        {/* Body */}
         <div className="px-6 py-5 space-y-4 bg-[#F8FAFC] flex-1 min-h-0 overflow-y-auto">
           {/* Name */}
           <FormField label="পূর্ণ নাম" required>
@@ -342,14 +326,14 @@ const StaffFormModal = ({ initial, onClose, onSaved }) => {
               </button>
             </div>
             <div className="p-3 space-y-2 bg-[#F8FAFC]">
-              {PERMISSIONS_LIST.map(({ key, label, icon: Icon, color }) => {
+              {permissionsList.map(({ key, label, icon: Icon, color }) => {
                 const checked = form.permissions[key];
                 return (
                   <button
                     key={key}
                     type="button"
                     onClick={() => set("permissions", { ...form.permissions, [key]: !checked })}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-[1.5px] transition-all text-left`}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-[1.5px] transition-all text-left"
                     style={{
                       background: checked ? `${color}10` : "white",
                       borderColor: checked ? `${color}50` : "#E2E8F0",
@@ -385,7 +369,7 @@ const StaffFormModal = ({ initial, onClose, onSaved }) => {
           )}
         </div>
 
-        {/* Footer — fixed, never scrolls */}
+        {/* Footer */}
         <div className="shrink-0 px-6 py-4 flex gap-3 bg-white border-t border-[#E2E8F0]">
           <button
             type="button"
@@ -442,12 +426,13 @@ const ActionChip = ({ onClick, icon: Icon, label, color }) => (
 
 // ── Staff Row ──────────────────────────────────────────────────────────────────
 
-const StaffRow = ({ member, index, onEdit, onDelete, onDeactivate, onActivate }) => {
+const StaffRow = ({ member, index, permissionsList, onEdit, onDelete, onDeactivate, onActivate }) => {
   const [expanded, setExpanded] = useState(false);
-  const activePerms = PERMISSIONS_LIST.filter((p) => member.permissions[p.key]);
-  const hasFullAccess = activePerms.length === PERMISSIONS_LIST.length;
+  const activePerms = permissionsList.filter((p) => member.permissions[p.key]);
+  const hasFullAccess = activePerms.length === permissionsList.length;
 
   const roleLabel = member.role === "admin" ? "অ্যাডমিন" : member.role === "staff" ? "স্টাফ" : "অন্যান্য";
+
   const roleColor =
     member.role === "admin"
       ? { bg: "bg-[#8B5CF615]", border: "border-[#8B5CF630]", text: "text-[#8B5CF6]" }
@@ -484,7 +469,7 @@ const StaffRow = ({ member, index, onEdit, onDelete, onDeactivate, onActivate })
           )}
           {!hasFullAccess && (
             <span className="shrink-0 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-              {activePerms.length}/{PERMISSIONS_LIST.length}
+              {activePerms.length}/{permissionsList.length}
             </span>
           )}
           <ChevronDown
@@ -502,14 +487,12 @@ const StaffRow = ({ member, index, onEdit, onDelete, onDeactivate, onActivate })
           <div className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B] leading-loose mb-3">
             {member.email && (
               <p className="flex items-center gap-1.5">
-                <Mail className="w-3 h-3 text-[#6366F1]" />
-                {member.email}
+                <Mail className="w-3 h-3 text-[#6366F1]" /> {member.email}
               </p>
             )}
             {member.phone && (
               <p className="flex items-center gap-1.5">
-                <Phone className="w-3 h-3 text-[#6366F1]" />
-                {member.phone}
+                <Phone className="w-3 h-3 text-[#6366F1]" /> {member.phone}
               </p>
             )}
           </div>
@@ -517,7 +500,7 @@ const StaffRow = ({ member, index, onEdit, onDelete, onDeactivate, onActivate })
           {/* Permissions */}
           <div className="mb-3">
             <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] mb-1.5">
-              অনুমতিসমূহ ({activePerms.length}/{PERMISSIONS_LIST.length})
+              অনুমতিসমূহ ({activePerms.length}/{permissionsList.length})
             </p>
             {activePerms.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
@@ -575,7 +558,7 @@ const SectionDivider = ({ title, count, color }) => (
 
 // ── Filter Dropdown ────────────────────────────────────────────────────────────
 
-const FilterDropdown = ({ value, onChange, options, placeholder }) => (
+const FilterDropdown = ({ value, onChange, options }) => (
   <div className="relative">
     <select
       value={value}
@@ -693,6 +676,7 @@ const DeleteModal = ({ name, onConfirm, onCancel, loading }) => (
 
 const ManageStaff = () => {
   const [staff, setStaff] = useState([]);
+  const [permissionsList, setPermissionsList] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [popup, setPopup] = useState(null);
@@ -703,29 +687,47 @@ const ManageStaff = () => {
   const [permFilter, setPermFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  useEffect(() => {
+    const boot = async () => {
+      try {
+        const [staffRes, permsRes] = await Promise.all([
+          staffService.getStaffs(),
+          staticDataAPI.getStaffPermissions(),
+        ]);
+        setStaff(staffRes.data);
+        setPermissionsList(resolvePermissions(permsRes.data.permissions));
+      } catch {
+        setPopup({ type: "error", message: "ডেটা লোড করতে ব্যর্থ।" });
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+    boot();
+  }, []);
+
   const loadStaff = async () => {
     try {
       const res = await staffService.getStaffs();
       setStaff(res.data);
     } catch {
       setPopup({ type: "error", message: "কর্মী লোড করতে ব্যর্থ।" });
-    } finally {
-      setInitialLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadStaff();
-  }, []);
+  // Derived permission filter options — always in sync with the server list
+  const permFilterOptions = useMemo(
+    () => [{ value: "all", label: "সব অনুমতি" }, ...permissionsList.map((p) => ({ value: p.key, label: p.label }))],
+    [permissionsList],
+  );
 
   const stats = useMemo(
     () => ({
       total: staff.length,
       active: staff.filter((s) => s.isActive).length,
       inactive: staff.filter((s) => !s.isActive).length,
-      fullAccess: staff.filter((s) => PERMISSIONS_LIST.every((p) => s.permissions[p.key])).length,
+      fullAccess: staff.filter((s) => permissionsList.every((p) => s.permissions[p.key])).length,
     }),
-    [staff],
+    [staff, permissionsList],
   );
 
   const filtered = useMemo(
@@ -788,6 +790,7 @@ const ManageStaff = () => {
 
   const rowProps = (member) => ({
     member,
+    permissionsList,
     onEdit: () => setFormModal(member),
     onDelete: () => setDeleteTarget(member),
     onDeactivate: () => setToggleTarget({ member, activate: false }),
@@ -805,6 +808,7 @@ const ManageStaff = () => {
         createPortal(
           <StaffFormModal
             initial={formModal._id ? formModal : null}
+            permissionsList={permissionsList}
             onClose={() => setFormModal(null)}
             onSaved={handleSaved}
           />,
@@ -1013,18 +1017,8 @@ const ManageStaff = () => {
                   </button>
                 )}
               </div>
-              <FilterDropdown
-                value={permFilter}
-                onChange={setPermFilter}
-                options={PERMISSION_FILTER_OPTIONS}
-                placeholder="সব অনুমতি"
-              />
-              <FilterDropdown
-                value={statusFilter}
-                onChange={setStatusFilter}
-                options={STATUS_OPTIONS}
-                placeholder="সব স্ট্যাটাস"
-              />
+              <FilterDropdown value={permFilter} onChange={setPermFilter} options={permFilterOptions} />
+              <FilterDropdown value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} />
               {hasFilters && (
                 <button
                   onClick={() => {

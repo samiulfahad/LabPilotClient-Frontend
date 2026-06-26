@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   ArrowLeft,
   Printer,
@@ -12,11 +12,14 @@ import {
   Tag,
   ReceiptText,
   BarChart2,
+  FlaskConical,
+  LayoutList,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
 import commissionReportAPI from "../../../api/commissionReport";
 import Popup from "../../../components/popup";
+import { useAuthStore } from "../../../store/authStore";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -79,7 +82,6 @@ const recordStamp = (start, end) => {
   return generatedStamp(end);
 };
 
-// Flatten all test names from invoices → sorted [name, count][] descending
 const buildTestCounts = (invoices) => {
   const map = {};
   for (const inv of invoices) {
@@ -91,6 +93,47 @@ const buildTestCounts = (invoices) => {
   return Object.entries(map).sort((a, b) => b[1] - a[1]);
 };
 
+// ─── Build doctor-first test summary ─────────────────────────────────────────
+// For each referrer: { name, type, invoiceCount, tests: [name, count][] sorted desc }
+const buildDoctorTestRows = (registered, unregistered) => {
+  const rows = [];
+
+  for (const r of registered) {
+    const tests = buildTestCounts(r.invoices ?? []);
+    if (tests.length === 0) continue;
+    rows.push({
+      key: r.referrerId ?? r.name,
+      name: r.name ?? "Unknown",
+      type: r.type ?? "unknown",
+      isRegistered: true,
+      invoiceCount: r.totalInvoices ?? r.invoices?.length ?? 0,
+      totalCommission: r.totalCommission,
+      tests,
+    });
+  }
+
+  for (const g of unregistered) {
+    const tests = buildTestCounts(g.invoices ?? []);
+    if (tests.length === 0) continue;
+    rows.push({
+      key: String(g.referredBy),
+      name: g.referredBy ?? "অজানা",
+      type: "unregistered",
+      isRegistered: false,
+      invoiceCount: g.totalInvoices ?? g.invoices?.length ?? 0,
+      totalCommission: g.totalCommission,
+      tests,
+    });
+  }
+
+  // sort by total test occurrences desc
+  return rows.sort((a, b) => {
+    const ta = a.tests.reduce((s, [, c]) => s + c, 0);
+    const tb = b.tests.reduce((s, [, c]) => s + c, 0);
+    return tb - ta;
+  });
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TEAL = "#0F6E5C";
@@ -100,10 +143,11 @@ const SEAL_BLUE = "#1E4FA0";
 const SEAL_RED = "#C0312B";
 
 const TYPE_META = {
-  doctor: { label: "ডাক্তার", icon: Stethoscope },
-  agent: { label: "এজেন্ট", icon: UserCircle },
-  institute: { label: "প্রতিষ্ঠান", icon: Building2 },
-  unknown: { label: "অজানা", icon: UserX },
+  doctor: { label: "ডাক্তার", Icon: Stethoscope },
+  agent: { label: "এজেন্ট", Icon: UserCircle },
+  institute: { label: "প্রতিষ্ঠান", Icon: Building2 },
+  unknown: { label: "অজানা", Icon: UserX },
+  unregistered: { label: "ওয়াক-ইন", Icon: UserX },
 };
 
 const EMPTY_DATA = {
@@ -179,10 +223,8 @@ const InvoiceRow = ({ inv, idx }) => (
 
 const TestCountChart = ({ testCounts, invoiceCount, accent }) => {
   const maxCount = testCounts[0]?.[1] ?? 1;
-
   return (
     <div className="mt-2 ml-5 mr-1 border border-[#E3E0D6] rounded-sm overflow-hidden bg-[#FDFCF9]">
-      {/* header */}
       <div
         className="flex items-center justify-between px-4 py-2 border-b border-[#E3E0D6]"
         style={{ borderLeftWidth: "3px", borderLeftColor: accent }}
@@ -192,8 +234,6 @@ const TestCountChart = ({ testCounts, invoiceCount, accent }) => {
           {invoiceCount} টি ইনভয়েস · {testCounts.length} টি টেস্ট
         </span>
       </div>
-
-      {/* rows */}
       {testCounts.map(([testName, count], i) => {
         const barPct = Math.round((count / maxCount) * 100);
         return (
@@ -226,7 +266,7 @@ const TestCountChart = ({ testCounts, invoiceCount, accent }) => {
   );
 };
 
-// ─── Referrer entry (receipt line + breakdown row + expandable invoice strip) ─
+// ─── Referrer entry (ledger view) ─────────────────────────────────────────────
 
 const ReferrerEntry = ({ name, typeLabel, Icon, totalCommission, totalDiscount, invoices, accent }) => {
   const [open, setOpen] = useState(false);
@@ -254,13 +294,12 @@ const ReferrerEntry = ({ name, typeLabel, Icon, totalCommission, totalDiscount, 
             <ChevronDown className="w-3.5 h-3.5 text-[#A8ACA3] shrink-0" />
           )}
         </div>
-
         <div className="flex items-center flex-wrap gap-x-2.5 gap-y-1 mt-1.5 pl-5 font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] font-noto">
           <span>{invoiceCount} টি ইনভয়েস</span>
           <span className="text-[#D8D5CB]">·</span>
           <span>কমিশন ৳{fmt(totalCommission)}</span>
           <span className="text-[#D8D5CB]">·</span>
-          <span style={{ color: OCHRE }}> ডিস্কাউন্ট − ৳{fmt(totalDiscount)}</span>
+          <span style={{ color: OCHRE }}>ডিস্কাউন্ট − ৳{fmt(totalDiscount)}</span>
           <span className="text-[#D8D5CB]">·</span>
           <span className="font-semibold" style={{ color: TEAL }}>
             নেট ৳{fmt(netCommission)}
@@ -268,7 +307,6 @@ const ReferrerEntry = ({ name, typeLabel, Icon, totalCommission, totalDiscount, 
         </div>
       </button>
 
-      {/* Test chart toggle button */}
       {testCounts.length > 0 && (
         <button
           onClick={() => setShowTests((p) => !p)}
@@ -280,12 +318,10 @@ const ReferrerEntry = ({ name, typeLabel, Icon, totalCommission, totalDiscount, 
         </button>
       )}
 
-      {/* Test count chart panel */}
       {showTests && testCounts.length > 0 && (
         <TestCountChart testCounts={testCounts} invoiceCount={invoiceCount} accent={accent} />
       )}
 
-      {/* Invoice list */}
       {open && (
         <div className="mt-2 pl-5 pr-1">
           {invoices.map((inv, i) => (
@@ -303,46 +339,299 @@ const EmptySection = ({ label }) => (
 
 // ─── Seal ─────────────────────────────────────────────────────────────────────
 
-const RoundSeal = ({ dateLabel }) => {
+const RoundSeal = ({ dateLabel }) => (
+  <div className="relative shrink-0 select-none rotate-[-3deg]">
+    <div
+      className="bg-white px-4 py-2.5 rounded-[3px]"
+      style={{ border: `2px solid ${SEAL_BLUE}`, boxShadow: `inset 0 0 0 3px ${SEAL_BLUE}05` }}
+    >
+      <div className="border" style={{ borderColor: `${SEAL_BLUE}55`, padding: "5px 10px" }}>
+        <p
+          className="text-center font-['IBM_Plex_Mono'] font-bold uppercase"
+          style={{ color: SEAL_BLUE, fontSize: "10px", letterSpacing: "2px" }}
+        >
+          LabPilotPro.com
+        </p>
+        <div className="h-px w-full my-1" style={{ backgroundColor: `${SEAL_BLUE}55` }} />
+        <p
+          className="text-center font-['IBM_Plex_Mono'] font-extrabold uppercase whitespace-nowrap"
+          style={{ color: SEAL_RED, fontSize: "11px", letterSpacing: "1px" }}
+        >
+          Commission Report
+        </p>
+        <p
+          className="text-center font-['IBM_Plex_Mono'] font-semibold"
+          style={{ color: SEAL_RED, fontSize: "11px", letterSpacing: "0.5px" }}
+        >
+          {dateLabel}
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
+// ─── View toggle ──────────────────────────────────────────────────────────────
+
+const ViewToggle = ({ view, onChange }) => (
+  <div className="flex items-center gap-1 p-0.5 bg-[#F0EDE5] rounded-sm border border-[#E3E0D6]">
+    <button
+      onClick={() => onChange("ledger")}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] font-['IBM_Plex_Mono'] text-xs uppercase transition-all font-noto ${
+        view === "ledger"
+          ? "bg-white text-[#1C1F1E] shadow-[0_1px_2px_rgba(28,31,30,0.08)]"
+          : "text-[#8A8F89] hover:text-[#1C1F1E]"
+      }`}
+    >
+      <LayoutList className="w-3 h-3" />
+      রেফারার ভিত্তিক
+    </button>
+    <button
+      onClick={() => onChange("testwise")}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] font-['IBM_Plex_Mono'] text-xs uppercase transition-all font-noto ${
+        view === "testwise"
+          ? "bg-white text-[#1C1F1E] shadow-[0_1px_2px_rgba(28,31,30,0.08)]"
+          : "text-[#8A8F89] hover:text-[#1C1F1E]"
+      }`}
+    >
+      <FlaskConical className="w-3 h-3" />
+      টেস্ট ভিত্তিক
+    </button>
+  </div>
+);
+
+// ─── Test-wise: single doctor card ───────────────────────────────────────────
+
+const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, tests }) => {
+  const accent = isRegistered ? TEAL : OCHRE;
+  const meta = TYPE_META[type] ?? TYPE_META.unknown;
+  const Icon = isRegistered ? meta.Icon : UserX;
+  const typeLabel = isRegistered ? meta.label : "ওয়াক-ইন";
+  const totalTests = tests.reduce((s, [, c]) => s + c, 0);
+
   return (
-    <div className="relative shrink-0 select-none rotate-[-3deg]">
-      <div
-        className="bg-white px-4 py-2.5 rounded-[3px]"
-        style={{ border: `2px solid ${SEAL_BLUE}`, boxShadow: `inset 0 0 0 3px ${SEAL_BLUE}05` }}
-      >
-        <div className="border" style={{ borderColor: `${SEAL_BLUE}55`, padding: "5px 10px" }}>
-          <p
-            className="text-center font-['IBM_Plex_Mono'] font-bold uppercase"
-            style={{ color: SEAL_BLUE, fontSize: "10px", letterSpacing: "2px" }}
-          >
-            LabPilotPro.com
-          </p>
-          <div className="h-px w-full my-1" style={{ backgroundColor: `${SEAL_BLUE}55` }} />
-          <p
-            className="text-center font-['IBM_Plex_Mono'] font-extrabold uppercase whitespace-nowrap"
-            style={{ color: SEAL_RED, fontSize: "11px", letterSpacing: "1px" }}
-          >
-            Commission Report
-          </p>
-          <p
-            className="text-center font-['IBM_Plex_Mono'] font-semibold"
-            style={{ color: SEAL_RED, fontSize: "11px", letterSpacing: "0.5px" }}
-          >
-            {dateLabel}
-          </p>
-        </div>
+    <div className="py-4 border-b border-dashed border-[#E3E0D6] last:border-b-0">
+      {/* Doctor name row */}
+      <div className="flex items-center gap-2.5 mb-3">
+        <span className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] tabular-nums w-5 shrink-0">
+          {String(rank).padStart(2, "0")}
+        </span>
+        <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: accent }} />
+        <span className="font-['IBM_Plex_Sans'] text-sm font-semibold text-[#1C1F1E] font-noto">{name}</span>
+        {typeLabel && (
+          <span className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-[#A8ACA3] font-noto">{typeLabel}</span>
+        )}
+        <span className="flex-1 border-b border-dotted border-[#D8D5CB]" />
+        <span className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] tabular-nums shrink-0 font-noto">
+          {invoiceCount} ইনভয়েস · {totalTests} টেস্ট
+        </span>
+      </div>
+
+      {/* Test rows: name — count */}
+      <div className="pl-8 space-y-1.5">
+        {tests.map(([testName, count]) => (
+          <div key={testName} className="flex items-center gap-2">
+            <span className="font-noto text-sm text-[#1C1F1E] leading-tight">{testName}</span>
+            <span className="font-['IBM_Plex_Mono'] text-xs text-[#D8D5CB]">—</span>
+            <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: accent }}>
+              {count}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
 };
 
+// ─── Test-wise view ───────────────────────────────────────────────────────────
+
+const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, referrerCount, lab }) => {
+  const rows = useMemo(() => buildDoctorTestRows(registered, unregistered), [registered, unregistered]);
+  const totalTestOccurrences = rows.reduce((s, r) => s + r.tests.reduce((ss, [, c]) => ss + c, 0), 0);
+
+  return (
+    <div
+      id="commission-printable"
+      className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
+    >
+      {/* Letterhead — dynamic from auth store */}
+      <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5]">
+        <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
+          {lab?.name ?? "LabPilot Pro"}
+        </h3>
+        {lab?.contact?.address && (
+          <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{lab.contact.address}</p>
+        )}
+        {lab?.contact?.primary && (
+          <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{lab.contact.primary}</p>
+        )}
+      </div>
+
+      {/* Header band */}
+      <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
+        <div>
+          <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">
+            টেস্ট-ভিত্তিক রিপোর্ট
+          </p>
+          <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
+          <p className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] mt-1.5 flex items-center gap-1.5 font-noto">
+            <FlaskConical className="w-3 h-3" />
+            {rows.length} জন রেফারার · {totalTestOccurrences} টেস্ট · {fmt(d.totals.totalInvoices)} ইনভয়েস
+          </p>
+        </div>
+        <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} />
+      </div>
+
+      {/* Summary strip */}
+      <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
+        <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
+          <LedgerCell
+            icon={FlaskConical}
+            label="মোট টেস্ট (বার)"
+            value={totalTestOccurrences}
+            accent={TEAL}
+            sub={`${rows.length} জন রেফারারের মাধ্যমে`}
+          />
+          <LedgerCell
+            icon={ReceiptText}
+            label="মোট ইনভয়েস"
+            value={fmt(d.totals.totalInvoices)}
+            accent={SEAL_BLUE}
+            sub={`কমিশন ৳${fmt(d.totals.totalCommission)}`}
+          />
+        </div>
+      </div>
+
+      {/* Doctor cards */}
+      <div className="px-6 sm:px-8 py-5">
+        {rows.length > 0 ? (
+          rows.map((r, i) => (
+            <DoctorTestCard
+              key={r.key}
+              rank={i + 1}
+              name={r.name}
+              type={r.type}
+              isRegistered={r.isRegistered}
+              invoiceCount={r.invoiceCount}
+              tests={r.tests}
+            />
+          ))
+        ) : (
+          <EmptySection label="এই সময়সীমায় কোনো টেস্টের তথ্য নেই" />
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Ledger view (original) ───────────────────────────────────────────────────
+
+const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab }) => (
+  <div
+    id="commission-printable"
+    className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
+  >
+    {/* Letterhead */}
+    <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5]">
+      <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
+        {lab?.name ?? "LabPilot Pro"}
+      </h3>
+      {lab?.contact?.address && (
+        <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{lab.contact.address}</p>
+      )}
+      {lab?.contact?.primary && (
+        <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{lab.contact.primary}</p>
+      )}
+    </div>
+
+    {/* Header band */}
+    <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
+      <div>
+        <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">কমিশন রিপোর্ট</p>
+        <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
+        <p className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] mt-1.5 flex items-center gap-1.5 font-noto">
+          <ReceiptText className="w-3 h-3" />
+          {referrerCount} জন রেফারার · {fmt(d.totals.totalInvoices)} টি ইনভয়েস
+        </p>
+      </div>
+      <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} />
+    </div>
+
+    {/* Summary */}
+    <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
+      <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
+        <LedgerCell
+          icon={BadgeDollarSign}
+          label="কমিশন প্রদেয়"
+          value={`৳${fmt(d.totals.totalCommission)}`}
+          accent={TEAL}
+          sub={`${fmt(d.totals.totalInvoices)} টি ইনভয়েস থেকে`}
+        />
+        <LedgerCell
+          icon={Tag}
+          label="প্রদত ডিস্কাউন্ট"
+          value={`৳${fmt(d.totals.totalDiscount)}`}
+          accent={RUST}
+          sub={`${fmt(referrerCount)} জন রেফারারের মধ্যে`}
+        />
+      </div>
+    </div>
+
+    {/* Registered */}
+    <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
+      <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] mb-1 font-noto">নিবন্ধিত রেফারার</p>
+      {d.registered.length > 0 ? (
+        d.registered.map((r) => {
+          const meta = TYPE_META[r.type] ?? TYPE_META.unknown;
+          return (
+            <ReferrerEntry
+              key={r.referrerId}
+              name={r.name}
+              typeLabel={meta.label}
+              Icon={meta.Icon}
+              totalCommission={r.totalCommission}
+              totalDiscount={r.totalDiscount}
+              invoices={r.invoices}
+              accent={TEAL}
+            />
+          );
+        })
+      ) : (
+        <EmptySection label="এই সময়সীমায় কোনো নিবন্ধিত রেফারার নেই" />
+      )}
+    </div>
+
+    {/* Unregistered */}
+    <div className="px-6 sm:px-8 py-5">
+      <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] mb-1 font-noto">অনিবন্ধিত / ওয়াক-ইন</p>
+      {d.unregistered.length > 0 ? (
+        d.unregistered.map((g) => (
+          <ReferrerEntry
+            key={String(g.referredBy)}
+            name={g.referredBy}
+            typeLabel="ওয়াক-ইন"
+            Icon={UserX}
+            totalCommission={g.totalCommission}
+            totalDiscount={g.totalDiscount}
+            invoices={g.invoices}
+            accent={OCHRE}
+          />
+        ))
+      ) : (
+        <EmptySection label="এই সময়সীমায় কোনো ওয়াক-ইন কমিশন নেই" />
+      )}
+    </div>
+  </div>
+);
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const CommissionReport = () => {
+  const lab = useAuthStore((s) => s.lab);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
   const [timeRange, setTimeRange] = useState(null);
+  const [view, setView] = useState("ledger"); // "ledger" | "testwise"
 
   useEffect(() => {
     const range = todayRange();
@@ -387,6 +676,7 @@ const CommissionReport = () => {
       `}</style>
 
       <div className="max-w-2xl mx-auto">
+        {/* Top nav */}
         <div className="flex items-center justify-between mb-5 no-print">
           <div>
             <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1 font-noto">ল্যাব অপারেশন</p>
@@ -414,116 +704,31 @@ const CommissionReport = () => {
           </div>
         </div>
 
-        <div className="mb-5 no-print">
+        {/* TimeFrame — full width, its own row */}
+        <div className="mb-3 no-print">
           <TimeFrame onFetchData={handleFetchData} />
         </div>
 
+        {/* View toggle — below TimeFrame, left-aligned, its own row */}
+        <div className="mb-5 no-print">
+          <ViewToggle view={view} onChange={setView} />
+        </div>
+
+        {/* Content */}
         {loading ? (
           <SkeletonReceipt />
+        ) : view === "ledger" ? (
+          <LedgerView d={d} headingLabel={headingLabel} timeRange={timeRange} referrerCount={referrerCount} lab={lab} />
         ) : (
-          <div
-            id="commission-printable"
-            className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
-          >
-            {/* Letterhead */}
-            <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5]">
-              <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
-                Azizul Haque Diagonostic Center
-              </h3>
-              <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">
-                Hospital Road, Bhaluka, Mymensingh
-              </p>
-            </div>
-
-            {/* Header band */}
-            <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
-              <div>
-                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">
-                  কমিশন রিপোর্ট
-                </p>
-                <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">
-                  {headingLabel}
-                </h2>
-                <p className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] mt-1.5 flex items-center gap-1.5 font-noto">
-                  <ReceiptText className="w-3 h-3" />
-                  {referrerCount} জন রেফারার · {fmt(d.totals.totalInvoices)} টি ইনভয়েস
-                </p>
-              </div>
-
-              <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} />
-            </div>
-
-            {/* Single summary split */}
-            <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
-              <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
-                <LedgerCell
-                  icon={BadgeDollarSign}
-                  label="কমিশন প্রদেয়"
-                  value={`৳${fmt(d.totals.totalCommission)}`}
-                  accent={TEAL}
-                  sub={`${fmt(d.totals.totalInvoices)} টি ইনভয়েস থেকে`}
-                />
-                <LedgerCell
-                  icon={Tag}
-                  label="প্রদত ডিস্কাউন্ট"
-                  value={`৳${fmt(d.totals.totalDiscount)}`}
-                  accent={RUST}
-                  sub={`${fmt(referrerCount)} জন রেফারারের মধ্যে`}
-                />
-              </div>
-            </div>
-
-            {/* Registered referrers */}
-            <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
-              <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] mb-1 font-noto">নিবন্ধিত রেফারার</p>
-              {d.registered.length > 0 ? (
-                <div>
-                  {d.registered.map((r) => {
-                    const meta = TYPE_META[r.type] ?? TYPE_META.unknown;
-                    return (
-                      <ReferrerEntry
-                        key={r.referrerId}
-                        name={r.name}
-                        typeLabel={meta.label}
-                        Icon={meta.icon}
-                        totalCommission={r.totalCommission}
-                        totalDiscount={r.totalDiscount}
-                        invoices={r.invoices}
-                        accent={TEAL}
-                      />
-                    );
-                  })}
-                </div>
-              ) : (
-                <EmptySection label="এই সময়সীমায় কোনো নিবন্ধিত রেফারার নেই" />
-              )}
-            </div>
-
-            {/* Unregistered / walk-in */}
-            <div className="px-6 sm:px-8 py-5">
-              <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] mb-1 font-noto">
-                অনিবন্ধিত / ওয়াক-ইন
-              </p>
-              {d.unregistered.length > 0 ? (
-                <div>
-                  {d.unregistered.map((g) => (
-                    <ReferrerEntry
-                      key={String(g.referredBy)}
-                      name={g.referredBy}
-                      typeLabel="ওয়াক-ইন"
-                      Icon={UserX}
-                      totalCommission={g.totalCommission}
-                      totalDiscount={g.totalDiscount}
-                      invoices={g.invoices}
-                      accent={OCHRE}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <EmptySection label="এই সময়সীমায় কোনো ওয়াক-ইন কমিশন নেই" />
-              )}
-            </div>
-          </div>
+          <TestWiseView
+            registered={d.registered}
+            unregistered={d.unregistered}
+            headingLabel={headingLabel}
+            timeRange={timeRange}
+            d={d}
+            referrerCount={referrerCount}
+            lab={lab}
+          />
         )}
 
         <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-4 pb-6 no-print font-noto">

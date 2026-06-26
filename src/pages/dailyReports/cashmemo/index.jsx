@@ -1,9 +1,11 @@
+// @babel-plugin-react-compiler
 import { useState, useEffect } from "react";
 import { ArrowLeft, Printer, Trash2, PackageCheck, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
 import cashmemoService from "../../../api/cashmemo";
 import Popup from "../../../components/popup";
+import { useAuthStore } from "../../../store/authStore";
 
 const fmt = (n) => (typeof n === "number" ? n.toLocaleString("en-IN") : "0");
 
@@ -33,12 +35,19 @@ const buildHeadingLabel = (start, end) => {
 
 const todayRange = () => {
   const now = new Date();
-  return { start: new Date(now).setHours(0, 0, 0, 0), end: new Date(now).setHours(23, 59, 59, 999) };
+  return {
+    start: new Date(now).setHours(0, 0, 0, 0),
+    end: new Date(now).setHours(23, 59, 59, 999),
+  };
 };
 
 const generatedStamp = (date) =>
   new Date(date ?? Date.now())
-    .toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" })
+    .toLocaleDateString("en-US", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })
     .toUpperCase();
 
 const isFullMonthRange = (start, end) => {
@@ -121,7 +130,10 @@ const RoundSeal = ({ dateLabel }) => {
     <div className="relative shrink-0 select-none rotate-[-3deg]">
       <div
         className="bg-white px-4 py-2.5 rounded-[3px]"
-        style={{ border: `2px solid ${SEAL_BLUE}`, boxShadow: `inset 0 0 0 3px ${SEAL_BLUE}05` }}
+        style={{
+          border: `2px solid ${SEAL_BLUE}`,
+          boxShadow: `inset 0 0 0 3px ${SEAL_BLUE}05`,
+        }}
       >
         <div className="border" style={{ borderColor: `${SEAL_BLUE}55`, padding: "5px 10px" }}>
           <p
@@ -154,6 +166,8 @@ const OCHRE = "#B5772A";
 const RUST = "#B23A2E";
 
 const CashMemo = () => {
+  const lab = useAuthStore((s) => s.lab);
+
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
@@ -168,10 +182,16 @@ const CashMemo = () => {
   const fetchSummary = async (range) => {
     try {
       setLoading(true);
-      const res = await cashmemoService.getSummary({ startDate: range.start, endDate: range.end });
+      const res = await cashmemoService.getSummary({
+        startDate: range.start,
+        endDate: range.end,
+      });
       setSummary(res.data);
     } catch {
-      setPopup({ type: "error", message: "ডেটা লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।" });
+      setPopup({
+        type: "error",
+        message: "ডেটা লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।",
+      });
     } finally {
       setLoading(false);
     }
@@ -202,6 +222,7 @@ const CashMemo = () => {
       `}</style>
 
       <div className="max-w-2xl mx-auto">
+        {/* Page header */}
         <div className="flex items-center justify-between mb-5 no-print">
           <div>
             <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1 font-noto">ল্যাব অপারেশন</p>
@@ -227,6 +248,7 @@ const CashMemo = () => {
           </div>
         </div>
 
+        {/* TimeFrame picker */}
         <div className="mb-5 no-print">
           <TimeFrame onFetchData={handleFetchData} />
         </div>
@@ -238,14 +260,17 @@ const CashMemo = () => {
             id="cashmemo-printable"
             className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
           >
-            {/* Letterhead */}
+            {/* Letterhead — dynamic from auth store */}
             <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5]">
               <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
-                Azizul Haque Diagonostic Center
+                {lab?.name ?? "LabPilot Pro"}
               </h3>
-              <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">
-                Hospital Road, Bhaluka, Mymensingh
-              </p>
+              {lab?.contact?.address && (
+                <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{lab.contact.address}</p>
+              )}
+              {lab?.contact?.primary && (
+                <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{lab.contact.primary}</p>
+              )}
             </div>
 
             {/* Header band */}
@@ -271,23 +296,33 @@ const CashMemo = () => {
                 <ReceiptLine label="রেফারার ডিস্কাউন্ট" value={`− ৳${fmt(d.referrerDiscount)}`} tone={OCHRE} />
               </div>
 
-              {/* Gross counter subtotal */}
-              <div className="mt-3 pt-3 border-t-2 border-[#1C1F1E]/10">
-                <ReceiptLine label="সকল ডিসকাউন্ট বাদে আয় (নিট টোটাল)" value={`৳${fmt(grossCounterAmount)}`} bold />
+              {/* নিট টোটাল */}
+              <div className="mt-4 border border-[#E3E0D6] rounded-sm overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-[#F5F4EF] border-l-4 border-[#0F6E5C]">
+                  <p className="text-sm font-semibold text-[#1C1F1E] font-noto">সকল ডিসকাউন্ট বাদে আয় (নিট টোটাল)</p>
+                  <p className="font-['IBM_Plex_Mono'] text-lg font-bold text-[#0F6E5C] tabular-nums">
+                    ৳{fmt(grossCounterAmount)}
+                  </p>
+                </div>
               </div>
 
-              {/* Collected / Due split */}
+              {/* নগদ / বাকি */}
               <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm my-4">
                 <LedgerCell icon={PackageCheck} label="নগদ" value={`৳${fmt(d.totalPaid)}`} accent={TEAL} />
                 <LedgerCell icon={Clock} label="বাকি" value={`৳${fmt(d.totalDue)}`} accent={RUST} />
               </div>
 
-              {/* Commission */}
-              <div className="pt-1">
-                <ReceiptLine label="মোট কমিশন" value={`− ৳${fmt(d.referrerCommission)}`} tone={OCHRE} bold />
+              {/* মোট কমিশন */}
+              <div className="border border-[#E3D9C6] rounded-sm overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-[#FBF7EF] border-l-4 border-[#B5772A]">
+                  <p className="text-sm font-semibold text-[#1C1F1E] font-noto">মোট কমিশন</p>
+                  <p className="font-['IBM_Plex_Mono'] text-lg font-bold text-[#B5772A] tabular-nums">
+                    − ৳{fmt(d.referrerCommission)}
+                  </p>
+                </div>
               </div>
 
-              {/* Formula */}
+              {/* Divider label */}
               <div className="flex items-center gap-2 my-4">
                 <div className="flex-1 h-px bg-[#E3E0D6]" />
                 <span className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] bg-[#F5F4EF] border border-[#E3E0D6] rounded-sm px-3 py-1 whitespace-nowrap uppercase font-noto">
@@ -296,7 +331,7 @@ const CashMemo = () => {
                 <div className="flex-1 h-px bg-[#E3E0D6]" />
               </div>
 
-              {/* Net Earning stamp */}
+              {/* নিট আয় stamp */}
               <div className="flex justify-center py-3">
                 <div className="relative rotate-[-1.5deg] border-2 border-[#0F6E5C] rounded-md px-10 py-5 text-center">
                   <div className="absolute inset-[3px] border border-[#0F6E5C]/40 rounded-sm pointer-events-none" />

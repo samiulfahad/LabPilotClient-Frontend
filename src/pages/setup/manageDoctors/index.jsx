@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import doctorService from "../../../api/doctor";
-import departmentService from "../../../api/department";
+import staticDataAPI from "../../../api/staticData";
 import Popup from "../../../components/popup";
 
 // ── Palette ────────────────────────────────────────────────────────────────────
@@ -801,7 +801,7 @@ const ManageDoctors = () => {
   const desigLabelMap = Object.fromEntries(designations.map((d) => [d.value, d.label]));
 
   useEffect(() => {
-    Promise.all([departmentService.getAll(), departmentService.getDesignations()])
+    Promise.all([staticDataAPI.getDepartments(), staticDataAPI.getDesignations()])
       .then(([dR, dsR]) => {
         setDepartments(dR.data.departments ?? []);
         setDesignations(dsR.data.designations ?? []);

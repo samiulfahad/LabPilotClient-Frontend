@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
 import salesReportAPI from "../../../api/salesReport";
 import Popup from "../../../components/popup";
+import { useAuthStore } from "../../../store/authStore";
 
 const fmt = (n) => (typeof n === "number" ? n.toLocaleString("en-IN") : "0");
 
@@ -143,6 +144,7 @@ const RoundSeal = ({ dateLabel }) => {
 };
 
 const SalesReport = () => {
+  const lab = useAuthStore((s) => s.lab);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
@@ -232,14 +234,17 @@ const SalesReport = () => {
             id="salesreport-printable"
             className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
           >
-            {/* Letterhead */}
+            {/* Letterhead — dynamic from auth store */}
             <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5]">
               <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
-                Azizul Haque Diagonostic Center
+                {lab?.name ?? "LabPilot Pro"}
               </h3>
-              <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">
-                Hospital Road, Bhaluka, Mymensingh
-              </p>
+              {lab?.contact?.address && (
+                <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{lab.contact.address}</p>
+              )}
+              {lab?.contact?.primary && (
+                <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{lab.contact.primary}</p>
+              )}
             </div>
 
             {/* Header band */}

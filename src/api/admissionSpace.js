@@ -1,9 +1,9 @@
 import api from "./baseAPI";
-import departmentService from "./department"; // ← add
+import staticDataAPI from "./staticData"; // ← add
 
 const spaceService = {
-  /** Reuse the canonical department list from departmentService */
-  getDepartments: () => departmentService.getAll(), // ← add
+  /** Reuse the canonical department list from staticDataAPI */
+  getDepartments: () => staticDataAPI.getDepartments(), // ← add
 
   getAll: (params) => api.get("/spaces", { params }),
   getById: (id) => api.get(`/space/${id}`),

@@ -155,7 +155,7 @@ const Home = () => {
 
   const labName = lab?.name ?? "—";
   const labId = lab?.labKey ?? "—";
-  const labAddress = [lab?.contact?.address, lab?.contact?.district].filter(Boolean).join(", ") || "—";
+  const labAddress = lab?.contact?.address ?? "—";
   const labPhone = lab?.contact?.primary ?? "—";
 
   const userName = user?.name ?? "ব্যবহারকারী";

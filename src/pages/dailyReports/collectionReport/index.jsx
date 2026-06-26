@@ -306,6 +306,7 @@ const StaffEntry = ({ member: m, rank }) => {
 
 const CollectionReport = () => {
   const user = useAuthStore((state) => state.user);
+  const lab = useAuthStore((state) => state.lab);
   const isStaff = user?.role === "staff";
 
   const [data, setData] = useState(null);
@@ -394,14 +395,17 @@ const CollectionReport = () => {
             id="transactions-printable"
             className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
           >
-            {/* Letterhead */}
+            {/* Letterhead — dynamic from auth store */}
             <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5]">
               <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
-                Azizul Haque Diagonostic Center
+                {lab?.name ?? "LabPilot Pro"}
               </h3>
-              <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">
-                Hospital Road, Bhaluka, Mymensingh
-              </p>
+              {lab?.contact?.address && (
+                <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{lab.contact.address}</p>
+              )}
+              {lab?.contact?.primary && (
+                <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{lab.contact.primary}</p>
+              )}
             </div>
 
             {/* Header band */}

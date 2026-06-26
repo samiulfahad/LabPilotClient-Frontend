@@ -543,7 +543,7 @@ const PrintInvoice = () => {
 
   const labInfo = {
     name: rawLab?.name ?? "LabPilot Pro Diagnostics",
-    address: [rawLab?.contact?.address, rawLab?.contact?.district].filter(Boolean).join(", ") || "N/A",
+    address: rawLab?.contact?.address ?? "N/A",
     phone: rawLab?.contact?.primary ?? "N/A",
     email: rawLab?.contact?.publicEmail ?? "N/A",
   };

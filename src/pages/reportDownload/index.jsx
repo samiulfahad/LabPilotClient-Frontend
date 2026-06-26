@@ -46,7 +46,7 @@ function buildLabInfo(storeLab) {
   return {
     name: storeLab.name ?? "Lab",
     tagline: storeLab.tagline ?? "",
-    address: [storeLab.contact?.address, storeLab.contact?.district].filter(Boolean).join(", "),
+    address: storeLab.contact?.address ?? "",
     email: storeLab.contact?.publicEmail ?? "",
     phone: storeLab.contact?.primary ?? "",
     regNo: storeLab.registrationNumber ? String(storeLab.registrationNumber) : "",
