@@ -1,3 +1,4 @@
+// indoorPatient.js
 import api from "./baseAPI";
 
 const indoorPatientService = {
@@ -10,8 +11,8 @@ const indoorPatientService = {
   transferWard: (id, data) => api.patch(`/indoor-patient/${id}/transfer-ward`, data),
   changeDoctor: (id, data) => api.patch(`/indoor-patient/${id}/change-doctor`, data),
   addExpense: (id, data) => api.post(`/indoor-patient/${id}/expense`, data),
-  addBedChargeAdjustment: (id, data) => api.post(`/indoor-patient/${id}/bed-charge-adjustment`, data),
   addPayment: (id, data) => api.post(`/indoor-patient/${id}/payment`, data),
+  addDiscount: (id, data) => api.post(`/indoor-patient/${id}/discount`, data),
   release: (id, data) => api.patch(`/indoor-patient/${id}/release`, data),
 };
 

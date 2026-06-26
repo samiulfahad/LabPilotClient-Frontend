@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import indoorPatientService from "../../api/indoorPatient";
-import BedChargeSection, { calcBedAccrual } from "./BedChargeSection";
+import BillingSummary, { getBillingSummary } from "./BillingSummary";
 import {
   BLOOD_GROUPS,
   Badge,
@@ -108,55 +108,6 @@ const TABS = [
   { id: "overview", label: "Overview" },
   { id: "billing", label: "Billing" },
 ];
-
-// ─── Bill breakdown ───────────────────────────────────────────────────────────
-
-function calcBillBreakdown(patient) {
-  const expenses = patient.expenses ?? [];
-  const testBill = expenses.filter((e) => e.type === "test").reduce((s, e) => s + (e.total ?? e.price * e.quantity), 0);
-  const medicineBill = expenses
-    .filter((e) => e.type === "medicine")
-    .reduce((s, e) => s + (e.total ?? e.price * e.quantity), 0);
-  const otherBill = expenses
-    .filter((e) => ["product", "service", "other"].includes(e.type))
-    .reduce((s, e) => s + (e.total ?? e.price * e.quantity), 0);
-  const bedBill = patient.dealType === "regular" ? calcBedAccrual(patient).total : 0;
-  return { testBill, medicineBill, otherBill, bedBill, total: testBill + medicineBill + otherBill + bedBill };
-}
-
-function getBillingSummary(patient) {
-  const { total: breakdownTotal } = calcBillBreakdown(patient);
-  const paid = totalPayments(patient.payments);
-  const total = patient.dealType === "package" ? (patient.packageDeal?.totalAmount ?? 0) : breakdownTotal;
-  return { total, paid, due: total - paid };
-}
-
-// ─── Bill Summary Strip ───────────────────────────────────────────────────────
-
-function BillSummaryStrip({ patient }) {
-  const { testBill, medicineBill, otherBill, bedBill } = calcBillBreakdown(patient);
-  const items = [
-    { label: "Test Bill", value: testBill, icon: "🧪", color: "text-violet-700" },
-    { label: "Medicine Bill", value: medicineBill, icon: "💊", color: "text-blue-700" },
-    { label: "Other Bill", value: otherBill, icon: "🧾", color: "text-slate-700" },
-    { label: "Bed Charge", value: bedBill, icon: "🛏️", color: "text-indigo-700" },
-  ];
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-      <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-100">
-        {items.map(({ label, value, icon, color }) => (
-          <div key={label} className="px-5 py-4">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <span className="text-sm">{icon}</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</span>
-            </div>
-            <p className={`text-lg font-black ${color}`}>{fmt.currency(value)}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ─── Patient Detail Page ──────────────────────────────────────────────────────
 
@@ -336,9 +287,7 @@ const PatientDetails = () => {
 
   const isAdmitted = patient.status === "admitted";
   const { total, paid, due } = getBillingSummary(patient);
-  const { testBill, medicineBill, otherBill, bedBill } = calcBillBreakdown(patient);
   const isPackageFullyPaid = patient.dealType === "package" && due <= 0;
-  const extraPaid = patient.dealType === "package" ? Math.max(0, paid - total) : 0;
   const collectDefaultAmount = due > 0 ? String(Math.ceil(due)) : "";
   const txSelectedSpace = spaces.find((s) => s._id === txForm.spaceId) ?? null;
 
@@ -621,84 +570,14 @@ const PatientDetails = () => {
               </div>
             </SectionCard>
 
-            {patient.dealType === "package" && patient.packageDeal && (
-              <SectionCard title="Package Deal" icon="📦">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-slate-600">{patient.packageDeal.description}</div>
-                  <div className="text-xl font-bold text-slate-800">
-                    {fmt.currency(patient.packageDeal.totalAmount)}
-                  </div>
-                </div>
-              </SectionCard>
-            )}
-
-            {/* Billing Summary */}
-            <SectionCard title="Billing Summary" icon="💰">
-              <div className="space-y-3">
-                {patient.dealType === "regular" && (
-                  <div className="space-y-1.5 text-sm pb-3 border-b border-slate-100">
-                    {[
-                      ["Test bill", testBill],
-                      ["Medicine bill", medicineBill],
-                      ["Other bill", otherBill],
-                      ["Bed charges (accrued)", bedBill],
-                    ].map(([label, value]) => (
-                      <div key={label} className="flex justify-between text-slate-500">
-                        <span>{label}</span>
-                        <span>{fmt.currency(value)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {patient.dealType === "package" && (
-                  <div className="space-y-1.5 text-sm pb-3 border-b border-slate-100">
-                    <div className="flex justify-between text-slate-500">
-                      <span>Package: {patient.packageDeal?.description}</span>
-                      <span>{fmt.currency(patient.packageDeal?.totalAmount ?? 0)}</span>
-                    </div>
-                    {extraPaid > 0 && (
-                      <div className="flex justify-between text-slate-500">
-                        <span>Extra collected</span>
-                        <span className="text-amber-600">+{fmt.currency(extraPaid)}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: "Total Bill", value: fmt.currency(total), color: "text-slate-800" },
-                    { label: "Paid", value: fmt.currency(paid), color: "text-emerald-700" },
-                    {
-                      label: isPackageFullyPaid ? "Status" : "Due",
-                      value: isPackageFullyPaid ? "Fully Paid ✅" : fmt.currency(Math.max(0, due)),
-                      color: isPackageFullyPaid ? "text-emerald-600" : due > 0 ? "text-red-600" : "text-emerald-600",
-                    },
-                  ].map(({ label, value, color }) => (
-                    <div key={label} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                      <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">{label}</div>
-                      <div className={`text-lg font-bold ${color}`}>{value}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {isAdmitted && (
-                  <div className="flex gap-2 pt-1">
-                    {due > 0 && (
-                      <Btn variant="success" size="sm" className="flex-1" onClick={() => setShowCollectPayment(true)}>
-                        💳 Collect {fmt.currency(due)}
-                      </Btn>
-                    )}
-                    {isPackageFullyPaid && (
-                      <Btn variant="secondary" size="sm" className="flex-1" onClick={() => setShowExtraPayment(true)}>
-                        ➕ Collect Extra
-                      </Btn>
-                    )}
-                  </div>
-                )}
-              </div>
-            </SectionCard>
+            {/* Billing Summary in Overview */}
+            <BillingSummary
+              patient={patient}
+              onCollect={() => setShowCollectPayment(true)}
+              onExtra={() => setShowExtraPayment(true)}
+              patientId={patientId} 
+              onRefresh={fetchPatient} 
+            />
 
             {/* Ward Transfer History */}
             <SectionCard title="Ward Transfer History" icon="🔄">
@@ -755,74 +634,11 @@ const PatientDetails = () => {
         {/* ── Billing ── */}
         {activeTab === "billing" && (
           <div className="space-y-4">
-            {patient.dealType === "regular" && (
-              <>
-                <BillSummaryStrip patient={patient} />
-                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-                  {[
-                    { label: "Total Bill", value: fmt.currency(total), color: "text-slate-800" },
-                    { label: "Collected", value: fmt.currency(paid), color: "text-emerald-700" },
-                    {
-                      label: "Due",
-                      value: fmt.currency(Math.max(0, due)),
-                      color: due > 0 ? "text-red-600" : "text-emerald-700",
-                    },
-                  ].map(({ label, value, color }, i, arr) => (
-                    <div
-                      key={label}
-                      className={`flex items-center justify-between px-5 py-3 ${i < arr.length - 1 ? "border-b border-slate-100" : ""}`}
-                    >
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{label}</span>
-                      <span className={`text-base font-black ${color}`}>{value}</span>
-                    </div>
-                  ))}
-                </div>
-                <BedChargeSection patient={patient} onSuccess={fetchPatient} />
-              </>
-            )}
-
-            {patient.dealType === "package" && (
-              <SectionCard title="Package Deal" icon="📦">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-slate-600">{patient.packageDeal?.description}</div>
-                    <div className="text-xl font-bold text-slate-800">
-                      {fmt.currency(patient.packageDeal?.totalAmount ?? 0)}
-                    </div>
-                  </div>
-                  {isPackageFullyPaid ? (
-                    <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200">
-                      <span className="text-lg">✅</span>
-                      <div className="flex-1">
-                        <p className="text-sm font-bold text-emerald-700">Package Fully Paid</p>
-                        <p className="text-xs text-emerald-600">
-                          {fmt.currency(paid)} collected{extraPaid > 0 && ` · ${fmt.currency(extraPaid)} extra`}
-                        </p>
-                      </div>
-                      {isAdmitted && (
-                        <Btn variant="secondary" size="sm" onClick={() => setShowExtraPayment(true)}>
-                          ➕ Collect Extra
-                        </Btn>
-                      )}
-                    </div>
-                  ) : (
-                    due > 0 &&
-                    isAdmitted && (
-                      <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-200">
-                        <span className="text-lg">⚠️</span>
-                        <div className="flex-1">
-                          <p className="text-sm font-bold text-red-700">{fmt.currency(due)} remaining</p>
-                          <p className="text-xs text-red-500">Out of {fmt.currency(total)} package amount</p>
-                        </div>
-                        <Btn variant="success" size="sm" onClick={() => setShowCollectPayment(true)}>
-                          💳 Collect
-                        </Btn>
-                      </div>
-                    )
-                  )}
-                </div>
-              </SectionCard>
-            )}
+            <BillingSummary
+              patient={patient}
+              onCollect={() => setShowCollectPayment(true)}
+              onExtra={() => setShowExtraPayment(true)}
+            />
 
             <SectionCard title={`Expense Log (${patient.expenses?.length ?? 0})`} icon="🧾">
               {!patient.expenses?.length ? (
