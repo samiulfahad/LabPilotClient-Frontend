@@ -1,6 +1,6 @@
 // @babel-plugin-react-compiler
 import { useState, useEffect } from "react";
-import { ArrowLeft, Printer, Trash2, PackageCheck, Clock } from "lucide-react";
+import { ArrowLeft, Printer, Trash2, PackageCheck, Clock, FlaskConical, TrendingDown, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
 import cashmemoService from "../../../api/cashmemo";
@@ -43,11 +43,7 @@ const todayRange = () => {
 
 const generatedStamp = (date) =>
   new Date(date ?? Date.now())
-    .toLocaleDateString("en-US", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    })
+    .toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" })
     .toUpperCase();
 
 const isFullMonthRange = (start, end) => {
@@ -71,6 +67,8 @@ const recordStamp = (start, end) => {
   return generatedStamp(end);
 };
 
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
 const SkeletonReceipt = () => (
   <div className="bg-white border border-[#E3E0D6] rounded-lg overflow-hidden animate-pulse">
     <div className="h-[3px] bg-[#E3E0D6]" />
@@ -91,6 +89,8 @@ const SkeletonReceipt = () => (
     </div>
   </div>
 );
+
+// ─── Shared primitives ────────────────────────────────────────────────────────
 
 const ReceiptLine = ({ label, value, tone = "#1C1F1E", icon: Icon, bold = false }) => (
   <div className="flex items-baseline gap-3 py-2.5">
@@ -122,36 +122,71 @@ const LedgerCell = ({ icon: Icon, label, value, accent, sub }) => (
   </div>
 );
 
+const NetStamp = ({ amount, label = "নিট আয়", accent = "#0F6E5C" }) => (
+  <div className="flex justify-center py-3">
+    <div
+      className="relative rotate-[-1.5deg] rounded-md px-10 py-5 text-center"
+      style={{ border: `2px solid ${accent}` }}
+    >
+      <div
+        className="absolute inset-[3px] rounded-sm pointer-events-none"
+        style={{ border: `1px solid ${accent}40` }}
+      />
+      <p className="font-['IBM_Plex_Mono'] text-xs uppercase mb-1 font-noto" style={{ color: accent }}>
+        {label}
+      </p>
+      <p className="font-['IBM_Plex_Mono'] text-4xl font-bold tabular-nums" style={{ color: accent }}>
+        ৳{fmt(amount)}
+      </p>
+    </div>
+  </div>
+);
+
+const SectionDivider = ({ label }) => (
+  <div className="flex items-center gap-2 my-4">
+    <div className="flex-1 h-px bg-[#E3E0D6]" />
+    <span className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] bg-[#F5F4EF] border border-[#E3E0D6] rounded-sm px-3 py-1 whitespace-nowrap uppercase font-noto">
+      {label}
+    </span>
+    <div className="flex-1 h-px bg-[#E3E0D6]" />
+  </div>
+);
+
+// ─── Stamp ────────────────────────────────────────────────────────────────────
+
 const SEAL_BLUE = "#1E4FA0";
 const SEAL_RED = "#C0312B";
+const SEAL_INDIGO = "#3730A3";
 
-const RoundSeal = ({ dateLabel }) => {
+const RoundSeal = ({ dateLabel, variant = "outdoor" }) => {
+  const borderColor = variant === "indoor" ? SEAL_INDIGO : SEAL_BLUE;
+  const titleColor = variant === "indoor" ? SEAL_INDIGO : SEAL_BLUE;
+  const subtitleColor = variant === "indoor" ? "#6D28D9" : SEAL_RED;
+  const subtitle = variant === "indoor" ? "IPD Memo" : "Cashmemo";
+
   return (
     <div className="relative shrink-0 select-none rotate-[-3deg]">
       <div
         className="bg-white px-4 py-2.5 rounded-[3px]"
-        style={{
-          border: `2px solid ${SEAL_BLUE}`,
-          boxShadow: `inset 0 0 0 3px ${SEAL_BLUE}05`,
-        }}
+        style={{ border: `2px solid ${borderColor}`, boxShadow: `inset 0 0 0 3px ${borderColor}05` }}
       >
-        <div className="border" style={{ borderColor: `${SEAL_BLUE}55`, padding: "5px 10px" }}>
+        <div className="border" style={{ borderColor: `${borderColor}55`, padding: "5px 10px" }}>
           <p
             className="text-center font-['IBM_Plex_Mono'] font-bold uppercase"
-            style={{ color: SEAL_BLUE, fontSize: "10px", letterSpacing: "2px" }}
+            style={{ color: titleColor, fontSize: "10px", letterSpacing: "2px" }}
           >
             LabPilotPro.com
           </p>
-          <div className="h-px w-full my-1" style={{ backgroundColor: `${SEAL_BLUE}55` }} />
+          <div className="h-px w-full my-1" style={{ backgroundColor: `${borderColor}55` }} />
           <p
             className="text-center font-['IBM_Plex_Mono'] font-extrabold uppercase"
-            style={{ color: SEAL_RED, fontSize: "15px", letterSpacing: "1.5px" }}
+            style={{ color: subtitleColor, fontSize: "15px", letterSpacing: "1.5px" }}
           >
-            Cashmemo
+            {subtitle}
           </p>
           <p
             className="text-center font-['IBM_Plex_Mono'] font-semibold"
-            style={{ color: SEAL_RED, fontSize: "11px", letterSpacing: "0.5px" }}
+            style={{ color: subtitleColor, fontSize: "11px", letterSpacing: "0.5px" }}
           >
             {dateLabel}
           </p>
@@ -161,51 +196,305 @@ const RoundSeal = ({ dateLabel }) => {
   );
 };
 
+// ─── Color tokens ─────────────────────────────────────────────────────────────
+
 const TEAL = "#0F6E5C";
 const OCHRE = "#B5772A";
 const RUST = "#B23A2E";
+const INDIGO = "#3730A3";
+
+// ─── Outdoor cashmemo receipt ─────────────────────────────────────────────────
+
+const OutdoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) => {
+  const d = summary ?? {};
+  const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
+  const grossCounterAmount = (d.initial ?? 0) - (d.labAdjustment ?? 0) - (d.referrerDiscount ?? 0);
+
+  return (
+    <div
+      id="cashmemo-printable"
+      className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
+    >
+      {/* Letterhead */}
+      <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5]">
+        <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
+          {labName ?? "LabPilot Pro"}
+        </h3>
+        {labAddress && <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{labAddress}</p>}
+        {labPhone && <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{labPhone}</p>}
+      </div>
+
+      {/* Header band */}
+      <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
+        <div>
+          <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">
+            বহির্বিভাগ ক্যাশ মেমু
+          </p>
+          <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
+          <p className="font-['IBM_Plex_Mono'] text-sm text-[#8A8F89] mt-1.5 font-noto">
+            {d.totalInvoices ?? 0}টি ইনভয়েস রেকর্ড করা হয়েছে
+          </p>
+        </div>
+        <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} variant="outdoor" />
+      </div>
+
+      <div className="px-6 sm:px-8 py-5">
+        {/* Line items */}
+        <div className="divide-y divide-[#F0EEE6]">
+          <ReceiptLine label="মোট বিক্রি" value={`৳${fmt(d.initial)}`} bold />
+          <ReceiptLine label="ল্যাব ডিস্কাউন্ট" value={`− ৳${fmt(d.labAdjustment)}`} tone={OCHRE} />
+          <ReceiptLine label="রেফারার ডিস্কাউন্ট" value={`− ৳${fmt(d.referrerDiscount)}`} tone={OCHRE} />
+        </div>
+
+        {/* নিট টোটাল */}
+        <div className="mt-4 border border-[#E3E0D6] rounded-sm overflow-hidden">
+          <div
+            className="flex items-center justify-between px-4 py-3 bg-[#F5F4EF] border-l-4"
+            style={{ borderColor: TEAL }}
+          >
+            <p className="text-sm font-semibold text-[#1C1F1E] font-noto">সকল ডিসকাউন্ট বাদে আয় (নিট টোটাল)</p>
+            <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums" style={{ color: TEAL }}>
+              ৳{fmt(grossCounterAmount)}
+            </p>
+          </div>
+        </div>
+
+        {/* নগদ / বাকি */}
+        <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm my-4">
+          <LedgerCell icon={PackageCheck} label="নগদ" value={`৳${fmt(d.totalPaid)}`} accent={TEAL} />
+          <LedgerCell icon={Clock} label="বাকি" value={`৳${fmt(d.totalDue)}`} accent={RUST} />
+        </div>
+
+        {/* কমিশন */}
+        <div className="border border-[#E3D9C6] rounded-sm overflow-hidden">
+          <div
+            className="flex items-center justify-between px-4 py-3 bg-[#FBF7EF] border-l-4"
+            style={{ borderColor: OCHRE }}
+          >
+            <p className="text-sm font-semibold text-[#1C1F1E] font-noto">মোট কমিশন</p>
+            <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums" style={{ color: OCHRE }}>
+              − ৳{fmt(d.referrerCommission)}
+            </p>
+          </div>
+        </div>
+
+        <SectionDivider label="নিট টোটাল থেকে মোট কমিশন বাদ দেওয়ার পর" />
+
+        <NetStamp amount={d.totalNet} label="নিট আয়" accent={TEAL} />
+
+        {/* Deleted invoices */}
+        <div className="flex items-center justify-between px-4 py-2.5 border border-[#E3D9D5] bg-[#FBF2F0] rounded-sm mt-3">
+          <div className="flex items-center gap-2">
+            <Trash2 className="w-3.5 h-3.5 text-[#B23A2E] shrink-0" />
+            <p className="text-sm font-medium text-[#1C1F1E] font-noto">ডিলিট করা ইনভয়েস</p>
+            <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8807A] font-noto">
+              (সকল হিসাব থেকে বাদ দেওয়া হয়েছে)
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="font-['IBM_Plex_Mono'] text-sm font-semibold text-[#B23A2E] tabular-nums">
+              {d.deletedCount ?? 0}টি
+            </span>
+            <span className="text-[#B23A2E]/40">·</span>
+            <span className="font-['IBM_Plex_Mono'] text-sm text-[#B23A2E]/70 tabular-nums">
+              এবং টাকার পরিমাণ ৳{fmt(d.totalAmountDeleted ?? 0)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Indoor (IPD) cashmemo receipt ───────────────────────────────────────────
+
+const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) => {
+  const d = summary ?? {};
+  const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
+
+  return (
+    <div
+      id="cashmemo-ipd-printable"
+      className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
+    >
+      {/* Letterhead */}
+      <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#F8F8FC]">
+        <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
+          {labName ?? "LabPilot Pro"}
+        </h3>
+        {labAddress && <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{labAddress}</p>}
+        {labPhone && <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{labPhone}</p>}
+      </div>
+
+      {/* Header band */}
+      <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
+        <div>
+          <p className="font-['IBM_Plex_Mono'] text-xs uppercase mb-1.5 font-noto" style={{ color: INDIGO }}>
+            অন্তঃবিভাগ (আইপিডি) মেমু
+          </p>
+          <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
+        </div>
+        <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} variant="indoor" />
+      </div>
+
+      <div className="px-6 sm:px-8 py-5">
+        {/* ── মোট বিক্রি ── */}
+        <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#8A8F89] mb-2 font-noto">মোট বিক্রি</p>
+
+        {/* Sub-breakdown: test / product / other */}
+        <div className="border border-[#E3E0D6] rounded-sm overflow-hidden mb-3">
+          {(d.testCount ?? 0) > 0 && (
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#F0EEE6]">
+              <div className="flex items-center gap-2">
+                <FlaskConical className="w-3.5 h-3.5" style={{ color: INDIGO }} />
+                <span className="text-sm text-[#3A3F3E] font-noto">পরীক্ষা</span>
+                <span className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89]">{d.testCount}টি</span>
+              </div>
+            </div>
+          )}
+          {(d.productCount ?? 0) > 0 && (
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#F0EEE6]">
+              <div className="flex items-center gap-2">
+                <PackageCheck className="w-3.5 h-3.5" style={{ color: INDIGO }} />
+                <span className="text-sm text-[#3A3F3E] font-noto">পণ্য</span>
+                <span className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89]">{d.productCount}টি</span>
+              </div>
+            </div>
+          )}
+          {(d.otherCount ?? 0) > 0 && (
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#F0EEE6]">
+              <div className="flex items-center gap-2">
+                <TrendingDown className="w-3.5 h-3.5" style={{ color: INDIGO }} />
+                <span className="text-sm text-[#3A3F3E] font-noto">অন্যান্য</span>
+                <span className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89]">{d.otherCount}টি</span>
+              </div>
+            </div>
+          )}
+          {/* Total row */}
+          <div
+            className="flex items-center justify-between px-4 py-3 border-l-4"
+            style={{ backgroundColor: `${INDIGO}07`, borderColor: INDIGO }}
+          >
+            <div className="flex items-center gap-2">
+              <Users className="w-3.5 h-3.5" style={{ color: INDIGO }} />
+              <p className="text-sm font-semibold text-[#1C1F1E] font-noto">মোট বিক্রি</p>
+              <span
+                className="font-['IBM_Plex_Mono'] text-xs px-2 py-0.5 rounded-sm border font-noto"
+                style={{ color: INDIGO, borderColor: `${INDIGO}30`, backgroundColor: `${INDIGO}08` }}
+              >
+                {d.expensePatientCount ?? 0}জন রোগী
+              </span>
+            </div>
+            <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums" style={{ color: INDIGO }}>
+              ৳{fmt(d.totalExpenses)}
+            </p>
+          </div>
+        </div>
+
+        <SectionDivider label="এই সময়কালে আদায়" />
+
+        {/* ── মোট আদায় ── */}
+        <div className="border border-[#E3E0D6] rounded-sm overflow-hidden">
+          <div
+            className="flex items-center justify-between px-4 py-3 border-l-4"
+            style={{ backgroundColor: `${TEAL}07`, borderColor: TEAL }}
+          >
+            <div className="flex items-center gap-2">
+              <Users className="w-3.5 h-3.5" style={{ color: TEAL }} />
+              <p className="text-sm font-semibold text-[#1C1F1E] font-noto">মোট আদায়</p>
+              <span
+                className="font-['IBM_Plex_Mono'] text-xs px-2 py-0.5 rounded-sm border font-noto"
+                style={{ color: TEAL, borderColor: `${TEAL}30`, backgroundColor: `${TEAL}08` }}
+              >
+                {d.paymentPatientCount ?? 0}জন রোগী
+              </span>
+            </div>
+            <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums" style={{ color: TEAL }}>
+              ৳{fmt(d.totalCollected)}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Tab button ───────────────────────────────────────────────────────────────
+
+const TabBtn = ({ active, onClick, children, accent = "#0F6E5C" }) => (
+  <button
+    onClick={onClick}
+    className="relative px-5 py-2.5 font-['IBM_Plex_Mono'] text-xs uppercase font-semibold transition-colors font-noto"
+    style={{
+      color: active ? accent : "#8A8F89",
+      borderBottom: active ? `2px solid ${accent}` : "2px solid transparent",
+    }}
+  >
+    {children}
+  </button>
+);
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 const CashMemo = () => {
   const lab = useAuthStore((s) => s.lab);
 
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("outdoor");
+
+  // Outdoor state
+  const [outdoorSummary, setOutdoorSummary] = useState(null);
+  const [outdoorLoading, setOutdoorLoading] = useState(true);
+
+  // Indoor state
+  const [indoorSummary, setIndoorSummary] = useState(null);
+  const [indoorLoading, setIndoorLoading] = useState(true);
+
   const [popup, setPopup] = useState(null);
   const [timeRange, setTimeRange] = useState(null);
 
   useEffect(() => {
     const range = todayRange();
     setTimeRange(range);
-    fetchSummary(range);
+    fetchOutdoor(range);
+    fetchIndoor(range);
   }, []);
 
-  const fetchSummary = async (range) => {
+  const fetchOutdoor = async (range) => {
     try {
-      setLoading(true);
-      const res = await cashmemoService.getSummary({
-        startDate: range.start,
-        endDate: range.end,
-      });
-      setSummary(res.data);
+      setOutdoorLoading(true);
+      const res = await cashmemoService.getSummary({ startDate: range.start, endDate: range.end });
+      setOutdoorSummary(res.data);
     } catch {
-      setPopup({
-        type: "error",
-        message: "ডেটা লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।",
-      });
+      setPopup({ type: "error", message: "বহির্বিভাগের ডেটা লোড করা সম্ভব হয়নি।" });
     } finally {
-      setLoading(false);
+      setOutdoorLoading(false);
+    }
+  };
+
+  const fetchIndoor = async (range) => {
+    try {
+      setIndoorLoading(true);
+      const res = await cashmemoService.getIpdSummary({ startDate: range.start, endDate: range.end });
+      setIndoorSummary(res.data);
+    } catch {
+      setPopup({ type: "error", message: "অন্তঃবিভাগের ডেটা লোড করা সম্ভব হয়নি।" });
+    } finally {
+      setIndoorLoading(false);
     }
   };
 
   const handleFetchData = (start, end) => {
     const range = { start, end };
     setTimeRange(range);
-    fetchSummary(range);
+    fetchOutdoor(range);
+    fetchIndoor(range);
   };
 
-  const d = summary ?? {};
-  const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
-  const grossCounterAmount = (d.initial ?? 0) - (d.labAdjustment ?? 0) - (d.referrerDiscount ?? 0);
+  const labName = lab?.name;
+  const labAddress = lab?.contact?.address;
+  const labPhone = lab?.contact?.primary;
+
+  const currentLoading = activeTab === "outdoor" ? outdoorLoading : indoorLoading;
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
@@ -215,8 +504,11 @@ const CashMemo = () => {
         @media print {
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           body * { visibility: hidden; }
-          #cashmemo-printable, #cashmemo-printable * { visibility: visible; }
-          #cashmemo-printable { position: fixed; top: 0; left: 0; width: 100%; padding: 32px; box-shadow: none; }
+          #cashmemo-printable, #cashmemo-printable *,
+          #cashmemo-ipd-printable, #cashmemo-ipd-printable * { visibility: visible; }
+          #cashmemo-printable, #cashmemo-ipd-printable {
+            position: fixed; top: 0; left: 0; width: 100%; padding: 32px; box-shadow: none;
+          }
           .no-print { display: none !important; }
         }
       `}</style>
@@ -234,7 +526,7 @@ const CashMemo = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => window.print()}
-              disabled={loading}
+              disabled={currentLoading}
               className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase disabled:opacity-40 disabled:cursor-not-allowed font-noto"
             >
               <Printer className="w-3.5 h-3.5" /> প্রিন্ট
@@ -249,124 +541,49 @@ const CashMemo = () => {
         </div>
 
         {/* TimeFrame picker */}
-        <div className="mb-5 no-print">
+        <div className="mb-4 no-print">
           <TimeFrame onFetchData={handleFetchData} />
         </div>
 
-        {loading ? (
+        {/* Tabs */}
+        <div className="flex border-b border-[#E3E0D6] mb-5 no-print bg-white rounded-t-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)]">
+          <TabBtn active={activeTab === "outdoor"} onClick={() => setActiveTab("outdoor")} accent={TEAL}>
+            বহির্বিভাগ
+          </TabBtn>
+          <TabBtn active={activeTab === "indoor"} onClick={() => setActiveTab("indoor")} accent={INDIGO}>
+            অন্তঃবিভাগ (আইপিডি)
+          </TabBtn>
+        </div>
+
+        {/* Receipt */}
+        {activeTab === "outdoor" ? (
+          outdoorLoading ? (
+            <SkeletonReceipt />
+          ) : (
+            <OutdoorReceipt
+              summary={outdoorSummary}
+              timeRange={timeRange}
+              labName={labName}
+              labAddress={labAddress}
+              labPhone={labPhone}
+            />
+          )
+        ) : indoorLoading ? (
           <SkeletonReceipt />
         ) : (
-          <div
-            id="cashmemo-printable"
-            className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
-          >
-            {/* Letterhead — dynamic from auth store */}
-            <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5]">
-              <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
-                {lab?.name ?? "LabPilot Pro"}
-              </h3>
-              {lab?.contact?.address && (
-                <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{lab.contact.address}</p>
-              )}
-              {lab?.contact?.primary && (
-                <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{lab.contact.primary}</p>
-              )}
-            </div>
-
-            {/* Header band */}
-            <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
-              <div>
-                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">ক্যাশ মেমু</p>
-                <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">
-                  {headingLabel}
-                </h2>
-                <p className="font-['IBM_Plex_Mono'] text-sm text-[#8A8F89] mt-1.5 font-noto">
-                  {d.totalInvoices ?? 0}টি ইনভয়েস রেকর্ড করা হয়েছে
-                </p>
-              </div>
-
-              <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} />
-            </div>
-
-            <div className="px-6 sm:px-8 py-5">
-              {/* Line items */}
-              <div className="divide-y divide-[#F0EEE6]">
-                <ReceiptLine label="মোট বিক্রি" value={`৳${fmt(d.initial)}`} bold />
-                <ReceiptLine label="ল্যাব ডিস্কাউন্ট" value={`− ৳${fmt(d.labAdjustment)}`} tone={OCHRE} />
-                <ReceiptLine label="রেফারার ডিস্কাউন্ট" value={`− ৳${fmt(d.referrerDiscount)}`} tone={OCHRE} />
-              </div>
-
-              {/* নিট টোটাল */}
-              <div className="mt-4 border border-[#E3E0D6] rounded-sm overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 bg-[#F5F4EF] border-l-4 border-[#0F6E5C]">
-                  <p className="text-sm font-semibold text-[#1C1F1E] font-noto">সকল ডিসকাউন্ট বাদে আয় (নিট টোটাল)</p>
-                  <p className="font-['IBM_Plex_Mono'] text-lg font-bold text-[#0F6E5C] tabular-nums">
-                    ৳{fmt(grossCounterAmount)}
-                  </p>
-                </div>
-              </div>
-
-              {/* নগদ / বাকি */}
-              <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm my-4">
-                <LedgerCell icon={PackageCheck} label="নগদ" value={`৳${fmt(d.totalPaid)}`} accent={TEAL} />
-                <LedgerCell icon={Clock} label="বাকি" value={`৳${fmt(d.totalDue)}`} accent={RUST} />
-              </div>
-
-              {/* মোট কমিশন */}
-              <div className="border border-[#E3D9C6] rounded-sm overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 bg-[#FBF7EF] border-l-4 border-[#B5772A]">
-                  <p className="text-sm font-semibold text-[#1C1F1E] font-noto">মোট কমিশন</p>
-                  <p className="font-['IBM_Plex_Mono'] text-lg font-bold text-[#B5772A] tabular-nums">
-                    − ৳{fmt(d.referrerCommission)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Divider label */}
-              <div className="flex items-center gap-2 my-4">
-                <div className="flex-1 h-px bg-[#E3E0D6]" />
-                <span className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] bg-[#F5F4EF] border border-[#E3E0D6] rounded-sm px-3 py-1 whitespace-nowrap uppercase font-noto">
-                  নিট টোটাল থেকে মোট কমিশন বাদ দেওয়ার পর
-                </span>
-                <div className="flex-1 h-px bg-[#E3E0D6]" />
-              </div>
-
-              {/* নিট আয় stamp */}
-              <div className="flex justify-center py-3">
-                <div className="relative rotate-[-1.5deg] border-2 border-[#0F6E5C] rounded-md px-10 py-5 text-center">
-                  <div className="absolute inset-[3px] border border-[#0F6E5C]/40 rounded-sm pointer-events-none" />
-                  <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1 font-noto">নিট আয়</p>
-                  <p className="font-['IBM_Plex_Mono'] text-4xl font-bold text-[#0F6E5C] tabular-nums">
-                    ৳{fmt(d.totalNet)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Deleted invoices */}
-              <div className="flex items-center justify-between px-4 py-2.5 border border-[#E3D9D5] bg-[#FBF2F0] rounded-sm mt-3">
-                <div className="flex items-center gap-2">
-                  <Trash2 className="w-3.5 h-3.5 text-[#B23A2E] shrink-0" />
-                  <p className="text-sm font-medium text-[#1C1F1E] font-noto">ডিলিট করা ইনভয়েস</p>
-                  <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8807A] font-noto">
-                    (সকল হিসাব থেকে বাদ দেওয়া হয়েছে)
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-['IBM_Plex_Mono'] text-sm font-semibold text-[#B23A2E] tabular-nums">
-                    {d.deletedCount ?? 0}টি
-                  </span>
-                  <span className="text-[#B23A2E]/40">·</span>
-                  <span className="font-['IBM_Plex_Mono'] text-sm text-[#B23A2E]/70 tabular-nums">
-                    এবং টাকার পরিমাণ ৳{fmt(d.totalAmountDeleted ?? 0)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <IndoorReceipt
+            summary={indoorSummary}
+            timeRange={timeRange}
+            labName={labName}
+            labAddress={labAddress}
+            labPhone={labPhone}
+          />
         )}
 
         <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-4 pb-6 no-print font-noto">
-          নিট আয় = মোট পরিমাণ − ল্যাব সমন্বয় − রেফারার ডিস্কাউন্ট − কমিশন
+          {activeTab === "outdoor"
+            ? "নিট আয় = মোট পরিমাণ − ল্যাব সমন্বয় − রেফারার ডিস্কাউন্ট − কমিশন"
+            : "মোট বিক্রি = এই সময়কালে যোগ করা এক্সপেন্স | মোট আদায় = এই সময়কালে সংগৃহীত পেমেন্ট"}
         </p>
       </div>
     </section>

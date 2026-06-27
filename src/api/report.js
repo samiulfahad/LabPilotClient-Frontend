@@ -11,7 +11,8 @@ const reportService = {
   addIndoorReport: (data) => api.post("/indoor-report/add", data),
   updateIndoorReport: (data) => api.put("/indoor-report/update", data),
   updateIndoorDates: (data) => api.put("/indoor-report/dates", data),
-  getIndoorReport: (patientId, testId) => api.get(`/indoor-report/${patientId}/${testId}`),
+  getIndoorReport: (patientId, testId, addedAt) =>
+    api.get(`/indoor-report/${patientId}/${testId}`, { params: addedAt ? { addedAt } : undefined }),
 };
 
 export default reportService;
