@@ -11,13 +11,11 @@ function useBodyPortal() {
   const [el, setEl] = useState(null);
 
   useEffect(() => {
-    // Clean up any old injected styles if they exist from previous versions
     ["ur-styles-v2", "ur-styles-v3", "ur-styles-v4"].forEach((id) => {
       document.getElementById(id)?.remove();
     });
 
     const div = document.createElement("div");
-    // Tailwind classes applied directly to the portal root
     div.className = "fixed inset-0 w-full h-full z-[99999] overflow-hidden h-[100dvh]";
     document.body.appendChild(div);
     setEl(div);
@@ -82,7 +80,7 @@ export default function ReportDownload() {
   const storeLab = useAuthStore((s) => s.lab);
   const labInfo = buildLabInfo(storeLab);
 
-  // ── Params — indoor uses patientId + type=indoor, outdoor uses invoiceId ────
+  // ── Params ────────────────────────────────────────────────────────────────
   const type = searchParams.get("type") ?? "outdoor";
   const isIndoor = type === "indoor";
 
@@ -92,6 +90,8 @@ export default function ReportDownload() {
   const testName = searchParams.get("testName") ?? "Report";
   const printType = searchParams.get("printType") ?? "PLAIN";
   const isPad = printType === "PAD";
+  // addedAt disambiguates duplicate test entries for indoor patients
+  const addedAt = searchParams.get("addedAt");
 
   const [report, setReport] = useState(null);
   const [patient, setPatient] = useState(null);
@@ -111,7 +111,7 @@ export default function ReportDownload() {
     }
 
     const fetch = isIndoor
-      ? reportService.getIndoorReport(patientId, testId)
+      ? reportService.getIndoorReport(patientId, testId, addedAt)
       : reportService.getReport(invoiceId, testId);
 
     fetch

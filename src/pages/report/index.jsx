@@ -56,6 +56,7 @@ const normalizeOutdoor = (invoice) => ({
     schemaId: t.schemaId ?? null,
     isCompleted: t.isCompleted ?? false,
     report: t.report ?? {},
+    addedAt: t.addedAt ?? null,
   })),
 });
 
@@ -75,6 +76,7 @@ const normalizeIndoor = (patient) => ({
     schemaId: r.schemaId ?? null,
     isCompleted: r.isCompleted ?? false,
     report: r.report ?? {},
+    addedAt: r.addedAt ?? null,
   })),
 });
 
@@ -154,7 +156,16 @@ const RecordSkeleton = () => (
 
 // ─── Date Editor ──────────────────────────────────────────────────────────────
 
-const DateEditor = ({ recordType, displayId, patientId, testId, initialSampleDate, initialReportDate, onSaved }) => {
+const DateEditor = ({
+  recordType,
+  displayId,
+  patientId,
+  testId,
+  addedAt,
+  initialSampleDate,
+  initialReportDate,
+  onSaved,
+}) => {
   const [sampleDate, setSampleDate] = useState(toInputDate(initialSampleDate));
   const [reportDate, setReportDate] = useState(toInputDate(initialReportDate));
   const [saving, setSaving] = useState(false);
@@ -171,6 +182,7 @@ const DateEditor = ({ recordType, displayId, patientId, testId, initialSampleDat
         await reportService.updateIndoorDates({
           patientId,
           testId,
+          addedAt,
           sampleCollectionDate: sampleDate || null,
           reportDate: reportDate || null,
         });
@@ -240,7 +252,7 @@ const DateField = ({ icon: Icon, iconColor, label, value, onChange }) => (
 
 const TestActions = ({ record, test }) => {
   const { _type, _patientId, displayId } = record;
-  const { testId, name, isCompleted } = test;
+  const { testId, name, isCompleted, addedAt } = test;
 
   if (!isCompleted) {
     return (
@@ -248,7 +260,7 @@ const TestActions = ({ record, test }) => {
         to="/report-upload"
         state={
           _type === "indoor"
-            ? { patientId: _patientId, testId, testName: name, type: "indoor" }
+            ? { patientId: _patientId, testId, testName: name, type: "indoor", addedAt }
             : { invoiceId: displayId, testId, testName: name, invoice: record }
         }
         className="flex items-center gap-1.5 px-3 py-2 bg-gray-900 text-white hover:bg-gray-700 text-xs font-bold rounded-xl transition-all shadow-sm"
@@ -260,7 +272,7 @@ const TestActions = ({ record, test }) => {
 
   const printBase =
     _type === "indoor"
-      ? `/report-download?patientId=${_patientId}&testId=${testId}&testName=${encodeURIComponent(name)}&type=indoor`
+      ? `/report-download?patientId=${_patientId}&testId=${testId}&testName=${encodeURIComponent(name)}&type=indoor&addedAt=${addedAt}`
       : `/report-download?invoiceId=${displayId}&testId=${testId}&testName=${encodeURIComponent(name)}`;
 
   return (
@@ -287,7 +299,7 @@ const TestActions = ({ record, test }) => {
         to="/report-upload"
         state={
           _type === "indoor"
-            ? { patientId: _patientId, testId, testName: name, type: "indoor", isEdit: true }
+            ? { patientId: _patientId, testId, testName: name, type: "indoor", isEdit: true, addedAt }
             : { invoiceId: displayId, testId, testName: name, invoice: record, isEdit: true }
         }
         className="flex items-center gap-1 px-2.5 py-2 border border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-800 text-xs font-semibold rounded-xl transition-all"
@@ -314,7 +326,6 @@ const RecordDetail = ({ record, onDatesSaved }) => {
   const offlineTests = record.tests.filter((t) => !t.schemaId);
   const completedCount = onlineTests.filter((t) => t.isCompleted).length;
 
-  // Accent strip color: indigo for indoor, rose for outdoor-due, emerald for outdoor-paid
   const stripColor = isIndoor
     ? "from-indigo-500 to-purple-500"
     : due > 0
@@ -344,7 +355,6 @@ const RecordDetail = ({ record, onDatesSaved }) => {
             </p>
           </div>
 
-          {/* Outdoor — amount + paid/due badge */}
           {!isIndoor && amount && (
             <div className="text-right shrink-0">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Total</p>
@@ -366,7 +376,6 @@ const RecordDetail = ({ record, onDatesSaved }) => {
             </div>
           )}
 
-          {/* Indoor badge */}
           {isIndoor && (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
               <CheckCircle2 className="w-3 h-3" /> Indoor Patient
@@ -380,24 +389,12 @@ const RecordDetail = ({ record, onDatesSaved }) => {
         <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">রোগীর তথ্য</p>
         <div className="grid grid-cols-2 gap-x-8 gap-y-3.5">
           {[
-            { label: "Name", 
-              val: record.patient?.name},
-            {
-              label: "Contact",
-              val: record.patient?.contactNumber,
-            },
-            {
-              label: "Gender",
-              val: record.patient?.gender,
-              cap: true,
-            },
-            {
-              label: "Age",
-              val: record.patient?.age ? `${record.patient.age} yrs` : "—",
-            },
-          ].map(({ label, val, icon: Icon, cap, iconBg, iconColor }) => (
+            { label: "Name", val: record.patient?.name },
+            { label: "Contact", val: record.patient?.contactNumber },
+            { label: "Gender", val: record.patient?.gender, cap: true },
+            { label: "Age", val: record.patient?.age ? `${record.patient.age} yrs` : "—" },
+          ].map(({ label, val, cap }) => (
             <div key={label} className="flex items-start gap-3 min-w-0">
-             
               <div className="min-w-0">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
                 <p className={`text-sm font-bold text-gray-800 truncate ${cap ? "capitalize" : ""}`}>{val || "—"}</p>
@@ -430,7 +427,7 @@ const RecordDetail = ({ record, onDatesSaved }) => {
           <div className="space-y-2.5">
             {onlineTests.map((test, i) => (
               <div
-                key={test.testId + i}
+                key={(test.testId ?? "") + (test.addedAt ?? i)}
                 className={`rounded-xl border px-4 py-3.5 transition-all ${
                   test.isCompleted
                     ? "border-emerald-200 bg-emerald-50/40"
@@ -477,9 +474,10 @@ const RecordDetail = ({ record, onDatesSaved }) => {
                   displayId={record.displayId}
                   patientId={record._patientId}
                   testId={test.testId}
+                  addedAt={test.addedAt}
                   initialSampleDate={test.report?.sampleCollectionDate}
                   initialReportDate={test.report?.reportDate}
-                  onSaved={(dates) => onDatesSaved(test.testId, dates)}
+                  onSaved={(dates) => onDatesSaved(test.testId, test.addedAt, dates)}
                 />
               </div>
             ))}
@@ -496,7 +494,7 @@ const RecordDetail = ({ record, onDatesSaved }) => {
           <div className="space-y-2">
             {offlineTests.map((test, i) => (
               <div
-                key={test.testId + i}
+                key={(test.testId ?? "") + (test.addedAt ?? i)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-slate-50/60 transition-all"
               >
                 <span className="font-['IBM_Plex_Mono'] text-[10px] font-bold text-gray-300 w-5 shrink-0 tabular-nums">
@@ -547,6 +545,7 @@ const Report = () => {
         setRecord(normalizeOutdoor(res.data));
       } else {
         const res = await indoorPatientService.getByAdmissionId(id.trim().toUpperCase());
+        console.log(res.data);
         setRecord(normalizeIndoor(res.data));
       }
     } catch (err) {
@@ -578,10 +577,13 @@ const Report = () => {
     setInvalidId(false);
   };
 
-  const handleDatesSaved = (testId, dates) => {
+  // addedAt added as second arg to pinpoint the exact entry
+  const handleDatesSaved = (testId, addedAt, dates) => {
     setRecord((prev) => ({
       ...prev,
-      tests: prev.tests.map((t) => (t.testId !== testId ? t : { ...t, report: { ...(t.report ?? {}), ...dates } })),
+      tests: prev.tests.map((t) =>
+        t.testId !== testId || t.addedAt !== addedAt ? t : { ...t, report: { ...(t.report ?? {}), ...dates } },
+      ),
     }));
     setPopup({ type: "success", message: "Dates saved" });
   };

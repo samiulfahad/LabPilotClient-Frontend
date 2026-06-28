@@ -1,3 +1,7 @@
+/**
+ * useCallback / useMemo are intentionally absent throughout this file.
+ * babel-plugin-react-compiler handles all memoization automatically.
+ */
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -123,6 +127,7 @@ function ResultModal({ type, message, onGoBack, onDismiss }) {
 function ReportUploadInner() {
   const location = useLocation();
   const navigate = useNavigate();
+  
 
   const {
     invoiceId,
@@ -131,6 +136,7 @@ function ReportUploadInner() {
     testName: stateTestName,
     isEdit = false,
     type = "outdoor",
+    addedAt = null, // ← disambiguates duplicate test entries for indoor
   } = location.state ?? {};
 
   const isIndoor = type === "indoor";
@@ -187,7 +193,8 @@ function ReportUploadInner() {
 
     try {
       if (isIndoor) {
-        const { data } = await reportService.getIndoorReport(patientId, testId);
+        // Pass addedAt so backend returns the exact entry when duplicates exist
+        const { data } = await reportService.getIndoorReport(patientId, testId, addedAt);
         setAdmissionId(data.admissionId);
         setResolvedName(data.testName ?? stateTestName ?? "Report");
         setInvoice({ invoiceId: data.admissionId, patient: data.patient });
@@ -221,6 +228,7 @@ function ReportUploadInner() {
     try {
       setSubmitting(true);
       if (isIndoor) {
+        // addedAt not needed for add — backend finds first incomplete entry
         await reportService.addIndoorReport({ report: payload, patientId, testId });
       } else {
         await reportService.addReport({ report: payload, invoiceId, testId });
@@ -240,7 +248,8 @@ function ReportUploadInner() {
     try {
       setSubmitting(true);
       if (isIndoor) {
-        await reportService.updateIndoorReport({ report: payload, patientId, testId });
+        // addedAt required — identifies the exact entry among duplicates
+        await reportService.updateIndoorReport({ report: payload, patientId, testId, addedAt });
       } else {
         await reportService.updateReport({ report: payload, invoiceId, testId });
       }
