@@ -63,6 +63,30 @@ const recordStamp = (start, end) => {
   return generatedStamp(end);
 };
 
+// ─── Merge outdoor + indoor counts by id (falls back to name) ─────────────────
+const mergeCounts = (outdoor = [], indoor = [], idKey) => {
+  const map = new Map();
+
+  outdoor.forEach((o) => {
+    const key = o[idKey] ?? o.name;
+    map.set(key, { key, name: o.name, outdoorCount: o.count ?? 0, indoorCount: 0 });
+  });
+
+  indoor.forEach((i) => {
+    const key = i[idKey] ?? i.name;
+    const existing = map.get(key);
+    if (existing) {
+      existing.indoorCount = i.count ?? 0;
+    } else {
+      map.set(key, { key, name: i.name, outdoorCount: 0, indoorCount: i.count ?? 0 });
+    }
+  });
+
+  return Array.from(map.values())
+    .map((v) => ({ ...v, total: v.outdoorCount + v.indoorCount }))
+    .sort((a, b) => b.total - a.total);
+};
+
 const SkeletonManifest = () => (
   <div className="bg-white border border-[#E3E0D6] rounded-lg overflow-hidden animate-pulse">
     <div className="h-[3px] bg-[#E3E0D6]" />
@@ -85,6 +109,7 @@ const SkeletonManifest = () => (
   </div>
 );
 
+// ── Single-channel row (diagnostic center: outdoor only) ──────────────────────
 const LedgerRow = ({ rank, name, count }) => {
   return (
     <div>
@@ -95,6 +120,27 @@ const LedgerRow = ({ rank, name, count }) => {
         <span className="text-sm text-[#1C1F1E] font-medium truncate">{name}</span>
         <span className="flex-1 border-b border-dotted border-[#D8D5CB] translate-y-[-3px]" />
         <span className="font-['IBM_Plex_Mono'] text-sm text-[#1C1F1E] tabular-nums shrink-0">{fmt(count)}</span>
+      </div>
+    </div>
+  );
+};
+
+// ── Dual-channel row (hospital: Indoor + Outdoor breakdown) ───────────────────
+const LedgerRowSplit = ({ rank, name, total, indoorCount, outdoorCount }) => {
+  return (
+    <div>
+      <div className="flex items-baseline gap-3">
+        <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] tabular-nums w-5 shrink-0">
+          {String(rank).padStart(2, "0")}
+        </span>
+        <span className="text-sm text-[#1C1F1E] font-medium truncate">{name}</span>
+        <span className="flex-1 border-b border-dotted border-[#D8D5CB] translate-y-[-3px]" />
+        <span className="font-['IBM_Plex_Mono'] text-sm text-[#1C1F1E] tabular-nums shrink-0">
+          {fmt(total)}
+          <span className="text-[#A8ACA3] ml-1">
+            (Indoor-{fmt(indoorCount)}, Outdoor-{fmt(outdoorCount)})
+          </span>
+        </span>
       </div>
     </div>
   );
@@ -145,6 +191,8 @@ const RoundSeal = ({ dateLabel }) => {
 
 const SalesReport = () => {
   const lab = useAuthStore((s) => s.lab);
+  const isHospital = lab?.type === "hospital";
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
@@ -174,12 +222,20 @@ const SalesReport = () => {
     fetchStats(range);
   };
 
-  const testCounts = data?.testCounts ?? [];
-  const productCounts = data?.productCounts ?? [];
+  // ── For diagnostic centers: outdoor counts only, as-is from API ───────────
+  // ── For hospitals: merge outdoor + indoor into a combined breakdown ───────
+  const testCounts = isHospital
+    ? mergeCounts(data?.testCounts, data?.indoorTestCounts, "testId")
+    : (data?.testCounts ?? []).map((t) => ({ ...t, total: t.count }));
+
+  const productCounts = isHospital
+    ? mergeCounts(data?.productCounts, data?.indoorProductCounts, "productId")
+    : (data?.productCounts ?? []).map((p) => ({ ...p, total: p.count }));
+
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
 
-  const totalTestOrders = testCounts.reduce((sum, t) => sum + (t.count ?? 0), 0);
-  const totalProductUnits = productCounts.reduce((sum, p) => sum + (p.count ?? 0), 0);
+  const totalTestOrders = testCounts.reduce((sum, t) => sum + (t.total ?? 0), 0);
+  const totalProductUnits = productCounts.reduce((sum, p) => sum + (p.total ?? 0), 0);
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
@@ -271,7 +327,20 @@ const SalesReport = () => {
                 <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">পরিমাণ</p>
               </div>
               {testCounts.length > 0 ? (
-                testCounts.map((t, i) => <LedgerRow key={t.testId ?? i} rank={i + 1} name={t.name} count={t.count} />)
+                testCounts.map((t, i) =>
+                  isHospital ? (
+                    <LedgerRowSplit
+                      key={t.key ?? i}
+                      rank={i + 1}
+                      name={t.name}
+                      total={t.total}
+                      indoorCount={t.indoorCount}
+                      outdoorCount={t.outdoorCount}
+                    />
+                  ) : (
+                    <LedgerRow key={t.testId ?? i} rank={i + 1} name={t.name} count={t.total} />
+                  ),
+                )
               ) : (
                 <EmptyRow label="এই সময়সীমায় কোনো টেস্ট অর্ডার হয়নি" />
               )}
@@ -284,9 +353,20 @@ const SalesReport = () => {
                 <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">পরিমাণ</p>
               </div>
               {productCounts.length > 0 ? (
-                productCounts.map((p, i) => (
-                  <LedgerRow key={p.productId ?? i} rank={i + 1} name={p.name} count={p.count} />
-                ))
+                productCounts.map((p, i) =>
+                  isHospital ? (
+                    <LedgerRowSplit
+                      key={p.key ?? i}
+                      rank={i + 1}
+                      name={p.name}
+                      total={p.total}
+                      indoorCount={p.indoorCount}
+                      outdoorCount={p.outdoorCount}
+                    />
+                  ) : (
+                    <LedgerRow key={p.productId ?? i} rank={i + 1} name={p.name} count={p.total} />
+                  ),
+                )
               ) : (
                 <EmptyRow label="এই সময়সীমায় কোনো পণ্য বিক্রি হয়নি" />
               )}

@@ -2,18 +2,25 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import indoorPatientService from "../../api/indoorPatient";
+import { BLOOD_GROUPS, Btn, BedSelector, ErrorMsg, Select, Sk, Textarea } from "./indoorPatientHelpers";
 import {
-  BLOOD_GROUPS,
-  Btn,
-  BedSelector,
-  ErrorMsg,
-  Field,
-  Input,
-  PageHeader,
-  Select,
-  Sk,
-  Textarea,
-} from "./indoorPatientHelpers";
+  User,
+  Calendar,
+  Phone,
+  MapPin,
+  Droplet,
+  Users,
+  UserCircle,
+  Stethoscope,
+  ClipboardList,
+  BedDouble,
+  Package,
+  Building2,
+  ChevronRight,
+  ArrowLeft,
+} from "lucide-react";
+
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const DEFAULTS = {
   name: "",
@@ -36,6 +43,62 @@ const DEFAULTS = {
   packageDescription: "",
   packageAmount: "",
 };
+
+// ─── UI primitives (LabPilot design language) ─────────────────────────────────
+
+const Field = ({ label, required, optional, children }) => (
+  <div>
+    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+      {label}
+      {required && <span className="text-red-500 ml-0.5">*</span>}
+      {optional && <span className="text-slate-400 text-xs ml-1">(ঐচ্ছিক)</span>}
+    </label>
+    {children}
+  </div>
+);
+
+const IconInput = ({ icon: Icon, className = "", ...props }) => (
+  <div className="relative">
+    <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
+    <input
+      className={`w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm font-noto
+        focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 ${className}`}
+      {...props}
+    />
+  </div>
+);
+
+const SectionCard = ({ icon: Icon, title, children }) => (
+  <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+    <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
+      <div className="p-2 bg-blue-50 rounded-lg">
+        <Icon className="w-4 h-4 text-blue-600" />
+      </div>
+      <h3 className="font-medium text-slate-900">{title}</h3>
+    </div>
+    <div className="p-6">{children}</div>
+  </div>
+);
+
+// ─── Skeleton loader ──────────────────────────────────────────────────────────
+
+const FormSkeleton = () => (
+  <div className="space-y-5">
+    {[1, 2, 3, 4].map((i) => (
+      <div key={i} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-slate-100 px-6 py-4 animate-pulse">
+          <div className="h-5 bg-slate-200 rounded w-1/3" />
+        </div>
+        <div className="p-6 space-y-4">
+          <Sk cls="h-10 rounded-lg" />
+          <Sk cls="h-10 rounded-lg" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 const AdmitPatient = () => {
   const navigate = useNavigate();
@@ -138,111 +201,171 @@ const AdmitPatient = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
-      <div className="max-w-3xl mx-auto">
-        <PageHeader title="রোগী ভর্তি" subtitle="নতুন ইনডোর রোগী নিবন্ধন করুন" back={() => navigate("/ipd")} />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-6 px-4 sm:px-6 lg:px-8 font-noto">
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="mb-6 flex items-center gap-3">
+          <button
+            onClick={() => navigate("/ipd")}
+            className="p-2.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 text-slate-600" />
+          </button>
+          <div className="p-2.5 bg-blue-600 rounded-xl shadow-sm">
+            <UserCircle className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900">রোগী ভর্তি</h1>
+            <p className="text-sm text-slate-500">নতুন ইনডোর রোগী নিবন্ধন করুন</p>
+          </div>
+        </div>
 
         {reqLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => (
-              <Sk key={i} cls="h-14 rounded-2xl" />
-            ))}
-          </div>
+          <FormSkeleton />
         ) : (
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-7">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmit();
+            }}
+            className="space-y-6"
+          >
             <ErrorMsg msg={error} />
 
-            {/* Patient Info */}
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">রোগীর তথ্য</p>
-              <div className="grid grid-cols-2 gap-3">
+            {/* ── Patient Information ─────────────────────────────────── */}
+            <SectionCard icon={UserCircle} title="রোগীর তথ্য">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <Field label="পুরো নাম" required>
-                  <Input placeholder="রোগীর পুরো নাম" value={form.name} onChange={(e) => set("name", e.target.value)} />
+                  <IconInput
+                    icon={User}
+                    value={form.name}
+                    onChange={(e) => set("name", e.target.value)}
+                    placeholder="রোগীর পুরো নাম"
+                  />
                 </Field>
+
                 <Field label="বয়স (বছর)" required>
-                  <Input
+                  <IconInput
+                    icon={Calendar}
                     type="number"
                     min="0"
                     max="150"
-                    placeholder="বয়স"
                     value={form.age}
                     onChange={(e) => set("age", e.target.value)}
+                    placeholder="বয়স"
                   />
                 </Field>
+
                 <Field label="লিঙ্গ" required>
-                  <Select value={form.gender} onChange={(e) => set("gender", e.target.value)}>
-                    <option value="male">পুরুষ</option>
-                    <option value="female">মহিলা</option>
-                    <option value="other">অন্যান্য</option>
-                  </Select>
-                </Field>
-                <Field label="ব্লাড গ্রুপ">
-                  <Select value={form.bloodGroup} onChange={(e) => set("bloodGroup", e.target.value)}>
-                    <option value="">— নির্বাচন করুন —</option>
-                    {BLOOD_GROUPS.map((bg) => (
-                      <option key={bg} value={bg}>
-                        {bg}
-                      </option>
+                  <div className="flex gap-2">
+                    {[
+                      { value: "male", label: "পুরুষ" },
+                      { value: "female", label: "মহিলা" },
+                      { value: "other", label: "অন্যান্য" },
+                    ].map((g) => (
+                      <label
+                        key={g.value}
+                        className={`flex-1 flex items-center justify-center py-2.5 px-2 border rounded-lg cursor-pointer transition-all text-sm font-medium select-none ${
+                          form.gender === g.value
+                            ? "border-blue-500 bg-blue-50 text-blue-700"
+                            : "border-slate-300 text-slate-600 hover:border-slate-400 hover:bg-slate-50"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="gender"
+                          value={g.value}
+                          checked={form.gender === g.value}
+                          onChange={() => set("gender", g.value)}
+                          className="sr-only"
+                        />
+                        {g.label}
+                      </label>
                     ))}
-                  </Select>
+                  </div>
                 </Field>
+
+                <Field label="ব্লাড গ্রুপ" optional>
+                  <div className="relative">
+                    <Droplet className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
+                    <Select
+                      className="pl-9"
+                      value={form.bloodGroup}
+                      onChange={(e) => set("bloodGroup", e.target.value)}
+                    >
+                      <option value="">— নির্বাচন করুন —</option>
+                      {BLOOD_GROUPS.map((bg) => (
+                        <option key={bg} value={bg}>
+                          {bg}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                </Field>
+
                 <Field label="মোবাইল নম্বর" required>
-                  <Input
-                    placeholder="০১XXXXXXXXX"
+                  <IconInput
+                    icon={Phone}
+                    type="tel"
                     value={form.contactNumber}
                     onChange={(e) => set("contactNumber", e.target.value)}
+                    placeholder="০১XXXXXXXXX"
+                    maxLength={11}
                   />
                 </Field>
-                <Field label="ঠিকানা">
-                  <Input
-                    placeholder="বর্তমান ঠিকানা"
+
+                <Field label="ঠিকানা" optional>
+                  <IconInput
+                    icon={MapPin}
                     value={form.address}
                     onChange={(e) => set("address", e.target.value)}
+                    placeholder="বর্তমান ঠিকানা"
                   />
                 </Field>
               </div>
-            </div>
+            </SectionCard>
 
-            {/* Guardian */}
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">অভিভাবকের তথ্য</p>
-              <div className="grid grid-cols-3 gap-3">
-                <Field label="অভিভাবকের নাম">
-                  <Input
-                    placeholder="পুরো নাম"
+            {/* ── Guardian Information ────────────────────────────────── */}
+            <SectionCard icon={Users} title="অভিভাবকের তথ্য">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <Field label="অভিভাবকের নাম" optional>
+                  <IconInput
+                    icon={User}
                     value={form.guardianName}
                     onChange={(e) => set("guardianName", e.target.value)}
+                    placeholder="পুরো নাম"
                   />
                 </Field>
-                <Field label="সম্পর্ক">
-                  <Input
-                    placeholder="পিতা/মাতা/স্বামী..."
+                <Field label="সম্পর্ক" optional>
+                  <IconInput
+                    icon={Users}
                     value={form.guardianRelation}
                     onChange={(e) => set("guardianRelation", e.target.value)}
+                    placeholder="পিতা/মাতা/স্বামী..."
                   />
                 </Field>
-                <Field label="মোবাইল নম্বর">
-                  <Input
-                    placeholder="০১XXXXXXXXX"
+                <Field label="মোবাইল নম্বর" optional>
+                  <IconInput
+                    icon={Phone}
                     value={form.guardianContact}
                     onChange={(e) => set("guardianContact", e.target.value)}
+                    placeholder="০১XXXXXXXXX"
                   />
                 </Field>
               </div>
-            </div>
+            </SectionCard>
 
-            {/* Clinical */}
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">চিকিৎসা সংক্রান্ত তথ্য</p>
-              <div className="space-y-3">
-                <Field label="রোগ নির্ণয় / বিবরণ">
+            {/* ── Clinical Information ────────────────────────────────── */}
+            <SectionCard icon={Stethoscope} title="চিকিৎসা সংক্রান্ত তথ্য">
+              <div className="space-y-5">
+                <Field label="রোগ নির্ণয় / বিবরণ" optional>
                   <Textarea
                     placeholder="রোগের সংক্ষিপ্ত বিবরণ..."
                     value={form.description}
                     onChange={(e) => set("description", e.target.value)}
                   />
                 </Field>
-                <Field label="পূর্ববর্তী চিকিৎসা ইতিহাস">
+                <Field label="পূর্ববর্তী চিকিৎসা ইতিহাস" optional>
                   <Textarea
                     rows={4}
                     placeholder="অতীতের অসুস্থতা, এলার্জি, অপারেশন ইত্যাদি..."
@@ -251,82 +374,93 @@ const AdmitPatient = () => {
                   />
                 </Field>
               </div>
-            </div>
+            </SectionCard>
 
-            {/* Ward */}
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">ওয়ার্ড / বেড বরাদ্দ</p>
-              <Field label="ওয়ার্ড / কেবিন / আইসিইউ নির্বাচন" required>
-                <Select
-                  value={form.spaceId}
-                  onChange={(e) => {
-                    set("spaceId", e.target.value);
-                    set("bedNumber", null);
-                  }}
-                >
-                  <option value="">— স্থান নির্বাচন —</option>
-                  {reqData.spaces.map((s) => {
-                    const isOccupied = !s.multiBed && s.reserved === true;
-                    return (
-                      <option key={s._id} value={s._id} disabled={isOccupied}>
-                        {s.name} — ৳{s.chargePerDay}/দিন
-                        {s.multiBed ? ` (${s.multiBedConf?.totalNumberOfBed}টি বেড)` : ""}
-                        {isOccupied ? " — 🔒 দখলকৃত" : ""}
+            {/* ── Ward / Bed Allocation ────────────────────────────────── */}
+            <SectionCard icon={BedDouble} title="ওয়ার্ড / বেড বরাদ্দ">
+              <div className="space-y-4">
+                <Field label="ওয়ার্ড / কেবিন / আইসিইউ নির্বাচন" required>
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
+                    <Select
+                      className="pl-9"
+                      value={form.spaceId}
+                      onChange={(e) => {
+                        set("spaceId", e.target.value);
+                        set("bedNumber", null);
+                      }}
+                    >
+                      <option value="">— স্থান নির্বাচন —</option>
+                      {reqData.spaces.map((s) => {
+                        const isOccupied = !s.multiBed && s.reserved === true;
+                        return (
+                          <option key={s._id} value={s._id} disabled={isOccupied}>
+                            {s.name} — ৳{s.chargePerDay}/দিন
+                            {s.multiBed ? ` (${s.multiBedConf?.totalNumberOfBed}টি বেড)` : ""}
+                            {isOccupied ? " — 🔒 দখলকৃত" : ""}
+                          </option>
+                        );
+                      })}
+                    </Select>
+                  </div>
+                </Field>
+
+                {selectedSpace && (
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                    <BedSelector
+                      space={selectedSpace}
+                      value={form.bedNumber}
+                      onChange={(b) => set("bedNumber", b)}
+                      disabledBedNumbers={occupiedBedNumbers}
+                    />
+                    {!selectedSpace.multiBed && (
+                      <div className="text-sm text-slate-600 mt-2 flex items-center gap-1.5">
+                        একক বেডের স্থান —
+                        {selectedSpace.reserved ? (
+                          <span className="text-red-600 font-medium">বর্তমানে দখলকৃত (অনুপলব্ধ)</span>
+                        ) : (
+                          <span className="text-emerald-600 font-medium">শূন্য</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </SectionCard>
+
+            {/* ── Doctor & Referrer ────────────────────────────────────── */}
+            <SectionCard icon={Stethoscope} title="চিকিৎসক দল">
+              <div className="space-y-4">
+                <Field label="তত্ত্বাবধায়ক ডাক্তার" required>
+                  <Select value={form.doctorId} onChange={(e) => set("doctorId", e.target.value)}>
+                    <option value="">— ডাক্তার নির্বাচন —</option>
+                    {reqData.doctors.map((d) => (
+                      <option key={d._id} value={d._id}>
+                        {d.name}
+                        {d.degree ? ` (${d.degree})` : ""}
                       </option>
-                    );
-                  })}
-                </Select>
-              </Field>
-              {selectedSpace && (
-                <div className="mt-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                  <BedSelector
-                    space={selectedSpace}
-                    value={form.bedNumber}
-                    onChange={(b) => set("bedNumber", b)}
-                    disabledBedNumbers={occupiedBedNumbers}
-                  />
-                  {!selectedSpace.multiBed && (
-                    <div className="text-sm text-slate-600 mt-2">
-                      একক বেডের স্থান —
-                      {selectedSpace.reserved ? (
-                        <span className="text-red-600 font-medium ml-1">বর্তমানে দখলকৃত (অনুপলব্ধ)</span>
-                      ) : (
-                        <span className="text-emerald-600 font-medium ml-1">শূন্য</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </Select>
+                </Field>
 
-            {/* Doctor */}
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">চিকিৎসক দল</p>
-              <Field label="তত্ত্বাবধায়ক ডাক্তার" required>
-                <Select value={form.doctorId} onChange={(e) => set("doctorId", e.target.value)}>
-                  <option value="">— ডাক্তার নির্বাচন —</option>
-                  {reqData.doctors.map((d) => (
-                    <option key={d._id} value={d._id}>
-                      {d.name}
-                      {d.degree ? ` (${d.degree})` : ""}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <div className="mt-3 space-y-3">
-                <label className="flex items-center gap-3 cursor-pointer">
+                <label className="flex items-center gap-3 cursor-pointer p-3 bg-slate-50 rounded-lg border border-slate-200">
                   <div
                     onClick={() => set("useDoctorAsReferrer", !form.useDoctorAsReferrer)}
-                    className={`relative w-10 h-[22px] rounded-full transition-colors ${form.useDoctorAsReferrer ? "bg-blue-600" : "bg-slate-300"}`}
+                    className={`relative w-10 h-[22px] rounded-full transition-colors shrink-0 ${
+                      form.useDoctorAsReferrer ? "bg-blue-600" : "bg-slate-300"
+                    }`}
                   >
                     <div
-                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.useDoctorAsReferrer ? "translate-x-[18px]" : "translate-x-0"}`}
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                        form.useDoctorAsReferrer ? "translate-x-[18px]" : "translate-x-0"
+                      }`}
                     />
                   </div>
                   <span className="text-sm text-slate-700">তত্ত্বাবধায়ক ডাক্তারকেই রেফারার হিসেবে ব্যবহার করুন</span>
                 </label>
+
                 {!form.useDoctorAsReferrer && (
-                  <Field label="রেফারার">
+                  <Field label="রেফারার" optional>
                     <Select value={form.referrerId} onChange={(e) => set("referrerId", e.target.value)}>
                       <option value="">— রেফারার নেই —</option>
                       {reqData.referrers.map((r) => (
@@ -338,59 +472,67 @@ const AdmitPatient = () => {
                   </Field>
                 )}
               </div>
-            </div>
+            </SectionCard>
 
-            {/* Billing Type */}
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">বিলিংয়ের ধরন</p>
-              <div className="flex gap-3">
-                {["regular", "package"].map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => set("dealType", type)}
-                    className={`flex-1 py-3 rounded-xl border-2 text-sm font-semibold capitalize transition-all ${
-                      form.dealType === type
-                        ? "border-blue-500 bg-blue-50 text-blue-700"
-                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
-                    }`}
-                  >
-                    {type === "regular" ? "🔢 সাধারণ (প্রতিদিন)" : "📦 প্যাকেজ ডিল"}
-                  </button>
-                ))}
-              </div>
-              {form.dealType === "package" && (
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Field label="প্যাকেজের বিবরণ">
-                    <Input
-                      placeholder="যেমন: সম্পূর্ণ অপারেশন প্যাকেজ"
-                      value={form.packageDescription}
-                      onChange={(e) => set("packageDescription", e.target.value)}
-                    />
-                  </Field>
-                  <Field label="মোট প্যাকেজ মূল্য (টাকা)" required>
-                    <Input
-                      type="number"
-                      min="0"
-                      placeholder="যেমন: ৫০০০০"
-                      value={form.packageAmount}
-                      onChange={(e) => set("packageAmount", e.target.value)}
-                    />
-                  </Field>
+            {/* ── Billing Type ─────────────────────────────────────────── */}
+            <SectionCard icon={Package} title="বিলিংয়ের ধরন">
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  {[
+                    { value: "regular", label: "সাধারণ (প্রতিদিন)" },
+                    { value: "package", label: "প্যাকেজ ডিল" },
+                  ].map((type) => (
+                    <button
+                      key={type.value}
+                      type="button"
+                      onClick={() => set("dealType", type.value)}
+                      className={`flex-1 py-3 rounded-lg border text-sm font-semibold transition-all ${
+                        form.dealType === type.value
+                          ? "border-blue-500 bg-blue-50 text-blue-700"
+                          : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      {type.label}
+                    </button>
+                  ))}
                 </div>
-              )}
-            </div>
 
-            {/* Actions */}
-            <div className="flex gap-3 pt-1">
-              <Btn variant="secondary" size="lg" className="flex-1" onClick={() => navigate("/ipd")}>
+                {form.dealType === "package" && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-4 bg-amber-50 rounded-lg border border-amber-100">
+                    <Field label="প্যাকেজের বিবরণ" optional>
+                      <IconInput
+                        icon={ClipboardList}
+                        value={form.packageDescription}
+                        onChange={(e) => set("packageDescription", e.target.value)}
+                        placeholder="যেমন: সম্পূর্ণ অপারেশন প্যাকেজ"
+                      />
+                    </Field>
+                    <Field label="মোট প্যাকেজ মূল্য (টাকা)" required>
+                      <IconInput
+                        icon={Package}
+                        type="number"
+                        min="0"
+                        value={form.packageAmount}
+                        onChange={(e) => set("packageAmount", e.target.value)}
+                        placeholder="যেমন: ৫০০০০"
+                      />
+                    </Field>
+                  </div>
+                )}
+              </div>
+            </SectionCard>
+
+            {/* ── Actions ──────────────────────────────────────────────── */}
+            <div className="flex gap-3 justify-end">
+              <Btn variant="secondary" size="lg" onClick={() => navigate("/ipd")}>
                 বাতিল
               </Btn>
-              <Btn variant="primary" size="lg" className="flex-1" loading={loading} onClick={handleSubmit}>
-                রোগী ভর্তি করুন
+              <Btn variant="primary" size="lg" type="submit" loading={loading} className="flex items-center gap-2">
+                <span>রোগী ভর্তি করুন</span>
+                <ChevronRight className="w-4 h-4" />
               </Btn>
             </div>
-          </div>
+          </form>
         )}
       </div>
     </div>

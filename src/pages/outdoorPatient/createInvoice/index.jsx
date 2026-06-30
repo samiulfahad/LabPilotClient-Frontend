@@ -1092,7 +1092,7 @@ const CreateInvoice = () => {
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-6 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-2xl mx-auto">
           <div className="mb-6 flex items-center gap-3">
             <div className="p-2.5 bg-blue-600 rounded-xl shadow-sm">
               <Receipt className="w-5 h-5 text-white" />
