@@ -138,6 +138,22 @@ const AmountRow = ({ label, value, accent, border, large }) => (
   </div>
 );
 
+// ─── Product type badge ───────────────────────────────────────────────────────
+
+const PRODUCT_TYPE_STYLES = {
+  product: "bg-teal-100 text-teal-700",
+  service: "bg-purple-100 text-purple-700",
+  medicine: "bg-orange-100 text-orange-700",
+};
+
+const ProductTypeBadge = ({ type }) => (
+  <span
+    className={`px-1.5 py-0.5 text-[10px] font-medium rounded capitalize ${PRODUCT_TYPE_STYLES[type] || "bg-gray-100 text-gray-600"}`}
+  >
+    {type}
+  </span>
+);
+
 // ─── Invoice Summary modal ────────────────────────────────────────────────────
 
 const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
@@ -212,15 +228,16 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
         {selectedProducts.length > 0 && (
           <SummaryBlock
             icon={Package}
-            title="Products / Consumables"
+            title="Products / Services"
             badge={`${selectedProducts.length} ${selectedProducts.length === 1 ? "Item" : "Items"}`}
           >
             <div className="space-y-2">
               {selectedProducts.map((p) => (
                 <div key={p._id} className="flex items-center justify-between p-3 bg-white rounded-lg">
-                  <span className="text-sm text-gray-900">
+                  <span className="text-sm text-gray-900 flex items-center gap-1.5">
                     {p.name}
-                    <span className="text-xs text-gray-400 ml-1.5">× {p.quantity}</span>
+                    <span className="text-xs text-gray-400">× {p.quantity}</span>
+                    <ProductTypeBadge type={p.type} />
                   </span>
                   <span className="text-sm font-medium text-gray-900">{fmt(p.price * p.quantity)}</span>
                 </div>
@@ -641,7 +658,10 @@ const InvoiceForm = ({
                           >
                             <div className="flex items-center justify-between">
                               <div>
-                                <p className="font-medium text-gray-900 text-sm">{product.name}</p>
+                                <p className="font-medium text-gray-900 text-sm flex items-center gap-1.5">
+                                  {product.name}
+                                  <ProductTypeBadge type={product.type} />
+                                </p>
                                 <p className="text-xs text-blue-600 font-medium">{fmt(product.price)}</p>
                                 {product.hasStock && (
                                   <p
@@ -727,7 +747,10 @@ const InvoiceForm = ({
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 gap-3"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 text-sm truncate">{product.name}</p>
+                    <p className="font-medium text-gray-900 text-sm truncate flex items-center gap-1.5">
+                      {product.name}
+                      <ProductTypeBadge type={product.type} />
+                    </p>
                     <p className="text-xs text-blue-600 font-medium">
                       {fmt(product.price)} × {product.quantity} = {fmt(product.price * product.quantity)}
                     </p>
@@ -1054,11 +1077,12 @@ const CreateInvoice = () => {
           price,
           schemaId: schemaId || null,
         })),
-        products: selectedProducts.map(({ _id, name, price, quantity }) => ({
+        products: selectedProducts.map(({ _id, name, price, quantity, type }) => ({
           productId: _id,
           name,
           price,
           quantity,
+          type,
         })),
         amount,
       };

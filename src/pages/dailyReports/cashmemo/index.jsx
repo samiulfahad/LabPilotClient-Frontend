@@ -438,6 +438,8 @@ const TabBtn = ({ active, onClick, children, accent = "#0F6E5C" }) => (
 
 const CashMemo = () => {
   const lab = useAuthStore((s) => s.lab);
+  const user = useAuthStore((s) => s.user);
+  const isHospital = user?.type === "hospital";
 
   const [activeTab, setActiveTab] = useState("outdoor");
 
@@ -447,7 +449,7 @@ const CashMemo = () => {
 
   // Indoor state
   const [indoorSummary, setIndoorSummary] = useState(null);
-  const [indoorLoading, setIndoorLoading] = useState(true);
+  const [indoorLoading, setIndoorLoading] = useState(!isHospital ? false : true);
 
   const [popup, setPopup] = useState(null);
   const [timeRange, setTimeRange] = useState(null);
@@ -456,7 +458,7 @@ const CashMemo = () => {
     const range = todayRange();
     setTimeRange(range);
     fetchOutdoor(range);
-    fetchIndoor(range);
+    if (isHospital) fetchIndoor(range);
   }, []);
 
   const fetchOutdoor = async (range) => {
@@ -487,14 +489,15 @@ const CashMemo = () => {
     const range = { start, end };
     setTimeRange(range);
     fetchOutdoor(range);
-    fetchIndoor(range);
+    if (isHospital) fetchIndoor(range);
   };
 
   const labName = lab?.name;
   const labAddress = lab?.contact?.address;
   const labPhone = lab?.contact?.primary;
 
-  const currentLoading = activeTab === "outdoor" ? outdoorLoading : indoorLoading;
+  const effectiveTab = isHospital ? activeTab : "outdoor";
+  const currentLoading = effectiveTab === "outdoor" ? outdoorLoading : indoorLoading;
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
@@ -545,18 +548,20 @@ const CashMemo = () => {
           <TimeFrame onFetchData={handleFetchData} />
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-[#E3E0D6] mb-5 no-print bg-white rounded-t-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)]">
-          <TabBtn active={activeTab === "outdoor"} onClick={() => setActiveTab("outdoor")} accent={TEAL}>
-            বহির্বিভাগ
-          </TabBtn>
-          <TabBtn active={activeTab === "indoor"} onClick={() => setActiveTab("indoor")} accent={INDIGO}>
-            অন্তঃবিভাগ (আইপিডি)
-          </TabBtn>
-        </div>
+        {/* Tabs — only relevant when the lab actually has an IPD module */}
+        {isHospital && (
+          <div className="flex border-b border-[#E3E0D6] mb-5 no-print bg-white rounded-t-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)]">
+            <TabBtn active={activeTab === "outdoor"} onClick={() => setActiveTab("outdoor")} accent={TEAL}>
+              বহির্বিভাগ
+            </TabBtn>
+            <TabBtn active={activeTab === "indoor"} onClick={() => setActiveTab("indoor")} accent={INDIGO}>
+              অন্তঃবিভাগ (আইপিডি)
+            </TabBtn>
+          </div>
+        )}
 
         {/* Receipt */}
-        {activeTab === "outdoor" ? (
+        {effectiveTab === "outdoor" ? (
           outdoorLoading ? (
             <SkeletonReceipt />
           ) : (
@@ -581,7 +586,7 @@ const CashMemo = () => {
         )}
 
         <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-4 pb-6 no-print font-noto">
-          {activeTab === "outdoor"
+          {effectiveTab === "outdoor"
             ? "নিট আয় = মোট পরিমাণ − ল্যাব সমন্বয় − রেফারার ডিস্কাউন্ট − কমিশন"
             : "মোট বিক্রি = এই সময়কালে যোগ করা এক্সপেন্স | মোট আদায় = এই সময়কালে সংগৃহীত পেমেন্ট"}
         </p>

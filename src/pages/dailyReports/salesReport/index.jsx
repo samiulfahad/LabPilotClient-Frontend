@@ -189,6 +189,34 @@ const RoundSeal = ({ dateLabel }) => {
   );
 };
 
+// ── One report section (heading + rows), reused for all four categories ───────
+const LedgerSection = ({ title, items, isHospital, idKey, emptyLabel, bordered = true }) => (
+  <div className={`px-6 sm:px-8 py-5 ${bordered ? "border-b border-[#E3E0D6]" : ""}`}>
+    <div className="mb-1 flex justify-between">
+      <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">{title}</p>
+      <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">পরিমাণ</p>
+    </div>
+    {items.length > 0 ? (
+      items.map((it, i) =>
+        isHospital ? (
+          <LedgerRowSplit
+            key={it.key ?? i}
+            rank={i + 1}
+            name={it.name}
+            total={it.total}
+            indoorCount={it.indoorCount}
+            outdoorCount={it.outdoorCount}
+          />
+        ) : (
+          <LedgerRow key={it[idKey] ?? i} rank={i + 1} name={it.name} count={it.total} />
+        ),
+      )
+    ) : (
+      <EmptyRow label={emptyLabel} />
+    )}
+  </div>
+);
+
 const SalesReport = () => {
   const lab = useAuthStore((s) => s.lab);
   const isHospital = lab?.type === "hospital";
@@ -232,10 +260,20 @@ const SalesReport = () => {
     ? mergeCounts(data?.productCounts, data?.indoorProductCounts, "productId")
     : (data?.productCounts ?? []).map((p) => ({ ...p, total: p.count }));
 
+  const medicineCounts = isHospital
+    ? mergeCounts(data?.medicineCounts, data?.indoorMedicineCounts, "productId")
+    : (data?.medicineCounts ?? []).map((m) => ({ ...m, total: m.count }));
+
+  const serviceCounts = isHospital
+    ? mergeCounts(data?.serviceCounts, data?.indoorServiceCounts, "productId")
+    : (data?.serviceCounts ?? []).map((s) => ({ ...s, total: s.count }));
+
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
 
   const totalTestOrders = testCounts.reduce((sum, t) => sum + (t.total ?? 0), 0);
   const totalProductUnits = productCounts.reduce((sum, p) => sum + (p.total ?? 0), 0);
+  const totalMedicineUnits = medicineCounts.reduce((sum, m) => sum + (m.total ?? 0), 0);
+  const totalServiceUnits = serviceCounts.reduce((sum, s) => sum + (s.total ?? 0), 0);
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
@@ -314,63 +352,48 @@ const SalesReport = () => {
                   মোট টেস্ট- {fmt(totalTestOrders)}টি
                   <br />
                   মোট পণ্য- {fmt(totalProductUnits)}টি
+                  <br />
+                  মোট মেডিসিন- {fmt(totalMedicineUnits)}টি
+                  <br />
+                  মোট সার্ভিস- {fmt(totalServiceUnits)}টি
                 </p>
               </div>
 
               <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} />
             </div>
 
-            {/* Tests */}
-            <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
-              <div className="mb-1 flex justify-between">
-                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">টেস্টের নাম</p>
-                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">পরিমাণ</p>
-              </div>
-              {testCounts.length > 0 ? (
-                testCounts.map((t, i) =>
-                  isHospital ? (
-                    <LedgerRowSplit
-                      key={t.key ?? i}
-                      rank={i + 1}
-                      name={t.name}
-                      total={t.total}
-                      indoorCount={t.indoorCount}
-                      outdoorCount={t.outdoorCount}
-                    />
-                  ) : (
-                    <LedgerRow key={t.testId ?? i} rank={i + 1} name={t.name} count={t.total} />
-                  ),
-                )
-              ) : (
-                <EmptyRow label="এই সময়সীমায় কোনো টেস্ট অর্ডার হয়নি" />
-              )}
-            </div>
+            <LedgerSection
+              title="টেস্টের নাম"
+              items={testCounts}
+              isHospital={isHospital}
+              idKey="testId"
+              emptyLabel="এই সময়সীমায় কোনো টেস্ট অর্ডার হয়নি"
+            />
 
-            {/* Products */}
-            <div className="px-6 sm:px-8 py-5">
-              <div className="mb-1 flex justify-between">
-                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">পণ্যের নাম</p>
-                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">পরিমাণ</p>
-              </div>
-              {productCounts.length > 0 ? (
-                productCounts.map((p, i) =>
-                  isHospital ? (
-                    <LedgerRowSplit
-                      key={p.key ?? i}
-                      rank={i + 1}
-                      name={p.name}
-                      total={p.total}
-                      indoorCount={p.indoorCount}
-                      outdoorCount={p.outdoorCount}
-                    />
-                  ) : (
-                    <LedgerRow key={p.productId ?? i} rank={i + 1} name={p.name} count={p.total} />
-                  ),
-                )
-              ) : (
-                <EmptyRow label="এই সময়সীমায় কোনো পণ্য বিক্রি হয়নি" />
-              )}
-            </div>
+            <LedgerSection
+              title="পণ্যের নাম"
+              items={productCounts}
+              isHospital={isHospital}
+              idKey="productId"
+              emptyLabel="এই সময়সীমায় কোনো পণ্য বিক্রি হয়নি"
+            />
+
+            <LedgerSection
+              title="মেডিসিনের নাম"
+              items={medicineCounts}
+              isHospital={isHospital}
+              idKey="productId"
+              emptyLabel="এই সময়সীমায় কোনো মেডিসিন বিক্রি হয়নি"
+            />
+
+            <LedgerSection
+              title="সার্ভিসের নাম"
+              items={serviceCounts}
+              isHospital={isHospital}
+              idKey="productId"
+              emptyLabel="এই সময়সীমায় কোনো সার্ভিস প্রদান করা হয়নি"
+              bordered={false}
+            />
           </div>
         )}
 

@@ -9,10 +9,10 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  ReceiptText,
   Wallet,
   Clock,
   UserCheck,
+  BedDouble,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
@@ -84,14 +84,13 @@ const recordStamp = (start, end) => {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TEAL = "#0F6E5C";
-const RUST = "#B23A2E";
 const INK = "#1C1F1E";
 const SEAL_BLUE = "#1E4FA0";
 const SEAL_RED = "#C0312B";
 
 const EMPTY_DATA = {
   staff: [],
-  totals: { totalInvoices: 0, totalFinal: 0, totalDue: 0, totalCollected: 0 },
+  totals: { totalCollected: 0, opdCollected: 0, ipdCollected: 0 },
 };
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -103,7 +102,7 @@ const SkeletonManifest = () => (
       <div className="h-2.5 w-28 bg-[#ECE9DF] rounded-sm" />
       <div className="h-6 w-48 bg-[#ECE9DF] rounded-sm" />
       <div className="flex gap-6 pt-2">
-        {[0, 1, 2, 3].map((i) => (
+        {[0, 1, 2].map((i) => (
           <div key={i} className="h-9 w-16 bg-[#ECE9DF] rounded-sm" />
         ))}
       </div>
@@ -138,51 +137,53 @@ const HeaderStat = ({ label, value, accent }) => (
   </div>
 );
 
-const InvoiceRow = ({ inv, idx }) => (
-  <div className="flex items-center gap-3 py-2 border-b border-dotted border-[#E3E0D6] last:border-b-0">
-    <span className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] tabular-nums w-5 shrink-0">
-      {String(idx + 1).padStart(2, "0")}
-    </span>
-    <div className="min-w-0 flex-1">
-      <p className="text-sm text-[#1C1F1E] font-medium truncate font-noto">{inv.patient}</p>
-      <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] mt-0.5">
-        {inv.invoiceId} · {fmtDt(inv.createdAt)}
-      </p>
-    </div>
-    <div className="flex items-center gap-3 shrink-0 text-right">
-      <span className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] tabular-nums">৳{fmt(inv.final)}</span>
-      <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: TEAL }}>
-        ৳{fmt(inv.paid)}
-      </span>
-      {inv.due > 0 && (
-        <span className="font-['IBM_Plex_Mono'] text-sm tabular-nums w-14 text-right" style={{ color: RUST }}>
-          ৳{fmt(inv.due)}
-        </span>
-      )}
-    </div>
-  </div>
+// Small pill showing a source's (OPD/IPD) share of a collection total.
+const SourcePill = ({ label, value, isIpd }) => (
+  <span
+    className="inline-flex items-center gap-1 px-2 py-1 rounded-sm font-['IBM_Plex_Mono'] text-xs font-noto"
+    style={{
+      backgroundColor: isIpd ? `${SEAL_BLUE}0D` : `${TEAL}0D`,
+      color: isIpd ? SEAL_BLUE : TEAL,
+    }}
+  >
+    {isIpd && <BedDouble className="w-2.5 h-2.5" />}
+    {label} ৳{fmt(value)}
+  </span>
 );
 
-const CollectionRow = ({ col, idx }) => (
-  <div className="flex items-center gap-3 py-2 border-b border-dotted border-[#E3E0D6] last:border-b-0">
-    <span className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] tabular-nums w-5 shrink-0">
-      {String(idx + 1).padStart(2, "0")}
-    </span>
-    <div className="min-w-0 flex-1">
-      <p className="text-sm text-[#1C1F1E] font-medium truncate font-noto">{col.patient}</p>
-      <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] mt-0.5 flex items-center gap-1">
-        <Clock className="w-2.5 h-2.5" />
-        {fmtDt(col.at)} · {fmtTime(col.at)}
-      </p>
-    </div>
-    <div className="flex items-center gap-3 shrink-0 text-right">
-      <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3]">{col.invoiceId}</span>
-      <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: TEAL }}>
-        ৳{fmt(col.amount)}
+const CollectionRow = ({ col, idx }) => {
+  const isIpd = col.source === "ipd";
+  return (
+    <div className="flex items-center gap-3 py-2 border-b border-dotted border-[#E3E0D6] last:border-b-0">
+      <span className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] tabular-nums w-5 shrink-0">
+        {String(idx + 1).padStart(2, "0")}
       </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-[#1C1F1E] font-medium truncate font-noto flex items-center gap-1.5">
+          {col.patient}
+          {isIpd && (
+            <span
+              className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-sm shrink-0"
+              style={{ backgroundColor: "#1E4FA00D", color: SEAL_BLUE }}
+            >
+              <BedDouble className="w-2.5 h-2.5" />
+              <span className="font-['IBM_Plex_Mono'] text-[9px] uppercase tracking-wide">IPD</span>
+            </span>
+          )}
+        </p>
+        <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] mt-0.5 flex items-center gap-1">
+          <Clock className="w-2.5 h-2.5" />
+          {fmtDt(col.at)} · {fmtTime(col.at)} · {col.invoiceId}
+        </p>
+      </div>
+      <div className="flex items-center gap-3 shrink-0 text-right">
+        <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: TEAL }}>
+          ৳{fmt(col.amount)}
+        </span>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ─── Seal ───────────────────────────────────────────────────────────────────
 
@@ -221,8 +222,7 @@ const RoundSeal = ({ dateLabel }) => {
 
 // ─── Staff ledger entry ────────────────────────────────────────────────────────
 
-// Shared column template so every staff row lines up exactly, with no header row needed.
-const STAFF_GRID_COLS = "grid-cols-[24px_1fr_108px_150px]";
+const STAFF_GRID_COLS = "grid-cols-[24px_1fr_140px]";
 
 const MetricCell = ({ icon: Icon, value, unit, accent, active, onClick }) => (
   <button
@@ -246,8 +246,8 @@ const MetricCell = ({ icon: Icon, value, unit, accent, active, onClick }) => (
   </button>
 );
 
-const StaffEntry = ({ member: m, rank }) => {
-  const [tab, setTab] = useState(null); // null | "invoices" | "collections"
+const StaffEntry = ({ member: m, rank, isHospital }) => {
+  const [open, setOpen] = useState(false);
 
   return (
     <div className="py-2 first:pt-0">
@@ -260,41 +260,29 @@ const StaffEntry = ({ member: m, rank }) => {
           <UserCheck className="w-3 h-3 text-[#A8ACA3] shrink-0" />
         </div>
         <MetricCell
-          icon={ReceiptText}
-          value={m.totalInvoices}
-          unit="টি ইনভয়েস"
-          active={tab === "invoices"}
-          onClick={() => setTab((p) => (p === "invoices" ? null : "invoices"))}
-        />
-        <MetricCell
           icon={Wallet}
           value={`৳${fmt(m.totalCollected)}`}
           unit="কালেকশন"
           accent={TEAL}
-          active={tab === "collections"}
-          onClick={() => setTab((p) => (p === "collections" ? null : "collections"))}
+          active={open}
+          onClick={() => setOpen((p) => !p)}
         />
       </div>
 
-      {tab === "invoices" && (
+      {open && (
         <div className="pl-9 pr-1 mt-2">
-          {m.invoices.length === 0 ? (
-            <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] py-2 font-noto">
-              এই সময়সীমায় কোনো ইনভয়েস নেই
-            </p>
-          ) : (
-            m.invoices.map((inv, i) => <InvoiceRow key={inv.invoiceId} inv={inv} idx={i} />)
+          {isHospital && (
+            <div className="flex items-center gap-2 mb-2">
+              <SourcePill label="OPD" value={m.opdCollected} />
+              <SourcePill label="IPD" value={m.ipdCollected} isIpd />
+            </div>
           )}
-        </div>
-      )}
-      {tab === "collections" && (
-        <div className="pl-9 pr-1 mt-2">
           {m.collections.length === 0 ? (
             <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] py-2 font-noto">
               এই সময়সীমায় কোনো কালেকশন নেই
             </p>
           ) : (
-            m.collections.map((col, i) => <CollectionRow key={`${col.invoiceId}-${i}`} col={col} idx={i} />)
+            m.collections.map((c, i) => <CollectionRow key={`${c.source}-${c.invoiceId}-${i}`} col={c} idx={i} />)
           )}
         </div>
       )}
@@ -308,6 +296,7 @@ const CollectionReport = () => {
   const user = useAuthStore((state) => state.user);
   const lab = useAuthStore((state) => state.lab);
   const isStaff = user?.role === "staff";
+  const isHospital = user?.type === "hospital";
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -340,7 +329,6 @@ const CollectionReport = () => {
 
   const d = data ?? EMPTY_DATA;
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
-  const sortedStaff = [...d.staff].sort((a, b) => b.totalCollected - a.totalCollected);
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
@@ -364,7 +352,7 @@ const CollectionReport = () => {
               কালেকশন রিপোর্ট
             </h1>
             <p className="text-base text-[#767D78] mt-1 font-noto">
-              নির্ধারিত সময়সীমায় স্টাফদের কালেকশন ও বিলিংয়ের হিসাব।
+              নির্ধারিত সময়সীমায় স্টাফদের কালেকশনের হিসাব
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -420,14 +408,17 @@ const CollectionReport = () => {
 
                 {!isStaff && (
                   <div className="flex flex-wrap divide-x divide-[#E3E0D6] mt-3">
-                    <HeaderStat label="মোট বিল" value={`৳${fmt(d.totals.totalFinal)}`} />
-                    <HeaderStat label="আদায়" value={`৳${fmt(d.totals.totalCollected)}`} accent={TEAL} />
                     <HeaderStat
-                      label="বাকি"
-                      value={`৳${fmt(d.totals.totalDue)}`}
-                      accent={d.totals.totalDue > 0 ? RUST : undefined}
+                      label="মোট কালেকশন"
+                      value={`৳${fmt(d.totals.totalCollected)}`}
+                      accent={isHospital ? TEAL : undefined}
                     />
-                    <HeaderStat label="মোট ইনভয়েস" value={fmt(d.totals.totalInvoices)} />
+                    {isHospital && (
+                      <>
+                        <HeaderStat label="OPD" value={`৳${fmt(d.totals.opdCollected)}`} />
+                        <HeaderStat label="IPD" value={`৳${fmt(d.totals.ipdCollected)}`} accent={SEAL_BLUE} />
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -437,21 +428,21 @@ const CollectionReport = () => {
 
             {/* Staff ledger */}
             <div className="px-6 sm:px-8 py-5 border-t border-[#E3E0D6]">
-              {sortedStaff.length > 0 ? (
+              {d.staff.length > 0 ? (
                 <div className="divide-y divide-[#EFEDE5]">
-                  {sortedStaff.map((member, i) => (
-                    <StaffEntry key={member.staffId} member={member} rank={i + 1} />
+                  {d.staff.map((member, i) => (
+                    <StaffEntry key={member.staffId} member={member} rank={i + 1} isHospital={isHospital} />
                   ))}
                 </div>
               ) : (
-                <EmptyRow label="এই সময়সীমায় কোনো লেনদেন রেকর্ড হয়নি" />
+                <EmptyRow label="এই সময়সীমায় কোনো কালেকশন রেকর্ড হয়নি" />
               )}
             </div>
           </div>
         )}
 
         <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-4 pb-6 no-print font-noto">
-          শুধুমাত্র সক্রিয় (ডিলিট না হওয়া) ইনভয়েসের হিসাব অন্তর্ভুক্ত
+          শুধুমাত্র সক্রিয় (ডিলিট না হওয়া) এডমিশনের কালেকশন অন্তর্ভুক্ত
         </p>
       </div>
     </section>
