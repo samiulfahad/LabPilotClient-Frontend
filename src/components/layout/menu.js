@@ -23,6 +23,7 @@ const menu = [
   { label: "আউটডোর রোগী", path: "/outdoor/", icon: Receipt },
   { label: "ইনডোর রোগী", path: "/ipd-master", icon: HeartPlus },
   { label: "টেস্ট রিপোর্টস", path: "/report", icon: FileText },
+  { label: "My Log", path: "/my-activity", icon: FileText },
   { label: "মাসিক বিলিং", path: "/billing", icon: CreditCard },
   { label: "অ্যাকাউন্ট", path: "/account", icon: UserCircle },
   { label: "সেটআপ", path: "/setup", icon: FlaskConical },

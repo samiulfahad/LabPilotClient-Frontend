@@ -11,6 +11,7 @@ import Help from "./pages/help";
 
 // Account
 import Account from "./pages/account";
+import MyActivity from "./pages/myActivity";
 
 // Billing
 import Billing from "./pages/billing";
@@ -118,6 +119,8 @@ function App() {
 
         {/* Account */}
         <Route path="/account" element={<Account />} />
+        <Route path="/my-activity" element={<MyActivity />} />
+
         {/* Billing */}
         <Route path="/billing" element={<Billing />} />
       </Route>
