@@ -11,7 +11,6 @@ import {
   BadgeDollarSign,
   Tag,
   ReceiptText,
-  BarChart2,
   FlaskConical,
   LayoutList,
 } from "lucide-react";
@@ -93,43 +92,34 @@ const buildTestCounts = (invoices) => {
   return Object.entries(map).sort((a, b) => b[1] - a[1]);
 };
 
-// ─── Build doctor-first test summary ─────────────────────────────────────────
-// For each referrer: { name, type, invoiceCount, tests: [name, count][] sorted desc }
+// ─── Build doctor-first test summary — outdoor + indoor kept separate ────────
+// For each referrer: { name, type, invoiceCount, outdoorTests, indoorTests }
 const buildDoctorTestRows = (registered, unregistered) => {
   const rows = [];
 
-  for (const r of registered) {
-    const tests = buildTestCounts(r.invoices ?? []);
-    if (tests.length === 0) continue;
+  const pushRow = (r, isRegistered) => {
+    const outdoorTests = buildTestCounts(r.invoices ?? []);
+    const indoorTests = r.indoorTests ?? [];
+    if (outdoorTests.length === 0 && indoorTests.length === 0) return;
     rows.push({
-      key: r.referrerId ?? r.name,
-      name: r.name ?? "Unknown",
-      type: r.type ?? "unknown",
-      isRegistered: true,
+      key: isRegistered ? (r.referrerId ?? r.name) : String(r.referredBy),
+      name: (isRegistered ? r.name : r.referredBy) ?? "অজানা",
+      type: isRegistered ? (r.type ?? "unknown") : "unregistered",
+      isRegistered,
       invoiceCount: r.totalInvoices ?? r.invoices?.length ?? 0,
       totalCommission: r.totalCommission,
-      tests,
+      outdoorTests,
+      indoorTests,
     });
-  }
+  };
 
-  for (const g of unregistered) {
-    const tests = buildTestCounts(g.invoices ?? []);
-    if (tests.length === 0) continue;
-    rows.push({
-      key: String(g.referredBy),
-      name: g.referredBy ?? "অজানা",
-      type: "unregistered",
-      isRegistered: false,
-      invoiceCount: g.totalInvoices ?? g.invoices?.length ?? 0,
-      totalCommission: g.totalCommission,
-      tests,
-    });
-  }
+  for (const r of registered) pushRow(r, true);
+  for (const g of unregistered) pushRow(g, false);
 
-  // sort by total test occurrences desc
+  // sort by total test occurrences (outdoor + indoor) desc
   return rows.sort((a, b) => {
-    const ta = a.tests.reduce((s, [, c]) => s + c, 0);
-    const tb = b.tests.reduce((s, [, c]) => s + c, 0);
+    const ta = a.outdoorTests.reduce((s, [, c]) => s + c, 0) + a.indoorTests.reduce((s, [, c]) => s + c, 0);
+    const tb = b.outdoorTests.reduce((s, [, c]) => s + c, 0) + b.indoorTests.reduce((s, [, c]) => s + c, 0);
     return tb - ta;
   });
 };
@@ -219,61 +209,12 @@ const InvoiceRow = ({ inv, idx }) => (
   </div>
 );
 
-// ─── Test count chart panel ───────────────────────────────────────────────────
-
-const TestCountChart = ({ testCounts, invoiceCount, accent }) => {
-  const maxCount = testCounts[0]?.[1] ?? 1;
-  return (
-    <div className="mt-2 ml-5 mr-1 border border-[#E3E0D6] rounded-sm overflow-hidden bg-[#FDFCF9]">
-      <div
-        className="flex items-center justify-between px-4 py-2 border-b border-[#E3E0D6]"
-        style={{ borderLeftWidth: "3px", borderLeftColor: accent }}
-      >
-        <span className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">টেস্ট বিশ্লেষণ</span>
-        <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] font-noto">
-          {invoiceCount} টি ইনভয়েস · {testCounts.length} টি টেস্ট
-        </span>
-      </div>
-      {testCounts.map(([testName, count], i) => {
-        const barPct = Math.round((count / maxCount) * 100);
-        return (
-          <div
-            key={testName}
-            className="flex items-center gap-3 px-4 py-2 border-b border-dotted border-[#E3E0D6] last:border-b-0"
-          >
-            <span className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] w-5 shrink-0 tabular-nums">
-              {String(i + 1).padStart(2, "0")}
-            </span>
-            <span className="flex-1 text-sm text-[#1C1F1E] font-noto truncate">{testName}</span>
-            <div className="flex items-center gap-2 shrink-0 w-32">
-              <div className="flex-1 h-1.5 bg-[#EDE9DF] rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full"
-                  style={{ width: `${barPct}%`, backgroundColor: accent, opacity: 0.75 }}
-                />
-              </div>
-              <span
-                className="font-['IBM_Plex_Mono'] text-xs font-semibold tabular-nums w-5 text-right"
-                style={{ color: accent }}
-              >
-                {count}
-              </span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
 // ─── Referrer entry (ledger view) ─────────────────────────────────────────────
 
 const ReferrerEntry = ({ name, typeLabel, Icon, totalCommission, totalDiscount, invoices, accent }) => {
   const [open, setOpen] = useState(false);
-  const [showTests, setShowTests] = useState(false);
   const invoiceCount = invoices.length;
   const netCommission = totalCommission - totalDiscount;
-  const testCounts = buildTestCounts(invoices);
 
   return (
     <div className="py-3 border-b border-dashed border-[#E3E0D6] last:border-b-0">
@@ -306,21 +247,6 @@ const ReferrerEntry = ({ name, typeLabel, Icon, totalCommission, totalDiscount, 
           </span>
         </div>
       </button>
-
-      {testCounts.length > 0 && (
-        <button
-          onClick={() => setShowTests((p) => !p)}
-          className="mt-2 ml-5 flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] hover:text-[#6F756F] transition-colors font-noto"
-        >
-          <BarChart2 className="w-3 h-3" />
-          {showTests ? "টেস্ট লুকান" : "টেস্ট বিশ্লেষণ"}
-          {showTests ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-        </button>
-      )}
-
-      {showTests && testCounts.length > 0 && (
-        <TestCountChart testCounts={testCounts} invoiceCount={invoiceCount} accent={accent} />
-      )}
 
       {open && (
         <div className="mt-2 pl-5 pr-1">
@@ -399,14 +325,27 @@ const ViewToggle = ({ view, onChange }) => (
   </div>
 );
 
-// ─── Test-wise: single doctor card ───────────────────────────────────────────
+// ─── Test-wise: one test row for a single channel (outdoor OR indoor) ───────
 
-const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, tests }) => {
+const TestChannelRow = ({ testName, count, accent }) => (
+  <div className="flex items-center gap-2">
+    <span className="font-noto text-sm text-[#1C1F1E] leading-tight">{testName}</span>
+    <span className="font-['IBM_Plex_Mono'] text-xs text-[#D8D5CB]">—</span>
+    <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: accent }}>
+      {count}
+    </span>
+  </div>
+);
+
+// ─── Test-wise: single doctor card, Outdoor + Indoor shown separately ───────
+
+const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorTests, indoorTests }) => {
   const accent = isRegistered ? TEAL : OCHRE;
   const meta = TYPE_META[type] ?? TYPE_META.unknown;
   const Icon = isRegistered ? meta.Icon : UserX;
   const typeLabel = isRegistered ? meta.label : "ওয়াক-ইন";
-  const totalTests = tests.reduce((s, [, c]) => s + c, 0);
+  const totalOutdoor = outdoorTests.reduce((s, [, c]) => s + c, 0);
+  const totalIndoor = indoorTests.reduce((s, [, c]) => s + c, 0);
 
   return (
     <div className="py-4 border-b border-dashed border-[#E3E0D6] last:border-b-0">
@@ -422,21 +361,40 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, tests })
         )}
         <span className="flex-1 border-b border-dotted border-[#D8D5CB]" />
         <span className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] tabular-nums shrink-0 font-noto">
-          {invoiceCount} ইনভয়েস · {totalTests} টেস্ট
+          {invoiceCount} ইনভয়েস · {totalOutdoor + totalIndoor} টেস্ট
         </span>
       </div>
 
-      {/* Test rows: name — count */}
-      <div className="pl-8 space-y-1.5">
-        {tests.map(([testName, count]) => (
-          <div key={testName} className="flex items-center gap-2">
-            <span className="font-noto text-sm text-[#1C1F1E] leading-tight">{testName}</span>
-            <span className="font-['IBM_Plex_Mono'] text-xs text-[#D8D5CB]">—</span>
-            <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: accent }}>
-              {count}
-            </span>
-          </div>
-        ))}
+      {/* Outdoor + Indoor columns, side by side on larger screens */}
+      <div className="pl-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-[#A8ACA3] mb-1.5 font-noto">
+            আউটডোর {totalOutdoor > 0 && `· ${totalOutdoor}`}
+          </p>
+          {outdoorTests.length > 0 ? (
+            <div className="space-y-1.5">
+              {outdoorTests.map(([testName, count]) => (
+                <TestChannelRow key={testName} testName={testName} count={count} accent={accent} />
+              ))}
+            </div>
+          ) : (
+            <p className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] font-noto">নেই</p>
+          )}
+        </div>
+        <div>
+          <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-[#A8ACA3] mb-1.5 font-noto">
+            ইনডোর {totalIndoor > 0 && `· ${totalIndoor}`}
+          </p>
+          {indoorTests.length > 0 ? (
+            <div className="space-y-1.5">
+              {indoorTests.map(([testName, count]) => (
+                <TestChannelRow key={testName} testName={testName} count={count} accent="#1E4FA0" />
+              ))}
+            </div>
+          ) : (
+            <p className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] font-noto">নেই</p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -444,9 +402,10 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, tests })
 
 // ─── Test-wise view ───────────────────────────────────────────────────────────
 
-const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, referrerCount, lab }) => {
+const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, lab }) => {
   const rows = useMemo(() => buildDoctorTestRows(registered, unregistered), [registered, unregistered]);
-  const totalTestOccurrences = rows.reduce((s, r) => s + r.tests.reduce((ss, [, c]) => ss + c, 0), 0);
+  const totalOutdoorOccurrences = rows.reduce((s, r) => s + r.outdoorTests.reduce((ss, [, c]) => ss + c, 0), 0);
+  const totalIndoorOccurrences = rows.reduce((s, r) => s + r.indoorTests.reduce((ss, [, c]) => ss + c, 0), 0);
 
   return (
     <div
@@ -475,7 +434,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, re
           <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
           <p className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] mt-1.5 flex items-center gap-1.5 font-noto">
             <FlaskConical className="w-3 h-3" />
-            {rows.length} জন রেফারার · {totalTestOccurrences} টেস্ট · {fmt(d.totals.totalInvoices)} ইনভয়েস
+            {rows.length} জন রেফারার · আউটডোর {totalOutdoorOccurrences} · ইনডোর {totalIndoorOccurrences}
           </p>
         </div>
         <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} />
@@ -487,9 +446,9 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, re
           <LedgerCell
             icon={FlaskConical}
             label="মোট টেস্ট (বার)"
-            value={totalTestOccurrences}
+            value={totalOutdoorOccurrences + totalIndoorOccurrences}
             accent={TEAL}
-            sub={`${rows.length} জন রেফারারের মাধ্যমে`}
+            sub={`আউটডোর ${totalOutdoorOccurrences} · ইনডোর ${totalIndoorOccurrences}`}
           />
           <LedgerCell
             icon={ReceiptText}
@@ -512,7 +471,8 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, re
               type={r.type}
               isRegistered={r.isRegistered}
               invoiceCount={r.invoiceCount}
-              tests={r.tests}
+              outdoorTests={r.outdoorTests}
+              indoorTests={r.indoorTests}
             />
           ))
         ) : (
@@ -523,7 +483,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, re
   );
 };
 
-// ─── Ledger view (original) ───────────────────────────────────────────────────
+// ─── Ledger view (Referrer Based — outdoor only, unchanged) ─────────────────
 
 const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab }) => (
   <div
@@ -726,7 +686,6 @@ const CommissionReport = () => {
             headingLabel={headingLabel}
             timeRange={timeRange}
             d={d}
-            referrerCount={referrerCount}
             lab={lab}
           />
         )}
