@@ -57,6 +57,10 @@ const normalizeOutdoor = (invoice) => ({
     isCompleted: t.isCompleted ?? false,
     report: t.report ?? {},
     addedAt: t.addedAt ?? null,
+    completedAt: t.completedAt ?? null,
+    completedBy: t.completedBy ?? null,
+    updatedAt: t.updatedAt ?? null,
+    updatedBy: t.updatedBy ?? null,
   })),
 });
 
@@ -77,6 +81,10 @@ const normalizeIndoor = (patient) => ({
     isCompleted: r.isCompleted ?? false,
     report: r.report ?? {},
     addedAt: r.addedAt ?? null,
+    completedAt: r.completedAt ?? null,
+    completedBy: r.completedBy ?? null,
+    updatedAt: r.updatedAt ?? null,
+    updatedBy: r.updatedBy ?? null,
   })),
 });
 
@@ -247,6 +255,27 @@ const DateField = ({ icon: Icon, iconColor, label, value, onChange }) => (
     />
   </div>
 );
+
+// ─── Upload / Edit Meta (who + when) ───────────────────────────────────────────
+
+const UploadMeta = ({ completedAt, completedBy, updatedAt, updatedBy }) => {
+  if (!completedAt) return null;
+  const completed = formatDateTime(completedAt);
+  const updated = updatedAt ? formatDateTime(updatedAt) : null;
+
+  return (
+    <div className="flex flex-col gap-0.5 mt-1.5 text-[10px] text-gray-400 font-medium">
+      <span className="truncate">
+        Uploaded by <span className="font-bold text-gray-500">{completedBy?.name ?? "—"}</span> · {completed.date}
+      </span>
+      {updated && (
+        <span className="truncate">
+          Edited by <span className="font-bold text-gray-500">{updatedBy?.name ?? "—"}</span> · {updated.date}
+        </span>
+      )}
+    </div>
+  );
+};
 
 // ─── Test Action Buttons ──────────────────────────────────────────────────────
 
@@ -463,6 +492,14 @@ const RecordDetail = ({ record, onDatesSaved }) => {
                           </span>
                         )}
                       </div>
+                      {test.isCompleted && (
+                        <UploadMeta
+                          completedAt={test.completedAt}
+                          completedBy={test.completedBy}
+                          updatedAt={test.updatedAt}
+                          updatedBy={test.updatedBy}
+                        />
+                      )}
                     </div>
                   </div>
                   <div className="shrink-0">

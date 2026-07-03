@@ -150,6 +150,12 @@ export default function ReportDownload() {
 
   if (!portalEl) return null;
 
+  const headerSubtitle = displayId
+    ? `${isIndoor ? "Admission" : "Invoice"} #${displayId}`
+    : isIndoor
+      ? "Indoor Patient"
+      : "Report Details";
+
   return createPortal(
     <>
       <style>{`
@@ -165,39 +171,37 @@ export default function ReportDownload() {
       <div
         className={`absolute inset-0 bg-[#f7f8fa] flex flex-col overflow-hidden ${closing ? "animate-[ur-slide-out_0.25s_cubic-bezier(0.32,0,0.67,0)_forwards]" : "animate-[ur-slide-in_0.3s_cubic-bezier(0.32,0.72,0,1)_forwards]"}`}
       >
-        {/* ── Header ── */}
-        <div className="flex flex-row items-center gap-2 min-h-[56px] pt-[max(12px,env(safe-area-inset-top,12px))] pb-3 px-3 bg-[#0d1117] border-b border-white/5 shrink-0 overflow-visible">
-          <div className="w-8 h-8 min-w-[32px] rounded-[9px] bg-[#059669]/25 flex items-center justify-center shrink-0">
-            <Eye className="w-[15px] h-[15px] text-[#6ee7b7]" />
+        {/* ── Header — matches ReportUpload's light gradient bar ── */}
+        <div className="flex items-center gap-3 py-4 px-5 bg-gradient-to-br from-slate-100 via-blue-100 to-indigo-100 border-b border-slate-200 shrink-0 shadow-sm">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border bg-emerald-100 border-emerald-200">
+            <Eye className="w-4 h-4 text-emerald-600" />
           </div>
 
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <h2 className="font-['Outfit',_sans-serif] text-[13px] font-bold text-[#f1f5f9] tracking-[-0.01em] m-0 leading-[1.25] whitespace-nowrap overflow-hidden text-ellipsis">
+          <div className="flex-1 min-w-0">
+            <h2 className="font-noto text-sm font-bold text-slate-900 tracking-tight leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
               View — {testName}
             </h2>
-            <p className="font-['JetBrains_Mono',_monospace] text-[9px] text-white/30 mt-[3px] uppercase tracking-[0.07em] whitespace-nowrap overflow-hidden text-ellipsis">
-              {displayId
-                ? `${isIndoor ? "Admission" : "Invoice"} #${displayId}`
-                : isIndoor
-                  ? "Indoor Patient"
-                  : "Report Details"}
+            <p className="font-mono text-[10px] text-slate-500 mt-0.5 uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">
+              {headerSubtitle}
             </p>
           </div>
 
           <div
-            className={`hidden min-[400px]:flex items-center gap-[5px] px-2 py-[3px] rounded-[20px] font-['JetBrains_Mono',_monospace] text-[9px] font-medium tracking-[0.06em] uppercase shrink-0 whitespace-nowrap ${isPad ? "bg-[#7c3aed]/20 border border-[#7c3aed]/35 text-[#c4b5fd]" : "bg-[#2563eb]/20 border border-[#2563eb]/35 text-[#93c5fd]"}`}
+            className={`hidden min-[400px]:flex items-center gap-[5px] px-2.5 py-1 rounded-full font-mono text-[9px] font-semibold tracking-[0.06em] uppercase shrink-0 whitespace-nowrap border ${
+              isPad ? "bg-violet-100 border-violet-200 text-violet-700" : "bg-blue-100 border-blue-200 text-blue-700"
+            }`}
           >
             <Printer className="w-[10px] h-[10px]" />
             {isPad ? "Pad" : "Plain A4"}
           </div>
 
           <button
-            className="flex items-center justify-center w-10 h-10 min-w-[40px] min-h-[40px] shrink-0 grow-0 rounded-[10px] bg-white/10 border-[1.5px] border-white/20 cursor-pointer text-white touch-manipulation transition-colors duration-150 p-0 box-border hover:bg-[#dc2626]/30 hover:border-[#dc2626]/50 hover:text-[#fca5a5] active:bg-[#dc2626]/30 active:border-[#dc2626]/50 active:text-[#fca5a5]"
+            className="w-9 h-9 rounded-lg bg-white/70 border border-slate-200 flex items-center justify-center text-slate-500 transition-colors shrink-0 hover:bg-red-50 hover:border-red-200 hover:text-red-600"
             onClick={handleClose}
             title="Close (Esc)"
             aria-label="Close report"
           >
-            <X className="w-[18px] h-[18px] block" />
+            <X className="w-[17px] h-[17px]" />
           </button>
         </div>
 

@@ -16,6 +16,7 @@ import {
   SectionCard,
   Select,
   Sk,
+  Textarea,
   fmt,
   totalExpenses,
   totalPayments,
@@ -121,6 +122,7 @@ const PatientDetails = () => {
   const [doctors, setDoctors] = useState([]);
 
   const [editInfo, setEditInfo] = useState(false);
+  const [editClinical, setEditClinical] = useState(false);
   const [transferWard, setTransferWard] = useState(false);
   const [changeDoc, setChangeDoc] = useState(false);
   const [releaseConfirm, setReleaseConfirm] = useState(false);
@@ -132,6 +134,7 @@ const PatientDetails = () => {
   const [txForm, setTxForm] = useState({ spaceId: "", bedNumber: null, note: "" });
   const [docForm, setDocForm] = useState({ doctorId: "", note: "" });
   const [editForm, setEditForm] = useState({});
+  const [clinicalForm, setClinicalForm] = useState({ description: "", medicalHistory: "" });
 
   const fetchPatient = async () => {
     setLoading(true);
@@ -149,6 +152,10 @@ const PatientDetails = () => {
         guardianName: p.guardian?.name ?? "",
         guardianRelation: p.guardian?.relation ?? "",
         guardianContact: p.guardian?.contactNumber ?? "",
+      });
+      setClinicalForm({
+        description: res.data.disease?.description ?? "",
+        medicalHistory: res.data.disease?.medicalHistory ?? "",
       });
     } catch {
       // silence
@@ -170,6 +177,7 @@ const PatientDetails = () => {
 
   const setEF = (k, v) => setEditForm((f) => ({ ...f, [k]: v }));
   const setTX = (k, v) => setTxForm((f) => ({ ...f, [k]: v }));
+  const setCF = (k, v) => setClinicalForm((f) => ({ ...f, [k]: v }));
 
   const handleSaveInfo = async () => {
     setActionError("");
@@ -194,6 +202,25 @@ const PatientDetails = () => {
       fetchPatient();
     } catch (err) {
       setActionError(err?.response?.data?.error ?? "Update failed");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSaveClinical = async () => {
+    setActionError("");
+    setActionLoading(true);
+    try {
+      await indoorPatientService.updateClinicalNotes(patientId, {
+        disease: {
+          description: clinicalForm.description.trim(),
+          medicalHistory: clinicalForm.medicalHistory.trim(),
+        },
+      });
+      setEditClinical(false);
+      fetchPatient();
+    } catch (err) {
+      setActionError(err?.response?.data?.error ?? "Failed to update clinical notes");
     } finally {
       setActionLoading(false);
     }
@@ -547,32 +574,79 @@ const PatientDetails = () => {
               </SectionCard>
             </div>
 
-            <SectionCard title="Clinical Notes" icon="🩺">
-              <div className="space-y-3 text-sm">
-                {patient.disease?.description && (
+            {/* Clinical Notes — editable, with last-edited stamp */}
+            <SectionCard
+              title="Clinical Notes"
+              icon="🩺"
+              action={
+                <Btn variant="ghost" size="sm" onClick={() => setEditClinical(!editClinical)}>
+                  {editClinical ? "Cancel" : "Edit"}
+                </Btn>
+              }
+            >
+              {!editClinical ? (
+                <div className="space-y-3 text-sm">
                   <div>
                     <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider mb-1">
                       Diagnosis / Description
                     </div>
-                    <p className="text-slate-700 bg-slate-50 rounded-[3px] p-3 border border-slate-100">
-                      {patient.disease.description}
+                    <p className="text-slate-700 bg-slate-50 rounded-[3px] p-3 border border-slate-100 whitespace-pre-wrap">
+                      {patient.disease?.description || "—"}
                     </p>
                   </div>
-                )}
-                {patient.disease?.medicalHistory && (
                   <div>
                     <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider mb-1">
                       Medical History
                     </div>
-                    <p className="text-slate-700 bg-slate-50 rounded-[3px] p-3 border border-slate-100">
-                      {patient.disease.medicalHistory}
+                    <p className="text-slate-700 bg-slate-50 rounded-[3px] p-3 border border-slate-100 whitespace-pre-wrap">
+                      {patient.disease?.medicalHistory || "—"}
                     </p>
                   </div>
-                )}
-                {!patient.disease?.description && !patient.disease?.medicalHistory && (
-                  <p className="text-slate-400 text-xs">No clinical notes added</p>
-                )}
-              </div>
+                  {patient.disease?.updatedAt && (
+                    <div className="text-[11px] text-slate-400 italic pt-1">
+                      Last edited {fmt.datetime(patient.disease.updatedAt)}
+                      {patient.disease.updatedBy?.name ? ` by ${patient.disease.updatedBy.name}` : ""}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Field label="Diagnosis / Description">
+                    <Textarea
+                      value={clinicalForm.description}
+                      onChange={(e) => setCF("description", e.target.value.slice(0, 2000))}
+                      maxLength={2000}
+                      placeholder="Short description of the condition..."
+                    />
+                    <div
+                      className={`text-[11px] font-mono mt-1 text-right ${
+                        clinicalForm.description.length > 1900 ? "text-amber-600" : "text-slate-400"
+                      }`}
+                    >
+                      {clinicalForm.description.length}/2000
+                    </div>
+                  </Field>
+                  <Field label="Medical History">
+                    <Textarea
+                      rows={4}
+                      value={clinicalForm.medicalHistory}
+                      onChange={(e) => setCF("medicalHistory", e.target.value.slice(0, 3000))}
+                      maxLength={3000}
+                      placeholder="Past illnesses, allergies, operations..."
+                    />
+                    <div
+                      className={`text-[11px] font-mono mt-1 text-right ${
+                        clinicalForm.medicalHistory.length > 2850 ? "text-amber-600" : "text-slate-400"
+                      }`}
+                    >
+                      {clinicalForm.medicalHistory.length}/3000
+                    </div>
+                  </Field>
+                  <Btn variant="primary" loading={actionLoading} onClick={handleSaveClinical} className="w-full">
+                    Save Changes
+                  </Btn>
+                </div>
+              )}
             </SectionCard>
 
             {/* Ward Transfer History */}

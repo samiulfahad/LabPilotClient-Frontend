@@ -11,40 +11,43 @@ import testService from "../../api/test";
 import reportService from "../../api/report";
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+const Shimmer = ({ className = "" }) => <div className={`bg-slate-200 rounded-md animate-pulse ${className}`} />;
+
 function SkeletonLoader() {
   return (
-    <div className="p-6 px-5 font-['Outfit',_sans-serif]">
-      <div className="bg-white border border-[#e4e7ed] rounded-[16px] p-6 mb-3">
-        <div className="flex gap-[14px] mb-5">
-          <div className="bg-[linear-gradient(90deg,#e4e7ed_25%,#f2f4f7_50%,#e4e7ed_75%)] bg-[length:200%_100%] rounded-lg animate-[ur-shimmer_1.5s_infinite] w-[44px] h-[44px] rounded-[10px] shrink-0" />
-          <div className="flex-1">
-            <div className="bg-[linear-gradient(90deg,#e4e7ed_25%,#f2f4f7_50%,#e4e7ed_75%)] bg-[length:200%_100%] rounded-lg animate-[ur-shimmer_1.5s_infinite] h-[10px] w-[40%] mb-2.5" />
-            <div className="bg-[linear-gradient(90deg,#e4e7ed_25%,#f2f4f7_50%,#e4e7ed_75%)] bg-[length:200%_100%] rounded-lg animate-[ur-shimmer_1.5s_infinite] h-[22px] w-[65%]" />
+    <div className="max-w-5xl mx-auto p-5 space-y-3 font-noto">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+        <div className="flex gap-3.5 mb-5">
+          <Shimmer className="w-11 h-11 rounded-xl shrink-0" />
+          <div className="flex-1 space-y-2.5">
+            <Shimmer className="h-2.5 w-2/5" />
+            <Shimmer className="h-5 w-2/3" />
           </div>
         </div>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-2.5">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-[#f2f4f7] rounded-[10px] py-3 px-[14px]">
-              <div className="bg-[linear-gradient(90deg,#e4e7ed_25%,#f2f4f7_50%,#e4e7ed_75%)] bg-[length:200%_100%] rounded-lg animate-[ur-shimmer_1.5s_infinite] h-2 w-[60%] mb-2" />
-              <div className="bg-[linear-gradient(90deg,#e4e7ed_25%,#f2f4f7_50%,#e4e7ed_75%)] bg-[length:200%_100%] rounded-lg animate-[ur-shimmer_1.5s_infinite] h-5 w-[40%]" />
+            <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2">
+              <Shimmer className="h-2 w-3/5" />
+              <Shimmer className="h-5 w-2/5" />
             </div>
           ))}
         </div>
       </div>
       {[...Array(2)].map((_, si) => (
-        <div key={si} className="bg-white border border-[#e4e7ed] rounded-[14px] overflow-hidden mb-2.5">
-          <div className="bg-[#0d1117] py-[14px] px-[18px] flex items-center gap-2.5">
-            <div className="bg-[linear-gradient(90deg,#e4e7ed_25%,#f2f4f7_50%,#e4e7ed_75%)] bg-[length:200%_100%] rounded-lg animate-[ur-shimmer_1.5s_infinite] w-7 h-7 rounded-md bg-white/10" />
-            <div className="bg-[linear-gradient(90deg,#e4e7ed_25%,#f2f4f7_50%,#e4e7ed_75%)] bg-[length:200%_100%] rounded-lg animate-[ur-shimmer_1.5s_infinite] h-[11px] flex-1 bg-white/10" />
+        <div key={si} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-slate-900 py-3.5 px-[18px] flex items-center gap-2.5">
+            <Shimmer className="w-7 h-7 rounded-md bg-white/10" />
+            <Shimmer className="h-[11px] flex-1 bg-white/10" />
           </div>
-          <div className="py-5 px-[18px] grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-y-[14px] gap-x-[18px]">
+          <div className="p-5 grid grid-cols-2 md:grid-cols-3 gap-x-5 gap-y-4">
             {[...Array(si === 0 ? 4 : 2)].map((_, fi) => (
-              <div key={fi}>
-                <div className="border-[1.5px] border-[#e4e7ed] rounded-[10px] pt-[18px] pr-[14px] pb-[10px] pl-[12px] min-h-[54px]">
-                  <div className="bg-[linear-gradient(90deg,#e4e7ed_25%,#f2f4f7_50%,#e4e7ed_75%)] bg-[length:200%_100%] rounded-lg animate-[ur-shimmer_1.5s_infinite] h-[9px] w-[55%] mb-2.5" />
-                  <div className="bg-[linear-gradient(90deg,#e4e7ed_25%,#f2f4f7_50%,#e4e7ed_75%)] bg-[length:200%_100%] rounded-lg animate-[ur-shimmer_1.5s_infinite] h-4 w-[35%]" />
+              <div key={fi} className="space-y-1.5">
+                <div className="border border-slate-200 rounded-lg px-3.5 py-3 space-y-2.5">
+                  <Shimmer className="h-2 w-3/5" />
+                  <Shimmer className="h-4 w-2/5" />
                 </div>
-                <div className="bg-[linear-gradient(90deg,#e4e7ed_25%,#f2f4f7_50%,#e4e7ed_75%)] bg-[length:200%_100%] rounded-lg animate-[ur-shimmer_1.5s_infinite] h-2 w-[40%] mt-1.5" />
+                <Shimmer className="h-2 w-2/5" />
               </div>
             ))}
           </div>
@@ -55,19 +58,20 @@ function SkeletonLoader() {
 }
 
 // ─── Error state ──────────────────────────────────────────────────────────────
+
 function ErrorState({ message, onRetry }) {
   return (
-    <div className="flex items-center justify-center py-[60px] px-6 font-['Outfit',_sans-serif]">
-      <div className="bg-white border border-[#e4e7ed] rounded-[16px] py-9 px-8 max-w-[360px] w-full text-center shadow-[0_4px_16px_rgba(0,0,0,0.06)]">
-        <div className="w-12 h-12 bg-[#fef2f2] border-[1.5px] border-[#dc2626]/20 rounded-[12px] flex items-center justify-center mx-auto mb-4">
-          <AlertCircle className="w-5 h-5 text-[#dc2626]" />
+    <div className="flex items-center justify-center py-16 px-6 font-noto">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm py-9 px-8 max-w-[360px] w-full text-center">
+        <div className="w-12 h-12 bg-red-50 border border-red-200 rounded-xl flex items-center justify-center mx-auto mb-4">
+          <AlertCircle className="w-5 h-5 text-red-500" />
         </div>
-        <div className="text-base font-bold text-[#0d1117] mb-2 tracking-[-0.02em]">Failed to Load</div>
-        <div className="text-[13px] text-[#6b7280] leading-[1.6] mb-5">
+        <div className="text-base font-bold text-slate-900 mb-2 tracking-tight">Failed to Load</div>
+        <div className="text-[13px] text-slate-500 leading-relaxed mb-5">
           {message || "Something went wrong while loading the report."}
         </div>
         <button
-          className="inline-flex items-center gap-[7px] py-2.5 px-5 bg-[#0d1117] text-white border-none rounded-[9px] font-['Outfit',_sans-serif] text-[13px] font-semibold cursor-pointer transition-all duration-150 hover:bg-[#1e2530] hover:-translate-y-[1px]"
+          className="inline-flex items-center gap-2 py-2.5 px-5 bg-slate-900 text-white rounded-lg text-[13px] font-semibold transition-colors hover:bg-slate-800"
           onClick={onRetry}
         >
           <RotateCcw className="w-[13px] h-[13px]" />
@@ -79,40 +83,43 @@ function ErrorState({ message, onRetry }) {
 }
 
 // ─── Success / Error Modal ────────────────────────────────────────────────────
+
 function ResultModal({ type, message, onGoBack, onDismiss }) {
   const isSuccess = type === "success";
   return (
     <div
-      className="fixed inset-0 z-[10000] bg-black/55 backdrop-blur-sm flex items-center justify-center p-6 animate-[ur-fade-in_0.2s_ease]"
+      className="fixed inset-0 z-[10000] bg-slate-900/55 backdrop-blur-sm flex items-center justify-center p-6 animate-[ur-fade-in_0.2s_ease]"
       onClick={isSuccess ? onGoBack : onDismiss}
     >
       <div
-        className="bg-white rounded-[20px] py-10 px-9 max-w-[380px] w-full text-center shadow-[0_24px_60px_rgba(0,0,0,0.18)] animate-[ur-pop-in_0.3s_cubic-bezier(0.34,1.56,0.64,1)]"
+        className="bg-white rounded-2xl py-10 px-9 max-w-[380px] w-full text-center shadow-2xl animate-[ur-pop-in_0.3s_cubic-bezier(0.34,1.56,0.64,1)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 border-2 ${isSuccess ? "bg-[#ecfdf5] border-[#059669]/25" : "bg-[#fef2f2] border-[#dc2626]/25"}`}
+          className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 border-2 ${
+            isSuccess ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"
+          }`}
         >
           {isSuccess ? (
-            <CheckCircle2 className="w-[30px] h-[30px] text-[#059669]" />
+            <CheckCircle2 className="w-[30px] h-[30px] text-emerald-600" />
           ) : (
-            <AlertCircle className="w-[30px] h-[30px] text-[#dc2626]" />
+            <AlertCircle className="w-[30px] h-[30px] text-red-500" />
           )}
         </div>
-        <div className="font-['Outfit',_sans-serif] text-[20px] font-extrabold text-[#0d1117] tracking-[-0.03em] mb-2">
+        <div className="font-noto text-xl font-extrabold text-slate-900 tracking-tight mb-2">
           {isSuccess ? "All Done!" : "Something went wrong"}
         </div>
-        <div className="text-[13.5px] text-[#6b7280] leading-[1.6] mb-7">{message}</div>
+        <div className="text-[13.5px] text-slate-500 leading-relaxed mb-7">{message}</div>
         {isSuccess ? (
           <button
-            className="inline-flex items-center justify-center gap-2 w-full py-[13px] px-6 rounded-xl border-none cursor-pointer font-['Outfit',_sans-serif] text-[14px] font-bold tracking-[0.01em] transition-all duration-150 bg-[#059669] text-white shadow-[0_4px_14px_rgba(5,150,105,0.35)] hover:bg-[#047857] hover:-translate-y-[1px] hover:shadow-[0_6px_18px_rgba(5,150,105,0.4)]"
+            className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl text-white text-sm font-bold tracking-wide bg-emerald-600 shadow-md shadow-emerald-200 transition-colors hover:bg-emerald-700"
             onClick={onGoBack}
           >
             Back to Reports
           </button>
         ) : (
           <button
-            className="inline-flex items-center justify-center gap-2 w-full py-[13px] px-6 rounded-xl border-none cursor-pointer font-['Outfit',_sans-serif] text-[14px] font-bold tracking-[0.01em] transition-all duration-150 bg-[#0d1117] text-white hover:bg-[#1e2530]"
+            className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl text-white text-sm font-bold tracking-wide bg-slate-900 transition-colors hover:bg-slate-800"
             onClick={onDismiss}
           >
             Dismiss
@@ -124,10 +131,10 @@ function ResultModal({ type, message, onGoBack, onDismiss }) {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
+
 function ReportUploadInner() {
   const location = useLocation();
   const navigate = useNavigate();
-  
 
   const {
     invoiceId,
@@ -279,37 +286,36 @@ function ReportUploadInner() {
         @keyframes ur-slide-out { from { transform: translateX(0); } to { transform: translateX(-100%); } }
         @keyframes ur-fade-in   { from { opacity: 0; } to { opacity: 1; } }
         @keyframes ur-pop-in    { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
-        @keyframes ur-shimmer   { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
         .ur-drawer-body-scroll::-webkit-scrollbar { width: 4px; }
         .ur-drawer-body-scroll::-webkit-scrollbar-track { background: transparent; }
-        .ur-drawer-body-scroll::-webkit-scrollbar-thumb { background: #d1d5de; border-radius: 4px; }
+        .ur-drawer-body-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
       `}</style>
 
       <div
-        className={`fixed inset-0 z-[9999] bg-[#f7f8fa] flex flex-col ${closing ? "animate-[ur-slide-out_0.25s_cubic-bezier(0.32,0,0.67,0)_forwards]" : "animate-[ur-slide-in_0.3s_cubic-bezier(0.32,0.72,0,1)_forwards]"}`}
+        className={`fixed inset-0 z-[9999] bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col ${
+          closing
+            ? "animate-[ur-slide-out_0.25s_cubic-bezier(0.32,0,0.67,0)_forwards]"
+            : "animate-[ur-slide-in_0.3s_cubic-bezier(0.32,0.72,0,1)_forwards]"
+        }`}
       >
         {/* Header */}
-        <div className="flex items-center gap-3 py-4 px-5 bg-[#0d1117] border-b border-white/5 shrink-0">
+        <div className="flex items-center gap-3 py-4 px-5 bg-gradient-to-br from-slate-100 via-blue-100 to-indigo-100 border-b border-slate-200 shrink-0 shadow-sm">
           <div
-            className={`w-[34px] h-[34px] rounded-[9px] flex items-center justify-center shrink-0 ${isEdit ? "bg-[#7c3aed]/25" : "bg-[#2563eb]/25"}`}
+            className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${
+              isEdit ? "bg-violet-100 border-violet-200" : "bg-blue-100 border-blue-200"
+            }`}
           >
-            {isEdit ? (
-              <Pencil className="w-[15px] h-[15px] text-[#c4b5fd]" />
-            ) : (
-              <FileText className="w-[15px] h-[15px] text-[#93c5fd]" />
-            )}
+            {isEdit ? <Pencil className="w-4 h-4 text-violet-600" /> : <FileText className="w-4 h-4 text-blue-600" />}
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="font-['Outfit',_sans-serif] text-[14px] font-bold text-[#f1f5f9] tracking-[-0.01em] m-0 leading-[1.2] whitespace-nowrap overflow-hidden text-ellipsis">
+            <h2 className="font-noto text-sm font-bold text-slate-900 tracking-tight leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
               {isEdit ? `Edit — ${resolvedName}` : `Upload — ${resolvedName}`}
             </h2>
-            <p className="font-['JetBrains_Mono',_monospace] text-[10px] text-white/30 mt-[2px] mb-0 uppercase tracking-[0.07em]">
-              {headerSubtitle}
-            </p>
+            <p className="font-mono text-[10px] text-slate-500 mt-0.5 uppercase tracking-wider">{headerSubtitle}</p>
           </div>
           <button
-            className="w-[38px] h-[38px] rounded-[9px] bg-white/10 border-[1.5px] border-white/20 flex items-center justify-center cursor-pointer text-white transition-all duration-150 shrink-0 hover:bg-[#dc2626]/35 hover:border-[#dc2626]/55 hover:text-[#fca5a5] hover:scale-105"
+            className="w-9 h-9 rounded-lg bg-white/70 border border-slate-200 flex items-center justify-center text-slate-500 transition-colors shrink-0 hover:bg-red-50 hover:border-red-200 hover:text-red-600"
             onClick={handleClose}
             title="Close (Esc)"
           >
