@@ -22,6 +22,7 @@ const menu = [
   { label: "ডেইলি রিপোর্টস", path: "/daily-reports", icon: FileArchive },
   { label: "আউটডোর রোগী", path: "/outdoor/", icon: Receipt },
   { label: "ইনডোর রোগী", path: "/ipd-master", icon: HeartPlus },
+  { label: "খরচ ও ব্যয়", path: "/expense", icon: HeartPlus },
   { label: "টেস্ট রিপোর্টস", path: "/report", icon: FileText },
   { label: "আমার এক্টিভিটি", path: "/my-activity", icon: FileText },
   { label: "মাসিক বিলিং", path: "/billing", icon: CreditCard },

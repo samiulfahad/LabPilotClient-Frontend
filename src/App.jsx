@@ -48,6 +48,12 @@ import PatientList from "./pages/indoorPatient/PatientList";
 import PatientDetails from "./pages/indoorPatient/PatientDetails";
 import AddItemsToPatient from "./pages/indoorPatient/AddItemsToPatient";
 
+// Expense Hub
+import ExpenseHub from "./pages/expense";
+import AddExpense from "./pages/expense/AddExpense";
+import ExpenseList from "./pages/expense/ExpenseList";
+import DeleteExpense from "./pages/expense/DeleteExpense";
+
 // ─── Route Wrapper for Protected Pages ──────────────────────────────────────
 const ProtectedRoutes = () => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -83,7 +89,7 @@ function App() {
         {/* Daily Reports */}
         <Route path="/daily-reports" element={<DailyReports />} />
         <Route path="/cashmemo" element={<CashMemo />} />
-        <Route path="/sales-report" element={<SalesReport />} />
+        <Route path="/sales-expense-report" element={<SalesReport />} />
         <Route path="/commission-report" element={<CommissionReport />} />
         <Route path="/collection-report" element={<CollectionReport />} />
 
@@ -116,6 +122,12 @@ function App() {
         <Route path="/manage-referrers" element={<ManageReferrers />} />
         <Route path="/manage-doctors" element={<ManageDoctors />} />
         <Route path="/manage-spaces" element={<ManageSpaces />} />
+        
+        {/* Expense */}
+        <Route path="/expense" element={<ExpenseHub />} />
+        <Route path="/expense/new" element={<AddExpense />} />
+        <Route path="/expense/all" element={<ExpenseList />} />
+         <Route path="/expense/delete" element={<DeleteExpense />} />
 
         {/* Account */}
         <Route path="/account" element={<Account />} />

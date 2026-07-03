@@ -1,6 +1,17 @@
 // @babel-plugin-react-compiler
 import { useState, useEffect } from "react";
-import { ArrowLeft, Printer, Trash2, PackageCheck, Clock, FlaskConical, TrendingDown, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Printer,
+  Trash2,
+  PackageCheck,
+  Clock,
+  FlaskConical,
+  TrendingDown,
+  Users,
+  Wallet,
+  Receipt as ReceiptIcon,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
 import cashmemoService from "../../../api/cashmemo";
@@ -152,17 +163,47 @@ const SectionDivider = ({ label }) => (
   </div>
 );
 
+// ─── Summary primitives ───────────────────────────────────────────────────────
+
+const SummarySection = ({ title, icon: Icon, accent, rows, badge }) => (
+  <div className="border border-[#E3E0D6] rounded-sm overflow-hidden mb-4 last:mb-0">
+    <div
+      className="flex items-center justify-between px-4 py-3 border-l-4"
+      style={{ backgroundColor: `${accent}08`, borderColor: accent }}
+    >
+      <div className="flex items-center gap-2">
+        {Icon && <Icon className="w-4 h-4" style={{ color: accent }} />}
+        <p className="text-sm font-semibold text-[#1C1F1E] font-noto">{title}</p>
+      </div>
+      {badge && (
+        <span
+          className="font-['IBM_Plex_Mono'] text-xs px-2 py-0.5 rounded-sm border font-noto"
+          style={{ color: accent, borderColor: `${accent}30`, backgroundColor: `${accent}08` }}
+        >
+          {badge}
+        </span>
+      )}
+    </div>
+    <div className="divide-y divide-[#F0EEE6] px-4 sm:px-5 bg-white">
+      {rows.map((r) => (
+        <ReceiptLine key={r.label} label={r.label} value={r.value} tone={r.tone ?? accent} bold={r.bold} />
+      ))}
+    </div>
+  </div>
+);
+
 // ─── Stamp ────────────────────────────────────────────────────────────────────
 
 const SEAL_BLUE = "#1E4FA0";
 const SEAL_RED = "#C0312B";
 const SEAL_INDIGO = "#3730A3";
+const SEAL_VIOLET = "#6D28D9";
 
 const RoundSeal = ({ dateLabel, variant = "outdoor" }) => {
-  const borderColor = variant === "indoor" ? SEAL_INDIGO : SEAL_BLUE;
-  const titleColor = variant === "indoor" ? SEAL_INDIGO : SEAL_BLUE;
-  const subtitleColor = variant === "indoor" ? "#6D28D9" : SEAL_RED;
-  const subtitle = variant === "indoor" ? "IPD Memo" : "Cashmemo";
+  const borderColor = variant === "indoor" ? SEAL_INDIGO : variant === "summary" ? SEAL_VIOLET : SEAL_BLUE;
+  const titleColor = borderColor;
+  const subtitleColor = SEAL_RED;
+  const subtitle = variant === "indoor" ? "IPD Memo" : variant === "summary" ? "Summary" : "Cashmemo";
 
   return (
     <div className="relative shrink-0 select-none rotate-[-3deg]">
@@ -202,6 +243,7 @@ const TEAL = "#0F6E5C";
 const OCHRE = "#B5772A";
 const RUST = "#B23A2E";
 const INDIGO = "#3730A3";
+const VIOLET = "#7C3AED";
 
 // ─── Outdoor cashmemo receipt ─────────────────────────────────────────────────
 
@@ -391,6 +433,28 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
           </div>
         </div>
 
+        {/* ── মোট ডিসকাউন্ট ── */}
+        <div className="border border-[#E3D9C6] rounded-sm overflow-hidden mb-3">
+          <div
+            className="flex items-center justify-between px-4 py-3 border-l-4"
+            style={{ backgroundColor: `${OCHRE}07`, borderColor: OCHRE }}
+          >
+            <div className="flex items-center gap-2">
+              <TrendingDown className="w-3.5 h-3.5" style={{ color: OCHRE }} />
+              <p className="text-sm font-semibold text-[#1C1F1E] font-noto">মোট ডিসকাউন্ট</p>
+              <span
+                className="font-['IBM_Plex_Mono'] text-xs px-2 py-0.5 rounded-sm border font-noto"
+                style={{ color: OCHRE, borderColor: `${OCHRE}30`, backgroundColor: `${OCHRE}08` }}
+              >
+                {d.discountCount ?? 0}টি
+              </span>
+            </div>
+            <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums" style={{ color: OCHRE }}>
+              − ৳{fmt(d.totalDiscounts)}
+            </p>
+          </div>
+        </div>
+
         <SectionDivider label="এই সময়কালে আদায়" />
 
         {/* ── মোট আদায় ── */}
@@ -414,6 +478,79 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
             </p>
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Summary receipt (Outdoor/Earnings + Indoor + Expense) ──────────────────
+
+const SummaryReceipt = ({
+  isHospital,
+  outdoorSummary,
+  indoorSummary,
+  expenseSummary,
+  timeRange,
+  labName,
+  labAddress,
+  labPhone,
+}) => {
+  const o = outdoorSummary ?? {};
+  const i = indoorSummary ?? {};
+  const e = expenseSummary ?? {};
+  const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
+
+  // Bill − discounts only (no commission deducted) — matches the
+  // "সকল ডিসকাউন্ট বাদে আয়" figure shown on the Outdoor tab itself.
+  const outdoorGrossCounterAmount = (o.initial ?? 0) - (o.labAdjustment ?? 0) - (o.referrerDiscount ?? 0);
+
+  const outdoorRows = [
+    { label: "মোট বিলড", value: `৳${fmt(o.initial)}`, bold: true },
+    { label: "সকল ডিসকাউন্ট বাদে নিট টোটাল", value: `৳${fmt(outdoorGrossCounterAmount)}`, bold: true },
+    { label: "আদায়", value: `৳${fmt(o.totalPaid)}`, tone: TEAL },
+    { label: "বাকি", value: `৳${fmt(o.totalDue)}`, tone: RUST },
+  ];
+
+  const indoorRows = [
+    { label: "মোট বিলড", value: `৳${fmt(i.totalExpenses)}`, bold: true },
+    { label: "মোট ডিসকাউন্ট", value: `− ৳${fmt(i.totalDiscounts)}`, tone: OCHRE },
+    { label: "আদায়", value: `৳${fmt(i.totalCollected)}`, tone: TEAL },
+    { label: "বাকি", value: `৳${fmt(i.totalDue)}`, tone: RUST },
+  ];
+
+  const expenseRows = [{ label: "মোট খরচ", value: `৳${fmt(e.totalExpense)}`, bold: true, tone: VIOLET }];
+
+  return (
+    <div
+      id="cashmemo-summary-printable"
+      className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
+    >
+      {/* Letterhead */}
+      <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9FC]">
+        <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
+          {labName ?? "LabPilot Pro"}
+        </h3>
+        {labAddress && <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{labAddress}</p>}
+        {labPhone && <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{labPhone}</p>}
+      </div>
+
+      {/* Header band */}
+      <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
+        <div>
+          <p className="font-['IBM_Plex_Mono'] text-xs uppercase mb-1.5 font-noto" style={{ color: VIOLET }}>
+            সারসংক্ষেপ
+          </p>
+          <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
+        </div>
+        <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} variant="summary" />
+      </div>
+
+      <div className="px-6 sm:px-8 py-5">
+        <SummarySection title={isHospital ? "বহির্বিভাগ" : "আয়"} icon={Wallet} accent={TEAL} rows={outdoorRows} />
+
+        {isHospital && <SummarySection title="অন্তঃবিভাগ (আইপিডি)" icon={Users} accent={INDIGO} rows={indoorRows} />}
+
+        <SummarySection title="খরচ" icon={ReceiptIcon} accent={VIOLET} rows={expenseRows} />
       </div>
     </div>
   );
@@ -451,6 +588,10 @@ const CashMemo = () => {
   const [indoorSummary, setIndoorSummary] = useState(null);
   const [indoorLoading, setIndoorLoading] = useState(!isHospital ? false : true);
 
+  // Expense state (used by the Summary tab, for both lab types)
+  const [expenseSummary, setExpenseSummary] = useState(null);
+  const [expenseLoading, setExpenseLoading] = useState(true);
+
   const [popup, setPopup] = useState(null);
   const [timeRange, setTimeRange] = useState(null);
 
@@ -458,6 +599,7 @@ const CashMemo = () => {
     const range = todayRange();
     setTimeRange(range);
     fetchOutdoor(range);
+    fetchExpense(range);
     if (isHospital) fetchIndoor(range);
   }, []);
 
@@ -485,10 +627,23 @@ const CashMemo = () => {
     }
   };
 
+  const fetchExpense = async (range) => {
+    try {
+      setExpenseLoading(true);
+      const res = await cashmemoService.getExpenseSummary({ startDate: range.start, endDate: range.end });
+      setExpenseSummary(res.data);
+    } catch {
+      setPopup({ type: "error", message: "খরচের ডেটা লোড করা সম্ভব হয়নি।" });
+    } finally {
+      setExpenseLoading(false);
+    }
+  };
+
   const handleFetchData = (start, end) => {
     const range = { start, end };
     setTimeRange(range);
     fetchOutdoor(range);
+    fetchExpense(range);
     if (isHospital) fetchIndoor(range);
   };
 
@@ -496,8 +651,30 @@ const CashMemo = () => {
   const labAddress = lab?.contact?.address;
   const labPhone = lab?.contact?.primary;
 
-  const effectiveTab = isHospital ? activeTab : "outdoor";
-  const currentLoading = effectiveTab === "outdoor" ? outdoorLoading : indoorLoading;
+  const tabs = isHospital
+    ? [
+        { key: "outdoor", label: "বহির্বিভাগ", accent: TEAL },
+        { key: "indoor", label: "অন্তঃবিভাগ (আইপিডি)", accent: INDIGO },
+        { key: "summary", label: "সারসংক্ষেপ", accent: VIOLET },
+      ]
+    : [
+        { key: "outdoor", label: "বহির্বিভাগ", accent: TEAL },
+        { key: "summary", label: "সারসংক্ষেপ", accent: VIOLET },
+      ];
+
+  const currentLoading =
+    activeTab === "outdoor"
+      ? outdoorLoading
+      : activeTab === "indoor"
+        ? indoorLoading
+        : outdoorLoading || expenseLoading || (isHospital && indoorLoading);
+
+  const printableId =
+    activeTab === "outdoor"
+      ? "cashmemo-printable"
+      : activeTab === "indoor"
+        ? "cashmemo-ipd-printable"
+        : "cashmemo-summary-printable";
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
@@ -507,9 +684,8 @@ const CashMemo = () => {
         @media print {
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           body * { visibility: hidden; }
-          #cashmemo-printable, #cashmemo-printable *,
-          #cashmemo-ipd-printable, #cashmemo-ipd-printable * { visibility: visible; }
-          #cashmemo-printable, #cashmemo-ipd-printable {
+          #${printableId}, #${printableId} * { visibility: visible; }
+          #${printableId} {
             position: fixed; top: 0; left: 0; width: 100%; padding: 32px; box-shadow: none;
           }
           .no-print { display: none !important; }
@@ -548,21 +724,18 @@ const CashMemo = () => {
           <TimeFrame onFetchData={handleFetchData} />
         </div>
 
-        {/* Tabs — only relevant when the lab actually has an IPD module */}
-        {isHospital && (
-          <div className="flex border-b border-[#E3E0D6] mb-5 no-print bg-white rounded-t-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)]">
-            <TabBtn active={activeTab === "outdoor"} onClick={() => setActiveTab("outdoor")} accent={TEAL}>
-              বহির্বিভাগ
+        {/* Tabs */}
+        <div className="flex border-b border-[#E3E0D6] mb-5 no-print bg-white rounded-t-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)]">
+          {tabs.map((t) => (
+            <TabBtn key={t.key} active={activeTab === t.key} onClick={() => setActiveTab(t.key)} accent={t.accent}>
+              {t.label}
             </TabBtn>
-            <TabBtn active={activeTab === "indoor"} onClick={() => setActiveTab("indoor")} accent={INDIGO}>
-              অন্তঃবিভাগ (আইপিডি)
-            </TabBtn>
-          </div>
-        )}
+          ))}
+        </div>
 
         {/* Receipt */}
-        {effectiveTab === "outdoor" ? (
-          outdoorLoading ? (
+        {activeTab === "outdoor" &&
+          (outdoorLoading ? (
             <SkeletonReceipt />
           ) : (
             <OutdoorReceipt
@@ -572,23 +745,43 @@ const CashMemo = () => {
               labAddress={labAddress}
               labPhone={labPhone}
             />
-          )
-        ) : indoorLoading ? (
-          <SkeletonReceipt />
-        ) : (
-          <IndoorReceipt
-            summary={indoorSummary}
-            timeRange={timeRange}
-            labName={labName}
-            labAddress={labAddress}
-            labPhone={labPhone}
-          />
-        )}
+          ))}
+
+        {activeTab === "indoor" &&
+          (indoorLoading ? (
+            <SkeletonReceipt />
+          ) : (
+            <IndoorReceipt
+              summary={indoorSummary}
+              timeRange={timeRange}
+              labName={labName}
+              labAddress={labAddress}
+              labPhone={labPhone}
+            />
+          ))}
+
+        {activeTab === "summary" &&
+          (currentLoading ? (
+            <SkeletonReceipt />
+          ) : (
+            <SummaryReceipt
+              isHospital={isHospital}
+              outdoorSummary={outdoorSummary}
+              indoorSummary={indoorSummary}
+              expenseSummary={expenseSummary}
+              timeRange={timeRange}
+              labName={labName}
+              labAddress={labAddress}
+              labPhone={labPhone}
+            />
+          ))}
 
         <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-4 pb-6 no-print font-noto">
-          {effectiveTab === "outdoor"
+          {activeTab === "outdoor"
             ? "নিট আয় = মোট পরিমাণ − ল্যাব সমন্বয় − রেফারার ডিস্কাউন্ট − কমিশন"
-            : "মোট বিক্রি = এই সময়কালে যোগ করা এক্সপেন্স | মোট আদায় = এই সময়কালে সংগৃহীত পেমেন্ট"}
+            : activeTab === "indoor"
+              ? "মোট বিক্রি = এই সময়কালে যোগ করা এক্সপেন্স | মোট আদায় = এই সময়কালে সংগৃহীত পেমেন্ট"
+              : "সারসংক্ষেপ = সকল বিভাগের বিলিং, আদায় ও খরচের একত্রিত চিত্র"}
         </p>
       </div>
     </section>

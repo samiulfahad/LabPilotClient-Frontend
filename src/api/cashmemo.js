@@ -10,6 +10,11 @@ const cashmemoService = {
     const params = new URLSearchParams({ startDate, endDate });
     return api.get(`/cashmemo/ipd-summary?${params}`);
   },
+
+  getExpenseSummary: ({ startDate, endDate }) => {
+    const params = new URLSearchParams({ startDate, endDate });
+    return api.get(`/cashmemo/expense-summary?${params}`);
+  },
 };
 
 export default cashmemoService;

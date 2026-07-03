@@ -10,8 +10,8 @@ const reportNav = [
     color: "emerald",
   },
   {
-    label: "সেলস রিপোর্ট",
-    path: "/sales-report",
+    label: "সেলস এবং এক্সপেন্স রিপোর্ট",
+    path: "/sales-expense-report",
     icon: FileText,
     description: "বিক্রয়ের সারসংক্ষেপ",
     color: "indigo",
