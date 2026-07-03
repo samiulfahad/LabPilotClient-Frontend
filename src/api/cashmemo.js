@@ -26,6 +26,10 @@ const cashmemoService = {
     return api.get(`/cashmemo/ipd-released-patients?${params}`);
   },
 
+  getIpdOutstandingPatients: () => {
+    return api.get(`/cashmemo/ipd-outstanding-patients`);
+  },
+
   getExpenseSummary: ({ startDate, endDate }) => {
     const params = new URLSearchParams({ startDate, endDate });
     return api.get(`/cashmemo/expense-summary?${params}`);

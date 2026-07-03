@@ -3,6 +3,7 @@
  * babel-plugin-react-compiler handles all memoization automatically.
  */
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Search,
   Printer,
@@ -23,6 +24,7 @@ import {
   ArrowLeft,
   AlertCircle,
   Hash,
+  Info,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 import Popup from "../../components/popup";
@@ -117,6 +119,41 @@ const toInputDate = (dateStr) => {
   return isNaN(d) ? "" : d.toISOString().slice(0, 10);
 };
 
+// ─── Color tokens (shared LabPilot palette) ────────────────────────────────────
+
+const TEAL = {
+  grad: "from-teal-500 to-teal-600",
+  text: "text-teal-700",
+  bg: "bg-teal-50",
+  border: "border-teal-200",
+  icon: "bg-teal-100 text-teal-600",
+  ring: "ring-teal-100",
+};
+const INDIGO = {
+  grad: "from-indigo-500 to-indigo-600",
+  text: "text-indigo-700",
+  bg: "bg-indigo-50",
+  border: "border-indigo-200",
+  icon: "bg-indigo-100 text-indigo-600",
+  ring: "ring-indigo-100",
+};
+const OCHRE = {
+  grad: "from-amber-500 to-amber-600",
+  text: "text-amber-700",
+  bg: "bg-amber-50",
+  border: "border-amber-200",
+  icon: "bg-amber-100 text-amber-600",
+  ring: "ring-amber-100",
+};
+const RUST = {
+  grad: "from-rose-500 to-orange-600",
+  text: "text-rose-700",
+  bg: "bg-rose-50",
+  border: "border-rose-200",
+  icon: "bg-rose-100 text-rose-600",
+  ring: "ring-rose-100",
+};
+
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 const RecordSkeleton = () => (
@@ -162,87 +199,8 @@ const RecordSkeleton = () => (
   </div>
 );
 
-// ─── Date Editor ──────────────────────────────────────────────────────────────
-
-const DateEditor = ({
-  recordType,
-  displayId,
-  patientId,
-  testId,
-  addedAt,
-  initialSampleDate,
-  initialReportDate,
-  onSaved,
-}) => {
-  const [sampleDate, setSampleDate] = useState(toInputDate(initialSampleDate));
-  const [reportDate, setReportDate] = useState(toInputDate(initialReportDate));
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-
-  const isDirty = toInputDate(initialSampleDate) !== sampleDate || toInputDate(initialReportDate) !== reportDate;
-
-  const handleSave = async () => {
-    if (!sampleDate && !reportDate) return;
-    try {
-      setSaving(true);
-      setError(null);
-      if (recordType === "indoor") {
-        await reportService.updateIndoorDates({
-          patientId,
-          testId,
-          addedAt,
-          sampleCollectionDate: sampleDate || null,
-          reportDate: reportDate || null,
-        });
-      } else {
-        await reportService.updateDates({
-          invoiceId: displayId,
-          testId,
-          sampleCollectionDate: sampleDate || null,
-          reportDate: reportDate || null,
-        });
-      }
-      onSaved({ sampleCollectionDate: sampleDate || null, reportDate: reportDate || null });
-    } catch {
-      setError("তারিখ সেভ করা সম্ভব হয়নি");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="mt-3 pt-3 border-t border-gray-100">
-      <div className="flex flex-wrap items-end gap-2.5">
-        <DateField
-          icon={Calendar}
-          iconColor="text-emerald-600"
-          label="Sample Date"
-          value={sampleDate}
-          onChange={setSampleDate}
-        />
-        <DateField
-          icon={ClipboardList}
-          iconColor="text-amber-600"
-          label="Report Date"
-          value={reportDate}
-          onChange={setReportDate}
-        />
-        <button
-          onClick={handleSave}
-          disabled={saving || !isDirty || (!sampleDate && !reportDate)}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border transition-all disabled:opacity-40 disabled:cursor-not-allowed border-gray-200 text-gray-700 hover:bg-gray-900 hover:text-white hover:border-gray-900 self-end"
-        >
-          {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-          {saving ? "Saving…" : "Save"}
-        </button>
-      </div>
-      {error && <p className="text-[11px] text-red-500 font-medium mt-1.5">{error}</p>}
-    </div>
-  );
-};
-
 const DateField = ({ icon: Icon, iconColor, label, value, onChange }) => (
-  <div className="flex flex-col gap-1.5">
+  <div className="flex flex-col gap-1.5 flex-1 min-w-[140px]">
     <label className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-wide">
       <Icon className={`w-3 h-3 ${iconColor}`} />
       {label}
@@ -251,7 +209,7 @@ const DateField = ({ icon: Icon, iconColor, label, value, onChange }) => (
       type="date"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="px-2.5 py-1.5 text-xs font-medium border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-gray-50 focus:bg-white text-gray-800 cursor-pointer transition-all"
+      className="px-2.5 py-1.5 text-xs font-medium border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-gray-50 focus:bg-white text-gray-800 cursor-pointer transition-all w-full"
     />
   </div>
 );
@@ -274,6 +232,193 @@ const UploadMeta = ({ completedAt, completedBy, updatedAt, updatedBy }) => {
         </span>
       )}
     </div>
+  );
+};
+
+// ─── Section Header (compact label with icon + accent underline) ──────────────
+
+const SectionHeader = ({ icon: Icon, label, token }) => (
+  <div className="flex items-center gap-2.5 mb-3.5">
+    <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${token.icon}`}>
+      <Icon className="w-3 h-3" />
+    </div>
+    <span className={`text-[11px] font-bold uppercase tracking-widest ${token.text}`}>{label}</span>
+    <div className="flex-1 h-px bg-gray-100" />
+  </div>
+);
+
+// ─── Bridge Divider (dashed, matches cash memo convention) ────────────────────
+
+const BridgeDivider = () => (
+  <div className="flex items-center gap-2 py-1">
+    <div className="flex-1 border-t border-dashed border-gray-200" />
+    <div className="w-1.5 h-1.5 rounded-full bg-gray-200" />
+    <div className="flex-1 border-t border-dashed border-gray-200" />
+  </div>
+);
+
+// ─── Meta Modal (dates + created / edited / added info) ───────────────────────
+// Rendered via createPortal straight to document.body so it always sits
+// centered over the full viewport, independent of any ancestor stacking
+// contexts, scroll containers, or transforms in the card tree.
+
+const MetaModal = ({ record, test, onClose, onSaved }) => {
+  const added = test.addedAt ? formatDateTime(test.addedAt) : null;
+  const created = test.completedAt ? formatDateTime(test.completedAt) : null;
+  const edited = test.updatedAt ? formatDateTime(test.updatedAt) : null;
+
+  const [sampleDate, setSampleDate] = useState(toInputDate(test.report?.sampleCollectionDate));
+  const [reportDate, setReportDate] = useState(toInputDate(test.report?.reportDate));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [saved, setSaved] = useState(false);
+
+  const isDirty =
+    toInputDate(test.report?.sampleCollectionDate) !== sampleDate ||
+    toInputDate(test.report?.reportDate) !== reportDate;
+
+  const handleSave = async () => {
+    if (!sampleDate && !reportDate) return;
+    try {
+      setSaving(true);
+      setError(null);
+      setSaved(false);
+      if (record._type === "indoor") {
+        await reportService.updateIndoorDates({
+          patientId: record._patientId,
+          testId: test.testId,
+          addedAt: test.addedAt,
+          sampleCollectionDate: sampleDate || null,
+          reportDate: reportDate || null,
+        });
+      } else {
+        await reportService.updateDates({
+          invoiceId: record.displayId,
+          testId: test.testId,
+          sampleCollectionDate: sampleDate || null,
+          reportDate: reportDate || null,
+        });
+      }
+      onSaved(test.testId, test.addedAt, { sampleCollectionDate: sampleDate || null, reportDate: reportDate || null });
+      setSaved(true);
+    } catch {
+      setError("তারিখ সেভ করা সম্ভব হয়নি");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const Row = ({ icon: Icon, token, label, name, date }) => (
+    <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${token.icon}`}>
+        <Icon className="w-4 h-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+        {date ? (
+          <>
+            <p className="text-sm font-bold text-gray-800 truncate">{name ?? "—"}</p>
+            <p className="font-['IBM_Plex_Mono'] text-[11px] text-gray-400 font-medium mt-0.5">
+              {date.date} · {date.time}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm font-medium text-gray-300">তথ্য নেই</p>
+        )}
+      </div>
+    </div>
+  );
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-[0_25px_60px_rgba(15,23,42,0.25)] w-full max-w-md max-h-[85vh] flex flex-col animate-[fadeUp_0.25s_ease]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Sticky header — clean, light */}
+        <div className="shrink-0 px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-3 rounded-t-2xl">
+          <div className="min-w-0 flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${INDIGO.icon}`}>
+              <FlaskConical className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">টেস্ট তথ্য</p>
+              <h3 className="text-sm font-bold text-gray-800 truncate font-noto">{test.name}</h3>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors shrink-0 mt-0.5">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Scrollable body — generous y padding */}
+        <div className="flex-1 overflow-y-auto px-6 py-8">
+          {/* Dates first */}
+          <SectionHeader icon={Calendar} label="তারিখ পরিবর্তন" token={TEAL} />
+          <div className={`flex flex-wrap gap-3 p-4 rounded-xl border ${TEAL.border} ${TEAL.bg}`}>
+            <DateField
+              icon={Calendar}
+              iconColor="text-teal-600"
+              label="Sample Date"
+              value={sampleDate}
+              onChange={setSampleDate}
+            />
+            <DateField
+              icon={ClipboardList}
+              iconColor="text-orange-600"
+              label="Report Date"
+              value={reportDate}
+              onChange={setReportDate}
+            />
+          </div>
+          {error && <p className="text-[11px] text-rose-600 font-medium mt-3">{error}</p>}
+          {saved && !isDirty && <p className="text-[11px] text-teal-700 font-medium mt-3">সেভ হয়েছে</p>}
+
+          <div className="mt-4">
+            <button
+              onClick={handleSave}
+              disabled={saving || !isDirty || (!sampleDate && !reportDate)}
+              className={`w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold rounded-xl bg-gradient-to-r ${TEAL.grad} text-white shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed`}
+            >
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              {saving ? "Saving…" : "Save Dates"}
+            </button>
+          </div>
+
+          <div className="my-8">
+            <BridgeDivider />
+          </div>
+
+          {/* Meta info below */}
+          <SectionHeader icon={Info} label="বিস্তারিত তথ্য" token={INDIGO} />
+          <div className="px-1">
+            <Row
+              icon={Hash}
+              token={OCHRE}
+              label="Added"
+              name={added ? "রিপোর্ট এন্ট্রি যোগ করা হয়েছে" : null}
+              date={added}
+            />
+            <Row icon={Upload} token={TEAL} label="Created by" name={test.completedBy?.name} date={created} />
+            <Row icon={Pencil} token={RUST} label="Last edited by" name={test.updatedBy?.name} date={edited} />
+          </div>
+        </div>
+
+        {/* Sticky footer — clean, light */}
+        <div className="shrink-0 px-6 py-4 border-t border-gray-100 rounded-b-2xl">
+          <button
+            onClick={onClose}
+            className="w-full py-2.5 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold hover:bg-gray-50 transition-all"
+          >
+            বন্ধ করুন
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 };
 
@@ -343,6 +488,8 @@ const TestActions = ({ record, test }) => {
 // ─── Record Detail Card ───────────────────────────────────────────────────────
 
 const RecordDetail = ({ record, onDatesSaved }) => {
+  const [metaTest, setMetaTest] = useState(null);
+
   const { date, time } = formatDateTime(record.createdAt);
   const amount = record.amount;
   const final = Number(amount?.final) || 0;
@@ -355,49 +502,48 @@ const RecordDetail = ({ record, onDatesSaved }) => {
   const offlineTests = record.tests.filter((t) => !t.schemaId);
   const completedCount = onlineTests.filter((t) => t.isCompleted).length;
 
-  const stripColor = isIndoor
-    ? "from-indigo-500 to-purple-500"
-    : due > 0
-      ? "from-rose-500 to-pink-500"
-      : "from-emerald-500 to-teal-500";
+  const headerToken = isIndoor ? INDIGO : due > 0 ? RUST : TEAL;
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-      {/* ── Accent strip ── */}
-      <div className={`h-1.5 w-full bg-gradient-to-r ${stripColor}`} />
-
+    <div className="bg-white border border-gray-100 rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden">
       {/* ── Header ── */}
       <div className="px-6 pt-5 pb-5 border-b border-gray-100">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">
-              {isIndoor ? "Admission" : "Invoice"}
-            </p>
-            <div className="flex items-center gap-2">
-              <Hash className="w-5 h-5 text-gray-300" />
-              <h2 className="font-['IBM_Plex_Mono'] text-2xl font-semibold text-gray-900 tracking-tight">
+          <div className="flex items-start gap-3.5">
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${headerToken.icon}`}>
+              <Hash className="w-5 h-5" />
+            </div>
+            <div>
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${headerToken.text} mb-1`}>
+                {isIndoor ? "Admission" : "Invoice"}
+              </p>
+              <h2 className="font-['IBM_Plex_Mono'] text-xl font-semibold text-gray-900 tracking-tight leading-none">
                 {record.displayId}
               </h2>
+              <p className="text-xs text-gray-400 mt-2 font-medium">
+                {date} · {time}
+              </p>
             </div>
-            <p className="text-xs text-gray-400 mt-1.5 font-medium">
-              {date} · {time}
-            </p>
           </div>
 
           {!isIndoor && amount && (
             <div className="text-right shrink-0">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Total</p>
-              <p className="font-['IBM_Plex_Mono'] text-2xl font-semibold text-gray-900">৳{fmt(final)}</p>
+              <p className="font-['IBM_Plex_Mono'] text-xl font-semibold text-gray-900 leading-none">৳{fmt(final)}</p>
               {final < initial && (
-                <p className="font-['IBM_Plex_Mono'] text-xs text-gray-400 line-through">৳{fmt(initial)}</p>
+                <p className="font-['IBM_Plex_Mono'] text-[11px] text-gray-400 line-through mt-1">৳{fmt(initial)}</p>
               )}
-              <div className="mt-2">
+              <div className="mt-2.5">
                 {due === 0 ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${TEAL.bg} ${TEAL.text} border ${TEAL.border}`}
+                  >
                     <CheckCircle2 className="w-3 h-3" /> Paid
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${RUST.bg} ${RUST.text} border ${RUST.border}`}
+                  >
                     <Wallet className="w-3 h-3" /> Due ৳{fmt(due)}
                   </span>
                 )}
@@ -406,7 +552,9 @@ const RecordDetail = ({ record, onDatesSaved }) => {
           )}
 
           {isIndoor && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${INDIGO.bg} ${INDIGO.text} border ${INDIGO.border} shrink-0`}
+            >
               <CheckCircle2 className="w-3 h-3" /> Indoor Patient
             </span>
           )}
@@ -415,19 +563,17 @@ const RecordDetail = ({ record, onDatesSaved }) => {
 
       {/* ── Patient Info ── */}
       <div className="px-6 py-5 border-b border-gray-100 bg-slate-50/60">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">রোগীর তথ্য</p>
-        <div className="grid grid-cols-2 gap-x-8 gap-y-3.5">
+        <SectionHeader icon={User} label="রোগীর তথ্য" token={INDIGO} />
+        <div className="grid grid-cols-2 gap-x-8 gap-y-4">
           {[
             { label: "Name", val: record.patient?.name },
             { label: "Contact", val: record.patient?.contactNumber },
             { label: "Gender", val: record.patient?.gender, cap: true },
             { label: "Age", val: record.patient?.age ? `${record.patient.age} yrs` : "—" },
           ].map(({ label, val, cap }) => (
-            <div key={label} className="flex items-start gap-3 min-w-0">
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
-                <p className={`text-sm font-bold text-gray-800 truncate ${cap ? "capitalize" : ""}`}>{val || "—"}</p>
-              </div>
+            <div key={label} className="min-w-0">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+              <p className={`text-sm font-bold text-gray-800 truncate ${cap ? "capitalize" : ""}`}>{val || "—"}</p>
             </div>
           ))}
         </div>
@@ -436,15 +582,17 @@ const RecordDetail = ({ record, onDatesSaved }) => {
       {/* ── Online Tests ── */}
       {onlineTests.length > 0 && (
         <div className="px-6 py-5 border-b border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-              <FlaskConical className="w-3.5 h-3.5 text-emerald-500" />
-              অনলাইন টেস্ট
-            </p>
+          <div className="flex items-center justify-between gap-2.5 mb-3.5">
             <div className="flex items-center gap-2.5">
-              <div className="h-1.5 w-24 bg-gray-100 rounded-full overflow-hidden">
+              <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${TEAL.icon}`}>
+                <FlaskConical className="w-3 h-3" />
+              </div>
+              <span className={`text-[11px] font-bold uppercase tracking-widest ${TEAL.text}`}>অনলাইন টেস্ট</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <div className="h-1.5 w-20 bg-gray-100 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all"
+                  className={`h-full bg-gradient-to-r ${TEAL.grad} rounded-full transition-all`}
                   style={{ width: `${onlineTests.length > 0 ? (completedCount / onlineTests.length) * 100 : 0}%` }}
                 />
               </div>
@@ -453,36 +601,36 @@ const RecordDetail = ({ record, onDatesSaved }) => {
               </span>
             </div>
           </div>
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {onlineTests.map((test, i) => (
               <div
                 key={(test.testId ?? "") + (test.addedAt ?? i)}
                 className={`rounded-xl border px-4 py-3.5 transition-all ${
                   test.isCompleted
-                    ? "border-emerald-200 bg-emerald-50/40"
+                    ? `${TEAL.border} ${TEAL.bg}`
                     : "border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm"
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3 min-w-0 pt-0.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                        test.isCompleted ? "bg-emerald-100" : "bg-amber-50"
-                      }`}
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${test.isCompleted ? TEAL.icon : OCHRE.icon}`}
                     >
-                      <FlaskConical
-                        className={`w-3.5 h-3.5 ${test.isCompleted ? "text-emerald-600" : "text-amber-500"}`}
-                      />
+                      <FlaskConical className="w-3.5 h-3.5" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-gray-800 truncate leading-snug">{test.name}</p>
                       <div className="flex items-center gap-2 mt-1">
                         {test.isCompleted ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+                          <span
+                            className={`inline-flex items-center gap-1 text-[10px] font-bold ${TEAL.text} ${TEAL.bg} border ${TEAL.border} px-1.5 py-0.5 rounded-full`}
+                          >
                             <CheckCircle2 className="w-2.5 h-2.5" /> Completed
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                          <span
+                            className={`inline-flex items-center gap-1 text-[10px] font-bold ${OCHRE.text} ${OCHRE.bg} border ${OCHRE.border} px-1.5 py-0.5 rounded-full`}
+                          >
                             Pending
                           </span>
                         )}
@@ -492,30 +640,19 @@ const RecordDetail = ({ record, onDatesSaved }) => {
                           </span>
                         )}
                       </div>
-                      {test.isCompleted && (
-                        <UploadMeta
-                          completedAt={test.completedAt}
-                          completedBy={test.completedBy}
-                          updatedAt={test.updatedAt}
-                          updatedBy={test.updatedBy}
-                        />
-                      )}
                     </div>
                   </div>
-                  <div className="shrink-0">
+                  <div className="shrink-0 flex items-center gap-1.5">
+                    <button
+                      onClick={() => setMetaTest(test)}
+                      className="p-2 rounded-xl border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300 transition-all"
+                      title="Created / Edited info"
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                    </button>
                     <TestActions record={record} test={test} />
                   </div>
                 </div>
-                <DateEditor
-                  recordType={record._type}
-                  displayId={record.displayId}
-                  patientId={record._patientId}
-                  testId={test.testId}
-                  addedAt={test.addedAt}
-                  initialSampleDate={test.report?.sampleCollectionDate}
-                  initialReportDate={test.report?.reportDate}
-                  onSaved={(dates) => onDatesSaved(test.testId, test.addedAt, dates)}
-                />
               </div>
             ))}
           </div>
@@ -525,9 +662,7 @@ const RecordDetail = ({ record, onDatesSaved }) => {
       {/* ── Offline Tests ── */}
       {offlineTests.length > 0 && (
         <div className="px-6 py-5">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 flex items-center gap-1.5 mb-4">
-            <FileText className="w-3.5 h-3.5 text-gray-400" /> অফলাইন টেস্ট
-          </p>
+          <SectionHeader icon={FileText} label="অফলাইন টেস্ট" token={OCHRE} />
           <div className="space-y-2">
             {offlineTests.map((test, i) => (
               <div
@@ -547,6 +682,10 @@ const RecordDetail = ({ record, onDatesSaved }) => {
             ))}
           </div>
         </div>
+      )}
+
+      {metaTest && (
+        <MetaModal record={record} test={metaTest} onClose={() => setMetaTest(null)} onSaved={onDatesSaved} />
       )}
     </div>
   );
