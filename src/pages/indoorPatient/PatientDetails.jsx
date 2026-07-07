@@ -126,10 +126,13 @@ const PatientDetails = () => {
   const [transferWard, setTransferWard] = useState(false);
   const [changeDoc, setChangeDoc] = useState(false);
   const [releaseConfirm, setReleaseConfirm] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteNote, setDeleteNote] = useState("");
   const [showCollectPayment, setShowCollectPayment] = useState(false);
   const [showExtraPayment, setShowExtraPayment] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   const [txForm, setTxForm] = useState({ spaceId: "", bedNumber: null, note: "" });
   const [docForm, setDocForm] = useState({ doctorId: "", note: "" });
@@ -273,6 +276,18 @@ const PatientDetails = () => {
       navigate("/ipd/patients");
     } catch (err) {
       setActionError(err?.response?.data?.error ?? "Failed to release");
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleteError("");
+    setActionLoading(true);
+    try {
+      await indoorPatientService.deletePatient(patientId, { note: deleteNote.trim() });
+      navigate("/ipd/patients");
+    } catch (err) {
+      setDeleteError(err?.response?.data?.error ?? "Failed to delete patient");
       setActionLoading(false);
     }
   };
@@ -708,6 +723,19 @@ const PatientDetails = () => {
                 </div>
               )}
             </SectionCard>
+
+            {/* Danger Zone — soft delete, separated from normal actions to avoid mis-clicks */}
+            <SectionCard title="Danger Zone" icon="⚠️">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-slate-500">
+                  Permanently remove this record from all lists and reports. This is different from Discharge — use it
+                  only to correct an admission created by mistake.
+                </p>
+                <Btn variant="danger" size="sm" className="shrink-0" onClick={() => setDeleteConfirm(true)}>
+                  Delete Patient
+                </Btn>
+              </div>
+            </SectionCard>
           </div>
         )}
 
@@ -862,6 +890,59 @@ const PatientDetails = () => {
             </Btn>
             <Btn variant="danger" size="lg" className="flex-1" loading={actionLoading} onClick={handleRelease}>
               Confirm Discharge
+            </Btn>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={deleteConfirm}
+        onClose={() => {
+          setDeleteConfirm(false);
+          setDeleteNote("");
+          setDeleteError("");
+        }}
+        title="Delete Patient Record"
+        width="max-w-md"
+      >
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-base font-bold text-slate-800 mb-1">Delete {patient.patient.name}'s record?</h3>
+            <p className="text-sm text-slate-500">
+              This removes the admission from every list, report, and cash memo figure
+              {isAdmitted && (
+                <>
+                  {" "}
+                  and frees up <span className="font-semibold text-slate-700">{patient.space.spaceName}</span>
+                  {patient.space.bedNumber != null && <> · Bed {patient.space.bedNumber}</>}
+                </>
+              )}
+              . This action cannot be undone from the app.
+            </p>
+          </div>
+          <Field label="Reason (optional)">
+            <Input
+              placeholder="e.g. duplicate admission, entered by mistake…"
+              value={deleteNote}
+              onChange={(e) => setDeleteNote(e.target.value)}
+            />
+          </Field>
+          <ErrorMsg msg={deleteError} />
+          <div className="flex gap-3 pt-1">
+            <Btn
+              variant="secondary"
+              size="lg"
+              className="flex-1"
+              onClick={() => {
+                setDeleteConfirm(false);
+                setDeleteNote("");
+                setDeleteError("");
+              }}
+            >
+              Cancel
+            </Btn>
+            <Btn variant="danger" size="lg" className="flex-1" loading={actionLoading} onClick={handleDelete}>
+              Confirm Delete
             </Btn>
           </div>
         </div>

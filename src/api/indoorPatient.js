@@ -15,6 +15,7 @@ const indoorPatientService = {
   addPayment: (id, data) => api.post(`/indoor-patient/${id}/payment`, data),
   addDiscount: (id, data) => api.post(`/indoor-patient/${id}/discount`, data),
   release: (id, data) => api.patch(`/indoor-patient/${id}/release`, data),
+  deletePatient: (id, data) => api.delete(`/indoor-patient/${id}`, { data }),
 };
 
 export default indoorPatientService;

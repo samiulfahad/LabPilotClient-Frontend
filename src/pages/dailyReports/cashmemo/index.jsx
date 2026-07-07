@@ -372,6 +372,102 @@ const OutstandingPatientsInline = ({ loading, patients }) => (
   </div>
 );
 
+// ─── Deleted patient drill-down (IPD, inline) ─────────────────────────────────
+// Shows soft-deleted admissions with their billed/collected figures so the
+// deletion figure on the header can be audited, not just counted.
+
+const DeletedPatientsInline = ({ loading, patients }) => (
+  <div className="border border-t-0 border-[#E3D9D5] rounded-b-sm bg-[#FFFBFA] overflow-hidden">
+    <div className="max-h-72 overflow-y-auto px-4 divide-y divide-[#F0EEE6]">
+      {loading && <p className="py-6 text-center text-sm text-[#8A8F89] font-noto">লোড হচ্ছে...</p>}
+
+      {!loading && (!patients || patients.length === 0) && (
+        <p className="py-6 text-center text-sm text-[#8A8F89] font-noto">এই সময়ে কোনো রোগী ডিলিট করা হয়নি।</p>
+      )}
+
+      {!loading &&
+        patients?.map((p) => (
+          <div key={p._id} className="py-3 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-[#1C1F1E] font-noto truncate">{p.patientName}</p>
+              <p className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] mt-0.5 truncate">
+                {p.admissionId}
+                {p.spaceName ? ` · ${p.spaceName}` : ""}
+                {p.bedNumber ? ` (বেড ${p.bedNumber})` : ""}
+                {p.deletedBy ? ` · মুছেছেন: ${p.deletedBy}` : ""}
+              </p>
+              {p.deletedAt && (
+                <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8807A] mt-0.5">
+                  ডিলিট:{" "}
+                  {new Date(p.deletedAt).toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </p>
+              )}
+            </div>
+            <div className="text-right shrink-0">
+              <p className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums text-[#B23A2E]">
+                বিল ৳{fmt(p.billed)}
+              </p>
+              <p className="font-['IBM_Plex_Mono'] text-xs tabular-nums text-[#8A8F89] mt-0.5">
+                আদায় ৳{fmt(p.collected)}
+              </p>
+            </div>
+          </div>
+        ))}
+    </div>
+  </div>
+);
+
+// ─── Deleted invoice drill-down (Outdoor, inline) ─────────────────────────────
+// Mirrors DeletedPatientsInline but for soft-deleted OPD invoices, showing
+// billed/collected figures so the header deletion count/amount can be audited.
+
+const DeletedInvoicesInline = ({ loading, invoices }) => (
+  <div className="border border-t-0 border-[#E3D9D5] rounded-b-sm bg-[#FFFBFA] overflow-hidden">
+    <div className="max-h-72 overflow-y-auto px-4 divide-y divide-[#F0EEE6]">
+      {loading && <p className="py-6 text-center text-sm text-[#8A8F89] font-noto">লোড হচ্ছে...</p>}
+
+      {!loading && (!invoices || invoices.length === 0) && (
+        <p className="py-6 text-center text-sm text-[#8A8F89] font-noto">এই সময়ে কোনো ইনভয়েস ডিলিট করা হয়নি।</p>
+      )}
+
+      {!loading &&
+        invoices?.map((inv) => (
+          <div key={inv._id} className="py-3 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-[#1C1F1E] font-noto truncate">{inv.patient?.name}</p>
+              <p className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] mt-0.5 truncate">
+                {inv.invoiceId}
+                {inv.deletion?.by?.name ? ` · মুছেছেন: ${inv.deletion.by.name}` : ""}
+              </p>
+              {inv.deletion?.at && (
+                <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8807A] mt-0.5">
+                  ডিলিট:{" "}
+                  {new Date(inv.deletion.at).toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </p>
+              )}
+            </div>
+            <div className="text-right shrink-0">
+              <p className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums text-[#B23A2E]">
+                বিল ৳{fmt(inv.amount?.final)}
+              </p>
+              <p className="font-['IBM_Plex_Mono'] text-xs tabular-nums text-[#8A8F89] mt-0.5">
+                আদায় ৳{fmt(inv.amount?.paid)}
+              </p>
+            </div>
+          </div>
+        ))}
+    </div>
+  </div>
+);
+
 // ─── Category revenue breakdown bars ─────────────────────────────────────────
 
 const CATEGORY_LABELS = { test: "পরীক্ষা", medicine: "মেডিসিন", product: "পণ্য", other: "অন্যান্য" };
@@ -407,6 +503,39 @@ const OutdoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =
   const d = summary ?? {};
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
   const grossCounterAmount = (d.initial ?? 0) - (d.labAdjustment ?? 0) - (d.referrerDiscount ?? 0);
+
+  // ── Deleted-invoices drill-down state (mirrors IPD's toggleDeleted) ──
+  const [deletedOpen, setDeletedOpen] = useState(false);
+  const [deletedInvoices, setDeletedInvoices] = useState(null);
+  const [deletedLoading, setDeletedLoading] = useState(false);
+
+  const toggleDeleted = async () => {
+    if (deletedOpen) {
+      setDeletedOpen(false);
+      return;
+    }
+    setDeletedOpen(true);
+    if (deletedInvoices !== null) return;
+    setDeletedLoading(true);
+    try {
+      const res = await cashmemoService.getOutdoorDeletedInvoices({
+        startDate: timeRange?.start,
+        endDate: timeRange?.end,
+      });
+      setDeletedInvoices(res.data.invoices ?? []);
+    } catch {
+      setDeletedInvoices([]);
+    } finally {
+      setDeletedLoading(false);
+    }
+  };
+
+  // Reset the drill-down whenever the reporting range changes so stale data
+  // from a previous range isn't shown under a new header count.
+  useEffect(() => {
+    setDeletedOpen(false);
+    setDeletedInvoices(null);
+  }, [timeRange?.start, timeRange?.end]);
 
   return (
     <div
@@ -464,7 +593,7 @@ const OutdoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =
         </div>
 
         {/* কমিশন */}
-        <div className="border border-[#E3D9C6] rounded-sm overflow-hidden">
+        <div className="border border-[#E3D9C6] rounded-sm overflow-hidden mb-4">
           <div
             className="flex items-center justify-between px-4 py-3 bg-[#FBF7EF] border-l-4"
             style={{ borderColor: OCHRE }}
@@ -480,24 +609,44 @@ const OutdoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =
 
         <NetStamp amount={d.totalNet} label="নিট আয়" accent={TEAL} />
 
-        {/* Deleted invoices */}
-        <div className="flex items-center justify-between px-4 py-2.5 border border-[#E3D9D5] bg-[#FBF2F0] rounded-sm mt-3">
-          <div className="flex items-center gap-2">
-            <Trash2 className="w-3.5 h-3.5 text-[#B23A2E] shrink-0" />
-            <p className="text-sm font-medium text-[#1C1F1E] font-noto">ডিলিট করা ইনভয়েস</p>
-            <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8807A] font-noto">
-              (সকল হিসাব থেকে বাদ দেওয়া হয়েছে)
-            </span>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="font-['IBM_Plex_Mono'] text-sm font-semibold text-[#B23A2E] tabular-nums">
-              {d.deletedCount ?? 0}টি
-            </span>
-            <span className="text-[#B23A2E]/40">·</span>
-            <span className="font-['IBM_Plex_Mono'] text-sm text-[#B23A2E]/70 tabular-nums">
-              এবং টাকার পরিমাণ ৳{fmt(d.totalAmountDeleted ?? 0)}
-            </span>
-          </div>
+        {/* Deleted invoices — clickable, expands inline list (mirrors IPD tab) */}
+        <div className="mt-3 mb-0">
+          <button
+            type="button"
+            onClick={toggleDeleted}
+            className={`w-full text-left border border-[#E3D9D5] overflow-hidden hover:brightness-[0.98] transition-[filter] no-print ${
+              deletedOpen ? "rounded-t-sm" : "rounded-sm"
+            }`}
+          >
+            <div
+              className="flex items-center justify-between px-4 py-2.5 bg-[#FBF2F0] border-l-4"
+              style={{ borderColor: "#B23A2E" }}
+            >
+              <div className="flex items-center gap-2">
+                <Trash2 className="w-3.5 h-3.5 text-[#B23A2E] shrink-0" />
+                <p className="text-sm font-medium text-[#1C1F1E] font-noto">ডিলিট করা ইনভয়েস</p>
+                <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8807A] font-noto">
+                  (সকল হিসাব থেকে বাদ দেওয়া হয়েছে)
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="font-['IBM_Plex_Mono'] text-sm font-semibold text-[#B23A2E] tabular-nums">
+                  {d.deletedCount ?? 0}টি
+                </span>
+                <span className="text-[#B23A2E]/40">·</span>
+                <span className="font-['IBM_Plex_Mono'] text-sm text-[#B23A2E]/70 tabular-nums">
+                  এবং টাকার পরিমাণ ৳{fmt(d.totalAmountDeleted ?? 0)}
+                </span>
+                {deletedOpen ? (
+                  <ChevronDown className="w-4 h-4 text-[#B23A2E]" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-[#B23A2E]" />
+                )}
+              </div>
+            </div>
+          </button>
+
+          {deletedOpen && <DeletedInvoicesInline loading={deletedLoading} invoices={deletedInvoices} />}
         </div>
       </div>
     </div>
@@ -512,6 +661,7 @@ const OutdoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =
 //   → revenue mix by category
 //   → discounts (drill-down)
 //   → outstanding patients / AR (drill-down)
+//   → deleted patients (drill-down, mirrors outdoor tab but with detail)
 
 const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) => {
   const d = summary ?? {};
@@ -531,6 +681,11 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
   const [outstandingOpen, setOutstandingOpen] = useState(false);
   const [outstandingPatients, setOutstandingPatients] = useState(null);
   const [outstandingLoading, setOutstandingLoading] = useState(false);
+
+  // ── Deleted-patients drill-down state ──
+  const [deletedOpen, setDeletedOpen] = useState(false);
+  const [deletedPatients, setDeletedPatients] = useState(null);
+  const [deletedLoading, setDeletedLoading] = useState(false);
 
   const toggleDiscount = async () => {
     if (discountOpen) {
@@ -609,6 +764,27 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
     }
   };
 
+  const toggleDeleted = async () => {
+    if (deletedOpen) {
+      setDeletedOpen(false);
+      return;
+    }
+    setDeletedOpen(true);
+    if (deletedPatients !== null) return;
+    setDeletedLoading(true);
+    try {
+      const res = await cashmemoService.getIpdDeletedPatients({
+        startDate: timeRange?.start,
+        endDate: timeRange?.end,
+      });
+      setDeletedPatients(res.data.patients ?? []);
+    } catch {
+      setDeletedPatients([]);
+    } finally {
+      setDeletedLoading(false);
+    }
+  };
+
   // Reset date-scoped drill-downs when the reporting range changes. Outstanding
   // patients is real-time (not date-bound) so it's left alone.
   useEffect(() => {
@@ -617,6 +793,8 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
     setExpandedSection(null);
     setAdmittedPatients(null);
     setReleasedPatients(null);
+    setDeletedOpen(false);
+    setDeletedPatients(null);
   }, [timeRange?.start, timeRange?.end]);
 
   return (
@@ -759,7 +937,7 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
         </div>
 
         {/* ── বকেয়া রোগী তালিকা (AR — real-time, tap to expand) ── */}
-        <div>
+        <div className="mb-3">
           <button
             type="button"
             onClick={toggleOutstanding}
@@ -787,6 +965,46 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
           </button>
 
           {outstandingOpen && <OutstandingPatientsInline loading={outstandingLoading} patients={outstandingPatients} />}
+        </div>
+
+        {/* ── ডিলিট করা রোগী (soft-deleted admissions — tap to expand) ── */}
+        <div className="mb-0">
+          <button
+            type="button"
+            onClick={toggleDeleted}
+            className={`w-full text-left border border-[#E3D9D5] overflow-hidden hover:brightness-[0.98] transition-[filter] no-print ${
+              deletedOpen ? "rounded-t-sm" : "rounded-sm"
+            }`}
+          >
+            <div
+              className="flex items-center justify-between px-4 py-2.5 bg-[#FBF2F0] border-l-4"
+              style={{ borderColor: "#B23A2E" }}
+            >
+              <div className="flex items-center gap-2">
+                <Trash2 className="w-3.5 h-3.5 text-[#B23A2E] shrink-0" />
+                <p className="text-sm font-medium text-[#1C1F1E] font-noto">ডিলিট করা রোগী</p>
+                <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8807A] font-noto">
+                  (সকল হিসাব থেকে বাদ দেওয়া হয়েছে)
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="font-['IBM_Plex_Mono'] text-sm font-semibold text-[#B23A2E] tabular-nums">
+                  {d.deletedCount ?? 0}টি
+                </span>
+                <span className="text-[#B23A2E]/40">·</span>
+                <span className="font-['IBM_Plex_Mono'] text-sm text-[#B23A2E]/70 tabular-nums">
+                  ৳{fmt(d.totalAmountDeleted ?? 0)}
+                </span>
+                {deletedOpen ? (
+                  <ChevronDown className="w-4 h-4 text-[#B23A2E]" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-[#B23A2E]" />
+                )}
+              </div>
+            </div>
+          </button>
+
+          {deletedOpen && <DeletedPatientsInline loading={deletedLoading} patients={deletedPatients} />}
         </div>
       </div>
     </div>
@@ -1093,7 +1311,7 @@ const CashMemo = () => {
           {activeTab === "outdoor"
             ? "নিট আয় = মোট পরিমাণ − ল্যাব সমন্বয় − রেফারার ডিস্কাউন্ট − কমিশন"
             : activeTab === "indoor"
-              ? "মোট বিল = এই সময়কালে যোগ করা আইটেম | বকেয়া তালিকা = বর্তমান মুহূর্তের হিসাব"
+              ? "মোট বিল = এই সময়কালে যোগ করা আইটেম | বকেয়া তালিকা = বর্তমান মুহূর্তের হিসাব | ডিলিট = ডিলিটের সময় অনুযায়ী"
               : "সারসংক্ষেপ = সকল বিভাগের বিলিং, আদায় ও খরচের একত্রিত চিত্র"}
         </p>
       </div>
