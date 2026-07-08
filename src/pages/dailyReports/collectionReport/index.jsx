@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
-import collectionReportAPI from "../../../api/collectionReport";
+import collectionReportAPI from "../../../api/dailyReports/collectionReport";
 import Popup from "../../../components/popup";
 import { useAuthStore } from "../../../store/authStore";
 

@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { ArrowLeft, Printer, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
-import salesReportAPI from "../../../api/salesReport";
+import salesReportAPI from "../../../api/dailyReports/salesReport";
+import expenseReportAPI from "../../../api/dailyReports/expenseReport";
 import Popup from "../../../components/popup";
 import { useAuthStore } from "../../../store/authStore";
 
@@ -278,7 +279,7 @@ const SalesReport = () => {
         const res = await salesReportAPI.getSummary({ startDate: range.start, endDate: range.end });
         setSalesData(res.data);
       } else {
-        const res = await salesReportAPI.getExpenseSummary({ startDate: range.start, endDate: range.end });
+        const res = await expenseReportAPI.getSummary({ startDate: range.start, endDate: range.end });
         setExpenseData(res.data);
       }
       setFetchedRange((prev) => ({ ...prev, [tab]: range }));

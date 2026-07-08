@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
-import cashmemoService from "../../../api/cashmemo";
+import cashmemoService from "../../../api/dailyReports/cashmemo";
 import Popup from "../../../components/popup";
 import { useAuthStore } from "../../../store/authStore";
 

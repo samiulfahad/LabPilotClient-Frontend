@@ -19,12 +19,7 @@ import {
   ChevronDown,
   Phone,
   Mail,
-  FilePlus,
-  FileEdit,
   Trash2,
-  FileText,
-  Upload,
-  Download,
   Check,
   AlertTriangle,
   Pencil,
@@ -34,6 +29,7 @@ import {
 import Popup from "../../../components/popup";
 import staffService from "../../../api/staff";
 import staticDataAPI from "../../../api/staticData";
+import { useAuthStore } from "../../../store/authStore"; // adjust path if different
 
 // ── Palette ────────────────────────────────────────────────────────────────────
 
@@ -52,12 +48,6 @@ const C = {
   purple: "#8B5CF6",
   green: "#10B981",
 };
-
-// ── Icon map — resolves string keys from the API to Lucide components ──────────
-
-const ICON_MAP = { FilePlus, FileEdit, Trash2, FileText, Upload, Download };
-
-const resolvePermissions = (raw) => raw.map((p) => ({ ...p, icon: ICON_MAP[p.icon] ?? FilePlus }));
 
 const buildInitialPerms = (list) => Object.fromEntries(list.map((p) => [p.key, false]));
 
@@ -108,7 +98,7 @@ const ModalShell = ({ onClose, children }) => {
         style={{ background: "rgba(15,23,42,0.6)" }}
         onClick={onClose}
       />
-      <div className="relative w-full max-w-[540px] max-h-[calc(100svh-48px)] flex flex-col overflow-hidden">
+      <div className="relative w-full max-w-[680px] max-h-[calc(100svh-48px)] flex flex-col overflow-hidden">
         {children}
       </div>
     </div>
@@ -126,6 +116,20 @@ const FormField = ({ label, required, children, hint }) => (
     {children}
     {hint && <p className="mt-1 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">{hint}</p>}
   </div>
+);
+
+// ── Toggle Switch ──────────────────────────────────────────────────────────────
+
+const ToggleSwitch = ({ checked }) => (
+  <span
+    className="relative shrink-0 inline-flex items-center rounded-full transition-colors duration-200 w-[30px] h-[17px]"
+    style={{ background: checked ? C.indigo : "#CBD5E1" }}
+  >
+    <span
+      className="absolute rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,0.35)] transition-transform duration-200 w-[13px] h-[13px]"
+      style={{ left: 2, transform: checked ? "translateX(13px)" : "translateX(0)" }}
+    />
+  </span>
 );
 
 // ── Staff Form Modal ───────────────────────────────────────────────────────────
@@ -307,54 +311,63 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
             </div>
           </FormField>
 
-          {/* Permissions */}
-          <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden">
-            <div className="px-4 py-3 flex items-center justify-between bg-white border-b border-[#E2E8F0]">
+          {/* Permissions — modern toggle-switch list, 2 columns on larger screens */}
+          <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden bg-white">
+            <div className="px-4 pt-3 pb-2.5">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-3 h-3 text-[#6366F1]" />
+                  <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
+                    অনুমতিসমূহ
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleAll}
+                  className={`font-['IBM_Plex_Mono',monospace] text-[10px] font-bold px-2 py-[3px] rounded-md transition-all
+                    ${allEnabled ? "text-[#EF4444] bg-[#EF444410]" : "text-[#6366F1] bg-[#6366F110]"}`}
+                >
+                  {allEnabled ? "সব বাদ দিন" : "সব নির্বাচন করুন"}
+                </button>
+              </div>
+              {/* Progress bar — visualizes enabled/total at a glance */}
               <div className="flex items-center gap-2">
-                <Shield className="w-[13px] h-[13px] text-[#6366F1]" />
-                <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
-                  অনুমতিসমূহ
+                <div className="flex-1 h-[5px] rounded-full bg-[#E2E8F0] overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{
+                      width: `${(permissionsList.filter((p) => form.permissions[p.key]).length / (permissionsList.length || 1)) * 100}%`,
+                      background: `linear-gradient(90deg,${C.indigo},#818CF8)`,
+                    }}
+                  />
+                </div>
+                <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-semibold text-[#94A3B8] shrink-0">
+                  {permissionsList.filter((p) => form.permissions[p.key]).length}/{permissionsList.length}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={toggleAll}
-                className={`font-['IBM_Plex_Mono',monospace] text-[11px] font-bold transition-all
-                  ${allEnabled ? "text-[#EF4444]" : "text-[#6366F1]"}`}
-              >
-                {allEnabled ? "সব বাদ" : "সব নির্বাচন"}
-              </button>
             </div>
-            <div className="p-3 space-y-2 bg-[#F8FAFC]">
-              {permissionsList.map(({ key, label, icon: Icon, color }) => {
+
+            <div className="px-2.5 pb-2.5 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {permissionsList.map(({ key, label }) => {
                 const checked = form.permissions[key];
                 return (
                   <button
                     key={key}
                     type="button"
                     onClick={() => set("permissions", { ...form.permissions, [key]: !checked })}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-[1.5px] transition-all text-left"
+                    className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border transition-all text-left"
                     style={{
-                      background: checked ? `${color}10` : "white",
-                      borderColor: checked ? `${color}50` : "#E2E8F0",
+                      background: checked ? `${C.indigo}0A` : "#F8FAFC",
+                      borderColor: checked ? `${C.indigo}40` : "#E2E8F0",
                     }}
                   >
                     <span
-                      className="flex items-center justify-center shrink-0 w-4 h-4 rounded-[5px] border-[1.5px] transition-all"
-                      style={{
-                        background: checked ? color : undefined,
-                        borderColor: checked ? color : "#CBD5E1",
-                      }}
-                    >
-                      {checked && <Check className="w-[9px] h-[9px] text-white" />}
-                    </span>
-                    <Icon className="w-[13px] h-[13px] shrink-0" style={{ color: checked ? color : C.muted }} />
-                    <span
-                      className="font-['IBM_Plex_Mono',monospace] text-[12px] font-semibold"
-                      style={{ color: checked ? color : C.sub }}
+                      className="font-['IBM_Plex_Mono',monospace] text-[11.5px] leading-[1.35] font-medium break-words"
+                      style={{ color: checked ? "#0F172A" : C.sub }}
                     >
                       {label}
                     </span>
+                    <ToggleSwitch checked={checked} />
                   </button>
                 );
               })}
@@ -504,13 +517,12 @@ const StaffRow = ({ member, index, permissionsList, onEdit, onDelete, onDeactiva
             </p>
             {activePerms.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
-                {activePerms.map(({ key, label, icon: Icon, color }) => (
+                {activePerms.map(({ key, label }) => (
                   <span
                     key={key}
                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-['IBM_Plex_Mono',monospace] text-[10px] font-semibold border"
-                    style={{ color, background: `${color}12`, borderColor: `${color}30` }}
+                    style={{ color: C.indigo, background: `${C.indigo}12`, borderColor: `${C.indigo}30` }}
                   >
-                    <Icon className="w-[9px] h-[9px]" />
                     {label}
                   </span>
                 ))}
@@ -675,6 +687,8 @@ const DeleteModal = ({ name, onConfirm, onCancel, loading }) => (
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 const ManageStaff = () => {
+  const labType = useAuthStore((s) => s.lab?.type); // "hospital" | "diagnosticCenter"
+
   const [staff, setStaff] = useState([]);
   const [permissionsList, setPermissionsList] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -690,12 +704,12 @@ const ManageStaff = () => {
   useEffect(() => {
     const boot = async () => {
       try {
-        const [staffRes, permsRes] = await Promise.all([
-          staffService.getStaffs(),
-          staticDataAPI.getStaffPermissions(),
-        ]);
+        const [staffRes, permsRes] = await Promise.all([staffService.getStaffs(), staticDataAPI.getStaffPermissions()]);
         setStaff(staffRes.data);
-        setPermissionsList(resolvePermissions(permsRes.data.permissions));
+        const visiblePerms = permsRes.data.permissions.filter(
+          (p) => p.for !== "hospitalOnly" || labType === "hospital",
+        );
+        setPermissionsList(visiblePerms);
       } catch {
         setPopup({ type: "error", message: "ডেটা লোড করতে ব্যর্থ।" });
       } finally {
@@ -703,7 +717,7 @@ const ManageStaff = () => {
       }
     };
     boot();
-  }, []);
+  }, [labType]);
 
   const loadStaff = async () => {
     try {

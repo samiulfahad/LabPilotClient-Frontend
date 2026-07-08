@@ -1,7 +1,7 @@
 // src/api/transaction.js
 // Mirror the pattern of commissionService
 
-import api from "./baseAPI"; // your existing axios instance
+import api from "../baseAPI"; // your existing axios instance
 
 const collectionReportAPI = {
   /**

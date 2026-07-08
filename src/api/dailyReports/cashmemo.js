@@ -1,4 +1,4 @@
-import api from "./baseAPI";
+import api from "../baseAPI";
 
 const cashmemoService = {
   getSummary: ({ startDate, endDate }) => {

@@ -1,5 +1,5 @@
 // api/commission.js
-import api from "./baseAPI";
+import api from "../baseAPI";
 
 const commissionReportAPI = {
   getSummary: ({ startDate, endDate }) => {
