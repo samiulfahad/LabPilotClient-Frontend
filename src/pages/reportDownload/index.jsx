@@ -54,7 +54,7 @@ function buildLabInfo(storeLab) {
 // ─── Error state ──────────────────────────────────────────────────────────────
 function ErrorState({ message, onClose }) {
   return (
-    <div className="flex items-center justify-center py-[60px] px-6 font-['Outfit',_sans-serif]">
+    <div className="flex items-center justify-center py-[60px] px-6 font-['DM_Sans',_sans-serif]">
       <div className="bg-white border border-[#e4e7ed] rounded-[16px] py-9 px-8 max-w-[360px] w-full text-center shadow-[0_4px_16px_rgba(0,0,0,0.06)]">
         <div className="w-12 h-12 bg-[#fef2f2] border-[1.5px] border-[#dc2626]/20 rounded-[12px] flex items-center justify-center mx-auto mb-4">
           <Eye className="w-5 h-5 text-[#dc2626]" />
@@ -63,7 +63,7 @@ function ErrorState({ message, onClose }) {
         <div className="text-[13px] text-[#6b7280] leading-[1.6] mb-5">Please go back and try again.</div>
         <button
           onClick={onClose}
-          className="inline-flex items-center gap-[7px] py-2.5 px-5 bg-[#0d1117] text-white border-none rounded-[9px] font-['Outfit',_sans-serif] text-[13px] font-semibold cursor-pointer"
+          className="inline-flex items-center gap-[7px] py-2.5 px-5 bg-[#0d1117] text-white border-none rounded-[9px] font-['DM_Sans',_sans-serif] text-[13px] font-semibold cursor-pointer"
         >
           <ArrowLeft className="w-[13px] h-[13px]" /> Go Back
         </button>
