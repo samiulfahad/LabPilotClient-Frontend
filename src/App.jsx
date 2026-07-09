@@ -80,12 +80,13 @@ function App() {
       {/* If they are already logged in, don't show them the login page again */}
       <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LabPilotLogin />} />
       {/* Help is now public and accessible without logging in */}
-      <Route path="/help" element={<Help />} />
 
       {/* ════ PROTECTED ROUTES (Login required) ════ */}
       <Route element={<ProtectedRoutes />}>
-        <Route path="/" element={<Home />} />
 
+        <Route path="/" element={<Home />} />
+        <Route path="/help" element={<Help />} />
+        
         {/* Daily Reports */}
         <Route path="/daily-reports" element={<DailyReports />} />
         <Route path="/cashmemo" element={<CashMemo />} />

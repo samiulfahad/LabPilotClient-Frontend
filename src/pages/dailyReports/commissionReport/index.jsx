@@ -124,6 +124,25 @@ const buildDoctorTestRows = (registered, unregistered) => {
   });
 };
 
+// ─── Merge outdoor+indoor counts per test name (test-wise view) ─────────────
+
+const mergeTestChannels = (outdoorTests, indoorTests) => {
+  const map = new Map();
+  for (const [name, count] of outdoorTests) {
+    map.set(name, { name, outdoor: count, indoor: 0 });
+  }
+  for (const [name, count] of indoorTests) {
+    if (map.has(name)) {
+      map.get(name).indoor = count;
+    } else {
+      map.set(name, { name, outdoor: 0, indoor: count });
+    }
+  }
+  return Array.from(map.values())
+    .map((t) => ({ ...t, total: t.outdoor + t.indoor }))
+    .sort((a, b) => b.total - a.total);
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TEAL = "#0F6E5C";
@@ -211,14 +230,24 @@ const InvoiceRow = ({ inv, idx }) => (
 
 // ─── Referrer entry (ledger view) ─────────────────────────────────────────────
 
-const ReferrerEntry = ({ name, typeLabel, Icon, totalCommission, totalDiscount, invoices, accent }) => {
+const ReferrerEntry = ({
+  name,
+  typeLabel,
+  Icon,
+  totalCommission,
+  totalDiscount,
+  invoices,
+  totalIndoorTests,
+  accent,
+}) => {
   const [open, setOpen] = useState(false);
   const invoiceCount = invoices.length;
   const netCommission = totalCommission - totalDiscount;
+  const indoorOnly = invoiceCount === 0 && (totalIndoorTests ?? 0) > 0;
 
   return (
     <div className="py-3 border-b border-dashed border-[#E3E0D6] last:border-b-0">
-      <button onClick={() => setOpen((p) => !p)} className="w-full text-left">
+      <button onClick={() => !indoorOnly && setOpen((p) => !p)} className="w-full text-left" disabled={indoorOnly}>
         <div className="flex items-baseline gap-3">
           <span className="flex items-center gap-1.5 text-sm font-medium text-[#1C1F1E] shrink-0 font-noto">
             <Icon className="w-3.5 h-3.5" style={{ color: accent }} />
@@ -226,29 +255,42 @@ const ReferrerEntry = ({ name, typeLabel, Icon, totalCommission, totalDiscount, 
             <span className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#A8ACA3] font-noto">{typeLabel}</span>
           </span>
           <span className="flex-1 border-b border-dotted border-[#D8D5CB] translate-y-[-3px]" />
-          <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums shrink-0" style={{ color: TEAL }}>
-            ৳{fmt(netCommission)}
-          </span>
-          {open ? (
-            <ChevronUp className="w-3.5 h-3.5 text-[#A8ACA3] shrink-0" />
-          ) : (
-            <ChevronDown className="w-3.5 h-3.5 text-[#A8ACA3] shrink-0" />
+          {!indoorOnly && (
+            <span
+              className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums shrink-0"
+              style={{ color: TEAL }}
+            >
+              ৳{fmt(netCommission)}
+            </span>
           )}
+          {!indoorOnly &&
+            (open ? (
+              <ChevronUp className="w-3.5 h-3.5 text-[#A8ACA3] shrink-0" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5 text-[#A8ACA3] shrink-0" />
+            ))}
         </div>
-        <div className="flex items-center flex-wrap gap-x-2.5 gap-y-1 mt-1.5 pl-5 font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] font-noto">
-          <span>{invoiceCount} টি ইনভয়েস</span>
-          <span className="text-[#D8D5CB]">·</span>
-          <span>কমিশন ৳{fmt(totalCommission)}</span>
-          <span className="text-[#D8D5CB]">·</span>
-          <span style={{ color: OCHRE }}>ডিস্কাউন্ট − ৳{fmt(totalDiscount)}</span>
-          <span className="text-[#D8D5CB]">·</span>
-          <span className="font-semibold" style={{ color: TEAL }}>
-            নেট ৳{fmt(netCommission)}
-          </span>
-        </div>
+
+        {indoorOnly ? (
+          <p className="mt-1.5 pl-5 font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] font-noto">
+            ইনডোর রোগীর টেস্টে সংযুক্ত · কোনো ইনভয়েস নেই ({totalIndoorTests} টি টেস্ট)
+          </p>
+        ) : (
+          <div className="flex items-center flex-wrap gap-x-2.5 gap-y-1 mt-1.5 pl-5 font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] font-noto">
+            <span>{invoiceCount} টি ইনভয়েস</span>
+            <span className="text-[#D8D5CB]">·</span>
+            <span>কমিশন ৳{fmt(totalCommission)}</span>
+            <span className="text-[#D8D5CB]">·</span>
+            <span style={{ color: OCHRE }}>ডিস্কাউন্ট − ৳{fmt(totalDiscount)}</span>
+            <span className="text-[#D8D5CB]">·</span>
+            <span className="font-semibold" style={{ color: TEAL }}>
+              নেট ৳{fmt(netCommission)}
+            </span>
+          </div>
+        )}
       </button>
 
-      {open && (
+      {open && !indoorOnly && (
         <div className="mt-2 pl-5 pr-1">
           {invoices.map((inv, i) => (
             <InvoiceRow key={inv.invoiceId} inv={inv} idx={i} />
@@ -301,17 +343,6 @@ const RoundSeal = ({ dateLabel }) => (
 const ViewToggle = ({ view, onChange }) => (
   <div className="flex items-center gap-1 p-0.5 bg-[#F0EDE5] rounded-sm border border-[#E3E0D6]">
     <button
-      onClick={() => onChange("ledger")}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] font-['IBM_Plex_Mono'] text-xs uppercase transition-all font-noto ${
-        view === "ledger"
-          ? "bg-white text-[#1C1F1E] shadow-[0_1px_2px_rgba(28,31,30,0.08)]"
-          : "text-[#8A8F89] hover:text-[#1C1F1E]"
-      }`}
-    >
-      <LayoutList className="w-3 h-3" />
-      রেফারার ভিত্তিক
-    </button>
-    <button
       onClick={() => onChange("testwise")}
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] font-['IBM_Plex_Mono'] text-xs uppercase transition-all font-noto ${
         view === "testwise"
@@ -322,30 +353,45 @@ const ViewToggle = ({ view, onChange }) => (
       <FlaskConical className="w-3 h-3" />
       টেস্ট ভিত্তিক
     </button>
+
+    <button
+      onClick={() => onChange("ledger")}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] font-['IBM_Plex_Mono'] text-xs uppercase transition-all font-noto ${
+        view === "ledger"
+          ? "bg-white text-[#1C1F1E] shadow-[0_1px_2px_rgba(28,31,30,0.08)]"
+          : "text-[#8A8F89] hover:text-[#1C1F1E]"
+      }`}
+    >
+      <LayoutList className="w-3 h-3" />
+      রেফারার ভিত্তিক
+    </button>
   </div>
 );
 
-// ─── Test-wise: one test row for a single channel (outdoor OR indoor) ───────
+// ─── Test-wise: single merged test row ───────────────────────────────────────
 
-const TestChannelRow = ({ testName, count, accent }) => (
-  <div className="flex items-center gap-2">
-    <span className="font-noto text-sm text-[#1C1F1E] leading-tight">{testName}</span>
-    <span className="font-['IBM_Plex_Mono'] text-xs text-[#D8D5CB]">—</span>
-    <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: accent }}>
-      {count}
+const MergedTestRow = ({ name, total, outdoor, indoor }) => (
+  <div className="flex items-baseline gap-2 py-1">
+    <span className="font-noto text-sm text-[#1C1F1E] leading-tight">{name}</span>
+    <span className="flex-1 border-b border-dotted border-[#E3E0D6] translate-y-[-2px]" />
+    <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums shrink-0" style={{ color: TEAL }}>
+      {total}
+    </span>
+    <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] shrink-0 font-noto">
+      (আউটডোর {outdoor}, ইনডোর {indoor})
     </span>
   </div>
 );
 
-// ─── Test-wise: single doctor card, Outdoor + Indoor shown separately ───────
+// ─── Test-wise: single doctor card ──────────────────────────────────────────
 
 const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorTests, indoorTests }) => {
   const accent = isRegistered ? TEAL : OCHRE;
   const meta = TYPE_META[type] ?? TYPE_META.unknown;
   const Icon = isRegistered ? meta.Icon : UserX;
   const typeLabel = isRegistered ? meta.label : "ওয়াক-ইন";
-  const totalOutdoor = outdoorTests.reduce((s, [, c]) => s + c, 0);
-  const totalIndoor = indoorTests.reduce((s, [, c]) => s + c, 0);
+  const mergedTests = mergeTestChannels(outdoorTests, indoorTests);
+  const totalTests = mergedTests.reduce((s, t) => s + t.total, 0);
 
   return (
     <div className="py-4 border-b border-dashed border-[#E3E0D6] last:border-b-0">
@@ -361,40 +407,19 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorT
         )}
         <span className="flex-1 border-b border-dotted border-[#D8D5CB]" />
         <span className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] tabular-nums shrink-0 font-noto">
-          {invoiceCount} ইনভয়েস · {totalOutdoor + totalIndoor} টেস্ট
+          {invoiceCount} ইনভয়েস · {totalTests} টেস্ট
         </span>
       </div>
 
-      {/* Outdoor + Indoor columns, side by side on larger screens */}
-      <div className="pl-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-[#A8ACA3] mb-1.5 font-noto">
-            আউটডোর {totalOutdoor > 0 && `· ${totalOutdoor}`}
-          </p>
-          {outdoorTests.length > 0 ? (
-            <div className="space-y-1.5">
-              {outdoorTests.map(([testName, count]) => (
-                <TestChannelRow key={testName} testName={testName} count={count} accent={accent} />
-              ))}
-            </div>
-          ) : (
-            <p className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] font-noto">নেই</p>
-          )}
-        </div>
-        <div>
-          <p className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-[#A8ACA3] mb-1.5 font-noto">
-            ইনডোর {totalIndoor > 0 && `· ${totalIndoor}`}
-          </p>
-          {indoorTests.length > 0 ? (
-            <div className="space-y-1.5">
-              {indoorTests.map(([testName, count]) => (
-                <TestChannelRow key={testName} testName={testName} count={count} accent="#1E4FA0" />
-              ))}
-            </div>
-          ) : (
-            <p className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] font-noto">নেই</p>
-          )}
-        </div>
+      {/* Merged test list */}
+      <div className="pl-8">
+        {mergedTests.length > 0 ? (
+          mergedTests.map((t) => (
+            <MergedTestRow key={t.name} name={t.name} total={t.total} outdoor={t.outdoor} indoor={t.indoor} />
+          ))
+        ) : (
+          <p className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] font-noto">নেই</p>
+        )}
       </div>
     </div>
   );
@@ -551,6 +576,7 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab }) => (
               totalCommission={r.totalCommission}
               totalDiscount={r.totalDiscount}
               invoices={r.invoices}
+              totalIndoorTests={r.totalIndoorTests}
               accent={TEAL}
             />
           );
@@ -573,6 +599,7 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab }) => (
             totalCommission={g.totalCommission}
             totalDiscount={g.totalDiscount}
             invoices={g.invoices}
+            totalIndoorTests={g.totalIndoorTests}
             accent={OCHRE}
           />
         ))
@@ -591,7 +618,7 @@ const CommissionReport = () => {
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
   const [timeRange, setTimeRange] = useState(null);
-  const [view, setView] = useState("ledger"); // "ledger" | "testwise"
+  const [view, setView] = useState("testwise"); // "ledger" | "testwise"
 
   useEffect(() => {
     const range = todayRange();
