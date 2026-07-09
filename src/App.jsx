@@ -122,12 +122,12 @@ function App() {
         <Route path="/manage-referrers" element={<ManageReferrers />} />
         <Route path="/manage-doctors" element={<ManageDoctors />} />
         <Route path="/manage-spaces" element={<ManageSpaces />} />
-        
+
         {/* Expense */}
         <Route path="/expense" element={<ExpenseHub />} />
         <Route path="/expense/new" element={<AddExpense />} />
         <Route path="/expense/all" element={<ExpenseList />} />
-         <Route path="/expense/delete" element={<DeleteExpense />} />
+        <Route path="/expense/delete" element={<DeleteExpense />} />
 
         {/* Account */}
         <Route path="/account" element={<Account />} />
