@@ -3,7 +3,6 @@
  * babel-plugin-react-compiler handles all memoization automatically.
  */
 import { useEffect, useState, useMemo } from "react";
-import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
   Users,
@@ -18,6 +17,7 @@ import {
   Briefcase,
   Building2,
   AlertCircle,
+  AlertTriangle,
   Pencil,
   Trash2,
   ChevronDown,
@@ -25,8 +25,9 @@ import {
   BadgePercent,
   Banknote,
   Check,
-  AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
+import Modal from "../../../components/Modal";
 import Popup from "../../../components/popup";
 import referrerService from "../../../api/referrer";
 
@@ -75,6 +76,15 @@ const EMPTY_FORM = {
   isActive: true,
 };
 
+// ── Error helpers ──────────────────────────────────────────────────────────────
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
 // ── Shared input helpers ───────────────────────────────────────────────────────
 
 const inputBase =
@@ -100,82 +110,15 @@ const FormField = ({ label, required, children }) => (
   </div>
 );
 
-// ── Modal Shell ────────────────────────────────────────────────────────────────
+// ── Referrer Form Modal (create / edit) ─────────────────────────────────────────
+// Delete / activate / deactivate confirmations are still handled exclusively via
+// the shared <Popup type="warning"> component (see render section below).
+// Save failures (validation + API errors), however, now surface as an inline
+// `apiError` banner inside this modal — mirroring ItemModal/StockModal in
+// Products.jsx — so the form stays open and the user can just fix & retry
+// instead of losing context to a toast.
 
-const ModalShell = ({ onClose, children }) => {
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
-  return (
-    <div className="fixed inset-0 flex items-center justify-center px-4 z-[9999]">
-      <div
-        className="absolute inset-0 backdrop-blur-[6px]"
-        style={{ background: "rgba(15,23,42,0.6)" }}
-        onClick={onClose}
-      />
-      <div className="relative w-full max-w-[520px] max-h-[calc(100svh-48px)] flex flex-col overflow-hidden">
-        {children}
-      </div>
-    </div>
-  );
-};
-
-// ── Confirm Modal ──────────────────────────────────────────────────────────────
-
-const ConfirmModal = ({ message, onConfirm, onCancel, loading }) => (
-  <ModalShell onClose={onCancel}>
-    <div className="bg-white overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
-      <div
-        className="px-6 py-6 flex items-center gap-4 border-b border-[#FECACA]"
-        style={{ background: "linear-gradient(135deg,#FEF2F2,#FFE4E6)" }}
-      >
-        <div
-          className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] shadow-[0_8px_20px_rgba(239,68,68,0.35)]"
-          style={{ background: "linear-gradient(135deg,#EF4444,#DC2626)" }}
-        >
-          <AlertTriangle className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#DC2626] mb-[2px]">
-            নিশ্চিত করুন
-          </p>
-          <p className="font-['IBM_Plex_Sans',sans-serif] text-[15px] font-bold text-[#0F172A]">{message}</p>
-        </div>
-      </div>
-      <div className="px-6 py-5 flex gap-3">
-        <button
-          onClick={onCancel}
-          disabled={loading}
-          className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
-        >
-          রাখুন
-        </button>
-        <button
-          onClick={onConfirm}
-          disabled={loading}
-          className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs shadow-[0_4px_14px_rgba(239,68,68,0.4)]"
-          style={{ background: "linear-gradient(135deg,#EF4444,#DC2626)", opacity: loading ? 0.7 : 1 }}
-        >
-          {loading ? (
-            <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-          ) : (
-            <Check className="w-[14px] h-[14px]" />
-          )}
-          হ্যাঁ, নিশ্চিত
-        </button>
-      </div>
-    </div>
-  </ModalShell>
-);
-
-// ── Referrer Form Modal ────────────────────────────────────────────────────────
-
-const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving }) => {
+const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving, apiError }) => {
   const isEdit = formData.formType === "editReferrer";
   const gradFrom = isEdit ? "#8B5CF6" : "#0D9488";
   const gradTo = isEdit ? "#7C3AED" : "#0F766E";
@@ -190,8 +133,8 @@ const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving }) =>
   };
 
   return (
-    <ModalShell onClose={onClose}>
-      <div className="bg-white flex flex-col overflow-hidden rounded-[0px] shadow-[0_25px_60px_rgba(15,23,42,0.2)] min-h-0">
+    <Modal isOpen size="md" onClose={onClose}>
+      <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
         {/* Header — fixed, never scrolls */}
         <div
           className={`shrink-0 px-6 py-5 flex items-center justify-between border-b ${accentBorder}`}
@@ -420,37 +363,47 @@ const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving }) =>
           </div>
         </div>
 
-        {/* Footer — fixed, never scrolls */}
-        <div className="shrink-0 px-6 py-4 flex gap-3 bg-white border-t border-[#E2E8F0]">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
-          >
-            বাতিল
-          </button>
-          <button
-            onClick={onSubmit}
-            disabled={saving}
-            className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
-            style={{
-              background: saving ? "#94A3B8" : `linear-gradient(135deg,${gradFrom},${gradTo})`,
-              cursor: saving ? "not-allowed" : "pointer",
-            }}
-          >
-            {saving ? (
-              <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-            ) : isEdit ? (
-              <Pencil className="w-[13px] h-[13px]" />
-            ) : (
-              <UserPlus className="w-[13px] h-[13px]" />
-            )}
-            {isEdit ? "পরিবর্তন সংরক্ষণ" : "নিবন্ধন করুন"}
-          </button>
+        {/* Footer — fixed, never scrolls. apiError banner sits directly
+            above the action buttons so it's the last thing seen before
+            retrying, right where the eye lands after Save fails. */}
+        <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
+            </div>
+          )}
+          <div className="px-6 py-4 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
+            >
+              বাতিল
+            </button>
+            <button
+              onClick={onSubmit}
+              disabled={saving}
+              className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+              style={{
+                background: saving ? "#94A3B8" : `linear-gradient(135deg,${gradFrom},${gradTo})`,
+                cursor: saving ? "not-allowed" : "pointer",
+              }}
+            >
+              {saving ? (
+                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+              ) : isEdit ? (
+                <Pencil className="w-[13px] h-[13px]" />
+              ) : (
+                <UserPlus className="w-[13px] h-[13px]" />
+              )}
+              {isEdit ? "পরিবর্তন সংরক্ষণ" : "নিবন্ধন করুন"}
+            </button>
+          </div>
         </div>
       </div>
-    </ModalShell>
+    </Modal>
   );
 };
 
@@ -634,7 +587,11 @@ const ManageReferrer = () => {
   const [saving, setSaving] = useState(false);
   const [popup, setPopup] = useState(null);
   const [formModal, setFormModal] = useState(null);
-  const [confirmModal, setConfirmModal] = useState(null);
+  const [formApiError, setFormApiError] = useState("");
+  // modal now only carries the destructive/status-change confirmations
+  // (delete / deactivate / activate), each rendered via the shared
+  // <Popup type="warning"> component — no bespoke confirm dialog.
+  const [modal, setModal] = useState(null); // { type: "delete" | "deactivate" | "activate", item }
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -643,8 +600,8 @@ const ManageReferrer = () => {
     try {
       const res = await referrerService.getAll();
       setReferrers(res.data);
-    } catch {
-      setPopup({ type: "error", message: "রেফারার লোড করতে ব্যর্থ।" });
+    } catch (err) {
+      setPopup({ type: "error", message: getErrorMessage(err, "রেফারার লোড করতে ব্যর্থ।") });
     } finally {
       setInitialLoading(false);
     }
@@ -680,51 +637,65 @@ const ManageReferrer = () => {
     [referrers, typeFilter, statusFilter, search],
   );
 
-  const handleFormChange = (field, value) => setFormModal((p) => ({ ...p, [field]: value }));
+  const handleFormChange = (field, value) => {
+    setFormModal((p) => ({ ...p, [field]: value }));
+    if (formApiError) setFormApiError("");
+  };
 
+  const openFormModal = (data) => {
+    setFormApiError("");
+    setFormModal(data);
+  };
+
+  const closeFormModal = () => {
+    setFormModal(null);
+    setFormApiError("");
+  };
+
+  // Both client-side validation and API failures now surface inline via
+  // `formApiError` inside ReferrerFormModal (mirroring ItemModal in
+  // Products.jsx), instead of the separate <Popup>. The modal stays open
+  // on failure so nothing the user typed gets lost — they just fix and
+  // retry. Only success closes it.
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formModal.name?.trim()) return setPopup({ type: "error", message: "নাম প্রয়োজন।" });
-    if (!formModal.contactNumber?.trim()) return setPopup({ type: "error", message: "যোগাযোগ নম্বর প্রয়োজন।" });
+    if (!formModal.name?.trim()) return setFormApiError("নাম প্রয়োজন।");
+    if (!formModal.contactNumber?.trim()) return setFormApiError("যোগাযোগ নম্বর প্রয়োজন।");
     try {
       setSaving(true);
+      setFormApiError("");
       const isEdit = formModal.formType === "editReferrer";
       isEdit ? await referrerService.editReferrer(formModal) : await referrerService.addReferrer(formModal);
       await loadReferrers();
       setPopup({ type: "success", message: isEdit ? "রেফারার আপডেট হয়েছে।" : "রেফারার নিবন্ধিত হয়েছে।" });
       setFormModal(null);
     } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error ?? "সমস্যা হয়েছে। আবার চেষ্টা করুন।" });
+      setFormApiError(getErrorMessage(err, "সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
     } finally {
       setSaving(false);
     }
   };
 
+  // No in-flight spinner here — the warning Popup closes itself as soon as
+  // onConfirm fires, so a failure just surfaces as a follow-up error toast.
+  // Mirrors handleDelete in Products.jsx.
   const handleDelete = async (_id) => {
     try {
-      setSaving(true);
       await referrerService.deleteReferrer(_id);
       setReferrers((prev) => prev.filter((r) => r._id !== _id));
       setPopup({ type: "success", message: "রেফারার মুছে ফেলা হয়েছে।" });
     } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error ?? "মুছতে ব্যর্থ।" });
-    } finally {
-      setSaving(false);
-      setConfirmModal(null);
+      setPopup({ type: "error", message: getErrorMessage(err, "মুছতে ব্যর্থ।") });
     }
   };
 
   const handleToggle = async (_id, activate) => {
     try {
-      setSaving(true);
       activate ? await referrerService.activateReferrer(_id) : await referrerService.deactivateReferrer(_id);
       setReferrers((prev) => prev.map((r) => (r._id === _id ? { ...r, isActive: activate } : r)));
       setPopup({ type: "success", message: activate ? "রেফারার সক্রিয় হয়েছে।" : "রেফারার নিষ্ক্রিয় হয়েছে।" });
     } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error ?? "স্ট্যাটাস পরিবর্তন ব্যর্থ।" });
-    } finally {
-      setSaving(false);
-      setConfirmModal(null);
+      setPopup({ type: "error", message: getErrorMessage(err, "স্ট্যাটাস পরিবর্তন ব্যর্থ।") });
     }
   };
 
@@ -737,28 +708,49 @@ const ManageReferrer = () => {
     >
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      {formModal &&
-        createPortal(
-          <ReferrerFormModal
-            formData={formModal}
-            onChange={handleFormChange}
-            onSubmit={handleSubmit}
-            onClose={() => setFormModal(null)}
-            saving={saving}
-          />,
-          document.body,
-        )}
+      {formModal && (
+        <ReferrerFormModal
+          formData={formModal}
+          onChange={handleFormChange}
+          onSubmit={handleSubmit}
+          onClose={closeFormModal}
+          saving={saving}
+          apiError={formApiError}
+        />
+      )}
 
-      {confirmModal &&
-        createPortal(
-          <ConfirmModal
-            message={confirmModal.message}
-            onConfirm={confirmModal.onConfirm}
-            onCancel={() => setConfirmModal(null)}
-            loading={saving}
-          />,
-          document.body,
-        )}
+      {modal?.type === "delete" && (
+        <Popup
+          type="warning"
+          message={`"${modal.item.name}" স্থায়ীভাবে মুছে যাবে। এই কাজ পূর্বাবস্থায় ফেরানো যাবে না।`}
+          confirmText="হ্যাঁ, মুছুন"
+          cancelText="রাখুন"
+          onConfirm={() => handleDelete(modal.item._id)}
+          onClose={() => setModal(null)}
+        />
+      )}
+
+      {modal?.type === "deactivate" && (
+        <Popup
+          type="warning"
+          message={`"${modal.item.name}" নিষ্ক্রিয় করবেন?`}
+          confirmText="হ্যাঁ, নিষ্ক্রিয় করুন"
+          cancelText="বাতিল"
+          onConfirm={() => handleToggle(modal.item._id, false)}
+          onClose={() => setModal(null)}
+        />
+      )}
+
+      {modal?.type === "activate" && (
+        <Popup
+          type="warning"
+          message={`"${modal.item.name}" সক্রিয় করবেন?`}
+          confirmText="হ্যাঁ, সক্রিয় করুন"
+          cancelText="বাতিল"
+          onConfirm={() => handleToggle(modal.item._id, true)}
+          onClose={() => setModal(null)}
+        />
+      )}
 
       <div className="max-w-2xl mx-auto">
         {/* Page header */}
@@ -780,7 +772,7 @@ const ManageReferrer = () => {
               <ArrowLeft className="w-[13px] h-[13px]" /> ফিরে
             </Link>
             <button
-              onClick={() => setFormModal({ ...EMPTY_FORM, formType: "addReferrer" })}
+              onClick={() => openFormModal({ ...EMPTY_FORM, formType: "addReferrer" })}
               className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none shadow-[0_4px_14px_rgba(99,102,241,0.4)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.5)]"
               style={{ background: "linear-gradient(135deg,#6366F1,#4F46E5)" }}
             >
@@ -921,25 +913,10 @@ const ManageReferrer = () => {
                     key={item._id}
                     input={item}
                     index={index}
-                    onEdit={() => setFormModal({ ...item, formType: "editReferrer" })}
-                    onDelete={() =>
-                      setConfirmModal({
-                        message: `"${item.name}" মুছে ফেলবেন?`,
-                        onConfirm: () => handleDelete(item._id),
-                      })
-                    }
-                    onDeactivate={() =>
-                      setConfirmModal({
-                        message: `"${item.name}" নিষ্ক্রিয় করবেন?`,
-                        onConfirm: () => handleToggle(item._id, false),
-                      })
-                    }
-                    onActivate={() =>
-                      setConfirmModal({
-                        message: `"${item.name}" সক্রিয় করবেন?`,
-                        onConfirm: () => handleToggle(item._id, true),
-                      })
-                    }
+                    onEdit={() => openFormModal({ ...item, formType: "editReferrer" })}
+                    onDelete={() => setModal({ type: "delete", item })}
+                    onDeactivate={() => setModal({ type: "deactivate", item })}
+                    onActivate={() => setModal({ type: "activate", item })}
                   />
                 ))
               )}

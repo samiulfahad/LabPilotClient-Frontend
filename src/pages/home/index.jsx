@@ -157,6 +157,7 @@ const Home = () => {
   const labId = lab?.labKey ?? "—";
   const labAddress = lab?.contact?.address ?? "—";
   const labPhone = lab?.contact?.primary ?? "—";
+  const isLabActive = lab?.isActive ?? false;
 
   const userName = user?.name ?? "ব্যবহারকারী";
   const userRole = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "—";
@@ -167,33 +168,6 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
       <div className="relative max-w-3xl mx-auto pt-7 pb-16">
-        {/* ══════════════════════════════════════
-            TOP NAV BAR
-        ══════════════════════════════════════ */}
-        <div
-          className="flex items-center justify-between mb-5"
-          style={{ animation: "cardIn 0.4s cubic-bezier(.22,1,.36,1) both" }}
-        >
-          {/* Brand mark */}
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-200">
-              <Microscope className="w-[17px] h-[17px] text-white" strokeWidth={2.2} />
-            </div>
-            <div>
-              <p className="text-[11px] font-black text-gray-900 tracking-widest uppercase leading-none font-noto">
-                LabPilot
-              </p>
-              <p className="text-[9.5px] text-gray-400 leading-none mt-0.5 font-noto">ল্যাব ম্যানেজমেন্ট</p>
-            </div>
-          </div>
-
-          {/* Clock */}
-          <div className="flex items-center gap-1.5 bg-white/80 backdrop-blur border border-gray-100 rounded-xl px-3 py-2 shadow-sm">
-            <Activity className="w-3 h-3 text-emerald-500" />
-            <span className="text-xs font-mono font-bold text-gray-700 tabular-nums font-noto">{clock}</span>
-          </div>
-        </div>
-
         {/* ══════════════════════════════════════
             LAB CARD
         ══════════════════════════════════════ */}
@@ -210,9 +184,13 @@ const Home = () => {
             {/* ── Top: greeting + badges ── */}
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2.5 mb-1">
                   <span className="text-xl">{greetingEmoji}</span>
                   <span className="text-sm font-bold text-indigo-500 tracking-widest font-noto">{greeting}</span>
+                  <span className="flex items-center gap-1.5 bg-indigo-50/70 border border-indigo-100 rounded-lg px-2 py-1">
+                    <Activity className="w-3 h-3 text-emerald-500" />
+                    <span className="text-xs font-mono font-bold text-gray-700 tabular-nums font-noto">{clock}</span>
+                  </span>
                 </div>
                 <h1 className="text-3xl font-black text-gray-900 leading-tight tracking-tight font-noto">
                   স্বাগতম, {userName}
@@ -223,14 +201,21 @@ const Home = () => {
               <div className="flex flex-col items-end gap-2 shrink-0">
                 <div className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-xl text-right">
                   <p className="text-[11px] text-indigo-400 font-bold tracking-widest leading-none font-noto">
-                    ল্যাব আইডি
+                    Lab ID
                   </p>
                   <p className="text-base font-black text-indigo-700 leading-tight mt-0.5 font-noto">{labId}</p>
                 </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[10px] font-bold text-emerald-600 font-noto">অনলাইন</span>
-                </div>
+                {isLabActive ? (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-[10px] font-bold text-emerald-600 font-noto">Active</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 border border-rose-100 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                    <span className="text-[10px] font-bold text-rose-600 font-noto">Inactive</span>
+                  </div>
+                )}
               </div>
             </div>
 

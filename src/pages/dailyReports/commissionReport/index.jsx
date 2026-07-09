@@ -244,6 +244,7 @@ const ReferrerEntry = ({
   const invoiceCount = invoices.length;
   const netCommission = totalCommission - totalDiscount;
   const indoorOnly = invoiceCount === 0 && (totalIndoorTests ?? 0) > 0;
+  const hasBoth = invoiceCount > 0 && (totalIndoorTests ?? 0) > 0; // ← new
 
   return (
     <div className="py-3 border-b border-dashed border-[#E3E0D6] last:border-b-0">
@@ -253,6 +254,19 @@ const ReferrerEntry = ({
             <Icon className="w-3.5 h-3.5" style={{ color: accent }} />
             {name}
             <span className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#A8ACA3] font-noto">{typeLabel}</span>
+            {hasBoth && (
+              <span
+                className="font-['IBM_Plex_Mono'] text-[10px] uppercase px-1.5 py-[1px] rounded-[2px] font-noto shrink-0"
+                style={{
+                  color: SEAL_BLUE,
+                  backgroundColor: `${SEAL_BLUE}12`,
+                  border: `1px solid ${SEAL_BLUE}33`,
+                }}
+                title={`ইনডোরেও ${totalIndoorTests} টি টেস্ট সংযুক্ত`}
+              >
+                + ইনডোর
+              </span>
+            )}
           </span>
           <span className="flex-1 border-b border-dotted border-[#D8D5CB] translate-y-[-3px]" />
           {!indoorOnly && (
@@ -282,6 +296,12 @@ const ReferrerEntry = ({
             <span>কমিশন ৳{fmt(totalCommission)}</span>
             <span className="text-[#D8D5CB]">·</span>
             <span style={{ color: OCHRE }}>ডিস্কাউন্ট − ৳{fmt(totalDiscount)}</span>
+            {hasBoth && (
+              <>
+                <span className="text-[#D8D5CB]">·</span>
+                <span className="text-red-500">(ইনডোরের {totalIndoorTests} টি টেস্ট বাদ দিয়ে)</span>
+              </>
+            )}
             <span className="text-[#D8D5CB]">·</span>
             <span className="font-semibold" style={{ color: TEAL }}>
               নেট ৳{fmt(netCommission)}

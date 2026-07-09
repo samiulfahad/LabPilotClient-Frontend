@@ -3,8 +3,7 @@
  * babel-plugin-react-compiler handles all memoization automatically.
  */
 import { useEffect, useState, useMemo } from "react";
-import { createPortal } from "react-dom";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -28,6 +27,7 @@ import {
   AlertTriangle,
   Layers,
 } from "lucide-react";
+import Modal from "../../../components/Modal";
 import testService from "../../../api/test";
 import Popup from "../../../components/popup";
 
@@ -52,10 +52,21 @@ const C = {
 
 const UNCATEGORIZED_ID = "uncategorized";
 const STATUS_OPTIONS = [
-  { value: "all",     label: "সব" },
-  { value: "online",  label: "অনলাইন" },
+  { value: "all", label: "সব" },
+  { value: "online", label: "অনলাইন" },
   { value: "offline", label: "অফলাইন" },
 ];
+
+// ── Error helpers ──────────────────────────────────────────────────────────────
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
+const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
 
 // ── Shared input helpers ───────────────────────────────────────────────────────
 
@@ -71,88 +82,11 @@ const blurInput = (e) => {
   e.target.style.boxShadow = "";
 };
 
-// ── Modal Shell ────────────────────────────────────────────────────────────────
-
-const ModalShell = ({ onClose, children, wide }) => {
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, []);
-
-  return (
-    <div className="fixed inset-0 flex items-center justify-center px-4 z-[9999]">
-      <div
-        className="absolute inset-0 backdrop-blur-[6px]"
-        style={{ background: "rgba(15,23,42,0.6)" }}
-        onClick={onClose}
-      />
-      <div className={`relative w-full max-h-[calc(100svh-48px)] overflow-y-auto ${wide ? "max-w-[640px]" : "max-w-[520px]"}`}>
-        {children}
-      </div>
-    </div>
-  );
-};
-
-// ── Delete Confirm Modal ───────────────────────────────────────────────────────
-
-const DeleteModal = ({ name, onConfirm, onCancel, loading }) => (
-  <ModalShell onClose={onCancel}>
-    <div className="bg-white overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
-      <div
-        className="px-6 py-6 flex items-center gap-4 border-b border-[#FECACA]"
-        style={{ background: "linear-gradient(135deg,#FEF2F2,#FFE4E6)" }}
-      >
-        <div
-          className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] shadow-[0_8px_20px_rgba(239,68,68,0.35)]"
-          style={{ background: "linear-gradient(135deg,#EF4444,#DC2626)" }}
-        >
-          <Trash2 className="w-[18px] h-[18px] text-white" />
-        </div>
-        <div>
-          <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#DC2626] mb-[2px]">
-            বিপজ্জনক অপারেশন
-          </p>
-          <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">
-            টেস্ট মুছে ফেলবেন?
-          </p>
-        </div>
-      </div>
-      <div className="px-6 py-5">
-        <p className="font-['IBM_Plex_Mono',monospace] text-[13px] leading-[1.7] text-[#64748B]">
-          <span className="font-bold text-[#0F172A]">{name}</span> স্থায়ীভাবে মুছে যাবে। এই কাজ পূর্বাবস্থায় ফেরানো যাবে না।
-        </p>
-      </div>
-      <div className="px-6 pb-6 flex gap-3">
-        <button
-          onClick={onCancel}
-          disabled={loading}
-          className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
-        >
-          রাখুন
-        </button>
-        <button
-          onClick={onConfirm}
-          disabled={loading}
-          className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
-          style={{
-            background: "linear-gradient(135deg,#EF4444,#DC2626)",
-            boxShadow: loading ? "none" : "0 4px 14px rgba(239,68,68,0.4)",
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          {loading
-            ? <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-            : <Trash2 className="w-[13px] h-[13px]" />
-          }
-          হ্যাঁ, মুছুন
-        </button>
-      </div>
-    </div>
-  </ModalShell>
-);
-
-// ── Test Config Modal (design unchanged from original) ─────────────────────────
+// ── Test Config Modal ───────────────────────────────────────────────────────────
+// Internalizes its own save call. On a failed save the modal stays OPEN
+// (no onClose()) and the error surfaces inline via `apiError` in the sticky
+// footer — so a permission error or network hiccup doesn't discard the
+// price/schema selection and the user can just retry.
 
 const TestConfigModal = ({ test, onClose, onSave }) => {
   const [price, setPrice] = useState(test.price ?? "");
@@ -160,6 +94,8 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
   const [selectedSchemaId, setSelectedSchemaId] = useState(test.schemaId ?? null);
   const [loadingSchemas, setLoadingSchemas] = useState(false);
   const [schemaError, setSchemaError] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [apiError, setApiError] = useState("");
 
   useEffect(() => {
     if (!test.testId) return;
@@ -169,8 +105,8 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
       try {
         const res = await testService.getSchemasByTestId(test.testId);
         setSchemas(res.data ?? []);
-      } catch {
-        setSchemaError("Could not load formats");
+      } catch (err) {
+        setSchemaError(getErrorMessage(err, "Could not load formats"));
         setSchemas([]);
       } finally {
         setLoadingSchemas(false);
@@ -179,89 +115,121 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
     load();
   }, [test.testId]);
 
-  const handleSubmit = () => onSave({ ...test, price: parseFloat(price) || 0, schemaId: selectedSchemaId });
+  const handleSubmit = async () => {
+    setSaving(true);
+    setApiError("");
+    const updated = { ...test, price: parseFloat(price) || 0, schemaId: selectedSchemaId };
+    try {
+      await testService.editTest({ testId: updated._id, price: updated.price, schemaId: updated.schemaId });
+      onSave(updated);
+    } catch (err) {
+      if (getErrorStatus(err) === 404) {
+        onSave({ ...updated, __notFound: true });
+        return;
+      }
+      setApiError(getErrorMessage(err, "কনফিগারেশন সংরক্ষণ ব্যর্থ।"));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <ModalShell onClose={onClose} wide>
-      <div className="bg-white overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-teal-50 to-cyan-50">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Settings className="w-6 h-6 text-teal-600" />
-            Configure Test
-          </h2>
-          <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1.5">
-            <FlaskConical className="w-3.5 h-3.5 text-teal-500" />
-            {test.name}
-          </p>
+    <Modal isOpen size="md" onClose={onClose}>
+      <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
+        {/* Header — fixed, never scrolls */}
+        <div
+          className="shrink-0 px-6 py-5 flex items-center justify-between border-b border-[#0D948820]"
+          style={{ background: "linear-gradient(135deg,#0D948815 0%,#0F766E08 100%)" }}
+        >
+          <div className="flex items-center gap-3.5">
+            <div
+              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] shadow-[0_8px_20px_#0D948840]"
+              style={{ background: "linear-gradient(135deg,#0D9488,#0F766E)" }}
+            >
+              <Settings className="w-[18px] h-[18px] text-white" />
+            </div>
+            <div>
+              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] text-[#0D9488]">
+                টেস্ট কনফিগার
+              </p>
+              <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A] truncate max-w-[320px]">
+                {test.name}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-8 h-8 rounded-[10px] text-[#94A3B8] border-[1.5px] border-[#E2E8F0] transition-all hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+          >
+            <X className="w-[15px] h-[15px]" />
+          </button>
         </div>
 
-        {/* Body */}
-        <div className="px-6 py-6 bg-gray-50 space-y-5">
+        {/* Body — the ONLY scrollable region, fills remaining space */}
+        <div className="px-6 py-5 bg-[#F8FAFC] space-y-4 flex-1 min-h-0 overflow-y-auto">
           {/* Price */}
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <span className="text-gray-500 font-bold">৳</span> Test Price
-            </h3>
+          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+            <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-2">
+              মূল্য
+            </p>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm pointer-events-none select-none">৳</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#0D9488]">
+                ৳
+              </span>
               <input
                 type="number"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                placeholder="Enter price"
+                placeholder="০.০০"
                 min="0"
-                className="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm outline-none
-                  focus:border-teal-500 focus:ring-2 focus:ring-teal-100 transition-all
-                  [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className={`${inputBase} pl-7 pr-3 py-2 text-sm`}
+                onFocus={focusInput}
+                onBlur={blurInput}
               />
             </div>
           </div>
 
           {/* Schemas */}
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-            <div className="mb-3">
-              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-gray-500" /> Available Formats
-              </h3>
-              <p className="text-xs text-gray-500 mt-1">
-                {selectedSchemaId
-                  ? "This test is currently online. Select a different format or make it offline."
-                  : "Select a format to make this test available online."}
-              </p>
-            </div>
+          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+            <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-1">
+              উপলব্ধ ফরম্যাট
+            </p>
+            <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] mb-3">
+              {selectedSchemaId
+                ? "এই টেস্টটি বর্তমানে অনলাইনে আছে। ভিন্ন ফরম্যাট নির্বাচন করুন বা অফলাইন করুন।"
+                : "অনলাইনে দেখানোর জন্য একটি ফরম্যাট নির্বাচন করুন।"}
+            </p>
 
             {selectedSchemaId && (
-              <div className="mb-3 p-3 bg-orange-50 border-2 border-orange-200 rounded-lg flex items-center justify-between gap-3">
+              <div className="mb-3 p-3 rounded-xl border-[1.5px] border-[#F59E0B60] bg-[#F59E0B0C] flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-                  <span className="text-sm font-medium text-orange-900">Test is Online</span>
+                  <div className="w-2 h-2 bg-[#F59E0B] rounded-full animate-pulse" />
+                  <span className="font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#F59E0B]">অনলাইন আছে</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSelectedSchemaId(null)}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white
-                    bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700
-                    rounded-lg transition-all shadow-sm hover:shadow"
+                  className="flex items-center gap-1.5 px-3 py-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-white rounded-lg transition-all"
+                  style={{ background: "linear-gradient(135deg,#EF4444,#DC2626)" }}
                 >
-                  <XCircle className="w-4 h-4" /> Make Offline
+                  <XCircle className="w-3.5 h-3.5" /> অফলাইন করুন
                 </button>
               </div>
             )}
 
             {loadingSchemas ? (
               <div className="flex items-center justify-center py-8 gap-2">
-                <Loader2 className="w-6 h-6 text-teal-600 animate-spin" />
-                <span className="text-sm text-gray-500">Loading schemas...</span>
+                <Loader2 className="w-5 h-5 text-[#0D9488] animate-spin" />
+                <span className="font-['IBM_Plex_Mono',monospace] text-xs text-[#94A3B8]">লোড হচ্ছে…</span>
               </div>
             ) : schemaError ? (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-                <p className="text-sm text-red-600">{schemaError}</p>
+              <div className="px-4 py-3 rounded-xl border-[1.5px] border-[#EF444430] bg-[#EF444408] text-center">
+                <p className="font-['IBM_Plex_Mono',monospace] text-xs text-[#EF4444]">{schemaError}</p>
               </div>
             ) : schemas.length === 0 ? (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
-                <FlaskConical className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 font-medium">No formats available</p>
+              <div className="px-4 py-6 rounded-xl border-[1.5px] border-dashed border-[#E2E8F0] bg-[#F8FAFC] text-center">
+                <FlaskConical className="w-6 h-6 text-[#CBD5E1] mx-auto mb-2" />
+                <p className="font-['IBM_Plex_Mono',monospace] text-xs text-[#94A3B8]">কোনো ফরম্যাট নেই</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -272,48 +240,54 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
                     <div
                       key={schema._id}
                       onClick={() => isActive && setSelectedSchemaId(schema._id)}
-                      className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl border-[1.5px] transition-all ${
                         !isActive
-                          ? "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"
+                          ? "border-[#E2E8F0] bg-[#F8FAFC] opacity-50 cursor-not-allowed"
                           : isSelected
-                          ? "border-teal-500 bg-teal-50 cursor-pointer"
-                          : "border-gray-200 bg-white hover:border-gray-300 cursor-pointer"
+                            ? "border-[#0D9488] bg-[#0D948808] cursor-pointer"
+                            : "border-[#E2E8F0] bg-white hover:border-[#CBD5E1] cursor-pointer"
                       }`}
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div
-                          className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
-                            isSelected ? "border-teal-500 bg-teal-500" : "border-gray-400"
-                          }`}
+                        <span
+                          className="flex items-center justify-center w-4 h-4 rounded-full border-[1.5px] shrink-0"
+                          style={{
+                            borderColor: isSelected ? C.teal : "#CBD5E1",
+                            background: isSelected ? C.teal : "transparent",
+                          }}
                         >
-                          {isSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-                        </div>
+                          {isSelected && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
+                        </span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-gray-800 truncate">{schema.name}</p>
+                            <p className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A] truncate">
+                              {schema.name}
+                            </p>
                             {!isActive && (
-                              <span className="text-xs font-medium text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full flex-shrink-0">
-                                Inactive
+                              <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#94A3B8] bg-[#F1F5F9] px-1.5 py-px rounded-[5px] shrink-0">
+                                নিষ্ক্রিয়
                               </span>
                             )}
                           </div>
                           {schema.description && (
-                            <p className="text-xs text-gray-500 truncate mt-0.5">{schema.description}</p>
+                            <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] truncate mt-0.5">
+                              {schema.description}
+                            </p>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                      <div className="flex items-center gap-2 shrink-0 ml-3">
                         {isSelected && (
-                          <span className="flex items-center gap-1 text-xs font-semibold text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full">
-                            <CheckCircle2 className="w-3 h-3" /> Selected
+                          <span className="flex items-center gap-1 font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#0D9488] bg-[#0D948812] px-1.5 py-px rounded-[5px]">
+                            <CheckCircle2 className="w-3 h-3" /> নির্বাচিত
                           </span>
                         )}
                         <button
                           type="button"
                           onClick={(e) => e.stopPropagation()}
-                          className="p-1.5 bg-white border border-gray-200 hover:border-purple-300 hover:bg-purple-50 rounded-lg transition-all"
+                          className="p-1.5 bg-white border-[1.5px] border-[#E2E8F0] hover:border-[#8B5CF660] hover:bg-[#8B5CF608] rounded-lg transition-all"
                         >
-                          <Eye className="w-3.5 h-3.5 text-gray-500" />
+                          <Eye className="w-3.5 h-3.5 text-[#94A3B8]" />
                         </button>
                       </div>
                     </div>
@@ -324,40 +298,62 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-gray-200 px-6 py-4 bg-white flex gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all
-              bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 hover:border-gray-400"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className="flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all
-              bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700
-              text-white shadow-sm hover:shadow"
-          >
-            Save Configuration
-          </button>
+        {/* Footer — fixed, never scrolls. apiError banner sits directly
+            above the action buttons so it's the last thing seen before
+            retrying. */}
+        <div className="shrink-0 border-t border-[#E2E8F0] bg-white">
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
+            </div>
+          )}
+          <div className="px-6 py-4 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 py-2.5 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
+            >
+              বাতিল
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={saving}
+              className="flex-1 py-2.5 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+              style={{
+                background: saving ? C.muted : "linear-gradient(135deg,#0D9488,#0F766E)",
+                boxShadow: saving ? "none" : "0 4px 14px rgba(13,148,136,0.4)",
+              }}
+            >
+              {saving ? (
+                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <CheckCircle2 className="w-[13px] h-[13px]" />
+              )}
+              কনফিগারেশন সংরক্ষণ
+            </button>
+          </div>
         </div>
       </div>
-    </ModalShell>
+    </Modal>
   );
 };
 
 // ── Add Test Modal ─────────────────────────────────────────────────────────────
+// Same rule: on a failed save the modal stays open, apiError shows inline in
+// the sticky footer, so selections aren't lost on a permission error or
+// network hiccup.
 
 const AddTestModal = ({ existingTests, onClose, onSaved }) => {
   const [availableTests, setAvailableTests] = useState([]);
   const [categories, setCategories] = useState([]);
   const [registeredTests, setRegisteredTests] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [apiError, setApiError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTests, setSelectedTests] = useState({});
   const [expandedCategories, setExpandedCategories] = useState({});
@@ -374,11 +370,13 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
         setCategories(catsRes.data);
         setRegisteredTests(ownTestsRes.data);
         const expanded = {};
-        catsRes.data.forEach((c) => { if (c._id) expanded[c._id] = true; });
+        catsRes.data.forEach((c) => {
+          if (c._id) expanded[c._id] = true;
+        });
         expanded["uncategorized"] = true;
         setExpandedCategories(expanded);
-      } catch {
-        setError("টেস্ট লোড করতে ব্যর্থ।");
+      } catch (err) {
+        setLoadError(getErrorMessage(err, "টেস্ট লোড করতে ব্যর্থ।"));
       } finally {
         setInitialLoading(false);
       }
@@ -407,6 +405,7 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
 
   const toggleSelect = (testKey) => {
     if (!testKey || existingTestIds.has(testKey)) return;
+    if (apiError) setApiError("");
     setSelectedTests((prev) => {
       const updated = { ...prev };
       if (updated[testKey]) {
@@ -423,12 +422,14 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
   const updatePrice = (testKey, value) =>
     setSelectedTests((prev) => ({ ...prev, [testKey]: { ...prev[testKey], price: value } }));
 
-  const toggleCategory = (catKey) =>
-    setExpandedCategories((prev) => ({ ...prev, [catKey]: !prev[catKey] }));
+  const toggleCategory = (catKey) => setExpandedCategories((prev) => ({ ...prev, [catKey]: !prev[catKey] }));
 
   const handleSave = async () => {
     const selectedCount = Object.keys(selectedTests).length;
-    if (selectedCount === 0) { setError("কমপক্ষে একটি টেস্ট নির্বাচন করুন।"); return; }
+    if (selectedCount === 0) {
+      setApiError("কমপক্ষে একটি টেস্ট নির্বাচন করুন।");
+      return;
+    }
     const toSave = Object.entries(selectedTests).map(([testKey, config]) => {
       const test = availableTests.find((t) => t._id === testKey);
       return {
@@ -441,10 +442,11 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
     });
     try {
       setSaving(true);
+      setApiError("");
       await Promise.all(toSave.map((t) => testService.addTest(t)));
       onSaved(toSave);
-    } catch {
-      setError("টেস্ট যোগ করতে ব্যর্থ।");
+    } catch (err) {
+      setApiError(getErrorMessage(err, "টেস্ট যোগ করতে ব্যর্থ।"));
     } finally {
       setSaving(false);
     }
@@ -453,9 +455,9 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
   const selectedCount = Object.keys(selectedTests).length;
 
   return (
-    <ModalShell onClose={onClose} wide>
-      <div className="bg-white flex flex-col overflow-hidden rounded-[0px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
-        {/* Header */}
+    <Modal isOpen size="lg" onClose={onClose}>
+      <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
+        {/* Header — fixed, never scrolls */}
         <div
           className="shrink-0 px-6 py-5 flex items-center justify-between border-b border-[#0D948820]"
           style={{ background: "linear-gradient(135deg,#0D948815 0%,#0F766E08 100%)" }}
@@ -484,8 +486,8 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
           </button>
         </div>
 
-        {/* Search */}
-        <div className="px-5 pt-4 pb-3 bg-[#F8FAFC] border-b border-[#E2E8F0]">
+        {/* Search — fixed, never scrolls */}
+        <div className="shrink-0 px-5 pt-4 pb-3 bg-[#F8FAFC] border-b border-[#E2E8F0]">
           <div className="relative">
             <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
@@ -498,15 +500,18 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
               onBlur={blurInput}
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]">
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]"
+              >
                 <X className="w-[13px] h-[13px]" />
               </button>
             )}
           </div>
         </div>
 
-        {/* List */}
-        <div className="overflow-y-auto" style={{ maxHeight: "52vh" }}>
+        {/* Body — the ONLY scrollable region, fills remaining space */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {initialLoading ? (
             <div className="p-6 space-y-3">
               {[1, 2, 3].map((i) => (
@@ -515,6 +520,11 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
                   <div className="flex-1 h-3 bg-[#E2E8F0] rounded" />
                 </div>
               ))}
+            </div>
+          ) : loadError ? (
+            <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8]">
+              <AlertCircle className="w-7 h-7 opacity-40" />
+              <p className="font-['IBM_Plex_Mono',monospace] text-xs text-[#EF4444]">{loadError}</p>
             </div>
           ) : Object.keys(groupedTests).length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8]">
@@ -540,125 +550,132 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
                       {catTests.length}
                     </span>
                     <div className="flex-1 h-px bg-[#0D948820]" />
-                    {expandedCategories[catKey]
-                      ? <ChevronDown className="w-3 h-3 text-[#94A3B8]" />
-                      : <ChevronRight className="w-3 h-3 text-[#94A3B8]" />
-                    }
+                    {expandedCategories[catKey] ? (
+                      <ChevronDown className="w-3 h-3 text-[#94A3B8]" />
+                    ) : (
+                      <ChevronRight className="w-3 h-3 text-[#94A3B8]" />
+                    )}
                   </button>
 
-                  {expandedCategories[catKey] && catTests.map((test, index) => {
-                    const testKey = test._id;
-                    const isAlreadyAdded = existingTestIds.has(testKey);
-                    const isSelected = !!selectedTests[testKey];
+                  {expandedCategories[catKey] &&
+                    catTests.map((test, index) => {
+                      const testKey = test._id;
+                      const isAlreadyAdded = existingTestIds.has(testKey);
+                      const isSelected = !!selectedTests[testKey];
 
-                    return (
-                      <div
-                        key={testKey || `test-${catKey}-${index}`}
-                        onClick={() => !isAlreadyAdded && toggleSelect(testKey)}
-                        className={`flex items-start gap-3 px-2 py-2.5 rounded-xl transition-all mb-0.5
+                      return (
+                        <div
+                          key={testKey || `test-${catKey}-${index}`}
+                          onClick={() => !isAlreadyAdded && toggleSelect(testKey)}
+                          className={`flex items-start gap-3 px-2 py-2.5 rounded-xl transition-all mb-0.5
                           ${isAlreadyAdded ? "opacity-50 cursor-not-allowed" : isSelected ? "bg-[#0D948808] cursor-pointer" : "hover:bg-[#F1F5F9] cursor-pointer"}`}
-                      >
-                        {/* Checkbox */}
-                        <div className="shrink-0 mt-0.5">
-                          {isAlreadyAdded ? (
-                            <div className="w-5 h-5 rounded-full bg-[#10B98120] border-2 border-[#10B981] flex items-center justify-center">
-                              <CheckCircle2 className="w-3 h-3 text-[#10B981]" />
-                            </div>
-                          ) : (
-                            <span
-                              className="flex items-center justify-center w-5 h-5 rounded-[5px] border-[1.5px] transition-all"
-                              style={{
-                                background: isSelected ? C.teal : undefined,
-                                borderColor: isSelected ? C.teal : "#CBD5E1",
-                              }}
-                            >
-                              {isSelected && <Check className="w-[9px] h-[9px] text-white" />}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3">
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A]">{test.name}</span>
-                              {isAlreadyAdded && (
-                                <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#10B981] bg-[#10B98110] border border-[#10B98125] rounded-[6px] px-1.5 py-px shrink-0">
-                                  যোগ করা আছে
-                                </span>
-                              )}
-                            </div>
-                            {isSelected && !isAlreadyAdded && (
-                              <div className="mt-2 sm:mt-0 sm:w-40 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                <div className="relative">
-                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#0D9488]">৳</span>
-                                  <input
-                                    type="number"
-                                    value={selectedTests[testKey]?.price ?? ""}
-                                    onChange={(e) => updatePrice(testKey, e.target.value)}
-                                    placeholder="মূল্য"
-                                    min="0"
-                                    className={`${inputBase} pl-7 pr-3 py-1.5 text-xs`}
-                                    onFocus={focusInput}
-                                    onBlur={blurInput}
-                                  />
-                                </div>
+                        >
+                          {/* Checkbox */}
+                          <div className="shrink-0 mt-0.5">
+                            {isAlreadyAdded ? (
+                              <div className="w-5 h-5 rounded-full bg-[#10B98120] border-2 border-[#10B981] flex items-center justify-center">
+                                <CheckCircle2 className="w-3 h-3 text-[#10B981]" />
                               </div>
+                            ) : (
+                              <span
+                                className="flex items-center justify-center w-5 h-5 rounded-[5px] border-[1.5px] transition-all"
+                                style={{
+                                  background: isSelected ? C.teal : undefined,
+                                  borderColor: isSelected ? C.teal : "#CBD5E1",
+                                }}
+                              >
+                                {isSelected && <Check className="w-[9px] h-[9px] text-white" />}
+                              </span>
                             )}
                           </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A]">
+                                  {test.name}
+                                </span>
+                                {isAlreadyAdded && (
+                                  <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#10B981] bg-[#10B98110] border border-[#10B98125] rounded-[6px] px-1.5 py-px shrink-0">
+                                    যোগ করা আছে
+                                  </span>
+                                )}
+                              </div>
+                              {isSelected && !isAlreadyAdded && (
+                                <div className="mt-2 sm:mt-0 sm:w-40 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#0D9488]">
+                                      ৳
+                                    </span>
+                                    <input
+                                      type="number"
+                                      value={selectedTests[testKey]?.price ?? ""}
+                                      onChange={(e) => updatePrice(testKey, e.target.value)}
+                                      placeholder="মূল্য"
+                                      min="0"
+                                      className={`${inputBase} pl-7 pr-3 py-1.5 text-xs`}
+                                      onFocus={focusInput}
+                                      onBlur={blurInput}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Error */}
-        {error && (
-          <div className="px-5 py-2">
-            <div className="flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+        {/* Footer — fixed, never scrolls. apiError banner sits directly
+            above the action buttons so it's the last thing seen before
+            retrying. */}
+        <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
               <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
-              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{error}</span>
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
             </div>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="shrink-0 px-6 py-4 flex items-center justify-between gap-3 bg-white border-t border-[#E2E8F0]">
-          <span className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B]">
-            {selectedCount > 0 ? `${selectedCount}টি নির্বাচিত` : "কোনোটি নির্বাচিত নয়"}
-          </span>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="py-2.5 px-5 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
-            >
-              বাতিল
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || selectedCount === 0}
-              className="py-2.5 px-5 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
-              style={{
-                background: saving || selectedCount === 0 ? C.muted : "linear-gradient(135deg,#0D9488,#0F766E)",
-                cursor: saving || selectedCount === 0 ? "not-allowed" : "pointer",
-                boxShadow: saving || selectedCount === 0 ? "none" : "0 4px 14px rgba(13,148,136,0.4)",
-              }}
-            >
-              {saving
-                ? <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-                : <Plus className="w-[13px] h-[13px]" />
-              }
-              {selectedCount > 0 ? `${selectedCount}টি টেস্ট যোগ করুন` : "যোগ করুন"}
-            </button>
+          )}
+          <div className="px-6 py-4 flex items-center justify-between gap-3">
+            <span className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B]">
+              {selectedCount > 0 ? `${selectedCount}টি নির্বাচিত` : "কোনোটি নির্বাচিত নয়"}
+            </span>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={saving}
+                className="py-2.5 px-5 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
+              >
+                বাতিল
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || selectedCount === 0}
+                className="py-2.5 px-5 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+                style={{
+                  background: saving || selectedCount === 0 ? C.muted : "linear-gradient(135deg,#0D9488,#0F766E)",
+                  cursor: saving || selectedCount === 0 ? "not-allowed" : "pointer",
+                  boxShadow: saving || selectedCount === 0 ? "none" : "0 4px 14px rgba(13,148,136,0.4)",
+                }}
+              >
+                {saving ? (
+                  <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+                ) : (
+                  <Plus className="w-[13px] h-[13px]" />
+                )}
+                {selectedCount > 0 ? `${selectedCount}টি টেস্ট যোগ করুন` : "যোগ করুন"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </ModalShell>
+    </Modal>
   );
 };
 
@@ -707,15 +724,21 @@ const TestRow = ({ test, index, onConfigure, onDelete }) => {
           {/* Online badge */}
           <span
             className={`shrink-0 hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg border-[1.5px] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold
-              ${test.isOnline
-                ? "bg-[#10B98115] border-[#10B98130] text-[#10B981]"
-                : "bg-[#F59E0B15] border-[#F59E0B30] text-[#F59E0B]"
+              ${
+                test.isOnline
+                  ? "bg-[#10B98115] border-[#10B98130] text-[#10B981]"
+                  : "bg-[#F59E0B15] border-[#F59E0B30] text-[#F59E0B]"
               }`}
           >
-            {test.isOnline
-              ? <><Wifi className="w-[10px] h-[10px]" /> অনলাইন</>
-              : <><WifiOff className="w-[10px] h-[10px]" /> অফলাইন</>
-            }
+            {test.isOnline ? (
+              <>
+                <Wifi className="w-[10px] h-[10px]" /> অনলাইন
+              </>
+            ) : (
+              <>
+                <WifiOff className="w-[10px] h-[10px]" /> অফলাইন
+              </>
+            )}
           </span>
           <ChevronDown
             className={`w-[14px] h-[14px] text-[#94A3B8] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
@@ -740,10 +763,17 @@ const TestRow = ({ test, index, onConfigure, onDelete }) => {
             </span>
             <span className="flex items-center gap-1">
               স্ট্যাটাস:{" "}
-              {test.isOnline
-                ? <><Wifi className="w-3 h-3 text-[#10B981]" /><span className="font-bold text-[#10B981]">অনলাইন</span></>
-                : <><WifiOff className="w-3 h-3 text-[#F59E0B]" /><span className="font-bold text-[#F59E0B]">অফলাইন</span></>
-              }
+              {test.isOnline ? (
+                <>
+                  <Wifi className="w-3 h-3 text-[#10B981]" />
+                  <span className="font-bold text-[#10B981]">অনলাইন</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="w-3 h-3 text-[#F59E0B]" />
+                  <span className="font-bold text-[#F59E0B]">অফলাইন</span>
+                </>
+              )}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -822,7 +852,9 @@ const FilterDropdown = ({ value, onChange, options }) => (
         ${value !== "all" ? "border-[#0D948860] bg-[#0D948808] text-[#0F172A] shadow-[0_2px_8px_#0D948815]" : "border-[#E2E8F0] bg-white text-[#64748B]"}`}
     >
       {options.map((o) => (
-        <option key={o.value} value={o.value}>{o.label}</option>
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
       ))}
     </select>
     <ChevronDown className="w-3 h-3 text-[#94A3B8] absolute right-[9px] top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -831,63 +863,72 @@ const FilterDropdown = ({ value, onChange, options }) => (
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
-const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
-
 const ManageTests = () => {
   const [tests, setTests] = useState([]);
   const [categories, setCategories] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const [popup, setPopup] = useState(null);
   const [addModal, setAddModal] = useState(false);
   const [configTest, setConfigTest] = useState(null);
+  // Delete confirmation uses the shared <Popup type="warning"> directly
+  // (see render section below), not a bespoke modal — same pattern as
+  // Products.jsx / ManageReferrer.jsx. `deleteTarget` just holds which
+  // test the confirm popup refers to.
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  const loadAll = async () => {
+    try {
+      const [testsRes, catsRes] = await Promise.all([testService.getTestList(), testService.getCategories()]);
+      setTests(Array.isArray(testsRes?.data) ? testsRes.data : []);
+      setCategories(Array.isArray(catsRes?.data) ? catsRes.data : []);
+    } catch (err) {
+      const message = getErrorMessage(err, "টেস্ট লোড করতে ব্যর্থ।");
+      setError(message);
+      setTests([]);
+      setCategories([]);
+      if (err?.response?.status === 403) setPopup({ type: "error", message });
+    } finally {
+      setInitialLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [testsRes, catsRes] = await Promise.all([testService.getTestList(), testService.getCategories()]);
-        setTests(Array.isArray(testsRes?.data) ? testsRes.data : []);
-        setCategories(Array.isArray(catsRes?.data) ? catsRes.data : []);
-      } catch (e) {
-        setTests([]);
-        setCategories([]);
-        setPopup({ type: "error", message: "টেস্ট লোড করতে ব্যর্থ।" });
-      } finally {
-        setInitialLoading(false);
-      }
-    };
-    load();
-  }, []);
+    loadAll();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const categoryMap = useMemo(
     () => Object.fromEntries(categories.filter((c) => c._id).map((c) => [c._id, c.name])),
     [categories],
   );
 
-  const enrichedTests = useMemo(() =>
-    tests.map((t) => ({
-      ...t,
-      categoryId: t.categoryId || UNCATEGORIZED_ID,
-      categoryName: t.categoryId && categoryMap[t.categoryId] ? categoryMap[t.categoryId] : "Uncategorized",
-      isOnline: !!t.schemaId,
-    })),
+  const enrichedTests = useMemo(
+    () =>
+      tests.map((t) => ({
+        ...t,
+        categoryId: t.categoryId || UNCATEGORIZED_ID,
+        categoryName: t.categoryId && categoryMap[t.categoryId] ? categoryMap[t.categoryId] : "Uncategorized",
+        isOnline: !!t.schemaId,
+      })),
     [tests, categoryMap],
   );
 
-  const stats = useMemo(() => ({
-    total: enrichedTests.length,
-    online: enrichedTests.filter((t) => t.isOnline).length,
-    offline: enrichedTests.filter((t) => !t.isOnline).length,
-    categories: new Set(enrichedTests.map((t) => t.categoryId)).size,
-  }), [enrichedTests]);
+  const stats = useMemo(
+    () => ({
+      total: enrichedTests.length,
+      online: enrichedTests.filter((t) => t.isOnline).length,
+      offline: enrichedTests.filter((t) => !t.isOnline).length,
+      categories: new Set(enrichedTests.map((t) => t.categoryId)).size,
+    }),
+    [enrichedTests],
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return enrichedTests
-      .filter((t) => statusFilter === "online" ? t.isOnline : statusFilter === "offline" ? !t.isOnline : true)
+      .filter((t) => (statusFilter === "online" ? t.isOnline : statusFilter === "offline" ? !t.isOnline : true))
       .filter((t) => !q || t.name.toLowerCase().includes(q));
   }, [enrichedTests, statusFilter, search]);
 
@@ -906,47 +947,40 @@ const ManageTests = () => {
     });
   }, [filtered]);
 
+  // No in-flight spinner on the confirm popup itself — it closes as soon as
+  // onConfirm fires, so a failure just surfaces as a follow-up error toast.
+  // Mirrors handleDelete in Products.jsx / ManageReferrer.jsx.
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      setSaving(true);
       await testService.deleteTest(deleteTarget._id);
       setTests((prev) => prev.filter((t) => t._id !== deleteTarget._id));
       setPopup({ type: "success", message: "টেস্ট মুছে ফেলা হয়েছে।" });
-    } catch (e) {
-      if (getErrorStatus(e) === 404) {
+    } catch (err) {
+      if (getErrorStatus(err) === 404) {
         setTests((prev) => prev.filter((t) => t._id !== deleteTarget._id));
       }
-      setPopup({ type: "error", message: "টেস্ট মুছতে ব্যর্থ।" });
+      setPopup({ type: "error", message: getErrorMessage(err, "টেস্ট মুছতে ব্যর্থ।") });
     } finally {
-      setSaving(false);
       setDeleteTarget(null);
     }
   };
 
-  const handleConfigSave = async (updatedTest) => {
-    try {
-      setSaving(true);
-      await testService.editTest({ testId: updatedTest._id, price: updatedTest.price, schemaId: updatedTest.schemaId });
-      setTests((prev) => prev.map((t) => (t._id === updatedTest._id ? { ...t, ...updatedTest } : t)));
+  const handleConfigSave = (updatedTest) => {
+    if (updatedTest.__notFound) {
+      setTests((prev) => prev.filter((t) => t._id !== updatedTest._id));
       setConfigTest(null);
-      setPopup({ type: "success", message: "টেস্ট কনফিগারেশন সংরক্ষিত।" });
-    } catch (e) {
-      if (getErrorStatus(e) === 404) {
-        setTests((prev) => prev.filter((t) => t._id !== updatedTest._id));
-        setConfigTest(null);
-      }
-      setPopup({ type: "error", message: "কনফিগারেশন সংরক্ষণ ব্যর্থ।" });
-    } finally {
-      setSaving(false);
+      setPopup({ type: "error", message: "টেস্টটি আর পাওয়া যায়নি।" });
+      return;
     }
+    setTests((prev) => prev.map((t) => (t._id === updatedTest._id ? { ...t, ...updatedTest } : t)));
+    setConfigTest(null);
+    setPopup({ type: "success", message: "টেস্ট কনফিগারেশন সংরক্ষিত।" });
   };
 
   const handleAdded = async (added) => {
     setAddModal(false);
-    const [testsRes, catsRes] = await Promise.all([testService.getTestList(), testService.getCategories()]);
-    setTests(Array.isArray(testsRes?.data) ? testsRes.data : []);
-    setCategories(Array.isArray(catsRes?.data) ? catsRes.data : []);
+    await loadAll();
     setPopup({ type: "success", message: `${added.length}টি টেস্ট যোগ করা হয়েছে।` });
   };
 
@@ -959,28 +993,22 @@ const ManageTests = () => {
     >
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      {addModal &&
-        createPortal(
-          <AddTestModal existingTests={tests} onClose={() => setAddModal(false)} onSaved={handleAdded} />,
-          document.body,
-        )}
+      {addModal && <AddTestModal existingTests={tests} onClose={() => setAddModal(false)} onSaved={handleAdded} />}
 
-      {configTest &&
-        createPortal(
-          <TestConfigModal test={configTest} onClose={() => setConfigTest(null)} onSave={handleConfigSave} />,
-          document.body,
-        )}
+      {configTest && (
+        <TestConfigModal test={configTest} onClose={() => setConfigTest(null)} onSave={handleConfigSave} />
+      )}
 
-      {deleteTarget &&
-        createPortal(
-          <DeleteModal
-            name={deleteTarget.name}
-            onConfirm={handleDelete}
-            onCancel={() => setDeleteTarget(null)}
-            loading={saving}
-          />,
-          document.body,
-        )}
+      {deleteTarget && (
+        <Popup
+          type="warning"
+          message={`"${deleteTarget.name}" স্থায়ীভাবে মুছে যাবে। এই কাজ পূর্বাবস্থায় ফেরানো যাবে না।`}
+          confirmText="হ্যাঁ, মুছুন"
+          cancelText="রাখুন"
+          onConfirm={handleDelete}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
 
       <div className="max-w-2xl mx-auto">
         {/* Page header */}
@@ -1014,10 +1042,34 @@ const ManageTests = () => {
         {/* Stats */}
         {!initialLoading && (
           <div className="grid grid-cols-4 gap-3 mb-5">
-            <StatCard label="মোট টেস্ট"  value={stats.total}      color={C.teal}   grad="linear-gradient(135deg,#0D9488,#0F766E)" icon={FlaskConical} />
-            <StatCard label="অনলাইন"      value={stats.online}     color={C.green}  grad="linear-gradient(135deg,#10B981,#059669)" icon={Wifi} />
-            <StatCard label="অফলাইন"      value={stats.offline}    color={C.amber}  grad="linear-gradient(135deg,#F59E0B,#D97706)" icon={WifiOff} />
-            <StatCard label="বিভাগ"        value={stats.categories} color={C.purple} grad="linear-gradient(135deg,#8B5CF6,#7C3AED)" icon={Layers} />
+            <StatCard
+              label="মোট টেস্ট"
+              value={stats.total}
+              color={C.teal}
+              grad="linear-gradient(135deg,#0D9488,#0F766E)"
+              icon={FlaskConical}
+            />
+            <StatCard
+              label="অনলাইন"
+              value={stats.online}
+              color={C.green}
+              grad="linear-gradient(135deg,#10B981,#059669)"
+              icon={Wifi}
+            />
+            <StatCard
+              label="অফলাইন"
+              value={stats.offline}
+              color={C.amber}
+              grad="linear-gradient(135deg,#F59E0B,#D97706)"
+              icon={WifiOff}
+            />
+            <StatCard
+              label="বিভাগ"
+              value={stats.categories}
+              color={C.purple}
+              grad="linear-gradient(135deg,#8B5CF6,#7C3AED)"
+              icon={Layers}
+            />
           </div>
         )}
 
@@ -1062,7 +1114,10 @@ const ManageTests = () => {
                   onBlur={blurInput}
                 />
                 {search && (
-                  <button onClick={() => setSearch("")} className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]">
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]"
+                  >
                     <X className="w-[13px] h-[13px]" />
                   </button>
                 )}
@@ -1070,7 +1125,10 @@ const ManageTests = () => {
               <FilterDropdown value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} />
               {hasFilters && (
                 <button
-                  onClick={() => { setSearch(""); setStatusFilter("all"); }}
+                  onClick={() => {
+                    setSearch("");
+                    setStatusFilter("all");
+                  }}
                   className="flex items-center gap-1.5 transition-all font-semibold py-[7px] px-3 border-[1.5px] border-[#EF444430] rounded-[10px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] text-[11px] bg-[#EF444406] hover:bg-[#EF444412]"
                 >
                   <RotateCcw className="w-3 h-3" /> রিসেট
@@ -1080,15 +1138,36 @@ const ManageTests = () => {
 
             {/* Column labels */}
             <div className="flex items-center gap-3 px-4 pt-3 pb-1">
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] w-[26px] shrink-0">#</span>
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] flex-1">টেস্ট</span>
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] shrink-0">স্ট্যাটাস</span>
+              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] w-[26px] shrink-0">
+                #
+              </span>
+              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] flex-1">
+                টেস্ট
+              </span>
+              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] shrink-0">
+                স্ট্যাটাস
+              </span>
               <span className="w-[14px] shrink-0" />
             </div>
 
             {/* Rows */}
             <div className="px-4 pb-4">
-              {filtered.length === 0 ? (
+              {error ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8]">
+                  <AlertCircle className="w-7 h-7 opacity-40" />
+                  <p className="font-['IBM_Plex_Mono',monospace] text-xs text-[#EF4444]">{error}</p>
+                  <button
+                    onClick={() => {
+                      setInitialLoading(true);
+                      setError("");
+                      loadAll();
+                    }}
+                    className="font-['IBM_Plex_Mono',monospace] text-xs text-[#0D9488] underline"
+                  >
+                    আবার চেষ্টা করুন
+                  </button>
+                </div>
+              ) : filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8]">
                   <AlertCircle className="w-7 h-7 opacity-40" />
                   <p className="font-['IBM_Plex_Mono',monospace] text-xs">

@@ -221,65 +221,12 @@ const DepartmentMultiSelect = ({ departments, selected, onChange }) => {
   );
 };
 
-// ── Delete Modal ───────────────────────────────────────────────────────────────
-
-const DeleteModal = ({ doctor, onConfirm, onCancel, loading }) => (
-  <Modal onClose={onCancel}>
-    <div className="bg-white overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
-      <div
-        className="px-6 py-6 flex items-center gap-4 border-b border-[#FECACA]"
-        style={{ background: "linear-gradient(135deg,#FEF2F2,#FFE4E6)" }}
-      >
-        <div
-          className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] shadow-[0_8px_20px_rgba(239,68,68,0.35)]"
-          style={{ background: "linear-gradient(135deg,#EF4444,#DC2626)" }}
-        >
-          <Trash2 className="w-[18px] h-[18px] text-white" />
-        </div>
-        <div>
-          <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#DC2626] mb-[2px]">
-            বিপজ্জনক অপারেশন
-          </p>
-          <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">ডাক্তার মুছে ফেলবেন?</p>
-        </div>
-      </div>
-      <div className="px-6 py-5">
-        <p className="font-['IBM_Plex_Mono',monospace] text-[13px] leading-[1.7] text-[#64748B]">
-          <span className="font-bold text-[#0F172A]">{doctor.name}</span>-এর সমস্ত তথ্য স্থায়ীভাবে মুছে যাবে। এই কাজ
-          পূর্বাবস্থায় ফেরানো যাবে না।
-        </p>
-      </div>
-      <div className="px-6 pb-6 flex gap-3">
-        <button
-          onClick={onCancel}
-          disabled={loading}
-          className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
-        >
-          রাখুন
-        </button>
-        <button
-          onClick={onConfirm}
-          disabled={loading}
-          className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
-          style={{
-            background: "linear-gradient(135deg,#EF4444,#DC2626)",
-            boxShadow: loading ? "none" : "0 4px 14px rgba(239,68,68,0.4)",
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          {loading ? (
-            <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-          ) : (
-            <Trash2 className="w-[13px] h-[13px]" />
-          )}
-          হ্যাঁ, মুছুন
-        </button>
-      </div>
-    </div>
-  </Modal>
-);
-
 // ── Doctor Form Modal ──────────────────────────────────────────────────────────
+// On a failed save, this modal stays OPEN and shows the error inline via
+// `error` (see the banner near the bottom of the body) — never a separate
+// <Popup>. This mirrors ItemModal/StockModal in Products.jsx and
+// ReferrerFormModal in ManageReferrer.jsx: a network hiccup shouldn't
+// silently discard what the user typed.
 
 const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations }) => {
   const isEdit = !!initial?._id;
@@ -518,46 +465,50 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Footer. error banner sits directly above the action buttons so
+            it's the last thing seen before retrying, right where the eye
+            lands after Save fails — not buried at the top of a long form. */}
+        <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
           {error && (
-            <div className="flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
               <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
               <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{error}</span>
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="shrink-0 px-6 py-4 flex gap-3 bg-white border-t border-[#E2E8F0]">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
-          >
-            বাতিল
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={saving || !departments.length}
-            className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
-            style={{
-              background:
-                saving || !departments.length
-                  ? C.muted
-                  : `linear-gradient(135deg,${accent === C.purple ? "#8B5CF6,#7C3AED" : "#0D9488,#0F766E"})`,
-              boxShadow: saving || !departments.length ? "none" : `0 4px 14px ${accent}40`,
-              cursor: saving || !departments.length ? "not-allowed" : "pointer",
-            }}
-          >
-            {saving ? (
-              <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-            ) : isEdit ? (
-              <Pencil className="w-[13px] h-[13px]" />
-            ) : (
-              <UserPlus className="w-[13px] h-[13px]" />
-            )}
-            {isEdit ? "পরিবর্তন সংরক্ষণ" : "নিবন্ধন করুন"}
-          </button>
+          <div className="px-6 py-4 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
+            >
+              বাতিল
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={saving || !departments.length}
+              className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+              style={{
+                background:
+                  saving || !departments.length
+                    ? C.muted
+                    : `linear-gradient(135deg,${accent === C.purple ? "#8B5CF6,#7C3AED" : "#0D9488,#0F766E"})`,
+                boxShadow: saving || !departments.length ? "none" : `0 4px 14px ${accent}40`,
+                cursor: saving || !departments.length ? "not-allowed" : "pointer",
+              }}
+            >
+              {saving ? (
+                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+              ) : isEdit ? (
+                <Pencil className="w-[13px] h-[13px]" />
+              ) : (
+                <UserPlus className="w-[13px] h-[13px]" />
+              )}
+              {isEdit ? "পরিবর্তন সংরক্ষণ" : "নিবন্ধন করুন"}
+            </button>
+          </div>
         </div>
       </div>
     </Modal>
@@ -793,8 +744,12 @@ const ManageDoctors = () => {
   const [commFilter, setCommFilter] = useState("all");
   const [popup, setPopup] = useState(null);
   const [formModal, setFormModal] = useState(null);
+  // Delete confirmation now goes through the shared <Popup type="warning">
+  // component (see render section below) instead of the bespoke
+  // DeleteModal — same one-consistent-confirm-flow pattern used in
+  // ManageReferrer.jsx / Products.jsx. `deleteTarget` holds the doctor
+  // pending deletion.
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
   const debounceRef = useRef(null);
 
   const deptLabelMap = Object.fromEntries(departments.map((d) => [d.value, d.label]));
@@ -843,19 +798,17 @@ const ManageDoctors = () => {
     setPopup({ type: "success", message: isEdit ? "ডাক্তারের তথ্য আপডেট হয়েছে।" : "ডাক্তার নিবন্ধিত হয়েছে।" });
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
+  // No in-flight spinner here — the warning Popup closes itself as soon as
+  // onConfirm fires, so a failure just surfaces as a follow-up error toast.
+  // Mirrors handleDelete in Products.jsx / ManageReferrer.jsx.
+  const handleDelete = async (doctor) => {
     try {
-      setDeleting(true);
-      await doctorService.delete(deleteTarget._id);
-      setDeleteTarget(null);
+      await doctorService.delete(doctor._id);
       const page = doctors.length === 1 && pagination.page > 1 ? pagination.page - 1 : pagination.page;
       fetchDoctors({ search, department: deptFilter !== "all" ? deptFilter : "", page });
       setPopup({ type: "success", message: "ডাক্তার মুছে ফেলা হয়েছে।" });
     } catch {
       setPopup({ type: "error", message: "ডাক্তার মুছতে ব্যর্থ।" });
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -896,16 +849,16 @@ const ManageDoctors = () => {
           document.body,
         )}
 
-      {deleteTarget &&
-        createPortal(
-          <DeleteModal
-            doctor={deleteTarget}
-            onConfirm={handleDelete}
-            onCancel={() => setDeleteTarget(null)}
-            loading={deleting}
-          />,
-          document.body,
-        )}
+      {deleteTarget && (
+        <Popup
+          type="warning"
+          message={`"${deleteTarget.name}"-এর সমস্ত তথ্য স্থায়ীভাবে মুছে যাবে। এই কাজ পূর্বাবস্থায় ফেরানো যাবে না।`}
+          confirmText="হ্যাঁ, মুছুন"
+          cancelText="রাখুন"
+          onConfirm={() => handleDelete(deleteTarget)}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
 
       <div className="max-w-2xl mx-auto">
         {/* Page header */}

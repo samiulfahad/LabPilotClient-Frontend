@@ -3,7 +3,7 @@
  * babel-plugin-react-compiler handles all memoization automatically.
  */
 import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import Modal from "../../../components/Modal";
 import {
   Plus,
   Pencil,
@@ -25,6 +25,7 @@ import {
   RotateCcw,
   ChevronDown,
 } from "lucide-react";
+import Popup from "../../../components/popup";
 import productService from "../../../api/products";
 
 // ── Palette ────────────────────────────────────────────────────────────────────
@@ -114,6 +115,15 @@ const stockBadge = (stock) => {
   return { label: "স্টক আছে", color: C.green, bg: "#10B98110", border: "#10B98130" };
 };
 
+// ── Error helpers ──────────────────────────────────────────────────────────────
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
 // ── Shared input helpers ───────────────────────────────────────────────────────
 
 const inputBase =
@@ -128,92 +138,14 @@ const blurInput = (e) => {
   e.target.style.boxShadow = "";
 };
 
-// ── Modal Shell ────────────────────────────────────────────────────────────────
-
-const ModalShell = ({ onClose, children, wide }) => {
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
-  return (
-    <div className="fixed inset-0 flex items-center justify-center px-4 z-[9999]">
-      <div
-        className="absolute inset-0 backdrop-blur-[6px]"
-        style={{ background: "rgba(15,23,42,0.6)" }}
-        onClick={onClose}
-      />
-      <div
-        className={`relative w-full max-h-[calc(100svh-48px)] overflow-y-auto ${wide ? "max-w-[640px]" : "max-w-[520px]"}`}
-      >
-        {children}
-      </div>
-    </div>
-  );
-};
-
-// ── Delete Modal ───────────────────────────────────────────────────────────────
-
-const DeleteModal = ({ name, onConfirm, onCancel, loading }) => (
-  <ModalShell onClose={onCancel}>
-    <div className="bg-white overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
-      <div
-        className="px-6 py-6 flex items-center gap-4 border-b border-[#FECACA]"
-        style={{ background: "linear-gradient(135deg,#FEF2F2,#FFE4E6)" }}
-      >
-        <div
-          className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] shadow-[0_8px_20px_rgba(239,68,68,0.35)]"
-          style={{ background: "linear-gradient(135deg,#EF4444,#DC2626)" }}
-        >
-          <Trash2 className="w-[18px] h-[18px] text-white" />
-        </div>
-        <div>
-          <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#DC2626] mb-[2px]">
-            বিপজ্জনক অপারেশন
-          </p>
-          <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">আইটেম মুছে ফেলবেন?</p>
-        </div>
-      </div>
-      <div className="px-6 py-5">
-        <p className="font-['IBM_Plex_Mono',monospace] text-[13px] leading-[1.7] text-[#64748B]">
-          <span className="font-bold text-[#0F172A]">{name}</span> স্থায়ীভাবে মুছে যাবে। এই কাজ পূর্বাবস্থায় ফেরানো
-          যাবে না।
-        </p>
-      </div>
-      <div className="px-6 pb-6 flex gap-3">
-        <button
-          onClick={onCancel}
-          disabled={loading}
-          className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
-        >
-          রাখুন
-        </button>
-        <button
-          onClick={onConfirm}
-          disabled={loading}
-          className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
-          style={{
-            background: "linear-gradient(135deg,#EF4444,#DC2626)",
-            boxShadow: loading ? "none" : "0 4px 14px rgba(239,68,68,0.4)",
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          {loading ? (
-            <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-          ) : (
-            <Trash2 className="w-[13px] h-[13px]" />
-          )}
-          হ্যাঁ, মুছুন
-        </button>
-      </div>
-    </div>
-  </ModalShell>
-);
-
 // ── Stock Modal ────────────────────────────────────────────────────────────────
+// Delete confirmation uses the shared <Popup type="warning"> component
+// directly (see the JSX render section below) instead of a bespoke modal,
+// so there's one consistent confirm/cancel pattern across the app.
+//
+// On a failed save the modal now stays OPEN (no onClose()) — a network
+// hiccup on first click shouldn't silently discard what the user entered.
+// The error surfaces inline via `apiError` so they can just retry.
 
 const StockModal = ({ item, onClose, onSave }) => {
   const [delta, setDelta] = useState(1);
@@ -238,17 +170,18 @@ const StockModal = ({ item, onClose, onSave }) => {
       await productService.adjustStock(item._id, effectiveDelta, note.trim() || undefined);
       onSave();
     } catch (err) {
-      setApiError(err?.response?.data?.error || "কিছু একটা সমস্যা হয়েছে।");
+      setApiError(getErrorMessage(err, "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ModalShell onClose={onClose}>
-      <div className="bg-white overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
+    <Modal isOpen size="sm" onClose={onClose}>
+      <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
+        {/* Header — fixed, never scrolls */}
         <div
-          className="px-6 py-5 flex items-center justify-between border-b border-[#0D948820]"
+          className="shrink-0 px-6 py-5 flex items-center justify-between border-b border-[#0D948820]"
           style={{ background: "linear-gradient(135deg,#0D948815 0%,#0F766E08 100%)" }}
         >
           <div className="flex items-center gap-3.5">
@@ -275,14 +208,8 @@ const StockModal = ({ item, onClose, onSave }) => {
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-4">
-          {apiError && (
-            <div className="flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
-              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
-              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
-            </div>
-          )}
-
+        {/* Body — the ONLY scrollable region, fills remaining space */}
+        <div className="px-6 py-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
           {/* Current stock */}
           <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC]">
             <span className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B]">বর্তমান স্টক</span>
@@ -368,36 +295,48 @@ const StockModal = ({ item, onClose, onSave }) => {
           </div>
         </div>
 
-        <div className="px-6 pb-6 flex gap-3 border-t border-[#E2E8F0]">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9] mt-4"
-          >
-            বাতিল
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading || preview < 0}
-            className="flex-1 py-3 mt-4 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
-            style={{
-              background: loading || preview < 0 ? C.muted : "linear-gradient(135deg,#0D9488,#0F766E)",
-              boxShadow: loading || preview < 0 ? "none" : "0 4px 14px rgba(13,148,136,0.4)",
-            }}
-          >
-            {loading ? (
-              <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-            ) : (
-              <CheckCircle2 className="w-[13px] h-[13px]" />
-            )}
-            নিশ্চিত করুন
-          </button>
+        {/* Footer — fixed, never scrolls */}
+        <div className="shrink-0 border-t border-[#E2E8F0] bg-white">
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
+            </div>
+          )}
+          <div className="px-6 py-4 flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
+            >
+              বাতিল
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={loading || preview < 0}
+              className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+              style={{
+                background: loading || preview < 0 ? C.muted : "linear-gradient(135deg,#0D9488,#0F766E)",
+                boxShadow: loading || preview < 0 ? "none" : "0 4px 14px rgba(13,148,136,0.4)",
+              }}
+            >
+              {loading ? (
+                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <CheckCircle2 className="w-[13px] h-[13px]" />
+              )}
+              নিশ্চিত করুন
+            </button>
+          </div>
         </div>
       </div>
-    </ModalShell>
+    </Modal>
   );
 };
 
 // ── Item Modal (Create / Edit) ─────────────────────────────────────────────────
+// Same rule as StockModal: on a failed save, stay open and show the error
+// inline (apiError) instead of closing — so the user doesn't lose the form
+// on a transient network issue and can just hit save again.
 
 const ItemModal = ({ mode, item, activeType, onClose, onSave }) => {
   const isEdit = mode === "edit";
@@ -460,18 +399,18 @@ const ItemModal = ({ mode, item, activeType, onClose, onSave }) => {
       else await productService.createProduct(payload);
       onSave();
     } catch (err) {
-      setApiError(err?.response?.data?.error || "কিছু একটা সমস্যা হয়েছে।");
+      setApiError(getErrorMessage(err, "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ModalShell onClose={onClose} wide>
-      <div className="bg-white overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
-        {/* Header */}
+    <Modal isOpen size="md" onClose={onClose}>
+      <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
+        {/* Header — fixed, never scrolls */}
         <div
-          className="px-6 py-5 flex items-center justify-between border-b"
+          className="shrink-0 px-6 py-5 flex items-center justify-between border-b"
           style={{
             background: `linear-gradient(135deg,${typeDef.softBg} 0%,transparent 100%)`,
             borderColor: typeDef.softBorder,
@@ -504,15 +443,8 @@ const ItemModal = ({ mode, item, activeType, onClose, onSave }) => {
           </button>
         </div>
 
-        {/* Body */}
-        <div className="px-6 py-5 bg-[#F8FAFC] space-y-4 max-h-[60vh] overflow-y-auto">
-          {apiError && (
-            <div className="flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
-              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
-              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
-            </div>
-          )}
-
+        {/* Body — the ONLY scrollable region, fills remaining space */}
+        <div className="px-6 py-5 bg-[#F8FAFC] space-y-4 flex-1 min-h-0 overflow-y-auto">
           {/* Name */}
           <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
             <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-2">
@@ -703,35 +635,45 @@ const ItemModal = ({ mode, item, activeType, onClose, onSave }) => {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-[#E2E8F0] px-6 py-4 bg-white flex gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 py-2.5 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
-          >
-            বাতিল
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={loading}
-            className="flex-1 py-2.5 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
-            style={{
-              background: loading ? C.muted : typeDef.grad,
-              boxShadow: loading ? "none" : `0 4px 14px ${typeDef.accent}40`,
-            }}
-          >
-            {loading ? (
-              <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-            ) : (
-              <CheckCircle2 className="w-[13px] h-[13px]" />
-            )}
-            {isEdit ? "পরিবর্তন সংরক্ষণ" : "তৈরি করুন"}
-          </button>
+        {/* Footer — fixed, never scrolls. apiError banner sits directly
+            above the action buttons so it's the last thing seen before
+            retrying, right where the eye lands after Save fails. */}
+        <div className="shrink-0 border-t border-[#E2E8F0] bg-white">
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
+            </div>
+          )}
+          <div className="px-6 py-4 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
+            >
+              বাতিল
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="flex-1 py-2.5 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+              style={{
+                background: loading ? C.muted : typeDef.grad,
+                boxShadow: loading ? "none" : `0 4px 14px ${typeDef.accent}40`,
+              }}
+            >
+              {loading ? (
+                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <CheckCircle2 className="w-[13px] h-[13px]" />
+              )}
+              {isEdit ? "পরিবর্তন সংরক্ষণ" : "তৈরি করুন"}
+            </button>
+          </div>
         </div>
       </div>
-    </ModalShell>
+    </Modal>
   );
 };
 
@@ -1008,6 +950,7 @@ export default function Products() {
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: LIMIT, totalPages: 0 });
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState("");
+  const [popup, setPopup] = useState(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [stockFilter, setStockFilter] = useState("all");
@@ -1033,8 +976,10 @@ export default function Products() {
       setItems(res.data?.products ?? []);
       setPagination(res.data?.pagination ?? { total: 0, page: 1, limit: LIMIT, totalPages: 0 });
       if (res.data?.totalsByType) setTotalsByType(res.data.totalsByType);
-    } catch {
-      setError("আইটেম লোড করতে ব্যর্থ।");
+    } catch (err) {
+      const message = getErrorMessage(err, "আইটেম লোড করতে ব্যর্থ।");
+      setError(message);
+      if (err?.response?.status === 403) setPopup({ type: "error", message });
     } finally {
       setInitialLoading(false);
     }
@@ -1055,14 +1000,28 @@ export default function Products() {
     setPage(1);
   };
 
+  const openDeleteModal = (item) => {
+    setModal({ type: "delete", item });
+  };
+
+  const closeDeleteModal = () => {
+    setModal(null);
+  };
+
+  // Delete errors are shown exclusively via the shared <Popup type="error">
+  // so the user only ever sees one error message. The confirm step itself
+  // is also the shared <Popup type="warning">, which closes as soon as
+  // onConfirm fires, so there's no in-flight spinner here — a failure just
+  // surfaces as a follow-up error toast. (Delete has no form data to lose,
+  // so this one is fine to auto-close, unlike ItemModal/StockModal above.)
   const handleDelete = async () => {
     try {
       await productService.deleteProduct(modal.item._id);
-      setModal(null);
       if (items.length === 1 && page > 1) setPage((p) => p - 1);
       else fetchItems();
-    } catch {
-      setModal(null);
+    } catch (err) {
+      const message = getErrorMessage(err, "মুছতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।");
+      setPopup({ type: "error", message });
     }
   };
 
@@ -1101,33 +1060,29 @@ export default function Products() {
       className="min-h-screen px-4 py-6 font-[Noto_Sans_Bengali,sans-serif]"
       style={{ background: "linear-gradient(to bottom right,#f8fafc,#f0fdf4,#ecfdf5)" }}
     >
+      {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+
       {/* Modals */}
-      {(modal?.type === "create" || modal?.type === "edit") &&
-        createPortal(
-          <ItemModal
-            mode={modal.type === "edit" ? "edit" : "create"}
-            item={modal.item}
-            activeType={activeType}
-            onClose={() => setModal(null)}
-            onSave={handleSave}
-          />,
-          document.body,
-        )}
-      {modal?.type === "delete" &&
-        createPortal(
-          <DeleteModal
-            name={modal.item.name}
-            onConfirm={handleDelete}
-            onCancel={() => setModal(null)}
-            loading={false}
-          />,
-          document.body,
-        )}
-      {modal?.type === "stock" &&
-        createPortal(
-          <StockModal item={modal.item} onClose={() => setModal(null)} onSave={handleSave} />,
-          document.body,
-        )}
+      {(modal?.type === "create" || modal?.type === "edit") && (
+        <ItemModal
+          mode={modal.type === "edit" ? "edit" : "create"}
+          item={modal.item}
+          activeType={activeType}
+          onClose={() => setModal(null)}
+          onSave={handleSave}
+        />
+      )}
+      {modal?.type === "delete" && (
+        <Popup
+          type="warning"
+          message={`${modal.item.name} স্থায়ীভাবে মুছে যাবে। এই কাজ পূর্বাবস্থায় ফেরানো যাবে না।`}
+          confirmText="হ্যাঁ, মুছুন"
+          cancelText="রাখুন"
+          onConfirm={handleDelete}
+          onClose={closeDeleteModal}
+        />
+      )}
+      {modal?.type === "stock" && <StockModal item={modal.item} onClose={() => setModal(null)} onSave={handleSave} />}
 
       <div className="max-w-2xl mx-auto">
         {/* Page header */}
@@ -1367,7 +1322,7 @@ export default function Products() {
                       item={item}
                       index={index}
                       onEdit={(i) => setModal({ type: "edit", item: i })}
-                      onDelete={(i) => setModal({ type: "delete", item: i })}
+                      onDelete={openDeleteModal}
                       onAdjustStock={(i) => setModal({ type: "stock", item: i })}
                     />
                   ))}

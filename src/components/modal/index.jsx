@@ -56,7 +56,7 @@ const Modal = ({
     <Portal>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm transition-opacity duration-200 ${
+        className={`font-anek fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm transition-opacity duration-200 ${
           isClosing ? "opacity-0" : "opacity-100"
         }`}
         onClick={handleClose}
@@ -75,7 +75,7 @@ const Modal = ({
           onClick={(e) => e.stopPropagation()}
         >
           {/* Content */}
-          <div className="flex-1 overflow-y-auto modal-scrollbar">{children}</div>
+          <div className="font-anek flex-1 overflow-y-auto modal-scrollbar">{children}</div>
         </div>
       </div>
 
