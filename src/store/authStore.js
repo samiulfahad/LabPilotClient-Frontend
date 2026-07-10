@@ -17,7 +17,7 @@ export const useAuthStore = create(
       login: async (labKey, phone, password) => {
         try {
           const response = await api.post("/login", {
-            labKey: Number(labKey),
+            labKey: String(labKey),
             phone,
             password,
             device: getDeviceInfo(),
