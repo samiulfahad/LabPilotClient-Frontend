@@ -467,7 +467,7 @@ const DeleteInvoices = () => {
   const handleDeleted = (invoiceId) => {
     setPopup({ type: "success", message: `Invoice #${invoiceId} has been deleted.` });
     setRefreshTrigger((n) => n + 1);
-    setActiveTab("history");
+    // ✅ no longer switches to the history tab — stays on Delete Invoice
   };
 
   return (

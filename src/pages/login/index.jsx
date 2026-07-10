@@ -39,7 +39,7 @@ const Field = ({ label, error, children }) => (
 );
 
 /* ─── Lab ID dot progress ─────────────────────────────────────────────────── */
-const LabDots = ({ count, total = 5 }) => (
+const LabDots = ({ count, total = 4 }) => (
   <div className="absolute right-5 sm:right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-[5px]">
     {Array.from({ length: total }).map((_, i) => (
       <span
@@ -232,7 +232,7 @@ export default function Login() {
   // ── Login ──
   const validateLogin = () => {
     const e = {};
-    if (!/^\d{5}$/.test(labKey)) e.labKey = "Must be 5 digits";
+    if (!/^\d{4}$/.test(labKey)) e.labKey = "Must be 4 digits";
     if (phone.length < 11) e.phone = "Enter 11 digits";
     if (password.length < 6) e.password = "Short password";
     setErrors(e);
@@ -251,14 +251,14 @@ export default function Login() {
 
   // ── Forgot password — request OTP ──
   const handleRequestOtp = async () => {
-    if (!/^\d{5}$/.test(resetLabKey)) return setResetError("Lab Key must be 5 digits");
+    if (!/^\d{4}$/.test(resetLabKey)) return setResetError("Lab Key must be 4 digits");
     if (resetPhone.length < 11) return setResetError("Enter 11 digit phone number");
     setResetError("");
     setLoading(true);
     try {
       await api.post("/forgot-password", {
         phone: resetPhone,
-        labKey: Number(resetLabKey),
+        labKey: resetLabKey,
       });
       setResendTimer(120);
       setView("otp");
@@ -277,7 +277,7 @@ export default function Login() {
     try {
       await api.post("/forgot-password", {
         phone: resetPhone,
-        labKey: Number(resetLabKey),
+        labKey: resetLabKey,
       });
       setResendTimer(120);
       setOtp("");
@@ -298,7 +298,7 @@ export default function Login() {
     try {
       await api.post("/reset-password", {
         phone: resetPhone,
-        labKey: Number(resetLabKey),
+        labKey: resetLabKey,
         otp,
         newPassword,
       });
@@ -412,9 +412,9 @@ export default function Login() {
                     style={{ paddingLeft: "45px", paddingRight: "45px" }}
                     type="text"
                     inputMode="numeric"
-                    placeholder="00000"
+                    placeholder="0000"
                     value={labKey}
-                    onChange={(e) => setLabKey(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                    onChange={(e) => setLabKey(e.target.value.replace(/\D/g, "").slice(0, 4))}
                   />
                   <LabDots count={labKey.length} />
                 </Field>
@@ -507,9 +507,9 @@ export default function Login() {
                     style={{ paddingLeft: "45px", paddingRight: "45px" }}
                     type="text"
                     inputMode="numeric"
-                    placeholder="00000"
+                    placeholder="0000"
                     value={resetLabKey}
-                    onChange={(e) => setResetLabKey(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                    onChange={(e) => setResetLabKey(e.target.value.replace(/\D/g, "").slice(0, 4))}
                   />
                   <LabDots count={resetLabKey.length} />
                 </Field>
