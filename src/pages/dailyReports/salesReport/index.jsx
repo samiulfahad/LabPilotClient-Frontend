@@ -65,6 +65,15 @@ const recordStamp = (start, end) => {
   return generatedStamp(end);
 };
 
+// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / CollectionReport.jsx / CommissionReport.jsx) ──
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
 // ─── Merge outdoor + indoor counts by id (falls back to name) ─────────────────
 const mergeCounts = (outdoor = [], indoor = [], idKey) => {
   const map = new Map();
@@ -283,8 +292,8 @@ const SalesReport = () => {
         setExpenseData(res.data);
       }
       setFetchedRange((prev) => ({ ...prev, [tab]: range }));
-    } catch {
-      setPopup({ type: "error", message: "রিপোর্ট লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।" });
+    } catch (err) {
+      setPopup({ type: "error", message: getErrorMessage(err, "রিপোর্ট লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।") });
     } finally {
       setLoading(false);
     }

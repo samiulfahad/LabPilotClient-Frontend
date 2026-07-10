@@ -5,10 +5,20 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, RotateCcw, X, FileText, Pencil, CheckCircle2 } from "lucide-react";
+import { X, FileText, Pencil } from "lucide-react";
 import SchemaRenderer from "./SchemaRenderer";
 import testService from "../../api/test";
 import reportService from "../../api/report";
+import Popup from "../../components/popup";
+
+// ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx) ──
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.message ?? err?.response?.data?.error ?? fallback;
+};
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
@@ -57,79 +67,6 @@ function SkeletonLoader() {
   );
 }
 
-// ─── Error state ──────────────────────────────────────────────────────────────
-
-function ErrorState({ message, onRetry }) {
-  return (
-    <div className="flex items-center justify-center py-16 px-6 font-noto">
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm py-9 px-8 max-w-[360px] w-full text-center">
-        <div className="w-12 h-12 bg-red-50 border border-red-200 rounded-xl flex items-center justify-center mx-auto mb-4">
-          <AlertCircle className="w-5 h-5 text-red-500" />
-        </div>
-        <div className="text-base font-bold text-slate-900 mb-2 tracking-tight">Failed to Load</div>
-        <div className="text-[13px] text-slate-500 leading-relaxed mb-5">
-          {message || "Something went wrong while loading the report."}
-        </div>
-        <button
-          className="inline-flex items-center gap-2 py-2.5 px-5 bg-slate-900 text-white rounded-lg text-[13px] font-semibold transition-colors hover:bg-slate-800"
-          onClick={onRetry}
-        >
-          <RotateCcw className="w-[13px] h-[13px]" />
-          Try Again
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Success / Error Modal ────────────────────────────────────────────────────
-
-function ResultModal({ type, message, onGoBack, onDismiss }) {
-  const isSuccess = type === "success";
-  return (
-    <div
-      className="fixed inset-0 z-[10000] bg-slate-900/55 backdrop-blur-sm flex items-center justify-center p-6 animate-[ur-fade-in_0.2s_ease]"
-      onClick={isSuccess ? onGoBack : onDismiss}
-    >
-      <div
-        className="bg-white rounded-2xl py-10 px-9 max-w-[380px] w-full text-center shadow-2xl animate-[ur-pop-in_0.3s_cubic-bezier(0.34,1.56,0.64,1)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 border-2 ${
-            isSuccess ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"
-          }`}
-        >
-          {isSuccess ? (
-            <CheckCircle2 className="w-[30px] h-[30px] text-emerald-600" />
-          ) : (
-            <AlertCircle className="w-[30px] h-[30px] text-red-500" />
-          )}
-        </div>
-        <div className="font-noto text-xl font-extrabold text-slate-900 tracking-tight mb-2">
-          {isSuccess ? "All Done!" : "Something went wrong"}
-        </div>
-        <div className="text-[13.5px] text-slate-500 leading-relaxed mb-7">{message}</div>
-        {isSuccess ? (
-          <button
-            className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl text-white text-sm font-bold tracking-wide bg-emerald-600 shadow-md shadow-emerald-200 transition-colors hover:bg-emerald-700"
-            onClick={onGoBack}
-          >
-            Back to Reports
-          </button>
-        ) : (
-          <button
-            className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl text-white text-sm font-bold tracking-wide bg-slate-900 transition-colors hover:bg-slate-800"
-            onClick={onDismiss}
-          >
-            Dismiss
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 function ReportUploadInner() {
@@ -154,9 +91,9 @@ function ReportUploadInner() {
   const [resolvedName, setResolvedName] = useState(stateTestName ?? "Report");
   const [admissionId, setAdmissionId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [resultModal, setResultModal] = useState(null);
+  const [popup, setPopup] = useState(null);
   const [closing, setClosing] = useState(false);
 
   const goBack = () => {
@@ -171,10 +108,6 @@ function ReportUploadInner() {
   };
 
   const handleClose = () => {
-    if (resultModal?.type === "success") {
-      goBack();
-      return;
-    }
     setClosing(true);
     setTimeout(() => navigate(-1), 250);
   };
@@ -185,18 +118,19 @@ function ReportUploadInner() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [resultModal]);
+  }, []);
 
   const fetchData = async () => {
     const hasRequiredIds = isIndoor ? patientId && testId : invoiceId && testId;
     if (!hasRequiredIds) {
-      setError("Missing patient or test information.");
+      setLoadFailed(true);
       setLoading(false);
+      setPopup({ type: "error", message: "Missing patient or test information.", onClose: handleClose });
       return;
     }
 
     setLoading(true);
-    setError(null);
+    setLoadFailed(false);
 
     try {
       if (isIndoor) {
@@ -221,7 +155,8 @@ function ReportUploadInner() {
         setSchema(schemaRes.data);
       }
     } catch (e) {
-      setError(e?.response?.data?.message || e?.message || "Failed to load report data.");
+      setLoadFailed(true);
+      setPopup({ type: "error", message: getErrorMessage(e, "Failed to load report data."), onClose: handleClose });
     } finally {
       setLoading(false);
     }
@@ -240,12 +175,9 @@ function ReportUploadInner() {
       } else {
         await reportService.addReport({ report: payload, invoiceId, testId });
       }
-      setResultModal({
-        type: "success",
-        message: "Report submitted successfully. Click below to return to the reports page.",
-      });
+      setPopup({ type: "success", message: "Report submitted successfully.", onClose: goBack });
     } catch (e) {
-      setResultModal({ type: "error", message: e?.response?.data?.message || "Could not submit report." });
+      setPopup({ type: "error", message: getErrorMessage(e, "Could not submit report.") });
     } finally {
       setSubmitting(false);
     }
@@ -260,12 +192,9 @@ function ReportUploadInner() {
       } else {
         await reportService.updateReport({ report: payload, invoiceId, testId });
       }
-      setResultModal({
-        type: "success",
-        message: "Report updated successfully. Click below to return to the reports page.",
-      });
+      setPopup({ type: "success", message: "Report updated successfully.", onClose: goBack });
     } catch (e) {
-      setResultModal({ type: "error", message: e?.response?.data?.message || "Could not update report." });
+      setPopup({ type: "error", message: getErrorMessage(e, "Could not update report.") });
     } finally {
       setSubmitting(false);
     }
@@ -284,13 +213,23 @@ function ReportUploadInner() {
       <style>{`
         @keyframes ur-slide-in  { from { transform: translateX(-100%); } to { transform: translateX(0); } }
         @keyframes ur-slide-out { from { transform: translateX(0); } to { transform: translateX(-100%); } }
-        @keyframes ur-fade-in   { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes ur-pop-in    { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
 
         .ur-drawer-body-scroll::-webkit-scrollbar { width: 4px; }
         .ur-drawer-body-scroll::-webkit-scrollbar-track { background: transparent; }
         .ur-drawer-body-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
       `}</style>
+
+      {popup && (
+        <Popup
+          type={popup.type}
+          message={popup.message}
+          onClose={() => {
+            const after = popup.onClose;
+            setPopup(null);
+            if (after) after();
+          }}
+        />
+      )}
 
       <div
         className={`fixed inset-0 z-[9999] bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col ${
@@ -326,8 +265,7 @@ function ReportUploadInner() {
         {/* Body */}
         <div className="ur-drawer-body-scroll flex-1 overflow-y-auto overscroll-contain">
           {loading && <SkeletonLoader />}
-          {!loading && error && <ErrorState message={error} onRetry={fetchData} />}
-          {!loading && !error && schema && (
+          {!loading && !loadFailed && schema && (
             <SchemaRenderer
               schema={schema}
               invoice={invoice}
@@ -339,15 +277,6 @@ function ReportUploadInner() {
           )}
         </div>
       </div>
-
-      {resultModal && (
-        <ResultModal
-          type={resultModal.type}
-          message={resultModal.message}
-          onGoBack={goBack}
-          onDismiss={() => setResultModal(null)}
-        />
-      )}
     </>
   );
 }

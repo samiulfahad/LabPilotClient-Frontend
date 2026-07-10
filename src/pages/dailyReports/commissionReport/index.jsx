@@ -165,6 +165,15 @@ const EMPTY_DATA = {
   totals: { totalCommission: 0, totalDiscount: 0, totalInvoices: 0 },
 };
 
+// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / CollectionReport.jsx) ──
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 const SkeletonReceipt = () => (
@@ -299,7 +308,7 @@ const ReferrerEntry = ({
             {hasBoth && (
               <>
                 <span className="text-[#D8D5CB]">·</span>
-                <span className="text-red-500">(ইনডোরের {totalIndoorTests} টি টেস্ট বাদ দিয়ে)</span>
+                <span className="text-red-500">(ইনডোরের {totalIndoorTests} টি টেস্ট বাদ দিয়ে)</span>
               </>
             )}
             <span className="text-[#D8D5CB]">·</span>
@@ -651,8 +660,8 @@ const CommissionReport = () => {
       setLoading(true);
       const res = await commissionReportAPI.getSummary({ startDate: range.start, endDate: range.end });
       setData(res.data);
-    } catch {
-      setPopup({ type: "error", message: "কমিশনের তথ্য লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।" });
+    } catch (err) {
+      setPopup({ type: "error", message: getErrorMessage(err, "কমিশনের তথ্য লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।") });
     } finally {
       setLoading(false);
     }

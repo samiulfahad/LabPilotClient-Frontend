@@ -6,14 +6,13 @@
  * departments is now an array (multi-select), fetched from backend.
  *
  * Styled to match the Referrer ledger/paper aesthetic:
- * IBM Plex Mono/Sans, ModalShell + ConfirmModal pattern, ActionChip rows,
+ * IBM Plex Mono/Sans, shared Modal + Popup pattern, ActionChip rows,
  * StatCard grid, numbered expandable ledger rows.
  */
 
 // React Compiler handles memoisation — no useCallback/useMemo
 
 import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
 import {
   BedDouble,
   Plus,
@@ -35,6 +34,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 
+import Modal from "../../../components/Modal";
 import Popup from "../../../components/popup";
 import spaceService from "../../../api/admissionSpace";
 
@@ -42,6 +42,17 @@ const fmt = (n) =>
   new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", minimumFractionDigits: 0 }).format(n || 0);
 
 const deptLabel = (val, departments) => departments.find((d) => d.value === val)?.label ?? val;
+
+// ── Error helpers ──────────────────────────────────────────────────────────────
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
+const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
 
 // ── Shared input helpers ───────────────────────────────────────────────────────
 
@@ -69,123 +80,34 @@ const FormField = ({ label, required, children, hint }) => (
   </div>
 );
 
-// ── Modal Shell ────────────────────────────────────────────────────────────────
-
-const ModalShell = ({ onClose, children, wide }) => {
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
-  return (
-    <div className="fixed inset-0 flex items-center justify-center px-4 z-[9999]">
-      <div
-        className="absolute inset-0 backdrop-blur-[6px]"
-        style={{ background: "rgba(15,23,42,0.6)" }}
-        onClick={onClose}
-      />
-      <div
-        className={`relative w-full ${wide ? "max-w-[560px]" : "max-w-[520px]"} max-h-[calc(100svh-48px)] overflow-y-auto`}
-      >
-        {children}
-      </div>
-    </div>
-  );
-};
-
-// ── Confirm Modal ──────────────────────────────────────────────────────────────
-
-const TONE = {
-  danger: {
-    border: "border-[#FECACA]",
-    bgGrad: "linear-gradient(135deg,#FEF2F2,#FFE4E6)",
-    iconGrad: "linear-gradient(135deg,#EF4444,#DC2626)",
-    shadow: "shadow-[0_8px_20px_rgba(239,68,68,0.35)]",
-    label: "text-[#DC2626]",
-    btnGrad: "linear-gradient(135deg,#EF4444,#DC2626)",
-    btnShadow: "shadow-[0_4px_14px_rgba(239,68,68,0.4)]",
-  },
-  warning: {
-    border: "border-[#FDE68A]",
-    bgGrad: "linear-gradient(135deg,#FFFBEB,#FEF3C7)",
-    iconGrad: "linear-gradient(135deg,#F59E0B,#D97706)",
-    shadow: "shadow-[0_8px_20px_rgba(245,158,11,0.35)]",
-    label: "text-[#D97706]",
-    btnGrad: "linear-gradient(135deg,#F59E0B,#D97706)",
-    btnShadow: "shadow-[0_4px_14px_rgba(245,158,11,0.4)]",
-  },
-};
-
-const ConfirmModal = ({ message, tone = "danger", confirmLabel = "নিশ্চিত", onConfirm, onCancel, loading }) => {
-  const t = TONE[tone];
-  return (
-    <ModalShell onClose={onCancel}>
-      <div className="bg-white overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
-        <div className={`px-6 py-6 flex items-center gap-4 border-b ${t.border}`} style={{ background: t.bgGrad }}>
-          <div
-            className={`flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] ${t.shadow}`}
-            style={{ background: t.iconGrad }}
-          >
-            <AlertTriangle className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <p
-              className={`font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] ${t.label}`}
-            >
-              নিশ্চিত করুন
-            </p>
-            <p className="font-['IBM_Plex_Sans',sans-serif] text-[15px] font-bold text-[#0F172A]">{message}</p>
-          </div>
-        </div>
-        <div className="px-6 py-5 flex gap-3">
-          <button
-            onClick={onCancel}
-            disabled={loading}
-            className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
-          >
-            বাতিল
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={loading}
-            className={`flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs ${t.btnShadow}`}
-            style={{ background: t.btnGrad, opacity: loading ? 0.7 : 1 }}
-          >
-            {loading ? (
-              <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-            ) : (
-              <Check className="w-[14px] h-[14px]" />
-            )}
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </ModalShell>
-  );
-};
-
 // ── Reserve Note Modal ─────────────────────────────────────────────────────────
+// On a failed reserve, the modal stays OPEN (no onClose()) — a permission
+// error or network hiccup shouldn't discard the note the user typed. The
+// error surfaces inline via `apiError` in the sticky footer so they can
+// just retry. Mirrors ItemModal/StockModal in Products.jsx.
 
 const ReserveNoteModal = ({ title, bedNumber, onClose, onConfirm }) => {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [apiError, setApiError] = useState("");
 
   const handleConfirm = async () => {
     setBusy(true);
+    setApiError("");
     try {
       await onConfirm(note);
       onClose();
+    } catch (err) {
+      setApiError(getErrorMessage(err, "সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <ModalShell onClose={onClose}>
-      <div className="bg-white flex flex-col overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)] max-h-[calc(100svh-48px)]">
+    <Modal isOpen size="sm" onClose={onClose}>
+      <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
+        {/* Header — fixed, never scrolls */}
         <div
           className="shrink-0 px-6 py-5 flex items-center justify-between border-b border-[#FDE68A]"
           style={{ background: "linear-gradient(135deg,#FFFBEB,#FEF3C7)" }}
@@ -215,7 +137,8 @@ const ReserveNoteModal = ({ title, bedNumber, onClose, onConfirm }) => {
           </button>
         </div>
 
-        <div className="px-6 py-5 bg-[#F8FAFC] overflow-y-auto">
+        {/* Body — the ONLY scrollable region, fills remaining space */}
+        <div className="px-6 py-5 bg-[#F8FAFC] flex-1 min-h-0 overflow-y-auto">
           <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
             <div className="flex items-center justify-between mb-2">
               <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8]">
@@ -225,7 +148,10 @@ const ReserveNoteModal = ({ title, bedNumber, onClose, onConfirm }) => {
             </div>
             <textarea
               value={note}
-              onChange={(e) => setNote(e.target.value)}
+              onChange={(e) => {
+                setNote(e.target.value);
+                if (apiError) setApiError("");
+              }}
               rows={3}
               maxLength={300}
               placeholder="যেমন: আগামীকাল রোগী ভর্তির জন্য সংরক্ষিত"
@@ -236,30 +162,41 @@ const ReserveNoteModal = ({ title, bedNumber, onClose, onConfirm }) => {
           </div>
         </div>
 
-        <div className="shrink-0 px-6 py-4 flex gap-3 bg-white border-t border-[#E2E8F0]">
-          <button
-            onClick={onClose}
-            disabled={busy}
-            className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
-          >
-            বাতিল
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={busy}
-            className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs shadow-[0_4px_14px_rgba(245,158,11,0.4)]"
-            style={{ background: busy ? "#94A3B8" : "linear-gradient(135deg,#F59E0B,#D97706)" }}
-          >
-            {busy ? (
-              <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-            ) : (
-              <BookMarked className="w-[13px] h-[13px]" />
-            )}
-            সংরক্ষণ করুন
-          </button>
+        {/* Footer — fixed, never scrolls. apiError banner sits directly
+            above the action buttons so it's the last thing seen before
+            retrying. */}
+        <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
+            </div>
+          )}
+          <div className="px-6 py-4 flex gap-3">
+            <button
+              onClick={onClose}
+              disabled={busy}
+              className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
+            >
+              বাতিল
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={busy}
+              className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs shadow-[0_4px_14px_rgba(245,158,11,0.4)]"
+              style={{ background: busy ? "#94A3B8" : "linear-gradient(135deg,#F59E0B,#D97706)" }}
+            >
+              {busy ? (
+                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <BookMarked className="w-[13px] h-[13px]" />
+              )}
+              সংরক্ষণ করুন
+            </button>
+          </div>
         </div>
       </div>
-    </ModalShell>
+    </Modal>
   );
 };
 
@@ -403,6 +340,13 @@ const DeptMultiSelect = ({ value, onChange, error, departments }) => {
 };
 
 // ── Space Form Modal ────────────────────────────────────────────────────────────
+// On a failed save the modal stays OPEN (no close) and the error surfaces
+// inline via `apiError` in the sticky footer, directly above the action
+// buttons — same pattern as ItemModal/StockModal in Products.jsx,
+// ReferrerFormModal in ManageReferrer.jsx, StaffFormModal in
+// ManageStaff.jsx, and DoctorFormModal in ManageDoctors.jsx. `onSubmit` is
+// expected to perform the API call and throw on failure; this modal owns
+// its own `saving`/`apiError` state rather than relying on the parent.
 
 const EMPTY_FORM = {
   name: "",
@@ -413,9 +357,11 @@ const EMPTY_FORM = {
   bedStartingNumber: 1,
 };
 
-const SpaceFormModal = ({ editSpace, departments, onSubmit, onClose, saving }) => {
+const SpaceFormModal = ({ editSpace, departments, onSubmit, onClose }) => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [apiError, setApiError] = useState("");
   const isEdit = !!editSpace;
   const gradFrom = isEdit ? "#8B5CF6" : "#3B82F6";
   const gradTo = isEdit ? "#7C3AED" : "#2563EB";
@@ -438,6 +384,7 @@ const SpaceFormModal = ({ editSpace, departments, onSubmit, onClose, saving }) =
       setForm({ ...EMPTY_FORM });
     }
     setErrors({});
+    setApiError("");
   }, [editSpace]);
 
   const set = (key, val) => {
@@ -460,19 +407,27 @@ const SpaceFormModal = ({ editSpace, departments, onSubmit, onClose, saving }) =
     return e;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const e = validate();
     if (Object.keys(e).length) {
       setErrors(e);
       return;
     }
-    onSubmit(form);
+    try {
+      setSaving(true);
+      setApiError("");
+      await onSubmit(form);
+    } catch (err) {
+      setApiError(getErrorMessage(err, "সংরক্ষণ ব্যর্থ হয়েছে। আবার চেষ্টা করুন।"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <ModalShell onClose={onClose} wide>
-      <div className="bg-white flex flex-col overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)] max-h-[calc(100svh-48px)]">
-        {/* Header — fixed */}
+    <Modal isOpen size="md" onClose={onClose}>
+      <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
+        {/* Header — fixed, never scrolls */}
         <div
           className={`shrink-0 px-6 py-5 flex items-center justify-between border-b ${accentBorder}`}
           style={{ background: `linear-gradient(135deg,${gradFrom}15 0%,${gradTo}08 100%)` }}
@@ -507,15 +462,8 @@ const SpaceFormModal = ({ editSpace, departments, onSubmit, onClose, saving }) =
           </button>
         </div>
 
-        {/* Body — scrollable */}
-        <div className="px-6 py-5 bg-[#F8FAFC] space-y-4 max-h-[60vh] overflow-y-auto">
-          {errors.general && (
-            <div className="flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
-              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
-              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{errors.general}</span>
-            </div>
-          )}
-
+        {/* Body — the ONLY scrollable region, fills remaining space */}
+        <div className="px-6 py-5 bg-[#F8FAFC] space-y-4 flex-1 min-h-0 overflow-y-auto">
           {/* Name */}
           <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
             <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-2">
@@ -654,37 +602,47 @@ const SpaceFormModal = ({ editSpace, departments, onSubmit, onClose, saving }) =
           )}
         </div>
 
-        {/* Footer — fixed */}
-        <div className="shrink-0 px-6 py-4 flex gap-3 bg-white border-t border-[#E2E8F0]">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
-          >
-            বাতিল
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={saving || !departments.length}
-            className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
-            style={{
-              background: saving ? "#94A3B8" : `linear-gradient(135deg,${gradFrom},${gradTo})`,
-              cursor: saving ? "not-allowed" : "pointer",
-            }}
-          >
-            {saving ? (
-              <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-            ) : isEdit ? (
-              <Pencil className="w-[13px] h-[13px]" />
-            ) : (
-              <Plus className="w-[13px] h-[13px]" />
-            )}
-            {isEdit ? "পরিবর্তন সংরক্ষণ" : "তৈরি করুন"}
-          </button>
+        {/* Footer — fixed, never scrolls. apiError banner sits directly
+            above the action buttons so it's the last thing seen before
+            retrying. */}
+        <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
+            </div>
+          )}
+          <div className="px-6 py-4 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
+            >
+              বাতিল
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={saving || !departments.length}
+              className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+              style={{
+                background: saving ? "#94A3B8" : `linear-gradient(135deg,${gradFrom},${gradTo})`,
+                cursor: saving ? "not-allowed" : "pointer",
+              }}
+            >
+              {saving ? (
+                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+              ) : isEdit ? (
+                <Pencil className="w-[13px] h-[13px]" />
+              ) : (
+                <Plus className="w-[13px] h-[13px]" />
+              )}
+              {isEdit ? "পরিবর্তন সংরক্ষণ" : "তৈরি করুন"}
+            </button>
+          </div>
         </div>
       </div>
-    </ModalShell>
+    </Modal>
   );
 };
 
@@ -1015,11 +973,13 @@ const ManageSpaces = () => {
   const [spaces, setSpaces] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [popup, setPopup] = useState(null);
-  const [formModal, setFormModal] = useState(null); // null | { editSpace } | { editSpace: null } for "add"
-  const [showForm, setShowForm] = useState(false);
-  const [confirmModal, setConfirmModal] = useState(null);
+  const [formModal, setFormModal] = useState(null); // null | { editSpace } — editSpace is null for "add"
+  // Delete / release confirmations go through the shared <Popup
+  // type="warning"> directly (see render section below), not a bespoke
+  // modal — same pattern as Products.jsx / ManageReferrer.jsx /
+  // ManageTests.jsx / ManageStaff.jsx / ManageDoctors.jsx.
+  const [confirmTarget, setConfirmTarget] = useState(null); // { type: "delete" | "release", space }
   const [reserveModal, setReserveModal] = useState(null); // { space, bedNumber? }
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
@@ -1030,8 +990,8 @@ const ManageSpaces = () => {
       const [deptRes, spacesRes] = await Promise.all([spaceService.getDepartments(), spaceService.getAll()]);
       setDepartments(deptRes.data.departments ?? []);
       setSpaces(spacesRes.data);
-    } catch {
-      setPopup({ type: "error", message: "কক্ষ লোড করতে ব্যর্থ।" });
+    } catch (err) {
+      setPopup({ type: "error", message: getErrorMessage(err, "কক্ষ লোড করতে ব্যর্থ।") });
     } finally {
       setInitialLoading(false);
     }
@@ -1069,92 +1029,73 @@ const ManageSpaces = () => {
   const hasFilters = deptFilter !== "all";
 
   // ── Create / Edit ──
-  const openAdd = () => {
-    setFormModal({ editSpace: null });
-    setShowForm(true);
-  };
-  const openEdit = (space) => {
-    setFormModal({ editSpace: space });
-    setShowForm(true);
-  };
-  const closeForm = () => {
-    setShowForm(false);
-    setFormModal(null);
-  };
+  const openAdd = () => setFormModal({ editSpace: null });
+  const openEdit = (space) => setFormModal({ editSpace: space });
+  const closeForm = () => setFormModal(null);
 
+  // The form modal itself owns saving/apiError state and stays open on
+  // failure — this just performs the API call, updates local state, and
+  // closes on success. Any thrown error propagates back to the modal.
   const handleFormSubmit = async (form) => {
-    setSaving(true);
-    try {
-      const payload = {
-        name: form.name.trim(),
-        chargePerDay: Number(form.chargePerDay),
-        departments: form.departments,
-        multiBed: form.multiBed,
-        multiBedConf: form.multiBed
-          ? {
-              totalNumberOfBed: Number(form.totalNumberOfBed),
-              bedStartingNumber: Number(form.bedStartingNumber),
-              booked: formModal.editSpace?.multiBedConf?.booked ?? [],
-            }
-          : null,
-      };
-      if (formModal.editSpace) {
-        await spaceService.update(formModal.editSpace._id, payload);
-        setSpaces((p) => p.map((s) => (s._id === formModal.editSpace._id ? { ...s, ...payload } : s)));
-        setPopup({ type: "success", message: `"${payload.name}" updated.` });
-      } else {
-        const res = await spaceService.create(payload);
-        setSpaces((p) => [{ ...res.data, ...payload }, ...p]);
-        setPopup({ type: "success", message: `"${payload.name}" added successfully.` });
-      }
-      closeForm();
-    } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error ?? "Failed to save. Please try again." });
-    } finally {
-      setSaving(false);
+    const payload = {
+      name: form.name.trim(),
+      chargePerDay: Number(form.chargePerDay),
+      departments: form.departments,
+      multiBed: form.multiBed,
+      multiBedConf: form.multiBed
+        ? {
+            totalNumberOfBed: Number(form.totalNumberOfBed),
+            bedStartingNumber: Number(form.bedStartingNumber),
+            booked: formModal.editSpace?.multiBedConf?.booked ?? [],
+          }
+        : null,
+    };
+    if (formModal.editSpace) {
+      await spaceService.update(formModal.editSpace._id, payload);
+      setSpaces((p) => p.map((s) => (s._id === formModal.editSpace._id ? { ...s, ...payload } : s)));
+      setPopup({ type: "success", message: `"${payload.name}" আপডেট করা হয়েছে।` });
+    } else {
+      const res = await spaceService.create(payload);
+      setSpaces((p) => [{ ...res.data, ...payload }, ...p]);
+      setPopup({ type: "success", message: `"${payload.name}" সফলভাবে যোগ করা হয়েছে।` });
     }
+    closeForm();
   };
 
-  // ── Delete ──
+  // No in-flight spinner on the confirm popup itself — it closes as soon as
+  // onConfirm fires, so a failure just surfaces as a follow-up error toast.
+  // Mirrors handleDelete in Products.jsx / ManageReferrer.jsx / ManageTests.jsx.
   const handleDelete = async (space) => {
-    setBusyId(space._id);
     try {
       await spaceService.delete(space._id);
       setSpaces((p) => p.filter((s) => s._id !== space._id));
-      setPopup({ type: "success", message: `"${space.name}" deleted.` });
-    } catch {
-      setPopup({ type: "error", message: "Failed to delete space." });
+      setPopup({ type: "success", message: `"${space.name}" মুছে ফেলা হয়েছে।` });
+    } catch (err) {
+      if (getErrorStatus(err) === 404) {
+        setSpaces((p) => p.filter((s) => s._id !== space._id));
+      }
+      setPopup({ type: "error", message: getErrorMessage(err, "কক্ষ মুছতে ব্যর্থ হয়েছে।") });
     } finally {
-      setBusyId(null);
-      setConfirmModal(null);
+      setConfirmTarget(null);
     }
   };
 
   // ── Single-space reserve / release ──
   const handleReserveSingle = async (space, note) => {
-    setBusyId(space._id);
-    try {
-      await spaceService.reserve(space._id, note);
-      setSpaces((p) => p.map((s) => (s._id === space._id ? { ...s, reserved: true, reservedNote: note } : s)));
-      setPopup({ type: "success", message: `"${space.name}" reserved.` });
-    } catch (e) {
-      setPopup({ type: "error", message: e?.response?.data?.error ?? "Failed to reserve." });
-    } finally {
-      setBusyId(null);
-    }
+    await spaceService.reserve(space._id, note);
+    setSpaces((p) => p.map((s) => (s._id === space._id ? { ...s, reserved: true, reservedNote: note } : s)));
+    setPopup({ type: "success", message: `"${space.name}" সংরক্ষিত হয়েছে।` });
   };
 
   const handleReleaseSingle = async (space) => {
-    setBusyId(space._id);
     try {
       await spaceService.releaseReservation(space._id);
       setSpaces((p) => p.map((s) => (s._id === space._id ? { ...s, reserved: false, reservedNote: "" } : s)));
-      setPopup({ type: "success", message: `"${space.name}" reservation released.` });
-    } catch (e) {
-      setPopup({ type: "error", message: e?.response?.data?.error ?? "Failed to release." });
+      setPopup({ type: "success", message: `"${space.name}"-এর সংরক্ষণ মুক্ত করা হয়েছে।` });
+    } catch (err) {
+      setPopup({ type: "error", message: getErrorMessage(err, "মুক্ত করতে ব্যর্থ হয়েছে।") });
     } finally {
-      setBusyId(null);
-      setConfirmModal(null);
+      setConfirmTarget(null);
     }
   };
 
@@ -1172,7 +1113,7 @@ const ManageSpaces = () => {
           : s,
       ),
     );
-    setPopup({ type: "success", message: `Bed ${bedNumber} reserved.` });
+    setPopup({ type: "success", message: `শয্যা ${bedNumber} সংরক্ষিত হয়েছে।` });
   };
 
   const handleSpaceUpdate = (space, updater) => {
@@ -1191,45 +1132,49 @@ const ManageSpaces = () => {
     >
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      {showForm &&
-        createPortal(
-          <SpaceFormModal
-            editSpace={formModal?.editSpace ?? null}
-            departments={departments}
-            onSubmit={handleFormSubmit}
-            onClose={closeForm}
-            saving={saving}
-          />,
-          document.body,
-        )}
+      {formModal && (
+        <SpaceFormModal
+          editSpace={formModal.editSpace}
+          departments={departments}
+          onSubmit={handleFormSubmit}
+          onClose={closeForm}
+        />
+      )}
 
-      {confirmModal &&
-        createPortal(
-          <ConfirmModal
-            message={confirmModal.message}
-            tone={confirmModal.tone}
-            confirmLabel={confirmModal.confirmLabel}
-            onConfirm={confirmModal.onConfirm}
-            onCancel={() => setConfirmModal(null)}
-            loading={busyId !== null}
-          />,
-          document.body,
-        )}
+      {confirmTarget?.type === "delete" && (
+        <Popup
+          type="warning"
+          message={`"${confirmTarget.space.name}" স্থায়ীভাবে মুছে যাবে। এই কাজ পূর্বাবস্থায় ফেরানো যাবে না।`}
+          confirmText="হ্যাঁ, মুছুন"
+          cancelText="বাতিল"
+          onConfirm={() => handleDelete(confirmTarget.space)}
+          onClose={() => setConfirmTarget(null)}
+        />
+      )}
 
-      {reserveModal &&
-        createPortal(
-          <ReserveNoteModal
-            title={reserveModal.bedNumber !== undefined ? "Reserve Bed" : `Reserve "${reserveModal.space.name}"`}
-            bedNumber={reserveModal.bedNumber}
-            onClose={() => setReserveModal(null)}
-            onConfirm={(note) =>
-              reserveModal.bedNumber !== undefined
-                ? handleReserveBed(reserveModal.space, note)
-                : handleReserveSingle(reserveModal.space, note)
-            }
-          />,
-          document.body,
-        )}
+      {confirmTarget?.type === "release" && (
+        <Popup
+          type="warning"
+          message={`"${confirmTarget.space.name}"-এর সংরক্ষণ মুক্ত করবেন?`}
+          confirmText="হ্যাঁ, মুক্ত করুন"
+          cancelText="বাতিল"
+          onConfirm={() => handleReleaseSingle(confirmTarget.space)}
+          onClose={() => setConfirmTarget(null)}
+        />
+      )}
+
+      {reserveModal && (
+        <ReserveNoteModal
+          title={reserveModal.bedNumber !== undefined ? "শয্যা সংরক্ষণ" : `"${reserveModal.space.name}" সংরক্ষণ`}
+          bedNumber={reserveModal.bedNumber}
+          onClose={() => setReserveModal(null)}
+          onConfirm={(note) =>
+            reserveModal.bedNumber !== undefined
+              ? handleReserveBed(reserveModal.space, note)
+              : handleReserveSingle(reserveModal.space, note)
+          }
+        />
+      )}
 
       <div className="max-w-2xl mx-auto">
         {/* Page header */}
@@ -1385,23 +1330,9 @@ const ManageSpaces = () => {
                     allDepartments={departments}
                     busy={busyId}
                     onEdit={openEdit}
-                    onDelete={(s) =>
-                      setConfirmModal({
-                        message: `Delete "${s.name}"? This cannot be undone.`,
-                        tone: "danger",
-                        confirmLabel: "Delete",
-                        onConfirm: () => handleDelete(s),
-                      })
-                    }
+                    onDelete={(s) => setConfirmTarget({ type: "delete", space: s })}
                     onReserveSingle={(s) => setReserveModal({ space: s })}
-                    onReleaseSingle={(s) =>
-                      setConfirmModal({
-                        message: `Release reservation on "${s.name}"?`,
-                        tone: "warning",
-                        confirmLabel: "Release",
-                        onConfirm: () => handleReleaseSingle(s),
-                      })
-                    }
+                    onReleaseSingle={(s) => setConfirmTarget({ type: "release", space: s })}
                     onReserveBed={(s, bedNumber) => setReserveModal({ space: s, bedNumber })}
                     onUpdate={(updater) => handleSpaceUpdate(space, updater)}
                   />

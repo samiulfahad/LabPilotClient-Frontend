@@ -23,7 +23,6 @@ import {
   Headset,
   UserCog,
   FilePlus,
-  FileEdit,
   Trash2,
   FileText,
   Upload,
@@ -45,10 +44,23 @@ import {
   Mail,
   X,
   Check,
-  Building2,
+  Receipt,
+  BarChart3,
+  ClipboardList,
+  Percent,
+  Wallet,
+  Package,
+  Users,
+  Stethoscope,
+  FlaskConical,
+  CreditCard,
+  UserPlus,
+  UserMinus,
+  DoorOpen,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import accountService from "../../api/account";
+import staticDataAPI from "../../api/staticData";
 import { useAuthStore } from "../../store/authStore";
 import Popup from "../../components/popup";
 import LoadingScreen from "../../components/loadingPage";
@@ -73,14 +85,32 @@ const ROLE_META = {
   },
 };
 
-const PERMISSIONS_META = [
-  { key: "createInvoice", label: "ইনভয়েস তৈরি", icon: FilePlus, color: "#3B82F6" },
-  { key: "editInvoice", label: "ইনভয়েস সম্পাদনা", icon: FileEdit, color: "#F59E0B" },
-  { key: "deleteInvoice", label: "ইনভয়েস মুছুন", icon: Trash2, color: "#EF4444" },
-  { key: "cashmemo", label: "ক্যাশমেমো", icon: FileText, color: "#10B981" },
-  { key: "uploadReport", label: "রিপোর্ট আপলোড", icon: Upload, color: "#8B5CF6" },
-  { key: "downloadReport", label: "রিপোর্ট ডাউনলোড", icon: Download, color: "#0D9488" },
-];
+// Visual treatment (icon + accent color) for each known permission key.
+// Falls back to a generic Shield/indigo look for any key the server adds
+// that isn't in this map yet, so new permissions don't break rendering.
+const PERMISSION_ICON_MAP = {
+  createInvoice: { icon: FilePlus, color: "#3B82F6" },
+  deleteInvoice: { icon: Trash2, color: "#EF4444" },
+  addExpense: { icon: Receipt, color: "#F59E0B" },
+  deleteExpense: { icon: Trash2, color: "#DC2626" },
+  cashmemo: { icon: FileText, color: "#10B981" },
+  salesReport: { icon: BarChart3, color: "#6366F1" },
+  expenseReport: { icon: ClipboardList, color: "#F97316" },
+  commissionReport: { icon: Percent, color: "#8B5CF6" },
+  collectionReport: { icon: Wallet, color: "#0D9488" },
+  testReportDownload: { icon: Download, color: "#0D9488" },
+  testReportUpload: { icon: Upload, color: "#8B5CF6" },
+  manageProducts: { icon: Package, color: "#3B82F6" },
+  manageReferrers: { icon: Users, color: "#10B981" },
+  manageDoctors: { icon: Stethoscope, color: "#EF4444" },
+  manageTest: { icon: FlaskConical, color: "#6366F1" },
+  manageBilling: { icon: CreditCard, color: "#F59E0B" },
+  admitPatient: { icon: UserPlus, color: "#10B981" },
+  deletePatient: { icon: UserMinus, color: "#EF4444" },
+  releasePatient: { icon: DoorOpen, color: "#6366F1" },
+};
+
+const DEFAULT_PERMISSION_ICON = { icon: Shield, color: "#6366F1" };
 
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -606,25 +636,6 @@ const ActionChip = ({ onClick, icon: Icon, label, color, disabled }) => (
   </button>
 );
 
-// ─── Stat Card ──────────────────────────────────────────────────────────────────
-
-const StatCard = ({ label, value, color, grad, icon: Icon }) => (
-  <div className="bg-white relative overflow-hidden border border-[#E2E8F0] rounded-2xl p-[14px_16px] shadow-[0_2px_8px_rgba(15,23,42,0.05)]">
-    <div className="absolute top-0 right-0 w-16 h-16 opacity-5 rounded-[0_16px_0_100%]" style={{ background: grad }} />
-    <div className="flex items-center gap-2 mb-2">
-      <div className="flex items-center justify-center w-[26px] h-[26px] rounded-lg" style={{ background: grad }}>
-        <Icon className="w-[13px] h-[13px] text-white" />
-      </div>
-      <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.06em] text-[#94A3B8]">
-        {label}
-      </p>
-    </div>
-    <p className="font-['IBM_Plex_Mono',monospace] text-[26px] font-extrabold leading-none" style={{ color }}>
-      {value}
-    </p>
-  </div>
-);
-
 // ─── Settings Row ───────────────────────────────────────────────────────────────
 
 const SettingsRow = ({ icon: Icon, title, subtitle, color, onClick }) => (
@@ -735,6 +746,14 @@ const Skeleton = () => (
   </div>
 );
 
+const PermissionsSkeleton = () => (
+  <div className="p-4 grid grid-cols-2 gap-2 animate-pulse">
+    {[1, 2, 3, 4].map((i) => (
+      <div key={i} className="h-11 bg-[#F1F5F9] rounded-xl" />
+    ))}
+  </div>
+);
+
 // ─── Main Account Page ───────────────────────────────────────────────────────────
 
 const Account = () => {
@@ -742,8 +761,10 @@ const Account = () => {
 
   const [account, setAccount] = useState(null);
   const [sessions, setSessions] = useState([]);
+  const [permissionsList, setPermissionsList] = useState([]);
   const [loadingAcct, setLoadingAcct] = useState(true);
   const [loadingSess, setLoadingSess] = useState(true);
+  const [loadingPerms, setLoadingPerms] = useState(true);
   const [logoutAllBusy, setLogoutAllBusy] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [popup, setPopup] = useState(null);
@@ -753,6 +774,7 @@ const Account = () => {
   useEffect(() => {
     fetchAccount();
     fetchSessions();
+    fetchPermissionsList();
   }, []);
 
   const fetchAccount = async () => {
@@ -776,6 +798,18 @@ const Account = () => {
       // sessions section just shows empty
     } finally {
       setLoadingSess(false);
+    }
+  };
+
+  const fetchPermissionsList = async () => {
+    try {
+      setLoadingPerms(true);
+      const res = await staticDataAPI.getStaffPermissions();
+      setPermissionsList(res.data.permissions ?? []);
+    } catch {
+      // permissions section just shows empty — admin/supportAdmin banner still works
+    } finally {
+      setLoadingPerms(false);
     }
   };
 
@@ -816,7 +850,14 @@ const Account = () => {
   const RoleIcon = roleMeta.icon;
   const perms = account?.permissions ?? {};
   const isAdmin = role === "admin" || role === "supportAdmin";
-  const activePermCount = PERMISSIONS_META.filter((p) => perms[p.key]).length;
+
+  // Only show permissions relevant to this facility type (outdoor-only
+  // diagnostic centers don't get the hospitalOnly admit/release/delete-patient rows).
+  const isIndoorFacility = account?.facilityType === "hospital" || account?.hasIndoor;
+  const visiblePermissions = permissionsList.filter(
+    (p) => p.for === "both" || (p.for === "hospitalOnly" && isIndoorFacility),
+  );
+  const activePermCount = visiblePermissions.filter((p) => perms[p.key]).length;
 
   const currentSession = sessions.find((s) => s.isCurrent);
   const otherSessions = sessions.filter((s) => !s.isCurrent);
@@ -974,41 +1015,48 @@ const Account = () => {
                       অনুমতিসমূহ
                     </p>
                   </div>
-                  <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#6366F1] bg-[#6366F112] rounded-[6px] border border-[#6366F125]">
-                    {activePermCount} / {PERMISSIONS_META.length} সক্রিয়
-                  </span>
+                  {!loadingPerms && (
+                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#6366F1] bg-[#6366F112] rounded-[6px] border border-[#6366F125]">
+                      {activePermCount} / {visiblePermissions.length} সক্রিয়
+                    </span>
+                  )}
                 </div>
-                <div className="p-4 grid grid-cols-2 gap-2">
-                  {PERMISSIONS_META.map(({ key, label, icon: Icon, color }) => {
-                    const granted = !!perms[key];
-                    return (
-                      <div
-                        key={key}
-                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-[1.5px] transition-all"
-                        style={
-                          granted
-                            ? { background: `${color}08`, borderColor: `${color}30`, color }
-                            : { background: "#F8FAFC", borderColor: "#E2E8F0", color: "#94A3B8" }
-                        }
-                      >
+                {loadingPerms ? (
+                  <PermissionsSkeleton />
+                ) : (
+                  <div className="p-4 grid grid-cols-2 gap-2">
+                    {visiblePermissions.map(({ key, label }) => {
+                      const { icon: Icon, color } = PERMISSION_ICON_MAP[key] ?? DEFAULT_PERMISSION_ICON;
+                      const granted = !!perms[key];
+                      return (
                         <div
-                          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                          style={{ background: granted ? `${color}15` : "#F1F5F9" }}
+                          key={key}
+                          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-[1.5px] transition-all"
+                          style={
+                            granted
+                              ? { background: `${color}08`, borderColor: `${color}30`, color }
+                              : { background: "#F8FAFC", borderColor: "#E2E8F0", color: "#94A3B8" }
+                          }
                         >
-                          <Icon className="w-3.5 h-3.5" style={{ color: granted ? color : "#CBD5E1" }} />
+                          <div
+                            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: granted ? `${color}15` : "#F1F5F9" }}
+                          >
+                            <Icon className="w-3.5 h-3.5" style={{ color: granted ? color : "#CBD5E1" }} />
+                          </div>
+                          <p className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold leading-tight flex-1 truncate">
+                            {label}
+                          </p>
+                          {granted ? (
+                            <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-[#CBD5E1] shrink-0" />
+                          )}
                         </div>
-                        <p className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold leading-tight flex-1 truncate">
-                          {label}
-                        </p>
-                        {granted ? (
-                          <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-[#CBD5E1] shrink-0" />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ) : (
               <div

@@ -5,6 +5,16 @@ import { ArrowLeft, Eye, Printer, X } from "lucide-react";
 import ReportViewer from "./ReportViewer";
 import reportService from "../../api/report";
 import { useAuthStore } from "../../store/authStore";
+import Popup from "../../components/popup";
+
+// ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx) ──
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
 
 // ─── Portal hook ──────────────────────────────────────────────────────────────
 function useBodyPortal() {
@@ -51,27 +61,6 @@ function buildLabInfo(storeLab) {
   };
 }
 
-// ─── Error state ──────────────────────────────────────────────────────────────
-function ErrorState({ message, onClose }) {
-  return (
-    <div className="flex items-center justify-center py-[60px] px-6 font-['DM_Sans',_sans-serif]">
-      <div className="bg-white border border-[#e4e7ed] rounded-[16px] py-9 px-8 max-w-[360px] w-full text-center shadow-[0_4px_16px_rgba(0,0,0,0.06)]">
-        <div className="w-12 h-12 bg-[#fef2f2] border-[1.5px] border-[#dc2626]/20 rounded-[12px] flex items-center justify-center mx-auto mb-4">
-          <Eye className="w-5 h-5 text-[#dc2626]" />
-        </div>
-        <div className="text-base font-bold text-[#0d1117] mb-2">{message || "Failed to load report"}</div>
-        <div className="text-[13px] text-[#6b7280] leading-[1.6] mb-5">Please go back and try again.</div>
-        <button
-          onClick={onClose}
-          className="inline-flex items-center gap-[7px] py-2.5 px-5 bg-[#0d1117] text-white border-none rounded-[9px] font-['DM_Sans',_sans-serif] text-[13px] font-semibold cursor-pointer"
-        >
-          <ArrowLeft className="w-[13px] h-[13px]" /> Go Back
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function ReportDownload() {
   const [searchParams] = useSearchParams();
@@ -97,7 +86,7 @@ export default function ReportDownload() {
   const [patient, setPatient] = useState(null);
   const [displayId, setDisplayId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [popup, setPopup] = useState(null);
   const [closing, setClosing] = useState(false);
 
   const portalEl = useBodyPortal();
@@ -105,7 +94,7 @@ export default function ReportDownload() {
   useEffect(() => {
     const hasIds = isIndoor ? patientId && testId : invoiceId && testId;
     if (!hasIds) {
-      setError("Missing patient or test information.");
+      setPopup({ type: "error", message: "Missing patient or test information." });
       setLoading(false);
       return;
     }
@@ -128,7 +117,7 @@ export default function ReportDownload() {
           reportDate: formatDate(data.report?.reportDate),
         });
       })
-      .catch(() => setError("Failed to load report."))
+      .catch((err) => setPopup({ type: "error", message: getErrorMessage(err, "Failed to load report.") }))
       .finally(() => setLoading(false));
   }, []);
 
@@ -167,6 +156,17 @@ export default function ReportDownload() {
         .ur-drawer-body-scroll::-webkit-scrollbar-track { background: transparent; }
         .ur-drawer-body-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
       `}</style>
+
+      {popup && (
+        <Popup
+          type={popup.type}
+          message={popup.message}
+          onClose={() => {
+            setPopup(null);
+            handleClose();
+          }}
+        />
+      )}
 
       <div
         className={`absolute inset-0 bg-[#f7f8fa] flex flex-col overflow-hidden ${closing ? "animate-[ur-slide-out_0.25s_cubic-bezier(0.32,0,0.67,0)_forwards]" : "animate-[ur-slide-in_0.3s_cubic-bezier(0.32,0.72,0,1)_forwards]"}`}
@@ -215,8 +215,7 @@ export default function ReportDownload() {
               </span>
             </div>
           )}
-          {!loading && error && <ErrorState message={error} onClose={handleClose} />}
-          {!loading && !error && report && (
+          {!loading && report && (
             <div className="py-5 px-4">
               <ReportViewer
                 report={report}

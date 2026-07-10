@@ -11,6 +11,15 @@ import expenseService from "../../api/expense";
 import TimeFrame from "../../components/timeFrame";
 import { fmt, formatDateTime, EXPENSE_TYPES, typeConfig } from "./expenseHelpers";
 
+// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / etc.) ──────────
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
 // ─── Delete Expense Panel (filter-driven, no ID search) ────────────────────────
 
 const DeleteExpensePanel = ({ onDeleted, onLoadingChange, onError }) => {
@@ -46,8 +55,8 @@ const DeleteExpensePanel = ({ onDeleted, onLoadingChange, onError }) => {
       setExpenses((prev) => (replace ? data.expenses : [...prev, ...data.expenses]));
       setNextCursor(data.nextCursor);
       setHasMore(data.hasMore);
-    } catch {
-      onError("Could not load expenses.");
+    } catch (err) {
+      onError(getErrorMessage(err, "Could not load expenses."));
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -86,8 +95,8 @@ const DeleteExpensePanel = ({ onDeleted, onLoadingChange, onError }) => {
       await expenseService.deleteExpense(expense._id);
       setExpenses((prev) => prev.filter((e) => e._id !== expense._id));
       onDeleted(expense);
-    } catch {
-      onError("Failed to delete expense. Please try again.");
+    } catch (err) {
+      onError(getErrorMessage(err, "Failed to delete expense. Please try again."));
     } finally {
       onLoadingChange(null);
     }
@@ -345,8 +354,8 @@ const DeletedExpensesList = ({ refreshTrigger, onLoadingChange, onError }) => {
       setExpenses((prev) => (replace ? data.expenses : [...prev, ...data.expenses]));
       setNextCursor(data.nextCursor);
       setHasMore(data.hasMore);
-    } catch {
-      onError("Could not load deleted expenses.");
+    } catch (err) {
+      onError(getErrorMessage(err, "Could not load deleted expenses."));
     } finally {
       setInitialLoading(false);
       setLoadingMore(false);

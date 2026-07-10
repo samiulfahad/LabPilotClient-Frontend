@@ -9,6 +9,15 @@ import { fmt, EXPENSE_TYPES, typeConfig } from "./expenseHelpers";
 
 const DEFAULTS = { type: "", description: "", amount: "" };
 
+// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / etc.) ──────────
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
 // ─── UI primitives (LabPilot design language, matching AdmitPatient) ──────────
 
 const Field = ({ label, required, optional, children }) => (
@@ -185,7 +194,7 @@ const AddExpense = () => {
       setForm(DEFAULTS);
     } catch (err) {
       setConfirming(false);
-      setError(err?.response?.data?.error ?? "খরচ যোগ করতে ব্যর্থ হয়েছে");
+      setError(getErrorMessage(err, "খরচ যোগ করতে ব্যর্থ হয়েছে"));
     } finally {
       setLoading(false);
     }

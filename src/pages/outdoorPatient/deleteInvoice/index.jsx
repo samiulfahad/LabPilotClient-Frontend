@@ -48,6 +48,15 @@ const formatDateTime = (ts) => {
 
 const getDue = (inv) => Math.max(0, (inv?.amount?.final ?? 0) - (inv?.amount?.paid ?? 0));
 
+// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / SalesReport.jsx / CreateInvoice.jsx / InvoiceList.jsx) ──
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
 // ─── Delete Invoice Panel ─────────────────────────────────────────────────────
 
 const DeleteInvoicePanel = ({ onDeleted, onLoadingChange, onError }) => {
@@ -67,7 +76,7 @@ const DeleteInvoicePanel = ({ onDeleted, onLoadingChange, onError }) => {
       data.deletion?.status ? setNotFound(true) : setInvoice(data);
     } catch (err) {
       if (err?.response?.status === 404) setNotFound(true);
-      else onError("Failed to load invoice.");
+      else onError(getErrorMessage(err, "Failed to load invoice."));
     } finally {
       setSearching(false);
     }
@@ -94,7 +103,9 @@ const DeleteInvoicePanel = ({ onDeleted, onLoadingChange, onError }) => {
       setSearchQuery("");
     } catch (err) {
       onError(
-        err?.response?.status === 400 ? "Invoice is already deleted." : "Failed to delete invoice. Please try again.",
+        err?.response?.status === 400
+          ? "Invoice is already deleted."
+          : getErrorMessage(err, "Failed to delete invoice. Please try again."),
       );
     } finally {
       onLoadingChange(null);
@@ -355,8 +366,8 @@ const DeletedInvoicesList = ({ refreshTrigger, onLoadingChange, onError }) => {
       setInvoices((prev) => (replace ? data.invoices : [...prev, ...data.invoices]));
       setNextCursor(data.nextCursor);
       setHasMore(data.hasMore);
-    } catch {
-      onError("Could not load deleted invoices.");
+    } catch (err) {
+      onError(getErrorMessage(err, "Could not load deleted invoices."));
     } finally {
       setInitialLoading(false);
       setLoadingMore(false);

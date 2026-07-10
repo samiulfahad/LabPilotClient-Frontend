@@ -3,7 +3,6 @@
  * babel-plugin-react-compiler handles all memoization automatically.
  */
 import { useState, useEffect, useRef, useMemo } from "react";
-import { createPortal } from "react-dom";
 import {
   UserPlus,
   Search,
@@ -24,6 +23,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import Modal from "../../../components/Modal";
 import doctorService from "../../../api/doctor";
 import staticDataAPI from "../../../api/staticData";
 import Popup from "../../../components/popup";
@@ -47,6 +47,17 @@ const C = {
   purple: "#8B5CF6",
   green: "#10B981",
 };
+
+// ── Error helpers ──────────────────────────────────────────────────────────────
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
+const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -75,31 +86,6 @@ const focusInput = (e) => {
 const blurInput = (e) => {
   e.target.style.borderColor = "#E2E8F0";
   e.target.style.boxShadow = "";
-};
-
-// ── Modal Shell ────────────────────────────────────────────────────────────────
-
-const Modal = ({ onClose, children }) => {
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
-  return (
-    <div className="fixed inset-0 flex items-center justify-center px-4 z-[9999]">
-      <div
-        className="absolute inset-0 backdrop-blur-[6px]"
-        style={{ background: "rgba(15,23,42,0.6)" }}
-        onClick={onClose}
-      />
-      <div className="relative w-full max-w-[520px] max-h-[calc(100svh-48px)] flex flex-col overflow-hidden">
-        {children}
-      </div>
-    </div>
-  );
 };
 
 // ── Form Field ─────────────────────────────────────────────────────────────────
@@ -223,10 +209,10 @@ const DepartmentMultiSelect = ({ departments, selected, onChange }) => {
 
 // ── Doctor Form Modal ──────────────────────────────────────────────────────────
 // On a failed save, this modal stays OPEN and shows the error inline via
-// `error` (see the banner near the bottom of the body) — never a separate
-// <Popup>. This mirrors ItemModal/StockModal in Products.jsx and
-// ReferrerFormModal in ManageReferrer.jsx: a network hiccup shouldn't
-// silently discard what the user typed.
+// `apiError` in the sticky footer, directly above the action buttons — same
+// pattern as ItemModal/StockModal in Products.jsx, ReferrerFormModal in
+// ManageReferrer.jsx, and StaffFormModal in ManageStaff.jsx. A network
+// hiccup or permission error shouldn't silently discard what the user typed.
 
 const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations }) => {
   const isEdit = !!initial?._id;
@@ -244,25 +230,28 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
       : EMPTY_FORM,
   );
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [apiError, setApiError] = useState("");
 
-  const set = (name, value) => setForm((f) => ({ ...f, [name]: value }));
+  const set = (name, value) => {
+    setForm((f) => ({ ...f, [name]: value }));
+    if (apiError) setApiError("");
+  };
   const handle = (e) => set(e.target.name, e.target.value);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    if (!form.departments.length) return setError("অন্তত একটি বিভাগ নির্বাচন করুন।");
+    if (!form.departments.length) return setApiError("অন্তত একটি বিভাগ নির্বাচন করুন।");
     const val = Number(form.commissionValue);
-    if (isNaN(val) || val < 0) return setError("কমিশন মান অবশ্যই ধনাত্মক সংখ্যা হতে হবে।");
-    if (form.commissionType === "percentage" && val > 100) return setError("শতাংশ ০–১০০ এর মধ্যে হতে হবে।");
+    if (isNaN(val) || val < 0) return setApiError("কমিশন মান অবশ্যই ধনাত্মক সংখ্যা হতে হবে।");
+    if (form.commissionType === "percentage" && val > 100) return setApiError("শতাংশ ০–১০০ এর মধ্যে হতে হবে।");
     try {
       setSaving(true);
+      setApiError("");
       const payload = { ...form, commissionValue: val };
       isEdit ? await doctorService.update(initial._id, payload) : await doctorService.create(payload);
       onSaved(isEdit);
     } catch (err) {
-      setError(err?.response?.data?.error ?? "সমস্যা হয়েছে। আবার চেষ্টা করুন।");
+      setApiError(getErrorMessage(err, "সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
     } finally {
       setSaving(false);
     }
@@ -275,9 +264,9 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
   const accentBorder = isEdit ? "border-[#8B5CF620]" : "border-[#0D948820]";
 
   return (
-    <Modal onClose={onClose}>
-      <div className="bg-white flex flex-col overflow-hidden rounded-[0px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
-        {/* Gradient header */}
+    <Modal isOpen size="md" onClose={onClose}>
+      <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
+        {/* Header — fixed, never scrolls */}
         <div
           className={`shrink-0 px-6 py-5 flex items-center justify-between border-b ${accentBorder}`}
           style={{ background: `linear-gradient(135deg,${gradFrom}15 0%,${gradTo}08 100%)` }}
@@ -315,7 +304,7 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
           </button>
         </div>
 
-        {/* Body */}
+        {/* Body — the ONLY scrollable region, fills remaining space */}
         <div className="px-6 py-5 space-y-4 bg-[#F8FAFC] flex-1 min-h-0 overflow-y-auto">
           <FormField label="পূর্ণ নাম" required>
             <input
@@ -467,14 +456,15 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
           </div>
         </div>
 
-        {/* Footer. error banner sits directly above the action buttons so
-            it's the last thing seen before retrying, right where the eye
-            lands after Save fails — not buried at the top of a long form. */}
+        {/* Footer — fixed, never scrolls. apiError banner sits directly
+            above the action buttons so it's the last thing seen before
+            retrying, right where the eye lands after Save fails — not
+            buried at the top of a long form. */}
         <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
-          {error && (
+          {apiError && (
             <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
               <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
-              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{error}</span>
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
             </div>
           )}
           <div className="px-6 py-4 flex gap-3">
@@ -744,11 +734,11 @@ const ManageDoctors = () => {
   const [commFilter, setCommFilter] = useState("all");
   const [popup, setPopup] = useState(null);
   const [formModal, setFormModal] = useState(null);
-  // Delete confirmation now goes through the shared <Popup type="warning">
-  // component (see render section below) instead of the bespoke
-  // DeleteModal — same one-consistent-confirm-flow pattern used in
-  // ManageReferrer.jsx / Products.jsx. `deleteTarget` holds the doctor
-  // pending deletion.
+  // Delete confirmation goes through the shared <Popup type="warning">
+  // component (see render section below) instead of a bespoke modal —
+  // same one-consistent-confirm-flow pattern used in ManageReferrer.jsx /
+  // Products.jsx / ManageTests.jsx / ManageStaff.jsx. `deleteTarget` holds
+  // the doctor pending deletion.
   const [deleteTarget, setDeleteTarget] = useState(null);
   const debounceRef = useRef(null);
 
@@ -761,7 +751,7 @@ const ManageDoctors = () => {
         setDepartments(dR.data.departments ?? []);
         setDesignations(dsR.data.designations ?? []);
       })
-      .catch(() => setPopup({ type: "error", message: "বিভাগ লোড করতে ব্যর্থ।" }));
+      .catch((err) => setPopup({ type: "error", message: getErrorMessage(err, "বিভাগ লোড করতে ব্যর্থ।") }));
   }, []);
 
   const fetchDoctors = async ({ search: s = "", department: d = "", page = 1 } = {}) => {
@@ -770,8 +760,8 @@ const ManageDoctors = () => {
       const { doctors: data, total, totalPages, page: cur } = res.data;
       setDoctors(data);
       setPagination({ page: cur, totalPages, total });
-    } catch {
-      setPopup({ type: "error", message: "ডাক্তার লোড করতে ব্যর্থ।" });
+    } catch (err) {
+      setPopup({ type: "error", message: getErrorMessage(err, "ডাক্তার লোড করতে ব্যর্থ।") });
     } finally {
       setInitialLoading(false);
     }
@@ -800,15 +790,19 @@ const ManageDoctors = () => {
 
   // No in-flight spinner here — the warning Popup closes itself as soon as
   // onConfirm fires, so a failure just surfaces as a follow-up error toast.
-  // Mirrors handleDelete in Products.jsx / ManageReferrer.jsx.
+  // Mirrors handleDelete in Products.jsx / ManageReferrer.jsx / ManageTests.jsx.
   const handleDelete = async (doctor) => {
     try {
       await doctorService.delete(doctor._id);
       const page = doctors.length === 1 && pagination.page > 1 ? pagination.page - 1 : pagination.page;
       fetchDoctors({ search, department: deptFilter !== "all" ? deptFilter : "", page });
       setPopup({ type: "success", message: "ডাক্তার মুছে ফেলা হয়েছে।" });
-    } catch {
-      setPopup({ type: "error", message: "ডাক্তার মুছতে ব্যর্থ।" });
+    } catch (err) {
+      if (getErrorStatus(err) === 404) {
+        const page = doctors.length === 1 && pagination.page > 1 ? pagination.page - 1 : pagination.page;
+        fetchDoctors({ search, department: deptFilter !== "all" ? deptFilter : "", page });
+      }
+      setPopup({ type: "error", message: getErrorMessage(err, "ডাক্তার মুছতে ব্যর্থ।") });
     }
   };
 
@@ -837,17 +831,15 @@ const ManageDoctors = () => {
     >
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      {formModal !== null &&
-        createPortal(
-          <DoctorFormModal
-            initial={formModal._id ? formModal : null}
-            onClose={() => setFormModal(null)}
-            onSaved={handleSaved}
-            departments={departments}
-            designations={designations}
-          />,
-          document.body,
-        )}
+      {formModal !== null && (
+        <DoctorFormModal
+          initial={formModal._id ? formModal : null}
+          onClose={() => setFormModal(null)}
+          onSaved={handleSaved}
+          departments={departments}
+          designations={designations}
+        />
+      )}
 
       {deleteTarget && (
         <Popup

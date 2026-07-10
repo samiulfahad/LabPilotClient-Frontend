@@ -84,6 +84,15 @@ const recordStamp = (start, end) => {
   return generatedStamp(end);
 };
 
+// ── Error helpers (mirrors ManageReferrer.jsx) ─────────────────────────────────
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 const SkeletonReceipt = () => (
@@ -1139,8 +1148,8 @@ const CashMemo = () => {
       setOutdoorLoading(true);
       const res = await cashmemoService.getSummary({ startDate: range.start, endDate: range.end });
       setOutdoorSummary(res.data);
-    } catch {
-      setPopup({ type: "error", message: "বহির্বিভাগের ডেটা লোড করা সম্ভব হয়নি।" });
+    } catch (err) {
+      setPopup({ type: "error", message: getErrorMessage(err, "বহির্বিভাগের ডেটা লোড করা সম্ভব হয়নি।") });
     } finally {
       setOutdoorLoading(false);
     }
@@ -1151,8 +1160,8 @@ const CashMemo = () => {
       setIndoorLoading(true);
       const res = await cashmemoService.getIpdSummary({ startDate: range.start, endDate: range.end });
       setIndoorSummary(res.data);
-    } catch {
-      setPopup({ type: "error", message: "অন্তঃবিভাগের ডেটা লোড করা সম্ভব হয়নি।" });
+    } catch (err) {
+      setPopup({ type: "error", message: getErrorMessage(err, "অন্তঃবিভাগের ডেটা লোড করা সম্ভব হয়নি।") });
     } finally {
       setIndoorLoading(false);
     }
@@ -1163,8 +1172,8 @@ const CashMemo = () => {
       setExpenseLoading(true);
       const res = await cashmemoService.getExpenseSummary({ startDate: range.start, endDate: range.end });
       setExpenseSummary(res.data);
-    } catch {
-      setPopup({ type: "error", message: "খরচের ডেটা লোড করা সম্ভব হয়নি।" });
+    } catch (err) {
+      setPopup({ type: "error", message: getErrorMessage(err, "খরচের ডেটা লোড করা সম্ভব হয়নি।") });
     } finally {
       setExpenseLoading(false);
     }

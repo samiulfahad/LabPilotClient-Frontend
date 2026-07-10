@@ -28,6 +28,16 @@ import {
   History,
 } from "lucide-react";
 import billingService from "../../api/billing";
+import Popup from "../../components/popup";
+
+// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx) ──
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
 
 // ── Formatters ─────────────────────────────────────────────────────────────────
 
@@ -63,8 +73,6 @@ const fmt = {
         })
       : "—",
 };
-
-// ── Shared input style (unused here but kept for consistency) ──────────────────
 
 // ── Stat Card ──────────────────────────────────────────────────────────────────
 
@@ -184,9 +192,8 @@ const BreakdownAccordion = ({ breakdown }) => {
 
 // ── Current Bill Card ──────────────────────────────────────────────────────────
 
-const CurrentBillCard = ({ status, onPaySuccess }) => {
+const CurrentBillCard = ({ status, onPaySuccess, onPayError }) => {
   const [paying, setPaying] = useState(false);
-  const [error, setError] = useState(null);
 
   if (!status?.hasUnpaidBill) {
     return (
@@ -222,12 +229,11 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
   const handlePay = async () => {
     if (!billId) return;
     setPaying(true);
-    setError(null);
     try {
       await billingService.pay(billId);
       onPaySuccess();
     } catch (err) {
-      setError(err?.response?.data?.error || "পেমেন্ট ব্যর্থ হয়েছে। আবার চেষ্টা করুন।");
+      onPayError(getErrorMessage(err, "পেমেন্ট ব্যর্থ হয়েছে। আবার চেষ্টা করুন।"));
     } finally {
       setPaying(false);
     }
@@ -285,13 +291,6 @@ const CurrentBillCard = ({ status, onPaySuccess }) => {
       </div>
 
       <BreakdownAccordion breakdown={bill.breakdown} />
-
-      {error && (
-        <div className="mt-3 flex items-center gap-2 px-3.5 py-2.5 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
-          <AlertCircle className="w-[13px] h-[13px] text-[#EF4444] shrink-0" />
-          <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#EF4444]">{error}</p>
-        </div>
-      )}
 
       <button
         onClick={handlePay}
@@ -520,6 +519,7 @@ const Billing = () => {
   const [statusError, setStatusError] = useState(null);
   const [historyError, setHistoryError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [popup, setPopup] = useState(null);
 
   const fetchStatus = async () => {
     setLoadingStatus(true);
@@ -527,8 +527,8 @@ const Billing = () => {
     try {
       const res = await billingService.getStatus();
       setStatus(res.data);
-    } catch {
-      setStatusError("বিলিং স্ট্যাটাস লোড করতে ব্যর্থ।");
+    } catch (err) {
+      setStatusError(getErrorMessage(err, "বিলিং স্ট্যাটাস লোড করতে ব্যর্থ।"));
     } finally {
       setLoadingStatus(false);
     }
@@ -540,8 +540,8 @@ const Billing = () => {
     try {
       const res = await billingService.getHistory();
       setHistory(res.data.bills ?? []);
-    } catch {
-      setHistoryError("বিলিং ইতিহাস লোড করতে ব্যর্থ।");
+    } catch (err) {
+      setHistoryError(getErrorMessage(err, "বিলিং ইতিহাস লোড করতে ব্যর্থ।"));
     } finally {
       setLoadingHistory(false);
     }
@@ -559,21 +559,26 @@ const Billing = () => {
   };
 
   const handlePaySuccess = () => {
+    setPopup({ type: "success", message: "পেমেন্ট সফলভাবে সম্পন্ন হয়েছে।" });
     fetchStatus();
     fetchHistory();
+  };
+
+  const handlePayError = (message) => {
+    setPopup({ type: "error", message });
   };
 
   const totalPaid = history.filter((b) => b.status === "paid").reduce((s, b) => s + (b.totalAmount ?? 0), 0);
   const totalUnpaid = history.filter((b) => b.status === "unpaid").reduce((s, b) => s + (b.totalAmount ?? 0), 0);
   const paidCount = history.filter((b) => b.status === "paid").length;
 
-  const hasFilters = false;
-
   return (
     <section
       className="min-h-screen px-4 py-6 font-['IBM_Plex_Sans',sans-serif]"
       style={{ background: "linear-gradient(to bottom right,#f8fafc,#eff6ff,#eef2ff)" }}
     >
+      {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+
       <div className="max-w-2xl mx-auto">
         {/* ── Page header ────────────────────────────────────────────────── */}
         <div className="flex items-start justify-between mb-6">
@@ -653,7 +658,7 @@ const Billing = () => {
                 </div>
               </div>
             ) : (
-              <CurrentBillCard status={status} onPaySuccess={handlePaySuccess} />
+              <CurrentBillCard status={status} onPaySuccess={handlePaySuccess} onPayError={handlePayError} />
             )}
           </div>
         </div>

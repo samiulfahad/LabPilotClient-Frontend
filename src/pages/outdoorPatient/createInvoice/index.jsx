@@ -53,6 +53,15 @@ const fmt = (n) =>
 
 const toFixed2 = (n) => parseFloat(n.toFixed(2));
 
+// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / SalesReport.jsx) ──
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
 const formatReferrerName = (referrer) => {
   if (!referrer || typeof referrer !== "object") return referrer ?? "";
   if (referrer.type === "doctor" && referrer.degree?.trim()) return `${referrer.name} ( ${referrer.degree.trim()} )`;
@@ -993,7 +1002,7 @@ const CreateInvoice = () => {
         setAvailableTests(res.data.tests || []);
         setAvailableProducts(res.data.products || []);
       })
-      .catch(() => setPopup({ type: "error", message: "Could not load required data" }))
+      .catch((err) => setPopup({ type: "error", message: getErrorMessage(err, "Could not load required data") }))
       .finally(() => setInitialLoading(false));
   }, []);
 
@@ -1104,7 +1113,7 @@ const CreateInvoice = () => {
       setFormData(INITIAL_FORM);
       setShowSummary(false);
     } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error || "Could not create invoice" });
+      setPopup({ type: "error", message: getErrorMessage(err, "Could not create invoice") });
     } finally {
       setSubmitting(false);
     }

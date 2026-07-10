@@ -3,7 +3,6 @@
  * babel-plugin-react-compiler handles all memoization automatically.
  */
 import { useEffect, useState, useMemo } from "react";
-import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
   Users,
@@ -26,6 +25,7 @@ import {
   UserX,
   UserCheck,
 } from "lucide-react";
+import Modal from "../../../components/Modal";
 import Popup from "../../../components/popup";
 import staffService from "../../../api/staff";
 import staticDataAPI from "../../../api/staticData";
@@ -66,6 +66,17 @@ const EMPTY_FORM = {
   isActive: true,
 };
 
+// ── Error helpers ──────────────────────────────────────────────────────────────
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
+const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
+
 // ── Shared input helpers ───────────────────────────────────────────────────────
 
 const inputBase =
@@ -78,31 +89,6 @@ const focusInput = (e) => {
 const blurInput = (e) => {
   e.target.style.borderColor = "#E2E8F0";
   e.target.style.boxShadow = "";
-};
-
-// ── Modal Shell ────────────────────────────────────────────────────────────────
-
-const ModalShell = ({ onClose, children }) => {
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
-  return (
-    <div className="fixed inset-0 flex items-center justify-center px-4 z-[9999]">
-      <div
-        className="absolute inset-0 backdrop-blur-[6px]"
-        style={{ background: "rgba(15,23,42,0.6)" }}
-        onClick={onClose}
-      />
-      <div className="relative w-full max-w-[680px] max-h-[calc(100svh-48px)] flex flex-col overflow-hidden">
-        {children}
-      </div>
-    </div>
-  );
 };
 
 // ── Form Field ─────────────────────────────────────────────────────────────────
@@ -133,9 +119,13 @@ const ToggleSwitch = ({ checked }) => (
 );
 
 // ── Staff Form Modal ───────────────────────────────────────────────────────────
+// On a failed save the modal stays OPEN (no onClose()) — a permission error
+// or network hiccup shouldn't discard what the user entered. The error
+// surfaces inline via `apiError` in the sticky footer so they can just retry.
 
 const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
   const isEdit = !!initial?._id;
+  const isAdmin = initial?.role === "admin";
 
   const [form, setForm] = useState(() => {
     if (initial) {
@@ -151,9 +141,12 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
   });
 
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [apiError, setApiError] = useState("");
 
-  const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
+  const set = (field, value) => {
+    setForm((f) => ({ ...f, [field]: value }));
+    if (apiError) setApiError("");
+  };
 
   const allEnabled = permissionsList.every((p) => form.permissions[p.key]);
 
@@ -163,11 +156,11 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
   };
 
   const handleSubmit = async () => {
-    setError("");
-    if (!form.name.trim()) return setError("নাম প্রয়োজন।");
-    if (!form.phone.trim()) return setError("ফোন নম্বর প্রয়োজন।");
+    if (!form.name.trim()) return setApiError("নাম প্রয়োজন।");
+    if (!form.phone.trim()) return setApiError("ফোন নম্বর প্রয়োজন।");
     try {
       setSaving(true);
+      setApiError("");
       const payload = { ...form };
       if (isEdit) {
         await staffService.editStaff({ ...payload, _id: initial._id, type: "editStaff" });
@@ -176,7 +169,7 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
       }
       onSaved(isEdit);
     } catch (err) {
-      setError(err?.response?.data?.error ?? "সমস্যা হয়েছে। আবার চেষ্টা করুন।");
+      setApiError(getErrorMessage(err, "সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
     } finally {
       setSaving(false);
     }
@@ -188,9 +181,9 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
   const accentBorder = isEdit ? "border-[#8B5CF620]" : "border-[#0D948820]";
 
   return (
-    <ModalShell onClose={onClose}>
-      <div className="bg-white flex flex-col overflow-hidden rounded-[0px] shadow-[0_25px_60px_rgba(15,23,42,0.2)] min-h-0">
-        {/* Header */}
+    <Modal isOpen size="md" onClose={onClose}>
+      <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
+        {/* Header — fixed, never scrolls */}
         <div
           className={`shrink-0 px-6 py-5 flex items-center justify-between border-b ${accentBorder}`}
           style={{ background: `linear-gradient(135deg,${gradFrom}15 0%,${gradTo}08 100%)` }}
@@ -228,7 +221,7 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
           </button>
         </div>
 
-        {/* Body */}
+        {/* Body — the ONLY scrollable region, fills remaining space */}
         <div className="px-6 py-5 space-y-4 bg-[#F8FAFC] flex-1 min-h-0 overflow-y-auto">
           {/* Name */}
           <FormField label="পূর্ণ নাম" required>
@@ -311,108 +304,114 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
             </div>
           </FormField>
 
-          {/* Permissions — modern toggle-switch list, 2 columns on larger screens */}
-          <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden bg-white">
-            <div className="px-4 pt-3 pb-2.5">
-              <div className="flex items-center justify-between mb-2">
+          {/* Permissions — modern toggle-switch list, 2 columns on larger screens.
+              Not shown for admins, who always have full, fixed access. */}
+          {!isAdmin && (
+            <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden bg-white">
+              <div className="px-4 pt-3 pb-2.5">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-3 h-3 text-[#6366F1]" />
+                    <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
+                      অনুমতিসমূহ
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleAll}
+                    className={`font-['IBM_Plex_Mono',monospace] text-[10px] font-bold px-2 py-[3px] rounded-md transition-all
+                    ${allEnabled ? "text-[#EF4444] bg-[#EF444410]" : "text-[#6366F1] bg-[#6366F110]"}`}
+                  >
+                    {allEnabled ? "সব বাদ দিন" : "সব নির্বাচন করুন"}
+                  </button>
+                </div>
+                {/* Progress bar — visualizes enabled/total at a glance */}
                 <div className="flex items-center gap-2">
-                  <Shield className="w-3 h-3 text-[#6366F1]" />
-                  <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
-                    অনুমতিসমূহ
+                  <div className="flex-1 h-[5px] rounded-full bg-[#E2E8F0] overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-300"
+                      style={{
+                        width: `${(permissionsList.filter((p) => form.permissions[p.key]).length / (permissionsList.length || 1)) * 100}%`,
+                        background: `linear-gradient(90deg,${C.indigo},#818CF8)`,
+                      }}
+                    />
+                  </div>
+                  <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-semibold text-[#94A3B8] shrink-0">
+                    {permissionsList.filter((p) => form.permissions[p.key]).length}/{permissionsList.length}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={toggleAll}
-                  className={`font-['IBM_Plex_Mono',monospace] text-[10px] font-bold px-2 py-[3px] rounded-md transition-all
-                    ${allEnabled ? "text-[#EF4444] bg-[#EF444410]" : "text-[#6366F1] bg-[#6366F110]"}`}
-                >
-                  {allEnabled ? "সব বাদ দিন" : "সব নির্বাচন করুন"}
-                </button>
               </div>
-              {/* Progress bar — visualizes enabled/total at a glance */}
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-[5px] rounded-full bg-[#E2E8F0] overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-300"
-                    style={{
-                      width: `${(permissionsList.filter((p) => form.permissions[p.key]).length / (permissionsList.length || 1)) * 100}%`,
-                      background: `linear-gradient(90deg,${C.indigo},#818CF8)`,
-                    }}
-                  />
-                </div>
-                <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-semibold text-[#94A3B8] shrink-0">
-                  {permissionsList.filter((p) => form.permissions[p.key]).length}/{permissionsList.length}
-                </span>
-              </div>
-            </div>
 
-            <div className="px-2.5 pb-2.5 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-              {permissionsList.map(({ key, label }) => {
-                const checked = form.permissions[key];
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => set("permissions", { ...form.permissions, [key]: !checked })}
-                    className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border transition-all text-left"
-                    style={{
-                      background: checked ? `${C.indigo}0A` : "#F8FAFC",
-                      borderColor: checked ? `${C.indigo}40` : "#E2E8F0",
-                    }}
-                  >
-                    <span
-                      className="font-['IBM_Plex_Mono',monospace] text-[11.5px] leading-[1.35] font-medium break-words"
-                      style={{ color: checked ? "#0F172A" : C.sub }}
+              <div className="px-2.5 pb-2.5 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {permissionsList.map(({ key, label }) => {
+                  const checked = form.permissions[key];
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => set("permissions", { ...form.permissions, [key]: !checked })}
+                      className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border transition-all text-left"
+                      style={{
+                        background: checked ? `${C.indigo}0A` : "#F8FAFC",
+                        borderColor: checked ? `${C.indigo}40` : "#E2E8F0",
+                      }}
                     >
-                      {label}
-                    </span>
-                    <ToggleSwitch checked={checked} />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {error && (
-            <div className="flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
-              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
-              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{error}</span>
+                      <span
+                        className="font-['IBM_Plex_Mono',monospace] text-[11.5px] leading-[1.35] font-medium break-words"
+                        style={{ color: checked ? "#0F172A" : C.sub }}
+                      >
+                        {label}
+                      </span>
+                      <ToggleSwitch checked={checked} />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="shrink-0 px-6 py-4 flex gap-3 bg-white border-t border-[#E2E8F0]">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
-          >
-            বাতিল
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
-            style={{
-              background: saving ? C.muted : `linear-gradient(135deg,${gradFrom},${gradTo})`,
-              cursor: saving ? "not-allowed" : "pointer",
-            }}
-          >
-            {saving ? (
-              <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-            ) : isEdit ? (
-              <Pencil className="w-[13px] h-[13px]" />
-            ) : (
-              <UserPlus className="w-[13px] h-[13px]" />
-            )}
-            {isEdit ? "পরিবর্তন সংরক্ষণ" : "নিবন্ধন করুন"}
-          </button>
+        {/* Footer — fixed, never scrolls. apiError banner sits directly
+            above the action buttons so it's the last thing seen before
+            retrying. */}
+        <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
+            </div>
+          )}
+          <div className="px-6 py-4 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
+            >
+              বাতিল
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={saving}
+              className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+              style={{
+                background: saving ? C.muted : `linear-gradient(135deg,${gradFrom},${gradTo})`,
+                cursor: saving ? "not-allowed" : "pointer",
+              }}
+            >
+              {saving ? (
+                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+              ) : isEdit ? (
+                <Pencil className="w-[13px] h-[13px]" />
+              ) : (
+                <UserPlus className="w-[13px] h-[13px]" />
+              )}
+              {isEdit ? "পরিবর্তন সংরক্ষণ" : "নিবন্ধন করুন"}
+            </button>
+          </div>
         </div>
       </div>
-    </ModalShell>
+    </Modal>
   );
 };
 
@@ -510,37 +509,48 @@ const StaffRow = ({ member, index, permissionsList, onEdit, onDelete, onDeactiva
             )}
           </div>
 
-          {/* Permissions */}
-          <div className="mb-3">
-            <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] mb-1.5">
-              অনুমতিসমূহ ({activePerms.length}/{permissionsList.length})
-            </p>
-            {activePerms.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {activePerms.map(({ key, label }) => (
-                  <span
-                    key={key}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-['IBM_Plex_Mono',monospace] text-[10px] font-semibold border"
-                    style={{ color: C.indigo, background: `${C.indigo}12`, borderColor: `${C.indigo}30` }}
-                  >
-                    {label}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] italic">কোনো অনুমতি নেই</p>
-            )}
-          </div>
+          {/* Permissions — not shown for admins, who always have full, fixed access */}
+          {member.role !== "admin" && (
+            <div className="mb-3">
+              <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] mb-1.5">
+                অনুমতিসমূহ ({activePerms.length}/{permissionsList.length})
+              </p>
+              {activePerms.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {activePerms.map(({ key, label }) => (
+                    <span
+                      key={key}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-['IBM_Plex_Mono',monospace] text-[10px] font-semibold border"
+                      style={{ color: C.indigo, background: `${C.indigo}12`, borderColor: `${C.indigo}30` }}
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] italic">কোনো অনুমতি নেই</p>
+              )}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex items-center gap-2 flex-wrap">
-            <ActionChip onClick={onEdit} icon={Pencil} label="সম্পাদনা" color={C.indigo} />
-            {member.isActive ? (
-              <ActionChip onClick={onDeactivate} icon={UserX} label="নিষ্ক্রিয়" color={C.amber} />
-            ) : (
-              <ActionChip onClick={onActivate} icon={UserCheck} label="সক্রিয়" color={C.green} />
+            {member.role !== "admin" && <ActionChip onClick={onEdit} icon={Pencil} label="সম্পাদনা" color={C.indigo} />}
+            {member.role === "admin" && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-[5px] font-['IBM_Plex_Mono',monospace] text-[11px] font-semibold text-[#94A3B8]">
+                <Shield className="w-[11px] h-[11px]" /> অ্যাডমিন অ্যাকাউন্ট সুরক্ষিত
+              </span>
             )}
-            <ActionChip onClick={onDelete} icon={Trash2} label="মুছুন" color={C.red} />
+            {member.role !== "admin" && (
+              <>
+                {member.isActive ? (
+                  <ActionChip onClick={onDeactivate} icon={UserX} label="নিষ্ক্রিয়" color={C.amber} />
+                ) : (
+                  <ActionChip onClick={onActivate} icon={UserCheck} label="সক্রিয়" color={C.green} />
+                )}
+                <ActionChip onClick={onDelete} icon={Trash2} label="মুছুন" color={C.red} />
+              </>
+            )}
           </div>
         </div>
       )}
@@ -626,64 +636,6 @@ const Skeleton = () => (
   </div>
 );
 
-// ── Delete Confirm Modal ───────────────────────────────────────────────────────
-
-const DeleteModal = ({ name, onConfirm, onCancel, loading }) => (
-  <ModalShell onClose={onCancel}>
-    <div className="bg-white overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
-      <div
-        className="px-6 py-6 flex items-center gap-4 border-b border-[#FECACA]"
-        style={{ background: "linear-gradient(135deg,#FEF2F2,#FFE4E6)" }}
-      >
-        <div
-          className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] shadow-[0_8px_20px_rgba(239,68,68,0.35)]"
-          style={{ background: "linear-gradient(135deg,#EF4444,#DC2626)" }}
-        >
-          <Trash2 className="w-[18px] h-[18px] text-white" />
-        </div>
-        <div>
-          <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#DC2626] mb-[2px]">
-            বিপজ্জনক অপারেশন
-          </p>
-          <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">কর্মী মুছে ফেলবেন?</p>
-        </div>
-      </div>
-      <div className="px-6 py-5">
-        <p className="font-['IBM_Plex_Mono',monospace] text-[13px] leading-[1.7] text-[#64748B]">
-          <span className="font-bold text-[#0F172A]">{name}</span>-এর সমস্ত তথ্য স্থায়ীভাবে মুছে যাবে। এই কাজ
-          পূর্বাবস্থায় ফেরানো যাবে না।
-        </p>
-      </div>
-      <div className="px-6 pb-6 flex gap-3">
-        <button
-          onClick={onCancel}
-          disabled={loading}
-          className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
-        >
-          রাখুন
-        </button>
-        <button
-          onClick={onConfirm}
-          disabled={loading}
-          className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
-          style={{
-            background: "linear-gradient(135deg,#EF4444,#DC2626)",
-            boxShadow: loading ? "none" : "0 4px 14px rgba(239,68,68,0.4)",
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          {loading ? (
-            <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-          ) : (
-            <Trash2 className="w-[13px] h-[13px]" />
-          )}
-          হ্যাঁ, মুছুন
-        </button>
-      </div>
-    </div>
-  </ModalShell>
-);
-
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 const ManageStaff = () => {
@@ -692,11 +644,13 @@ const ManageStaff = () => {
   const [staff, setStaff] = useState([]);
   const [permissionsList, setPermissionsList] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [popup, setPopup] = useState(null);
   const [formModal, setFormModal] = useState(null); // null | {} | member object
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [toggleTarget, setToggleTarget] = useState(null); // { member, activate }
+  // Delete / activate / deactivate confirmations use the shared
+  // <Popup type="warning"> directly (see render section below), not a
+  // bespoke modal — same pattern as Products.jsx / ManageReferrer.jsx /
+  // ManageTests.jsx. `modal` just carries which action + which member.
+  const [modal, setModal] = useState(null); // { type: "delete" | "deactivate" | "activate", member }
   const [search, setSearch] = useState("");
   const [permFilter, setPermFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -710,8 +664,8 @@ const ManageStaff = () => {
           (p) => p.for !== "hospitalOnly" || labType === "hospital",
         );
         setPermissionsList(visiblePerms);
-      } catch {
-        setPopup({ type: "error", message: "ডেটা লোড করতে ব্যর্থ।" });
+      } catch (err) {
+        setPopup({ type: "error", message: getErrorMessage(err, "ডেটা লোড করতে ব্যর্থ।") });
       } finally {
         setInitialLoading(false);
       }
@@ -723,8 +677,8 @@ const ManageStaff = () => {
     try {
       const res = await staffService.getStaffs();
       setStaff(res.data);
-    } catch {
-      setPopup({ type: "error", message: "কর্মী লোড করতে ব্যর্থ।" });
+    } catch (err) {
+      setPopup({ type: "error", message: getErrorMessage(err, "কর্মী লোড করতে ব্যর্থ।") });
     }
   };
 
@@ -769,34 +723,29 @@ const ManageStaff = () => {
     setPopup({ type: "success", message: isEdit ? "কর্মী আপডেট হয়েছে।" : "কর্মী নিবন্ধিত হয়েছে।" });
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
+  // No in-flight spinner on the confirm popup itself — it closes as soon as
+  // onConfirm fires, so a failure just surfaces as a follow-up error toast.
+  // Mirrors handleDelete in Products.jsx / ManageReferrer.jsx / ManageTests.jsx.
+  const handleDelete = async (member) => {
     try {
-      setSaving(true);
-      await staffService.deleteStaff(deleteTarget._id);
-      setStaff((prev) => prev.filter((m) => m._id !== deleteTarget._id));
+      await staffService.deleteStaff(member._id);
+      setStaff((prev) => prev.filter((m) => m._id !== member._id));
       setPopup({ type: "success", message: "কর্মী মুছে ফেলা হয়েছে।" });
-    } catch {
-      setPopup({ type: "error", message: "কর্মী মুছতে ব্যর্থ।" });
-    } finally {
-      setSaving(false);
-      setDeleteTarget(null);
+    } catch (err) {
+      if (getErrorStatus(err) === 404) {
+        setStaff((prev) => prev.filter((m) => m._id !== member._id));
+      }
+      setPopup({ type: "error", message: getErrorMessage(err, "কর্মী মুছতে ব্যর্থ।") });
     }
   };
 
-  const handleToggle = async () => {
-    if (!toggleTarget) return;
-    const { member, activate } = toggleTarget;
+  const handleToggle = async (member, activate) => {
     try {
-      setSaving(true);
       activate ? await staffService.activateStaff(member._id) : await staffService.deactivateStaff(member._id);
       setStaff((prev) => prev.map((m) => (m._id === member._id ? { ...m, isActive: activate } : m)));
       setPopup({ type: "success", message: `কর্মী ${activate ? "সক্রিয়" : "নিষ্ক্রিয়"} করা হয়েছে।` });
-    } catch {
-      setPopup({ type: "error", message: "স্ট্যাটাস পরিবর্তন ব্যর্থ।" });
-    } finally {
-      setSaving(false);
-      setToggleTarget(null);
+    } catch (err) {
+      setPopup({ type: "error", message: getErrorMessage(err, "স্ট্যাটাস পরিবর্তন ব্যর্থ।") });
     }
   };
 
@@ -806,9 +755,9 @@ const ManageStaff = () => {
     member,
     permissionsList,
     onEdit: () => setFormModal(member),
-    onDelete: () => setDeleteTarget(member),
-    onDeactivate: () => setToggleTarget({ member, activate: false }),
-    onActivate: () => setToggleTarget({ member, activate: true }),
+    onDelete: () => setModal({ type: "delete", member }),
+    onDeactivate: () => setModal({ type: "deactivate", member }),
+    onActivate: () => setModal({ type: "activate", member }),
   });
 
   return (
@@ -818,109 +767,47 @@ const ManageStaff = () => {
     >
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
-      {formModal !== null &&
-        createPortal(
-          <StaffFormModal
-            initial={formModal._id ? formModal : null}
-            permissionsList={permissionsList}
-            onClose={() => setFormModal(null)}
-            onSaved={handleSaved}
-          />,
-          document.body,
-        )}
+      {formModal !== null && (
+        <StaffFormModal
+          initial={formModal._id ? formModal : null}
+          permissionsList={permissionsList}
+          onClose={() => setFormModal(null)}
+          onSaved={handleSaved}
+        />
+      )}
 
-      {deleteTarget &&
-        createPortal(
-          <DeleteModal
-            name={deleteTarget.name}
-            onConfirm={handleDelete}
-            onCancel={() => setDeleteTarget(null)}
-            loading={saving}
-          />,
-          document.body,
-        )}
+      {modal?.type === "delete" && (
+        <Popup
+          type="warning"
+          message={`"${modal.member.name}"-এর সমস্ত তথ্য স্থায়ীভাবে মুছে যাবে। এই কাজ পূর্বাবস্থায় ফেরানো যাবে না।`}
+          confirmText="হ্যাঁ, মুছুন"
+          cancelText="রাখুন"
+          onConfirm={() => handleDelete(modal.member)}
+          onClose={() => setModal(null)}
+        />
+      )}
 
-      {toggleTarget &&
-        createPortal(
-          <ModalShell onClose={() => setToggleTarget(null)}>
-            <div className="bg-white overflow-hidden rounded-[24px] shadow-[0_25px_60px_rgba(15,23,42,0.2)]">
-              <div
-                className={`px-6 py-6 flex items-center gap-4 border-b ${toggleTarget.activate ? "border-[#A7F3D0]" : "border-[#FDE68A]"}`}
-                style={{
-                  background: toggleTarget.activate
-                    ? "linear-gradient(135deg,#ECFDF5,#D1FAE5)"
-                    : "linear-gradient(135deg,#FFFBEB,#FEF3C7)",
-                }}
-              >
-                <div
-                  className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px]"
-                  style={{
-                    background: toggleTarget.activate
-                      ? "linear-gradient(135deg,#10B981,#059669)"
-                      : "linear-gradient(135deg,#F59E0B,#D97706)",
-                    boxShadow: toggleTarget.activate
-                      ? "0 8px 20px rgba(16,185,129,0.35)"
-                      : "0 8px 20px rgba(245,158,11,0.35)",
-                  }}
-                >
-                  {toggleTarget.activate ? (
-                    <UserCheck className="w-[18px] h-[18px] text-white" />
-                  ) : (
-                    <UserX className="w-[18px] h-[18px] text-white" />
-                  )}
-                </div>
-                <div>
-                  <p
-                    className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px]"
-                    style={{ color: toggleTarget.activate ? "#059669" : "#D97706" }}
-                  >
-                    স্ট্যাটাস পরিবর্তন
-                  </p>
-                  <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">
-                    {toggleTarget.activate ? "কর্মী সক্রিয় করবেন?" : "কর্মী নিষ্ক্রিয় করবেন?"}
-                  </p>
-                </div>
-              </div>
-              <div className="px-6 py-5">
-                <p className="font-['IBM_Plex_Mono',monospace] text-[13px] leading-[1.7] text-[#64748B]">
-                  <span className="font-bold text-[#0F172A]">{toggleTarget.member.name}</span>
-                  {toggleTarget.activate
-                    ? "-কে সক্রিয় করলে তিনি পুনরায় সিস্টেমে প্রবেশ করতে পারবেন।"
-                    : "-কে নিষ্ক্রিয় করলে তিনি সিস্টেমে প্রবেশ করতে পারবেন না।"}
-                </p>
-              </div>
-              <div className="px-6 pb-6 flex gap-3">
-                <button
-                  onClick={() => setToggleTarget(null)}
-                  className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
-                >
-                  বাতিল
-                </button>
-                <button
-                  onClick={handleToggle}
-                  disabled={saving}
-                  className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
-                  style={{
-                    background: toggleTarget.activate
-                      ? "linear-gradient(135deg,#10B981,#059669)"
-                      : "linear-gradient(135deg,#F59E0B,#D97706)",
-                    opacity: saving ? 0.7 : 1,
-                  }}
-                >
-                  {saving ? (
-                    <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-                  ) : toggleTarget.activate ? (
-                    <UserCheck className="w-[13px] h-[13px]" />
-                  ) : (
-                    <UserX className="w-[13px] h-[13px]" />
-                  )}
-                  হ্যাঁ, {toggleTarget.activate ? "সক্রিয়" : "নিষ্ক্রিয়"} করুন
-                </button>
-              </div>
-            </div>
-          </ModalShell>,
-          document.body,
-        )}
+      {modal?.type === "deactivate" && (
+        <Popup
+          type="warning"
+          message={`"${modal.member.name}"-কে নিষ্ক্রিয় করলে তিনি সিস্টেমে প্রবেশ করতে পারবেন না।`}
+          confirmText="হ্যাঁ, নিষ্ক্রিয় করুন"
+          cancelText="বাতিল"
+          onConfirm={() => handleToggle(modal.member, false)}
+          onClose={() => setModal(null)}
+        />
+      )}
+
+      {modal?.type === "activate" && (
+        <Popup
+          type="warning"
+          message={`"${modal.member.name}"-কে সক্রিয় করলে তিনি পুনরায় সিস্টেমে প্রবেশ করতে পারবেন।`}
+          confirmText="হ্যাঁ, সক্রিয় করুন"
+          cancelText="বাতিল"
+          onConfirm={() => handleToggle(modal.member, true)}
+          onClose={() => setModal(null)}
+        />
+      )}
 
       <div className="max-w-2xl mx-auto">
         {/* Page header */}

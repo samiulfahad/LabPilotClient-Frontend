@@ -67,6 +67,15 @@ const isDelivered = (inv) => inv.delivery?.status === true;
 const getTests = (inv) => inv.tests ?? [];
 const hasReportSchemas = (inv) => getTests(inv).some((t) => t.schemaId);
 
+// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / SalesReport.jsx / CreateInvoice.jsx) ──
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
 const SEAL_BLUE = "#1E4FA0";
 const SEAL_RED = "#C0312B";
 
@@ -125,8 +134,8 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
       onLoadingChange("Marking as delivered...");
       await invoiceService.markDelivered(invoice.invoiceId);
       onDelivered(invoice.invoiceId);
-    } catch {
-      onError("Failed to mark as delivered. Please try again.");
+    } catch (err) {
+      onError(getErrorMessage(err, "Failed to mark as delivered. Please try again."));
     } finally {
       onLoadingChange(null);
     }
@@ -138,8 +147,8 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
       onLoadingChange("Collecting due amount...");
       await invoiceService.collectDue(invoice.invoiceId);
       onCollected(invoice.invoiceId);
-    } catch {
-      onError("Failed to collect due amount. Please try again.");
+    } catch (err) {
+      onError(getErrorMessage(err, "Failed to collect due amount. Please try again."));
     } finally {
       onLoadingChange(null);
     }
@@ -327,8 +336,8 @@ const InvoiceList = () => {
       setInvoices((prev) => (replace ? data.invoices : [...prev, ...data.invoices]));
       setNextCursor(data.nextCursor);
       setHasMore(data.hasMore);
-    } catch {
-      setPopup({ type: "error", message: "Could not load invoices" });
+    } catch (err) {
+      setPopup({ type: "error", message: getErrorMessage(err, "Could not load invoices") });
     } finally {
       setInitialLoading(false);
       setLoadingMore(false);
@@ -609,7 +618,7 @@ export const InvoiceDetailsModal = ({
     invoiceService
       .getInvoiceByInvoiceId(invoiceId)
       .then((res) => setInvoice(res.data))
-      .catch(() => setError("Failed to load invoice details."))
+      .catch((err) => setError(getErrorMessage(err, "Failed to load invoice details.")))
       .finally(() => setLoading(false));
   };
 
@@ -892,8 +901,8 @@ export const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingC
       onLoadingChange("Updating patient info...");
       await invoiceService.updatePatientInfo(invoice.invoiceId, { patient: form });
       onSaved(invoice.invoiceId, { patient: { ...form, age: Number(form.age) } });
-    } catch {
-      onError("Failed to update patient info. Please try again.");
+    } catch (err) {
+      onError(getErrorMessage(err, "Failed to update patient info. Please try again."));
     } finally {
       onLoadingChange(null);
     }
