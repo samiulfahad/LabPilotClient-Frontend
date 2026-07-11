@@ -262,8 +262,9 @@ const TabSwitcher = ({ active, onChange }) => (
 );
 
 const SalesReport = () => {
+  const user = useAuthStore((s) => s.user);
   const lab = useAuthStore((s) => s.lab);
-  const isHospital = lab?.type === "hospital";
+  const isHospital = user?.type === "hospital";
 
   const [activeTab, setActiveTab] = useState("sales");
   const [salesData, setSalesData] = useState(null);

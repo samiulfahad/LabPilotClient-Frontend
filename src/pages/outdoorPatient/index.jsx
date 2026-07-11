@@ -1,19 +1,20 @@
 import { useNavigate } from "react-router-dom";
 import { FilePlus2, Search, Trash2, LayoutList } from "lucide-react";
+import { useAuthStore } from "../../store/authStore";
 
-const invoiceNav = [
+const buildInvoiceNav = (isHospital) => [
   {
     label: "ইনভয়েস লিস্ট",
     path: "/outdoor/invoice/all",
     icon: LayoutList,
-    description: "সকল আউটডোর রোগীর ইনভয়েস দেখুন",
+    description: isHospital ? "সকল আউটডোর রোগীর ইনভয়েস দেখুন" : "সকল রোগীর ইনভয়েস দেখুন",
     color: "indigo",
   },
   {
     label: "নতুন ইনভয়েস",
     path: "/outdoor/invoice/new",
     icon: FilePlus2,
-    description: "আউটডোর রোগীর জন্য নতুন ইনভয়েস তৈরি করুন",
+    description: isHospital ? "আউটডোর রোগীর জন্য নতুন ইনভয়েস তৈরি করুন" : "রোগীর জন্য নতুন ইনভয়েস তৈরি করুন",
     color: "emerald",
   },
   {
@@ -69,6 +70,10 @@ const colorMap = {
 
 const OutdoorPatient = () => {
   const navigate = useNavigate();
+  const lab = useAuthStore((s) => s.lab);
+  const isHospital = lab?.type === "hospital";
+  const pageTitle = isHospital ? "আউটডোর রোগী" : "Invoice Master";
+  const invoiceNav = buildInvoiceNav(isHospital);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
@@ -80,7 +85,7 @@ const OutdoorPatient = () => {
           </div>
           <div>
             <h1 className="text-[22px] font-black text-slate-900 tracking-tight leading-tight font-noto">
-              আউটডোর রোগী
+              {pageTitle}
             </h1>
             <p className="text-[15px] text-slate-400 mt-0.5 font-noto">যে কাজটি করতে চান তা নির্বাচন করুন</p>
           </div>

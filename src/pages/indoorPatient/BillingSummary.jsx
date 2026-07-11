@@ -1,9 +1,10 @@
 // React Compiler active — no useCallback/useMemo
 // BillingSummary.jsx
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge, Btn, ErrorMsg, Field, Input, Modal, SectionCard, Select, fmt } from "./indoorPatientHelpers";
 import indoorPatientService from "../../api/indoorPatient";
+import { Printer } from "lucide-react";
 
 // ─── BST helpers ──────────────────────────────────────────────────────────────
 
@@ -471,7 +472,7 @@ function DiscountHistoryModal({ open, onClose, patient }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function BillingSummary({ patient, onCollect, onExtra, onAddExpenses, onRefresh, patientId }) {
+export default function BillingSummary({ patient, lab, onCollect, onExtra, onAddExpenses, onRefresh, patientId }) {
   const [bedDetailsOpen, setBedDetailsOpen] = useState(false);
   const [addDiscountOpen, setAddDiscountOpen] = useState(false);
   const [discountHistoryOpen, setDiscountHistoryOpen] = useState(false);
@@ -499,6 +500,19 @@ export default function BillingSummary({ patient, onCollect, onExtra, onAddExpen
   const appliedDiscounts = patient.discounts ?? [];
   const hasDiscounts = totalDiscount > 0;
 
+  // ── Print-this-summary-only handler ───────────────────────────────────────
+
+  const handlePrintSummary = () => {
+    document.body.classList.add("print-billing-summary-only");
+    window.print();
+  };
+
+  useEffect(() => {
+    const reset = () => document.body.classList.remove("print-billing-summary-only");
+    window.addEventListener("afterprint", reset);
+    return () => window.removeEventListener("afterprint", reset);
+  }, []);
+
   // ── Category ledger rows ──────────────────────────────────────────────────
 
   const categoryRows =
@@ -524,7 +538,7 @@ export default function BillingSummary({ patient, onCollect, onExtra, onAddExpen
               <button
                 type="button"
                 onClick={() => setBedDetailsOpen(true)}
-                className="font-mono text-[10px] text-[#0F6E5C] hover:text-[#0a5a4a] underline underline-offset-2 shrink-0 transition-colors"
+                className="no-print font-mono text-[10px] text-[#0F6E5C] hover:text-[#0a5a4a] underline underline-offset-2 shrink-0 transition-colors"
               >
                 details ↗
               </button>
@@ -568,18 +582,61 @@ export default function BillingSummary({ patient, onCollect, onExtra, onAddExpen
 
   return (
     <>
-      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+      {/* Scoped print rule: when printing via the summary-only button, hide every
+          sibling inside #billing-printable except this card, and reveal the
+          summary-only letterhead. */}
+      <style>{`
+        @media print {
+          body.print-billing-summary-only #billing-printable > *:not(#billing-summary-print-root) {
+            display: none !important;
+          }
+          body.print-billing-summary-only .summary-print-letterhead {
+            display: block !important;
+          }
+        }
+      `}</style>
+
+      <div
+        id="billing-summary-print-root"
+        className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm"
+      >
+        {/* Summary-only print letterhead — hidden on screen and in the full-page
+            print (which already has its own letterhead in PatientDetails.jsx);
+            forced visible only via the .summary-print-letterhead rule above. */}
+        <div className="summary-print-letterhead hidden text-center pt-6 px-6 pb-4 mb-1 border-b-2 border-slate-800">
+          <h3 className="text-xl font-bold text-slate-900 tracking-wide uppercase">{lab?.name ?? "LabPilot Pro"}</h3>
+          {lab?.contact?.address && <p className="text-[11px] text-slate-500 mt-1.5">{lab.contact.address}</p>}
+          {lab?.contact?.primary && <p className="text-[11px] text-slate-500 mt-0.5">{lab.contact.primary}</p>}
+          <div className="flex items-center justify-center gap-2 mt-3 text-[11px] font-mono text-slate-600">
+            <span className="font-bold">{patient.admissionId}</span>
+            <span className="text-slate-300">·</span>
+            <span>{patient.patient.name}</span>
+            <span className="text-slate-300">·</span>
+            <span>
+              {patient.patient.age}y / {patient.patient.gender}
+            </span>
+          </div>
+        </div>
+
         {/* ── Header ────────────────────────────────────────────────────────── */}
         <div className="flex items-center gap-3 px-5 py-3.5 bg-[#FAF9F5] border-b border-slate-200">
-          {/* Left: title + discount badge */}
+          {/* Left: title + print btn + discount badge */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <span className="text-base shrink-0">💰</span>
             <span className="text-[13px] font-bold text-slate-700 tracking-wide">Billing Summary</span>
+            <button
+              type="button"
+              onClick={handlePrintSummary}
+              title="Print billing summary only"
+              className="no-print flex items-center justify-center ml-0.5 w-6 h-6 rounded-[3px] border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 hover:bg-white transition-colors shrink-0"
+            >
+              <Printer className="w-3.5 h-3.5" />
+            </button>
             {appliedDiscounts.length > 0 && (
               <button
                 type="button"
                 onClick={() => setDiscountHistoryOpen(true)}
-                className="flex items-center gap-1 ml-0.5 px-2 py-0.5 rounded-full bg-rose-100 border border-rose-200 text-[10px] font-bold text-rose-600 hover:bg-rose-200 transition-colors shrink-0"
+                className="no-print flex items-center gap-1 ml-0.5 px-2 py-0.5 rounded-full bg-rose-100 border border-rose-200 text-[10px] font-bold text-rose-600 hover:bg-rose-200 transition-colors shrink-0"
               >
                 🏷️ {appliedDiscounts.length}
               </button>
@@ -588,7 +645,7 @@ export default function BillingSummary({ patient, onCollect, onExtra, onAddExpen
 
           {/* Right: Add Expenses + Collect + Add Discount buttons together */}
           {isAdmitted && (
-            <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+            <div className="no-print flex items-center gap-2 shrink-0 flex-wrap justify-end">
               {onAddExpenses && (
                 <button
                   type="button"

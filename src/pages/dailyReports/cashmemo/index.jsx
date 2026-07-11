@@ -154,7 +154,7 @@ const ClickableLedgerCell = ({ icon: Icon, label, value, accent, open, onClick }
   <button
     type="button"
     onClick={onClick}
-    className="w-full text-left px-5 py-4 border-l-[3px] hover:brightness-[0.98] transition-[filter] no-print"
+    className="w-full text-left px-5 py-4 border-l-[3px] hover:brightness-[0.98] transition-[filter] print:pointer-events-none"
     style={{ borderColor: accent }}
   >
     <div className="flex items-center justify-between mb-1.5">
@@ -163,9 +163,9 @@ const ClickableLedgerCell = ({ icon: Icon, label, value, accent, open, onClick }
         <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">{label}</p>
       </div>
       {open ? (
-        <ChevronDown className="w-3.5 h-3.5" style={{ color: accent }} />
+        <ChevronDown className="w-3.5 h-3.5 no-print" style={{ color: accent }} />
       ) : (
-        <ChevronRight className="w-3.5 h-3.5" style={{ color: accent }} />
+        <ChevronRight className="w-3.5 h-3.5 no-print" style={{ color: accent }} />
       )}
     </div>
     <p className="font-['IBM_Plex_Mono'] text-2xl font-semibold text-[#1C1F1E] tabular-nums">{value}</p>
@@ -508,10 +508,16 @@ const CategoryBreakdown = ({ breakdown }) => {
 
 // ─── Outdoor cashmemo receipt ─────────────────────────────────────────────────
 
-const OutdoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) => {
+const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddress, labPhone, isHospital }) => {
   const d = summary ?? {};
+  const e = expenseSummary ?? {};
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
   const grossCounterAmount = (d.initial ?? 0) - (d.labAdjustment ?? 0) - (d.referrerDiscount ?? 0);
+  // Hospitals have both an outdoor (OPD) and indoor (IPD) module, so this tab
+  // needs the "বহির্বিভাগ" (outdoor) label to distinguish it from indoor.
+  // Diagnostic centers have no IPD module at all, so "বহির্বিভাগ" is
+  // meaningless there — everything is just the lab's sales/cash memo.
+  const eyebrowLabel = isHospital ? "বহির্বিভাগ ক্যাশ মেমু" : "ক্যাশ মেমু";
 
   // ── Deleted-invoices drill-down state (mirrors IPD's toggleDeleted) ──
   const [deletedOpen, setDeletedOpen] = useState(false);
@@ -563,9 +569,7 @@ const OutdoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =
       {/* Header band */}
       <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
         <div>
-          <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">
-            বহির্বিভাগ ক্যাশ মেমু
-          </p>
+          <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">{eyebrowLabel}</p>
           <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
           <p className="font-['IBM_Plex_Mono'] text-sm text-[#8A8F89] mt-1.5 font-noto">
             {d.totalInvoices ?? 0}টি ইনভয়েস রেকর্ড করা হয়েছে
@@ -618,12 +622,28 @@ const OutdoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =
 
         <NetStamp amount={d.totalNet} label="নিট আয়" accent={TEAL} />
 
+        {/* মোট খরচ — shown right before the deleted-invoices drill-down */}
+        <div className="border border-[#E3D9EE] rounded-sm overflow-hidden mt-3 mb-3">
+          <div
+            className="flex items-center justify-between px-4 py-3 bg-[#F8F5FC] border-l-4"
+            style={{ borderColor: VIOLET }}
+          >
+            <div className="flex items-center gap-2">
+              <ReceiptIcon className="w-3.5 h-3.5" style={{ color: VIOLET }} />
+              <p className="text-sm font-semibold text-[#1C1F1E] font-noto">মোট খরচ</p>
+            </div>
+            <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums" style={{ color: VIOLET }}>
+              ৳{fmt(e.totalExpense)}
+            </p>
+          </div>
+        </div>
+
         {/* Deleted invoices — clickable, expands inline list (mirrors IPD tab) */}
-        <div className="mt-3 mb-0">
+        <div className="mt-0 mb-0">
           <button
             type="button"
             onClick={toggleDeleted}
-            className={`w-full text-left border border-[#E3D9D5] overflow-hidden hover:brightness-[0.98] transition-[filter] no-print ${
+            className={`w-full text-left border border-[#E3D9D5] overflow-hidden hover:brightness-[0.98] transition-[filter] print:pointer-events-none ${
               deletedOpen ? "rounded-t-sm" : "rounded-sm"
             }`}
           >
@@ -647,9 +667,9 @@ const OutdoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =
                   এবং টাকার পরিমাণ ৳{fmt(d.totalAmountDeleted ?? 0)}
                 </span>
                 {deletedOpen ? (
-                  <ChevronDown className="w-4 h-4 text-[#B23A2E]" />
+                  <ChevronDown className="w-4 h-4 text-[#B23A2E] no-print" />
                 ) : (
-                  <ChevronRight className="w-4 h-4 text-[#B23A2E]" />
+                  <ChevronRight className="w-4 h-4 text-[#B23A2E] no-print" />
                 )}
               </div>
             </div>
@@ -911,7 +931,7 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
           <button
             type="button"
             onClick={toggleDiscount}
-            className={`w-full text-left border border-[#E3D9C6] overflow-hidden hover:brightness-[0.98] transition-[filter] no-print ${
+            className={`w-full text-left border border-[#E3D9C6] overflow-hidden hover:brightness-[0.98] transition-[filter] print:pointer-events-none ${
               discountOpen ? "rounded-t-sm" : "rounded-sm"
             }`}
           >
@@ -934,9 +954,9 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
                   − ৳{fmt(d.totalDiscounts)}
                 </p>
                 {discountOpen ? (
-                  <ChevronDown className="w-4 h-4" style={{ color: OCHRE }} />
+                  <ChevronDown className="w-4 h-4 no-print" style={{ color: OCHRE }} />
                 ) : (
-                  <ChevronRight className="w-4 h-4" style={{ color: OCHRE }} />
+                  <ChevronRight className="w-4 h-4 no-print" style={{ color: OCHRE }} />
                 )}
               </div>
             </div>
@@ -950,7 +970,7 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
           <button
             type="button"
             onClick={toggleOutstanding}
-            className={`w-full text-left border border-[#E3D5D2] overflow-hidden hover:brightness-[0.98] transition-[filter] no-print ${
+            className={`w-full text-left border border-[#E3D5D2] overflow-hidden hover:brightness-[0.98] transition-[filter] print:pointer-events-none ${
               outstandingOpen ? "rounded-t-sm" : "rounded-sm"
             }`}
           >
@@ -966,9 +986,9 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
                 </span>
               </div>
               {outstandingOpen ? (
-                <ChevronDown className="w-4 h-4" style={{ color: RUST }} />
+                <ChevronDown className="w-4 h-4 no-print" style={{ color: RUST }} />
               ) : (
-                <ChevronRight className="w-4 h-4" style={{ color: RUST }} />
+                <ChevronRight className="w-4 h-4 no-print" style={{ color: RUST }} />
               )}
             </div>
           </button>
@@ -981,7 +1001,7 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
           <button
             type="button"
             onClick={toggleDeleted}
-            className={`w-full text-left border border-[#E3D9D5] overflow-hidden hover:brightness-[0.98] transition-[filter] no-print ${
+            className={`w-full text-left border border-[#E3D9D5] overflow-hidden hover:brightness-[0.98] transition-[filter] print:pointer-events-none ${
               deletedOpen ? "rounded-t-sm" : "rounded-sm"
             }`}
           >
@@ -1005,9 +1025,9 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
                   ৳{fmt(d.totalAmountDeleted ?? 0)}
                 </span>
                 {deletedOpen ? (
-                  <ChevronDown className="w-4 h-4 text-[#B23A2E]" />
+                  <ChevronDown className="w-4 h-4 text-[#B23A2E] no-print" />
                 ) : (
-                  <ChevronRight className="w-4 h-4 text-[#B23A2E]" />
+                  <ChevronRight className="w-4 h-4 text-[#B23A2E] no-print" />
                 )}
               </div>
             </div>
@@ -1086,7 +1106,7 @@ const SummaryReceipt = ({
       </div>
 
       <div className="px-6 sm:px-8 py-5">
-        <SummarySection title={isHospital ? "বহির্বিভাগ" : "আয়"} icon={Wallet} accent={TEAL} rows={outdoorRows} />
+        <SummarySection title={isHospital ? "বহির্বিভাগ" : "বিস্তারিত"} icon={Wallet} accent={TEAL} rows={outdoorRows} />
 
         {isHospital && <SummarySection title="অন্তঃবিভাগ (আইপিডি)" icon={Users} accent={INDIGO} rows={indoorRows} />}
 
@@ -1128,7 +1148,7 @@ const CashMemo = () => {
   const [indoorSummary, setIndoorSummary] = useState(null);
   const [indoorLoading, setIndoorLoading] = useState(!isHospital ? false : true);
 
-  // Expense state (used by the Summary tab, for both lab types)
+  // Expense state (used by the Outdoor tab and the Summary tab, for both lab types)
   const [expenseSummary, setExpenseSummary] = useState(null);
   const [expenseLoading, setExpenseLoading] = useState(true);
 
@@ -1198,13 +1218,16 @@ const CashMemo = () => {
         { key: "summary", label: "সারসংক্ষেপ", accent: VIOLET },
       ]
     : [
-        { key: "outdoor", label: "বহির্বিভাগ", accent: TEAL },
+        { key: "outdoor", label: "বিস্তারিত", accent: TEAL },
         { key: "summary", label: "সারসংক্ষেপ", accent: VIOLET },
       ];
 
+  // Outdoor tab now shows the expense figure too, so its "still loading" state
+  // must wait on expenseLoading as well — otherwise ৳0 flashes briefly if
+  // expense resolves after outdoorSummary.
   const currentLoading =
     activeTab === "outdoor"
-      ? outdoorLoading
+      ? outdoorLoading || expenseLoading
       : activeTab === "indoor"
         ? indoorLoading
         : outdoorLoading || expenseLoading || (isHospital && indoorLoading);
@@ -1275,15 +1298,17 @@ const CashMemo = () => {
 
         {/* Receipt */}
         {activeTab === "outdoor" &&
-          (outdoorLoading ? (
+          (currentLoading ? (
             <SkeletonReceipt />
           ) : (
             <OutdoorReceipt
               summary={outdoorSummary}
+              expenseSummary={expenseSummary}
               timeRange={timeRange}
               labName={labName}
               labAddress={labAddress}
               labPhone={labPhone}
+              isHospital={isHospital}
             />
           ))}
 

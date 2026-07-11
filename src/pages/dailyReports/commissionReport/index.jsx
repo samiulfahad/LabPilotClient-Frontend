@@ -248,12 +248,13 @@ const ReferrerEntry = ({
   invoices,
   totalIndoorTests,
   accent,
+  isHospital,
 }) => {
   const [open, setOpen] = useState(false);
   const invoiceCount = invoices.length;
   const netCommission = totalCommission - totalDiscount;
-  const indoorOnly = invoiceCount === 0 && (totalIndoorTests ?? 0) > 0;
-  const hasBoth = invoiceCount > 0 && (totalIndoorTests ?? 0) > 0; // ← new
+  const indoorOnly = isHospital && invoiceCount === 0 && (totalIndoorTests ?? 0) > 0;
+  const hasBoth = isHospital && invoiceCount > 0 && (totalIndoorTests ?? 0) > 0; // ← new
 
   return (
     <div className="py-3 border-b border-dashed border-[#E3E0D6] last:border-b-0">
@@ -399,22 +400,24 @@ const ViewToggle = ({ view, onChange }) => (
 
 // ─── Test-wise: single merged test row ───────────────────────────────────────
 
-const MergedTestRow = ({ name, total, outdoor, indoor }) => (
+const MergedTestRow = ({ name, total, outdoor, indoor, isHospital }) => (
   <div className="flex items-baseline gap-2 py-1">
     <span className="font-noto text-sm text-[#1C1F1E] leading-tight">{name}</span>
     <span className="flex-1 border-b border-dotted border-[#E3E0D6] translate-y-[-2px]" />
     <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums shrink-0" style={{ color: TEAL }}>
       {total}
     </span>
-    <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] shrink-0 font-noto">
-      (আউটডোর {outdoor}, ইনডোর {indoor})
-    </span>
+    {isHospital && (
+      <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] shrink-0 font-noto">
+        (আউটডোর {outdoor}, ইনডোর {indoor})
+      </span>
+    )}
   </div>
 );
 
 // ─── Test-wise: single doctor card ──────────────────────────────────────────
 
-const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorTests, indoorTests }) => {
+const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorTests, indoorTests, isHospital }) => {
   const accent = isRegistered ? TEAL : OCHRE;
   const meta = TYPE_META[type] ?? TYPE_META.unknown;
   const Icon = isRegistered ? meta.Icon : UserX;
@@ -444,7 +447,14 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorT
       <div className="pl-8">
         {mergedTests.length > 0 ? (
           mergedTests.map((t) => (
-            <MergedTestRow key={t.name} name={t.name} total={t.total} outdoor={t.outdoor} indoor={t.indoor} />
+            <MergedTestRow
+              key={t.name}
+              name={t.name}
+              total={t.total}
+              outdoor={t.outdoor}
+              indoor={t.indoor}
+              isHospital={isHospital}
+            />
           ))
         ) : (
           <p className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] font-noto">নেই</p>
@@ -456,7 +466,7 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorT
 
 // ─── Test-wise view ───────────────────────────────────────────────────────────
 
-const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, lab }) => {
+const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, lab, isHospital }) => {
   const rows = useMemo(() => buildDoctorTestRows(registered, unregistered), [registered, unregistered]);
   const totalOutdoorOccurrences = rows.reduce((s, r) => s + r.outdoorTests.reduce((ss, [, c]) => ss + c, 0), 0);
   const totalIndoorOccurrences = rows.reduce((s, r) => s + r.indoorTests.reduce((ss, [, c]) => ss + c, 0), 0);
@@ -488,7 +498,8 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
           <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
           <p className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] mt-1.5 flex items-center gap-1.5 font-noto">
             <FlaskConical className="w-3 h-3" />
-            {rows.length} জন রেফারার · আউটডোর {totalOutdoorOccurrences} · ইনডোর {totalIndoorOccurrences}
+            {rows.length} জন রেফারার
+            {isHospital ? ` · আউটডোর ${totalOutdoorOccurrences} · ইনডোর ${totalIndoorOccurrences}` : ""}
           </p>
         </div>
         <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} />
@@ -502,7 +513,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
             label="মোট টেস্ট (বার)"
             value={totalOutdoorOccurrences + totalIndoorOccurrences}
             accent={TEAL}
-            sub={`আউটডোর ${totalOutdoorOccurrences} · ইনডোর ${totalIndoorOccurrences}`}
+            sub={isHospital ? `আউটডোর ${totalOutdoorOccurrences} · ইনডোর ${totalIndoorOccurrences}` : undefined}
           />
           <LedgerCell
             icon={ReceiptText}
@@ -527,6 +538,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
               invoiceCount={r.invoiceCount}
               outdoorTests={r.outdoorTests}
               indoorTests={r.indoorTests}
+              isHospital={isHospital}
             />
           ))
         ) : (
@@ -539,7 +551,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
 
 // ─── Ledger view (Referrer Based — outdoor only, unchanged) ─────────────────
 
-const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab }) => (
+const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital }) => (
   <div
     id="commission-printable"
     className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
@@ -607,6 +619,7 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab }) => (
               invoices={r.invoices}
               totalIndoorTests={r.totalIndoorTests}
               accent={TEAL}
+              isHospital={isHospital}
             />
           );
         })
@@ -630,6 +643,7 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab }) => (
             invoices={g.invoices}
             totalIndoorTests={g.totalIndoorTests}
             accent={OCHRE}
+            isHospital={isHospital}
           />
         ))
       ) : (
@@ -643,6 +657,8 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab }) => (
 
 const CommissionReport = () => {
   const lab = useAuthStore((s) => s.lab);
+  const user = useAuthStore((s) => s.user);
+  const isHospital = user?.type === "hospital";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
@@ -734,7 +750,14 @@ const CommissionReport = () => {
         {loading ? (
           <SkeletonReceipt />
         ) : view === "ledger" ? (
-          <LedgerView d={d} headingLabel={headingLabel} timeRange={timeRange} referrerCount={referrerCount} lab={lab} />
+          <LedgerView
+            d={d}
+            headingLabel={headingLabel}
+            timeRange={timeRange}
+            referrerCount={referrerCount}
+            lab={lab}
+            isHospital={isHospital}
+          />
         ) : (
           <TestWiseView
             registered={d.registered}
@@ -743,6 +766,7 @@ const CommissionReport = () => {
             timeRange={timeRange}
             d={d}
             lab={lab}
+            isHospital={isHospital}
           />
         )}
 

@@ -1,16 +1,19 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { LogOut, AlertTriangle } from "lucide-react"; // Added AlertTriangle
+import { LogOut, AlertTriangle } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
-import menu from "./menu";
+import { getMenuForLabType } from "./menu";
 import LoadingScreen from "../loadingPage";
-import Modal from "../modal"; // Import your custom Modal
+import Modal from "../modal";
 
 const DesktopMenu = () => {
   const logout = useAuthStore((s) => s.logout);
+  const lab = useAuthStore((s) => s.lab);
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  const visibleMenu = getMenuForLabType(lab?.type);
 
   const handleLogoutConfirm = async () => {
     setShowConfirm(false);
@@ -49,7 +52,7 @@ const DesktopMenu = () => {
         <div className="flex-1 overflow-hidden bg-gray-50/50">
           <div className="h-full overflow-y-auto px-3 py-4">
             <div className="space-y-0.2">
-              {menu.map((item) => {
+              {visibleMenu.map((item) => {
                 const Icon = item.icon;
                 return (
                   <NavLink
@@ -105,11 +108,9 @@ const DesktopMenu = () => {
         </div>
       </nav>
 
-      {/* --- NEW LOGOUT MODAL INTEGRATION --- */}
       <Modal isOpen={showConfirm} onClose={() => setShowConfirm(false)} size="sm">
         <div className="p-8">
           <div className="flex flex-col items-center text-center">
-            {/* Warning Icon Circle */}
             <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-4 border border-red-100">
               <AlertTriangle className="w-8 h-8 text-red-500" />
             </div>

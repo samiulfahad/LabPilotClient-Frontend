@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import indoorPatientService from "../../api/indoorPatient";
+import { useAuthStore } from "../../store/authStore";
 import BillingSummary, { getBillingSummary } from "./BillingSummary";
 import {
   BLOOD_GROUPS,
@@ -21,6 +22,7 @@ import {
   totalExpenses,
   totalPayments,
 } from "./indoorPatientHelpers";
+import { Printer } from "lucide-react";
 
 // ─── Collect Payment Modal ────────────────────────────────────────────────────
 
@@ -77,7 +79,7 @@ const CollectPaymentModal = ({ open, patientId, onClose, onSuccess, isExtra = fa
           </Field>
           <Field label={isExtra ? "Note (required)" : "Note (optional)"}>
             <Input
-              placeholder={isExtra ? "Reason for extra payment…" : "Cash / bKash / etc."}
+              placeholder={isExtra ? "Reason for extra payment…" : "Paid by XX / Cash / bKash"}
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
@@ -114,6 +116,7 @@ const TABS = [
 const PatientDetails = () => {
   const { id: patientId } = useParams();
   const navigate = useNavigate();
+  const lab = useAuthStore((s) => s.lab);
 
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -292,6 +295,29 @@ const PatientDetails = () => {
     }
   };
 
+  const handlePrint = () => window.print();
+
+  // ── Scoped section-only print handlers ────────────────────────────────────
+
+  const handlePrintExpenseLog = () => {
+    document.body.classList.add("print-expense-log-only");
+    window.print();
+  };
+
+  const handlePrintPaymentHistory = () => {
+    document.body.classList.add("print-payment-history-only");
+    window.print();
+  };
+
+  useEffect(() => {
+    const reset = () => {
+      document.body.classList.remove("print-expense-log-only");
+      document.body.classList.remove("print-payment-history-only");
+    };
+    window.addEventListener("afterprint", reset);
+    return () => window.removeEventListener("afterprint", reset);
+  }, []);
+
   // ── Loading ────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -330,35 +356,83 @@ const PatientDetails = () => {
   }
 
   const isAdmitted = patient.status === "admitted";
-  const { total, paid, due } = getBillingSummary(patient);
+  const billingSummary = getBillingSummary(patient);
+  const { total, paid, due } = billingSummary;
+  const discount = billingSummary.discount ?? patient.discount ?? patient.billing?.discount ?? 0;
   const isPackageFullyPaid = patient.dealType === "package" && due <= 0;
   const collectDefaultAmount = due > 0 ? String(Math.ceil(due)) : "";
   const txSelectedSpace = spaces.find((s) => s._id === txForm.spaceId) ?? null;
   const transferableSpaces = spaces.filter((s) => s._id !== patient.space?.spaceId);
   const transferableDoctors = doctors.filter((d) => d._id !== patient.supervisorDoctor?.doctorId);
 
+  // Shared print-only letterhead block, reused for expense log & payment history
+  const SectionLetterhead = ({ className }) => (
+    <div className={`hidden text-center pt-6 px-6 pb-4 mb-3 border-b-2 border-slate-800 ${className}`}>
+      <h3 className="text-xl font-bold text-slate-900 tracking-wide uppercase">{lab?.name ?? "LabPilot Pro"}</h3>
+      {lab?.contact?.address && <p className="text-[11px] text-slate-500 mt-1.5">{lab.contact.address}</p>}
+      {lab?.contact?.primary && <p className="text-[11px] text-slate-500 mt-0.5">{lab.contact.primary}</p>}
+      <div className="flex items-center justify-center gap-2 mt-3 text-[11px] font-mono text-slate-600">
+        <span className="font-bold">{patient.admissionId}</span>
+        <span className="text-slate-300">·</span>
+        <span>{patient.patient.name}</span>
+        <span className="text-slate-300">·</span>
+        <span>
+          {patient.patient.age}y / {patient.patient.gender}
+        </span>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-8 font-noto">
+      <style>{`
+        @media print {
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          body * { visibility: hidden; }
+          #billing-printable, #billing-printable * { visibility: visible; }
+          #billing-printable { position: fixed; top: 0; left: 0; width: 100%; padding: 32px; box-shadow: none; }
+          .no-print { display: none !important; }
+
+          body.print-expense-log-only #billing-printable > *:not(#expense-log-print-root) {
+            display: none !important;
+          }
+          body.print-expense-log-only .expense-log-print-letterhead {
+            display: block !important;
+          }
+
+          body.print-payment-history-only #billing-printable > *:not(#payment-history-print-root) {
+            display: none !important;
+          }
+          body.print-payment-history-only .payment-history-print-letterhead {
+            display: block !important;
+          }
+        }
+      `}</style>
+
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <PageHeader
-          title={patient.patient.name}
-          subtitle={`${patient.admissionId} · ${patient.patient.age}y · ${patient.patient.gender}${patient.patient.bloodGroup ? ` · ${patient.patient.bloodGroup}` : ""}`}
-          back={() => navigate(-1)}
-        />
+        <div className="no-print">
+          <PageHeader
+            title={patient.patient.name}
+            subtitle={`${patient.admissionId} · ${patient.patient.age}y · ${patient.patient.gender}${patient.patient.bloodGroup ? ` · ${patient.patient.bloodGroup}` : ""}`}
+            back={() => navigate(-1)}
+          />
+        </div>
 
         {/* Status strip */}
-        <div className="flex items-center gap-2 mb-5 flex-wrap">
+        <div className="flex items-center gap-2 mb-5 flex-wrap no-print">
           <Badge color={isAdmitted ? "blue" : "green"}>{isAdmitted ? "Admitted" : "Released"}</Badge>
           {patient.dealType === "package" && <Badge color="purple">Package Deal</Badge>}
           {isPackageFullyPaid && <Badge color="green">Fully Paid</Badge>}
           <span className="text-xs text-slate-400 font-mono ml-1">Since {fmt.date(patient.admittedAt)}</span>
         </div>
 
-        <ErrorMsg msg={actionError} />
+        <div className="no-print">
+          <ErrorMsg msg={actionError} />
+        </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-white border border-slate-200 p-1 rounded-[8px] mb-5 shadow-sm overflow-x-auto">
+        <div className="flex gap-1 bg-white border border-slate-200 p-1 rounded-[8px] mb-5 shadow-sm overflow-x-auto no-print">
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -741,212 +815,297 @@ const PatientDetails = () => {
 
         {/* ── Billing ── */}
         {activeTab === "billing" && (
-          <div className="space-y-4">
-            <BillingSummary
-              patient={patient}
-              onCollect={() => setShowCollectPayment(true)}
-              onExtra={() => setShowExtraPayment(true)}
-              onAddExpenses={() => navigate(`/ipd/add-items?patientId=${patientId}`)}
-              patientId={patientId}
-              onRefresh={fetchPatient}
-            />
+          <div>
+            {/* Print action bar — screen only */}
+            <div className="flex items-center justify-end mb-3 no-print">
+              <button
+                onClick={handlePrint}
+                className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-1.5 text-sm font-semibold shadow-sm"
+              >
+                <Printer className="w-4 h-4" /> Print
+              </button>
+            </div>
 
-            <SectionCard title={`Expense Log (${patient.expenses?.length ?? 0})`} icon="🧾">
-              {!patient.expenses?.length ? (
-                <p className="text-slate-400 text-sm text-center py-4">No expenses recorded yet</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-100">
-                        {["Type", "Item", "Price", "Qty", "Total", "Date", "By"].map((h) => (
-                          <th
-                            key={h}
-                            className="text-left px-2 py-2 text-[11px] font-mono font-semibold text-slate-400 uppercase tracking-wider"
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {patient.expenses.map((e, i) => (
-                        <tr key={i} className="hover:bg-slate-50">
-                          <td className="px-2 py-2.5">
-                            <Badge color="slate">{e.type}</Badge>
-                          </td>
-                          <td className="px-2 py-2.5 font-medium text-slate-700">{e.name}</td>
-                          <td className="px-2 py-2.5 font-mono text-slate-600">{fmt.currency(e.price)}</td>
-                          <td className="px-2 py-2.5 font-mono text-slate-600">{e.quantity}</td>
-                          <td className="px-2 py-2.5 font-mono font-semibold text-slate-800">
-                            {fmt.currency(e.total ?? e.price * e.quantity)}
-                          </td>
-                          <td className="px-2 py-2.5 font-mono text-slate-400 text-[11px]">{fmt.date(e.addedAt)}</td>
-                          <td className="px-2 py-2.5 text-slate-400 text-[11px]">{e.addedBy?.name}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 border-slate-200">
-                        <td colSpan={4} className="px-2 py-2 text-sm font-bold text-slate-600">
-                          Total
-                        </td>
-                        <td className="px-2 py-2 text-sm font-mono font-bold text-slate-900">
-                          {fmt.currency(totalExpenses(patient.expenses))}
-                        </td>
-                        <td colSpan={2} />
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
-            </SectionCard>
+            <div id="billing-printable" className="space-y-4">
+              {/* Letterhead — print only, hidden on screen */}
+              <div className="hidden print:block text-center pb-4 mb-2 border-b border-slate-200">
+                <h3 className="text-lg font-bold text-slate-900 tracking-wide">{lab?.name ?? "LabPilot Pro"}</h3>
+                {lab?.contact?.address && <p className="text-xs text-slate-500 mt-1">{lab.contact.address}</p>}
+                {lab?.contact?.primary && <p className="text-xs text-slate-500 mt-0.5">{lab.contact.primary}</p>}
+                <p className="text-xs text-slate-400 mt-2 font-mono">
+                  {patient.admissionId} · {patient.patient.name} · {patient.patient.age}y / {patient.patient.gender}
+                </p>
+              </div>
 
-            <SectionCard title={`Payment History (${patient.payments?.length ?? 0})`} icon="🏦">
-              {!patient.payments?.length ? (
-                <p className="text-slate-400 text-sm text-center py-4">No payments recorded yet</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {(() => {
-                    let runningTotal = 0;
-                    return patient.payments.map((p, i) => {
-                      runningTotal += p.amount;
-                      const isExtraPayment = patient.dealType === "package" && runningTotal > total && p.note;
-                      return (
-                        <div
-                          key={i}
-                          className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-[3px] bg-white border-l-2 border border-slate-200 ${
-                            isExtraPayment ? "border-l-amber-400" : "border-l-[#0F6E5C]"
-                          }`}
-                        >
-                          <div className="min-w-0">
-                            <div className="font-mono text-sm font-bold text-slate-800">
-                              {fmt.currency(p.amount)}
-                              {isExtraPayment && (
-                                <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-amber-600">
-                                  extra
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-slate-400 mt-0.5">
-                              {p.collectedBy?.name} · <span className="font-mono">{fmt.datetime(p.collectedAt)}</span>
-                              {p.note && ` · ${p.note}`}
-                            </div>
-                          </div>
-                          <Badge color={isExtraPayment ? "amber" : "green"}>
-                            {isExtraPayment ? "Extra" : "Collected"}
-                          </Badge>
-                        </div>
-                      );
-                    });
-                  })()}
-                  <div className="flex justify-between items-center pt-3 mt-1 border-t border-slate-200 text-sm font-bold">
-                    <span className="text-slate-600">Total Collected</span>
-                    <span className="font-mono text-[#0F6E5C]">{fmt.currency(totalPayments(patient.payments))}</span>
+              <BillingSummary
+                patient={patient}
+                lab={lab}
+                onCollect={() => setShowCollectPayment(true)}
+                onExtra={() => setShowExtraPayment(true)}
+                onAddExpenses={() => navigate(`/ipd/add-items?patientId=${patientId}`)}
+                patientId={patientId}
+                onRefresh={fetchPatient}
+              />
+
+              {/* Discount line — print + screen, only if a discount is actually present */}
+              {discount > 0 && (
+                <SectionCard title="Discount" icon="🏷️">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Discount applied on total billing</span>
+                    <span className="font-mono font-bold text-amber-600">- {fmt.currency(discount)}</span>
                   </div>
-                </div>
+                </SectionCard>
               )}
-            </SectionCard>
+
+              {/* Expense Log — with its own scoped print button + letterhead */}
+              <div id="expense-log-print-root">
+                <SectionLetterhead className="expense-log-print-letterhead" />
+                <SectionCard
+                  title={`Expense Log (${patient.expenses?.length ?? 0})`}
+                  icon="🧾"
+                  action={
+                    <button
+                      type="button"
+                      onClick={handlePrintExpenseLog}
+                      title="Print expense log only"
+                      className="no-print flex items-center justify-center w-6 h-6 rounded-[3px] border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 hover:bg-white transition-colors shrink-0"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                    </button>
+                  }
+                >
+                  {!patient.expenses?.length ? (
+                    <p className="text-slate-400 text-sm text-center py-4">No expenses recorded yet</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-100">
+                            {["Type", "Item", "Price", "Qty", "Total", "Date", "By"].map((h) => (
+                              <th
+                                key={h}
+                                className="text-left px-2 py-2 text-[11px] font-mono font-semibold text-slate-400 uppercase tracking-wider"
+                              >
+                                {h}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {patient.expenses.map((e, i) => (
+                            <tr key={i} className="hover:bg-slate-50">
+                              <td className="px-2 py-2.5">
+                                <Badge color="slate">{e.type}</Badge>
+                              </td>
+                              <td className="px-2 py-2.5 font-medium text-slate-700">{e.name}</td>
+                              <td className="px-2 py-2.5 font-mono text-slate-600">{fmt.currency(e.price)}</td>
+                              <td className="px-2 py-2.5 font-mono text-slate-600">{e.quantity}</td>
+                              <td className="px-2 py-2.5 font-mono font-semibold text-slate-800">
+                                {fmt.currency(e.total ?? e.price * e.quantity)}
+                              </td>
+                              <td className="px-2 py-2.5 font-mono text-slate-400 text-[11px]">
+                                {fmt.date(e.addedAt)}
+                              </td>
+                              <td className="px-2 py-2.5 text-slate-400 text-[11px]">{e.addedBy?.name}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="border-t-2 border-slate-200">
+                            <td colSpan={4} className="px-2 py-2 text-sm font-bold text-slate-600">
+                              Total
+                            </td>
+                            <td className="px-2 py-2 text-sm font-mono font-bold text-slate-900">
+                              {fmt.currency(totalExpenses(patient.expenses))}
+                            </td>
+                            <td colSpan={2} />
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
+                </SectionCard>
+              </div>
+
+              {/* Payment History — with its own scoped print button + letterhead */}
+              <div id="payment-history-print-root">
+                <SectionLetterhead className="payment-history-print-letterhead" />
+                <SectionCard
+                  title={`Payment History (${patient.payments?.length ?? 0})`}
+                  icon="🏦"
+                  action={
+                    <button
+                      type="button"
+                      onClick={handlePrintPaymentHistory}
+                      title="Print payment history only"
+                      className="no-print flex items-center justify-center w-6 h-6 rounded-[3px] border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 hover:bg-white transition-colors shrink-0"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                    </button>
+                  }
+                >
+                  {!patient.payments?.length ? (
+                    <p className="text-slate-400 text-sm text-center py-4">No payments recorded yet</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {(() => {
+                        let runningTotal = 0;
+                        return patient.payments.map((p, i) => {
+                          runningTotal += p.amount;
+                          const isExtraPayment = patient.dealType === "package" && runningTotal > total && p.note;
+                          return (
+                            <div
+                              key={i}
+                              className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-[3px] bg-white border-l-2 border border-slate-200 ${
+                                isExtraPayment ? "border-l-amber-400" : "border-l-[#0F6E5C]"
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <div className="font-mono text-sm font-bold text-slate-800">
+                                  {fmt.currency(p.amount)}
+                                  {isExtraPayment && (
+                                    <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-amber-600">
+                                      extra
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-slate-400 mt-0.5">
+                                  {p.collectedBy?.name} ·{" "}
+                                  <span className="font-mono">{fmt.datetime(p.collectedAt)}</span>
+                                  {p.note && ` · ${p.note}`}
+                                </div>
+                              </div>
+                              <Badge color={isExtraPayment ? "amber" : "green"}>
+                                {isExtraPayment ? "Extra" : "Collected"}
+                              </Badge>
+                            </div>
+                          );
+                        });
+                      })()}
+                      <div className="flex justify-between items-center pt-3 mt-1 border-t border-slate-200 text-sm font-bold">
+                        <span className="text-slate-600">Total Collected</span>
+                        <span className="font-mono text-[#0F6E5C]">
+                          {fmt.currency(totalPayments(patient.payments))}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </SectionCard>
+              </div>
+
+              {/* Footer note — print only */}
+              <p className="hidden print:block text-center text-[11px] text-slate-400 mt-4">
+                Generated on {fmt.datetime(Date.now())}
+              </p>
+            </div>
           </div>
         )}
       </div>
 
       {/* ── Modals ── */}
-      <CollectPaymentModal
-        open={showCollectPayment}
-        patientId={patientId}
-        defaultAmount={collectDefaultAmount}
-        onClose={() => setShowCollectPayment(false)}
-        onSuccess={fetchPatient}
-      />
-      <CollectPaymentModal
-        open={showExtraPayment}
-        patientId={patientId}
-        isExtra={true}
-        defaultAmount=""
-        onClose={() => setShowExtraPayment(false)}
-        onSuccess={fetchPatient}
-      />
+      <div className="no-print">
+        <CollectPaymentModal
+          open={showCollectPayment}
+          patientId={patientId}
+          defaultAmount={collectDefaultAmount}
+          onClose={() => setShowCollectPayment(false)}
+          onSuccess={fetchPatient}
+        />
+        <CollectPaymentModal
+          open={showExtraPayment}
+          patientId={patientId}
+          isExtra={true}
+          defaultAmount=""
+          onClose={() => setShowExtraPayment(false)}
+          onSuccess={fetchPatient}
+        />
 
-      <Modal open={releaseConfirm} onClose={() => setReleaseConfirm(false)} title="Confirm Discharge" width="max-w-md">
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-800 mb-1">Discharge {patient.patient.name}?</h3>
-            <p className="text-sm text-slate-500">
-              This will release the patient and free up{" "}
-              <span className="font-semibold text-slate-700">{patient.space.spaceName}</span>
-              {patient.space.bedNumber != null && <> · Bed {patient.space.bedNumber}</>}. This action cannot be undone.
-            </p>
-          </div>
-          {due > 0 && (
-            <div className="px-3 py-2.5 rounded-[3px] bg-amber-50 border-l-2 border-amber-400 text-[13px] text-amber-700">
-              <span className="font-mono font-semibold">{fmt.currency(due)}</span> is still outstanding.
+        <Modal
+          open={releaseConfirm}
+          onClose={() => setReleaseConfirm(false)}
+          title="Confirm Discharge"
+          width="max-w-md"
+        >
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-800 mb-1">Discharge {patient.patient.name}?</h3>
+              <p className="text-sm text-slate-500">
+                This will release the patient and free up{" "}
+                <span className="font-semibold text-slate-700">{patient.space.spaceName}</span>
+                {patient.space.bedNumber != null && <> · Bed {patient.space.bedNumber}</>}. This action cannot be
+                undone.
+              </p>
             </div>
-          )}
-          <ErrorMsg msg={actionError} />
-          <div className="flex gap-3 pt-1">
-            <Btn variant="secondary" size="lg" className="flex-1" onClick={() => setReleaseConfirm(false)}>
-              Cancel
-            </Btn>
-            <Btn variant="danger" size="lg" className="flex-1" loading={actionLoading} onClick={handleRelease}>
-              Confirm Discharge
-            </Btn>
+            {due > 0 && (
+              <div className="px-3 py-2.5 rounded-[3px] bg-amber-50 border-l-2 border-amber-400 text-[13px] text-amber-700">
+                <span className="font-mono font-semibold">{fmt.currency(due)}</span> is still outstanding.
+              </div>
+            )}
+            <ErrorMsg msg={actionError} />
+            <div className="flex gap-3 pt-1">
+              <Btn variant="secondary" size="lg" className="flex-1" onClick={() => setReleaseConfirm(false)}>
+                Cancel
+              </Btn>
+              <Btn variant="danger" size="lg" className="flex-1" loading={actionLoading} onClick={handleRelease}>
+                Confirm Discharge
+              </Btn>
+            </div>
           </div>
-        </div>
-      </Modal>
+        </Modal>
 
-      <Modal
-        open={deleteConfirm}
-        onClose={() => {
-          setDeleteConfirm(false);
-          setDeleteNote("");
-          setDeleteError("");
-        }}
-        title="Delete Patient Record"
-        width="max-w-md"
-      >
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-800 mb-1">Delete {patient.patient.name}'s record?</h3>
-            <p className="text-sm text-slate-500">
-              This removes the admission from every list, report, and cash memo figure
-              {isAdmitted && (
-                <>
-                  {" "}
-                  and frees up <span className="font-semibold text-slate-700">{patient.space.spaceName}</span>
-                  {patient.space.bedNumber != null && <> · Bed {patient.space.bedNumber}</>}
-                </>
-              )}
-              . This action cannot be undone from the app.
-            </p>
+        <Modal
+          open={deleteConfirm}
+          onClose={() => {
+            setDeleteConfirm(false);
+            setDeleteNote("");
+            setDeleteError("");
+          }}
+          title="Delete Patient Record"
+          width="max-w-md"
+        >
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-800 mb-1">Delete {patient.patient.name}'s record?</h3>
+              <p className="text-sm text-slate-500">
+                This removes the admission from every list, report, and cash memo figure
+                {isAdmitted && (
+                  <>
+                    {" "}
+                    and frees up <span className="font-semibold text-slate-700">{patient.space.spaceName}</span>
+                    {patient.space.bedNumber != null && <> · Bed {patient.space.bedNumber}</>}
+                  </>
+                )}
+                . This action cannot be undone from the app.
+              </p>
+            </div>
+            <Field label="Reason (optional)">
+              <Input
+                placeholder="e.g. duplicate admission, entered by mistake…"
+                value={deleteNote}
+                onChange={(e) => setDeleteNote(e.target.value)}
+              />
+            </Field>
+            <ErrorMsg msg={deleteError} />
+            <div className="flex gap-3 pt-1">
+              <Btn
+                variant="secondary"
+                size="lg"
+                className="flex-1"
+                onClick={() => {
+                  setDeleteConfirm(false);
+                  setDeleteNote("");
+                  setDeleteError("");
+                }}
+              >
+                Cancel
+              </Btn>
+              <Btn variant="danger" size="lg" className="flex-1" loading={actionLoading} onClick={handleDelete}>
+                Confirm Delete
+              </Btn>
+            </div>
           </div>
-          <Field label="Reason (optional)">
-            <Input
-              placeholder="e.g. duplicate admission, entered by mistake…"
-              value={deleteNote}
-              onChange={(e) => setDeleteNote(e.target.value)}
-            />
-          </Field>
-          <ErrorMsg msg={deleteError} />
-          <div className="flex gap-3 pt-1">
-            <Btn
-              variant="secondary"
-              size="lg"
-              className="flex-1"
-              onClick={() => {
-                setDeleteConfirm(false);
-                setDeleteNote("");
-                setDeleteError("");
-              }}
-            >
-              Cancel
-            </Btn>
-            <Btn variant="danger" size="lg" className="flex-1" loading={actionLoading} onClick={handleDelete}>
-              Confirm Delete
-            </Btn>
-          </div>
-        </div>
-      </Modal>
+        </Modal>
+      </div>
     </div>
   );
 };

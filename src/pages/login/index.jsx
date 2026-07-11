@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "../../store/authStore";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/baseAPI";
@@ -16,19 +16,28 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-/* ─── Field wrapper ───────────────────────────────────────────────────────── */
-const Field = ({ label, error, children }) => (
+/* ─── Icon input — placeholder doubles as the label ──────────────────────── */
+const IconInput = ({ icon: Icon, error, rightSlot, className = "", ...props }) => (
   <div className="flex flex-col gap-1.5">
-    <label
-      className="text-[10.5px] font-bold tracking-[0.12em] text-slate-400 uppercase select-none text-center"
-      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
-    >
-      {label}
-    </label>
-    <div className="relative">{children}</div>
+    <div className="relative">
+      <Icon
+        size={15}
+        className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
+      />
+      <input
+        className={`w-full bg-gray-50/70 border rounded-2xl py-3.5 text-base text-slate-800 outline-none transition-all duration-200 placeholder:text-gray-400 placeholder:font-normal focus:bg-white sm:py-2.5 sm:text-sm ${
+          error
+            ? "border-red-300 ring-4 ring-red-100/60 focus:border-red-400 focus:ring-red-100/60"
+            : "border-gray-200/80 focus:border-blue-400 focus:ring-4 focus:ring-blue-100/60"
+        } ${className}`}
+        style={{ paddingLeft: "45px", paddingRight: rightSlot ? "55px" : "16px" }}
+        {...props}
+      />
+      {rightSlot}
+    </div>
     {error && (
       <p
-        className="flex items-center justify-center gap-1 text-[11.5px] text-red-400 font-medium mt-0.5"
+        className="flex items-center gap-1 text-[11.5px] text-red-400 font-medium pl-1"
         style={{ animation: "lpFadeUp 0.25s cubic-bezier(.22,1,.36,1) both" }}
       >
         <AlertCircle size={11} />
@@ -38,133 +47,14 @@ const Field = ({ label, error, children }) => (
   </div>
 );
 
-/* ─── Lab ID dot progress ─────────────────────────────────────────────────── */
-const LabDots = ({ count, total = 4 }) => (
-  <div className="absolute right-5 sm:right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-[5px]">
-    {Array.from({ length: total }).map((_, i) => (
-      <span
-        key={i}
-        style={{
-          width: "6px",
-          height: "6px",
-          borderRadius: "50%",
-          background: i < count ? "#3b82f6" : "#e2e8f0",
-          transition: "all .18s",
-          transform: i < count ? "scale(1.3)" : "scale(1)",
-        }}
-      />
-    ))}
-  </div>
-);
-
-/* ─── Phone Digit Input ───────────────────────────────────────────────────── */
-const MAX_PHONE = 11;
-
-const PhoneDigitInput = ({ value, onChange, onKeyDown, error, autoFocus }) => {
-  const inputRef = useRef(null);
-  const [focused, setFocused] = useState(false);
-
-  return (
-    <div
-      onClick={() => inputRef.current?.focus()}
-      className="cursor-text relative flex items-center justify-center"
-      style={{
-        padding: "10px 0 8px 0",
-        borderRadius: "16px",
-        background: focused ? "#fff" : "rgba(249,250,251,0.7)",
-        border: error ? "1px solid #fca5a5" : focused ? "1px solid #60a5fa" : "1px solid rgba(229,231,235,0.8)",
-        boxShadow: focused ? "0 0 0 4px rgba(59,130,246,0.1)" : error ? "0 0 0 4px rgba(252,165,165,0.2)" : "none",
-        transition: "border 0.2s, box-shadow 0.2s, background 0.2s",
-      }}
-    >
-      <input
-        ref={inputRef}
-        type="tel"
-        inputMode="numeric"
-        value={value}
-        onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, MAX_PHONE))}
-        onKeyDown={onKeyDown}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        autoFocus={autoFocus}
-        maxLength={MAX_PHONE}
-        style={{
-          position: "absolute",
-          inset: 0,
-          opacity: 0,
-          width: "100%",
-          height: "100%",
-          cursor: "text",
-          zIndex: 10,
-        }}
-      />
-      <div className="flex items-center">
-        <Phone size={14} style={{ color: focused ? "#3b82f6" : "#9ca3af", marginRight: "12px", flexShrink: 0 }} />
-        <div className="flex items-center gap-[4px]">
-          {Array.from({ length: MAX_PHONE }).map((_, i) => {
-            const filled = i < value.length;
-            const isCursor = focused && i === value.length;
-            return (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "18px",
-                  height: "24px",
-                  position: "relative",
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "'SF Mono', 'Fira Code', monospace",
-                    fontSize: "16px",
-                    fontWeight: 700,
-                    color: filled ? "#1e3a8a" : "#e2e8f0",
-                  }}
-                >
-                  {filled ? value[i] : "0"}
-                </span>
-                {isCursor && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      width: "1.5px",
-                      height: "17px",
-                      background: "#2563eb",
-                      animation: "lpBlink 1s step-end infinite",
-                    }}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 /* ─── OTP Box Input ───────────────────────────────────────────────────────── */
 const OtpInput = ({ value, onChange }) => {
-  const refs = Array.from({ length: 6 }, () => useRef(null));
-
-  const handleChange = (i, val) => {
+  const setDigit = (i, val, refs) => {
     const digit = val.replace(/\D/g, "").slice(-1);
     const arr = value.split("");
     arr[i] = digit;
-    const next = arr.join("");
-    onChange(next);
-    if (digit && i < 5) refs[i + 1].current?.focus();
-  };
-
-  const handleKeyDown = (i, e) => {
-    if (e.key === "Backspace" && !value[i] && i > 0) {
-      refs[i - 1].current?.focus();
-    }
+    onChange(arr.join(""));
+    if (digit && i < 5) refs[i + 1]?.focus();
   };
 
   return (
@@ -172,14 +62,21 @@ const OtpInput = ({ value, onChange }) => {
       {Array.from({ length: 6 }).map((_, i) => (
         <input
           key={i}
-          ref={refs[i]}
+          id={`otp-${i}`}
           type="text"
           inputMode="numeric"
           maxLength={1}
           value={value[i] || ""}
           autoFocus={i === 0}
-          onChange={(e) => handleChange(i, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(i, e)}
+          onChange={(e) => {
+            const refs = Array.from({ length: 6 }, (_, j) => document.getElementById(`otp-${j}`));
+            setDigit(i, e.target.value, refs);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Backspace" && !value[i] && i > 0) {
+              document.getElementById(`otp-${i - 1}`)?.focus();
+            }
+          }}
           className="w-11 h-12 text-center text-lg font-bold font-mono border border-gray-200 rounded-xl bg-gray-50 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all text-slate-800"
         />
       ))}
@@ -322,10 +219,6 @@ export default function Login() {
     setResendTimer(0);
   };
 
-  const inputBase =
-    "w-full bg-gray-50/70 border border-gray-200/80 rounded-2xl py-4 text-center text-base text-slate-800 outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100/60 focus:bg-white sm:py-2.5 sm:text-sm";
-  const inputErr = "border-red-300 ring-4 ring-red-100/60 focus:border-red-400 focus:ring-red-100/60";
-
   return (
     <div
       className="fixed inset-0 h-[100dvh] w-full flex items-center justify-center px-2 py-4 sm:p-6 overflow-hidden"
@@ -392,7 +285,7 @@ export default function Login() {
           <div className="px-4 sm:px-7 pt-6 pb-6">
             {/* ── LOGIN VIEW ── */}
             {view === "login" && (
-              <div className="flex flex-col gap-6 sm:gap-4">
+              <div className="flex flex-col gap-4">
                 <div className="mb-2 text-center">
                   <h1 className="text-[26px] sm:text-[22px] font-black text-gray-900 tracking-tight leading-tight mb-0.5">
                     Welcome back<span className="text-blue-600">.</span>
@@ -402,54 +295,45 @@ export default function Login() {
                   </p>
                 </div>
 
-                <Field label="Lab ID" error={errors.labKey}>
-                  <Hash
-                    size={15}
-                    className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
-                  />
-                  <input
-                    className={`${inputBase} font-mono tracking-[0.25em] font-bold ${errors.labKey ? inputErr : ""}`}
-                    style={{ paddingLeft: "45px", paddingRight: "45px" }}
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="0000"
-                    value={labKey}
-                    onChange={(e) => setLabKey(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  />
-                  <LabDots count={labKey.length} />
-                </Field>
+                <IconInput
+                  icon={Hash}
+                  error={errors.labKey}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Lab ID"
+                  value={labKey}
+                  onChange={(e) => setLabKey(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                />
 
-                <Field label="Phone Number" error={errors.phone}>
-                  <PhoneDigitInput
-                    value={phone}
-                    onChange={setPhone}
-                    onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                    error={errors.phone}
-                  />
-                </Field>
+                <IconInput
+                  icon={Phone}
+                  error={errors.phone}
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="Phone Number"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                />
 
-                <Field label="Password" error={errors.password}>
-                  <Lock
-                    size={15}
-                    className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
-                  />
-                  <input
-                    className={`${inputBase} tracking-[0.1em] ${errors.password ? inputErr : ""}`}
-                    style={{ paddingLeft: "45px", paddingRight: "55px" }}
-                    type={showPw ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-all active:scale-90"
-                    onClick={() => setShowPw((p) => !p)}
-                  >
-                    {showPw ? <EyeOff size={22} strokeWidth={2.2} /> : <Eye size={22} strokeWidth={2.2} />}
-                  </button>
-                </Field>
+                <IconInput
+                  icon={Lock}
+                  error={errors.password}
+                  type={showPw ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                  rightSlot={
+                    <button
+                      type="button"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-all active:scale-90"
+                      onClick={() => setShowPw((p) => !p)}
+                    >
+                      {showPw ? <EyeOff size={18} strokeWidth={2.2} /> : <Eye size={18} strokeWidth={2.2} />}
+                    </button>
+                  }
+                />
 
                 <div className="flex justify-center -mt-1">
                   <button
@@ -491,32 +375,30 @@ export default function Login() {
 
             {/* ── RESET VIEW — enter lab key + phone ── */}
             {view === "reset" && (
-              <div className="flex flex-col gap-5">
+              <div className="flex flex-col gap-4">
                 <div className="text-center">
                   <h1 className="text-[22px] font-black text-gray-900">Forgot password?</h1>
                   <p className="text-sm text-gray-400 mt-1">Enter your Lab ID and phone — we'll send an OTP</p>
                 </div>
 
-                <Field label="Lab ID">
-                  <Hash
-                    size={15}
-                    className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
-                  />
-                  <input
-                    className={`${inputBase} font-mono tracking-[0.25em] font-bold`}
-                    style={{ paddingLeft: "45px", paddingRight: "45px" }}
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="0000"
-                    value={resetLabKey}
-                    onChange={(e) => setResetLabKey(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  />
-                  <LabDots count={resetLabKey.length} />
-                </Field>
+                <IconInput
+                  icon={Hash}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Lab ID"
+                  value={resetLabKey}
+                  onChange={(e) => setResetLabKey(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                />
 
-                <Field label="Phone Number">
-                  <PhoneDigitInput value={resetPhone} onChange={setResetPhone} autoFocus />
-                </Field>
+                <IconInput
+                  icon={Phone}
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="Phone Number"
+                  value={resetPhone}
+                  onChange={(e) => setResetPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                  autoFocus
+                />
 
                 {resetError && (
                   <div className="flex items-center gap-2 justify-center px-3 py-2.5 rounded-2xl text-[12.5px] text-red-600 bg-red-50 border border-red-200">
@@ -552,35 +434,25 @@ export default function Login() {
                   </p>
                 </div>
 
-                <div>
-                  <p className="text-[10.5px] font-bold tracking-[0.12em] text-slate-400 uppercase text-center mb-2">
-                    6-digit OTP
-                  </p>
-                  <OtpInput value={otp} onChange={setOtp} />
-                </div>
+                <OtpInput value={otp} onChange={setOtp} />
 
-                <Field label="New Password">
-                  <Lock
-                    size={15}
-                    className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
-                  />
-                  <input
-                    className={`${inputBase} tracking-[0.1em]`}
-                    style={{ paddingLeft: "45px", paddingRight: "55px" }}
-                    type={showNewPw ? "text" : "password"}
-                    placeholder="Min 6 characters"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleResetPassword()}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-all"
-                    onClick={() => setShowNewPw((p) => !p)}
-                  >
-                    {showNewPw ? <EyeOff size={22} strokeWidth={2.2} /> : <Eye size={22} strokeWidth={2.2} />}
-                  </button>
-                </Field>
+                <IconInput
+                  icon={Lock}
+                  type={showNewPw ? "text" : "password"}
+                  placeholder="New Password (min 6 characters)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleResetPassword()}
+                  rightSlot={
+                    <button
+                      type="button"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-all"
+                      onClick={() => setShowNewPw((p) => !p)}
+                    >
+                      {showNewPw ? <EyeOff size={18} strokeWidth={2.2} /> : <Eye size={18} strokeWidth={2.2} />}
+                    </button>
+                  }
+                />
 
                 {otpError && (
                   <div className="flex items-center gap-2 justify-center px-3 py-2.5 rounded-2xl text-[12.5px] text-red-600 bg-red-50 border border-red-200">
@@ -664,7 +536,6 @@ export default function Login() {
 
       <style>{`
         @keyframes lpFadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes lpBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
       `}</style>
     </div>
   );

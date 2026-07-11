@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { NavLink, Link } from "react-router-dom";
 import { LogOut, Menu, X, ChevronRight, AlertTriangle } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
-import menu from "./menu";
+import { getMenuForLabType } from "./menu";
 import LoadingScreen from "../loadingPage";
 import Modal from "../modal";
 
 const MobileMenu = () => {
   const logout = useAuthStore((s) => s.logout);
+  const lab = useAuthStore((s) => s.lab);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [lastScroll, setLastScroll] = useState(0);
@@ -15,7 +16,8 @@ const MobileMenu = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Hide navbar on scroll down, show on scroll up
+  const visibleMenu = getMenuForLabType(lab?.type);
+
   useEffect(() => {
     const handleScroll = () => {
       const currentScroll = window.pageYOffset;
@@ -37,9 +39,6 @@ const MobileMenu = () => {
   const toggleMenu = () => setIsMenuOpen((v) => !v);
   const closeMenu = () => setIsMenuOpen(false);
 
-  // Prevent body scroll when drawer or confirm modal is open.
-  // FIX: track both states together so releasing one doesn't accidentally
-  // re-enable scroll while the other is still open.
   useEffect(() => {
     const locked = isMenuOpen || showConfirm;
     document.body.style.overflow = locked ? "hidden" : "unset";
@@ -50,8 +49,6 @@ const MobileMenu = () => {
 
   const handleLogoutClick = () => {
     closeMenu();
-    // Small delay so the drawer slide-out animation completes before
-    // the modal mounts — avoids two layered overlays at the same moment.
     setTimeout(() => setShowConfirm(true), 150);
   };
 
@@ -88,7 +85,6 @@ const MobileMenu = () => {
             </span>
           </Link>
 
-          {/* shrink-0 prevents the hamburger from being squeezed on very narrow screens */}
           <button
             onClick={toggleMenu}
             className="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg hover:bg-gray-100/80 transition-all duration-200"
@@ -98,13 +94,9 @@ const MobileMenu = () => {
           </button>
         </nav>
 
-        {/* Spacer — always present because the navbar hides via CSS transform,
-            not display:none, so we must permanently reserve the 64px height to
-            prevent content from sitting under the fixed bar. */}
         <div className="h-16" />
       </div>
 
-      {/* ─── Backdrop overlay ───────────────────────────────────────────── */}
       {isMenuOpen && (
         <div
           className="lg:hidden fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
@@ -113,7 +105,6 @@ const MobileMenu = () => {
         />
       )}
 
-      {/* ─── Slide-out drawer ────────────────────────────────────────────── */}
       <div
         className={`
           lg:hidden font-anek fixed top-0 right-0 h-full w-80 max-w-[85vw]
@@ -146,10 +137,10 @@ const MobileMenu = () => {
             </div>
           </div>
 
-          {/* Menu Content — overflow-y-auto handles long nav lists on short screens */}
+          {/* Menu Content */}
           <div className="flex-1 overflow-y-auto px-3 py-4 bg-gray-50/50">
             <div className="space-y-0.5">
-              {menu.map((item) => {
+              {visibleMenu.map((item) => {
                 const Icon = item.icon;
                 return (
                   <NavLink

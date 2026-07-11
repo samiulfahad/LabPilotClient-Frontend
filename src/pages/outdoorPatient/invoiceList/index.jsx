@@ -28,6 +28,8 @@ import {
   UserCheck,
   Clock,
   Printer,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Popup from "../../../components/popup";
@@ -67,6 +69,33 @@ const isDelivered = (inv) => inv.delivery?.status === true;
 const getTests = (inv) => inv.tests ?? [];
 const hasReportSchemas = (inv) => getTests(inv).some((t) => t.schemaId);
 
+// Clipboard helper — uses the async Clipboard API where available and falls
+// back to the legacy execCommand approach for non-secure contexts / older webviews.
+const copyToClipboard = async (text) => {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fall through to legacy method
+  }
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+};
+
 // ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / SalesReport.jsx / CreateInvoice.jsx) ──
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
@@ -78,6 +107,39 @@ const getErrorMessage = (err, fallback) => {
 
 const SEAL_BLUE = "#1E4FA0";
 const SEAL_RED = "#C0312B";
+
+// ─── Copy Invoice ID Button ───────────────────────────────────────────────────
+// Shared, reusable across the row and the details modal so the copy behaviour
+// (feedback state, timeout, fallback) lives in exactly one place.
+
+const CopyIdButton = ({ value, size = "xs" }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const ok = await copyToClipboard(String(value));
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
+
+  const dims = size === "sm" ? "w-5 h-5" : "w-4 h-4";
+  const iconDims = size === "sm" ? "w-3 h-3" : "w-2.5 h-2.5";
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      title={copied ? "কপি হয়েছে" : "আইডি কপি করুন"}
+      aria-label="Copy invoice ID"
+      className={`relative shrink-0 ${dims} flex items-center justify-center rounded-[2px] text-[#A8ACA3] hover:text-[#1E4FA0] hover:bg-[#1E4FA0]/5 transition-colors`}
+    >
+      {copied ? <Check className={`${iconDims} text-[#0F6E5C]`} /> : <Copy className={iconDims} />}
+    </button>
+  );
+};
 
 // ─── Round Seal ───────────────────────────────────────────────────────────────
 
@@ -205,8 +267,9 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
             </span>
             <div className="flex-1 min-w-0 flex items-baseline gap-2">
               <span className="text-sm text-[#1C1F1E] font-medium truncate">{patient.name}</span>
-              <span className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3] shrink-0 hidden sm:inline">
+              <span className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3] shrink-0 hidden sm:inline-flex items-center gap-1">
                 #{invoice.invoiceId}
+                <CopyIdButton value={invoice.invoiceId} />
               </span>
             </div>
             <span className="flex-1 border-b border-dotted border-[#D8D5CB] translate-y-[-3px] hidden sm:block" />
@@ -248,7 +311,10 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
                   {date} · {time}
                   {invoice.createdBy?.name && ` · ${invoice.createdBy.name}`}
                 </p>
-                <p className="sm:hidden text-[10px]">#{invoice.invoiceId}</p>
+                <p className="sm:hidden flex items-center gap-1 text-[10px]">
+                  #{invoice.invoiceId}
+                  <CopyIdButton value={invoice.invoiceId} />
+                </p>
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 <ManifestChip onClick={() => setViewingDetails(true)} icon={Eye} label="বিস্তারিত" />
@@ -655,7 +721,10 @@ export const InvoiceDetailsModal = ({
           </div>
           <div>
             <h2 className="font-['IBM_Plex_Sans'] text-sm font-bold text-[#1C1F1E] leading-tight">Invoice Details</h2>
-            <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3] mt-0.5">#{invoiceId}</p>
+            <div className="flex items-center gap-1 mt-0.5">
+              <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3]">#{invoiceId}</p>
+              <CopyIdButton value={invoiceId} size="sm" />
+            </div>
           </div>
         </div>
         <button

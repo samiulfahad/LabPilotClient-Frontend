@@ -25,8 +25,8 @@ import invoiceService from "../../../api/invoice";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
 import LoadingScreen from "../../../components/loadingPage";
-import { InvoiceDetailsModal } from "../invoices/index"; // ← extract from InvoiceList if needed
-import { EditPatientModal } from "../invoices/index"; // ← extract from InvoiceList if needed
+import { InvoiceDetailsModal } from "../invoiceList/index"; // ← extract from InvoiceList if needed
+import { EditPatientModal } from "../invoiceList/index"; // ← extract from InvoiceList if needed
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

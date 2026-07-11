@@ -4,6 +4,71 @@ import { useNavigate } from "react-router-dom";
 import indoorPatientService from "../../api/indoorPatient";
 import { Btn, EmptyState, Input, PageHeader, Sk } from "./indoorPatientHelpers";
 
+// ─── Clipboard helper ──────────────────────────────────────────────────────────
+// Uses the async Clipboard API where available and falls back to the legacy
+// execCommand approach for non-secure contexts / older webviews.
+const copyToClipboard = async (text) => {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fall through to legacy method
+  }
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+};
+
+// ─── Copy Admission ID Button ──────────────────────────────────────────────────
+
+const CopyIdButton = ({ value }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const ok = await copyToClipboard(String(value));
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      title={copied ? "কপি হয়েছে" : "আইডি কপি করুন"}
+      aria-label="Copy admission ID"
+      className="inline-flex items-center justify-center w-4 h-4 rounded text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors shrink-0"
+    >
+      {copied ? (
+        <svg className="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      ) : (
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <rect x="9" y="9" width="11" height="11" rx="1.5" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1" />
+        </svg>
+      )}
+    </button>
+  );
+};
+
 // ─── Row ──────────────────────────────────────────────────────────────────────
 
 const PatientRow = ({ patient }) => {
@@ -24,7 +89,10 @@ const PatientRow = ({ patient }) => {
           />
           <span className="font-semibold text-sm text-slate-800">{patient.patient?.name}</span>
         </div>
-        <div className="text-xs text-slate-400 mt-0.5 pl-4">{patient.admissionId}</div>
+        <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5 pl-4">
+          <span>{patient.admissionId}</span>
+          <CopyIdButton value={patient.admissionId} />
+        </div>
         <div className="text-xs text-slate-400 pl-4">
           {patient.patient?.age} বছর ·{" "}
           {patient.patient?.gender === "male" ? "পুরুষ" : patient.patient?.gender === "female" ? "মহিলা" : "অন্যান্য"} ·{" "}
@@ -47,7 +115,7 @@ const PatientRow = ({ patient }) => {
           className="text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 border border-indigo-200/50 rounded-lg px-3 py-1 text-xs font-medium transition-all"
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/ipd/patient/${patient._id}/reports`);
+            navigate("/report", { state: { admissionId: patient.admissionId } });
           }}
         >
           📋 রিপোর্ট

@@ -36,7 +36,7 @@ import CollectionReport from "./pages/dailyReports/collectionReport";
 import OutdoorPatientHub from "./pages/outdoorPatient";
 import CreateInvoice from "./pages/outdoorPatient/createInvoice";
 import SearchInvoice from "./pages/outdoorPatient/searchInvoice";
-import InvoiceList from "./pages/outdoorPatient/invoices";
+import InvoiceList from "./pages/outdoorPatient/invoiceList";
 import DeleteInvoices from "./pages/outdoorPatient/deleteInvoice";
 import PrintInvoice from "./pages/outdoorPatient/createInvoice/PrintInvoice";
 
@@ -96,6 +96,7 @@ function App() {
 
         {/* Outdoor Patient */}
         <Route path="/outdoor" element={<OutdoorPatientHub />} />
+         <Route path="/invoice-master" element={<OutdoorPatientHub />} />
         <Route path="/outdoor/search-invoice" element={<SearchInvoice />} />
         <Route path="/outdoor/invoice/new" element={<CreateInvoice />} />
         <Route path="/outdoor/invoice/print/:invoiceId" element={<PrintInvoice />} />

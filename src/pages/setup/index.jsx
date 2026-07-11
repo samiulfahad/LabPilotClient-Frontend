@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { FlaskConical, Package, Users, UserCheck, BedDouble, Stethoscope } from "lucide-react";
+import { useAuthStore } from "../../store/authStore";
 
 const CARDS = [
   {
@@ -36,6 +37,7 @@ const CARDS = [
     icon: BedDouble,
     link: "/manage-spaces",
     color: "sky",
+    hospitalOnly: true, // diagnosticCenter labs have no IPD module — hide this card for them
   },
   {
     title: "কর্তব্যরত চিকিৎসক",
@@ -99,6 +101,10 @@ const colorMap = {
 };
 
 const Setup = () => {
+  const user = useAuthStore((state) => state.user);
+  const isHospital = user?.type === "hospital";
+  const visibleCards = CARDS.filter((item) => !item.hospitalOnly || isHospital);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
       <div className="max-w-2xl mx-auto space-y-6">
@@ -122,7 +128,7 @@ const Setup = () => {
 
         {/* Cards grid */}
         <div className="grid grid-cols-2 gap-3">
-          {CARDS.map((item) => {
+          {visibleCards.map((item) => {
             const Icon = item.icon;
             const c = colorMap[item.color];
 
