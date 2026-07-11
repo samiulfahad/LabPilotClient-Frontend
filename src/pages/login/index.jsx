@@ -267,7 +267,7 @@ export default function Login() {
             <span className="text-slate-900 font-bold text-base leading-none">
               LabPilot<span className="font-light">Pro</span>
             </span>
-            <span className="text-[10px] text-slate-500 font-medium leading-tight mt-1 uppercase tracking-wider">
+            <span className="text-[10px] text-slate-500 font-medium leading-tight mt-1 tracking-wider">
               by Engr. Samiul Fahad
             </span>
           </div>
