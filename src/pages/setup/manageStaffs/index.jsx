@@ -25,7 +25,7 @@ import {
   UserX,
   UserCheck,
 } from "lucide-react";
-import Modal from "../../../components/Modal";
+import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
 import staffService from "../../../api/staff";
 import staticDataAPI from "../../../api/staticData";
