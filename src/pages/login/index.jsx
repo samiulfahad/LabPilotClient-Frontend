@@ -268,7 +268,7 @@ export default function Login() {
               LabPilot<span className="font-light">Pro</span>
             </span>
             <span className="text-[10px] text-slate-500 font-medium leading-tight mt-1 uppercase tracking-wider">
-              Lab Management on Autopilot
+              by Engr. Samiul Fahad
             </span>
           </div>
           <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full">
