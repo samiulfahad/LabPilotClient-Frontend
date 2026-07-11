@@ -34,7 +34,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-import Modal from "../../../components/Modal";
+import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
 import spaceService from "../../../api/admissionSpace";
 

@@ -23,7 +23,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import Modal from "../../../components/Modal";
+import Modal from "../../../components/modal";
 import doctorService from "../../../api/doctor";
 import staticDataAPI from "../../../api/staticData";
 import Popup from "../../../components/popup";

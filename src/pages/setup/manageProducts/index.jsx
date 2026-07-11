@@ -3,7 +3,7 @@
  * babel-plugin-react-compiler handles all memoization automatically.
  */
 import { useState, useEffect, useRef } from "react";
-import Modal from "../../../components/Modal";
+import Modal from "../../../components/modal";
 import {
   Plus,
   Pencil,

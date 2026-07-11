@@ -27,7 +27,7 @@ import {
   AlertTriangle,
   Layers,
 } from "lucide-react";
-import Modal from "../../../components/Modal";
+import Modal from "../../../components/modal";
 import testService from "../../../api/test";
 import Popup from "../../../components/popup";
 

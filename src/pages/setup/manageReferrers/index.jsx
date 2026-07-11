@@ -27,7 +27,7 @@ import {
   Check,
   CheckCircle2,
 } from "lucide-react";
-import Modal from "../../../components/Modal";
+import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
 import referrerService from "../../../api/referrer";
 
