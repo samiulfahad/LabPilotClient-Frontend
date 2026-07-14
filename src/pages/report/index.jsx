@@ -4,6 +4,7 @@
  */
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import QRCode from "qrcode";
 import {
   Search,
   Printer,
@@ -31,6 +32,7 @@ import Popup from "../../components/popup";
 import invoiceService from "../../api/invoice";
 import indoorPatientService from "../../api/indoorPatient";
 import reportService from "../../api/report";
+import PrintId from "../../components/PrintId";
 
 // ─── ID Format Detection ──────────────────────────────────────────────────────
 
@@ -489,6 +491,21 @@ const TestActions = ({ record, test }) => {
 
 const RecordDetail = ({ record, onDatesSaved }) => {
   const [metaTest, setMetaTest] = useState(null);
+  const [qrDataUrl, setQrDataUrl] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    QRCode.toDataURL(record.displayId, { width: 96, margin: 0 })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setQrDataUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [record.displayId]);
 
   const { date, time } = formatDateTime(record.createdAt);
   const amount = record.amount;
@@ -524,6 +541,18 @@ const RecordDetail = ({ record, onDatesSaved }) => {
                 {date} · {time}
               </p>
             </div>
+          </div>
+
+          <div className="shrink-0 flex flex-col items-center justify-center mx-2">
+            {qrDataUrl ? (
+              <img
+                src={qrDataUrl}
+                alt={`QR code for ${record.displayId}`}
+                className="w-16 h-16 rounded-lg border border-gray-100 p-1 bg-white"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-lg border border-gray-100 bg-gray-50 animate-pulse" />
+            )}
           </div>
 
           {!isIndoor && amount && (
@@ -764,6 +793,10 @@ const Report = () => {
     setPopup({ type: "success", message: "Dates saved" });
   };
 
+  const handlePrintError = () => {
+    setPopup({ type: "error", message: "Could not generate print. Please try again." });
+  };
+
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
@@ -875,9 +908,12 @@ const Report = () => {
         )}
 
         {!searching && record && (
-          <div className="fu fu2">
-            <RecordDetail record={record} onDatesSaved={handleDatesSaved} />
-          </div>
+          <>
+            <PrintId displayId={record.displayId} onError={handlePrintError} />
+            <div className="fu fu2">
+              <RecordDetail record={record} onDatesSaved={handleDatesSaved} />
+            </div>
+          </>
         )}
 
         <p className="text-center text-[11px] text-gray-400 font-medium mt-5 pb-6">
