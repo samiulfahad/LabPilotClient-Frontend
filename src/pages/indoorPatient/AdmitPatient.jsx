@@ -20,6 +20,15 @@ import {
   ArrowLeft,
 } from "lucide-react";
 
+// ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx / ReportDownload.jsx) ──
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const DEFAULTS = {
@@ -107,6 +116,7 @@ const AdmitPatient = () => {
   const [error, setError] = useState("");
   const [reqData, setReqData] = useState({ spaces: [], doctors: [], referrers: [] });
   const [reqLoading, setReqLoading] = useState(true);
+  const [reqError, setReqError] = useState("");
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const selectedSpace = reqData.spaces.find((s) => s._id === form.spaceId) ?? null;
@@ -115,7 +125,7 @@ const AdmitPatient = () => {
     indoorPatientService
       .getRequiredData()
       .then((res) => setReqData(res.data))
-      .catch(() => {})
+      .catch((err) => setReqError(getErrorMessage(err, "প্রয়োজনীয় তথ্য লোড করতে ব্যর্থ হয়েছে")))
       .finally(() => setReqLoading(false));
   }, []);
 
@@ -194,7 +204,7 @@ const AdmitPatient = () => {
       await indoorPatientService.admit(payload);
       navigate("/ipd/admitted");
     } catch (err) {
-      setError(err?.response?.data?.error ?? "রোগী ভর্তি করতে ব্যর্থ হয়েছে");
+      setError(getErrorMessage(err, "রোগী ভর্তি করতে ব্যর্থ হয়েছে"));
     } finally {
       setLoading(false);
     }
@@ -222,6 +232,10 @@ const AdmitPatient = () => {
 
         {reqLoading ? (
           <FormSkeleton />
+        ) : reqError ? (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <ErrorMsg msg={reqError} />
+          </div>
         ) : (
           <form
             onSubmit={(e) => {

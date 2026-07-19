@@ -6,6 +6,15 @@ import { Badge, Btn, ErrorMsg, Field, Input, Modal, SectionCard, Select, fmt } f
 import indoorPatientService from "../../api/indoorPatient";
 import { Printer } from "lucide-react";
 
+// ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx / ReportDownload.jsx / PatientDetails.jsx) ──
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
 // ─── BST helpers ──────────────────────────────────────────────────────────────
 
 const tsBst = (ts) => new Date(ts + 6 * 3600 * 1000).toISOString().slice(0, 10);
@@ -305,7 +314,7 @@ function AddDiscountModal({ open, onClose, onSuccess, patient, patientId }) {
       onSuccess();
       onClose();
     } catch (err) {
-      setError(err?.response?.data?.error ?? "Failed to apply discount");
+      setError(getErrorMessage(err, "Failed to apply discount"));
     } finally {
       setLoading(false);
     }

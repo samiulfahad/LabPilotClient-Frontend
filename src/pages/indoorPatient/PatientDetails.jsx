@@ -24,6 +24,15 @@ import {
 } from "./indoorPatientHelpers";
 import { Printer } from "lucide-react";
 
+// ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx / ReportDownload.jsx) ──
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
 // ─── Collect Payment Modal ────────────────────────────────────────────────────
 
 const CollectPaymentModal = ({ open, patientId, onClose, onSuccess, isExtra = false, defaultAmount = "" }) => {
@@ -52,7 +61,7 @@ const CollectPaymentModal = ({ open, patientId, onClose, onSuccess, isExtra = fa
       onSuccess();
       onClose();
     } catch (err) {
-      setError(err?.response?.data?.error ?? "Failed to record payment");
+      setError(getErrorMessage(err, "Failed to record payment"));
     } finally {
       setLoading(false);
     }
@@ -207,7 +216,7 @@ const PatientDetails = () => {
       setEditInfo(false);
       fetchPatient();
     } catch (err) {
-      setActionError(err?.response?.data?.error ?? "Update failed");
+      setActionError(getErrorMessage(err, "Update failed"));
     } finally {
       setActionLoading(false);
     }
@@ -226,7 +235,7 @@ const PatientDetails = () => {
       setEditClinical(false);
       fetchPatient();
     } catch (err) {
-      setActionError(err?.response?.data?.error ?? "Failed to update clinical notes");
+      setActionError(getErrorMessage(err, "Failed to update clinical notes"));
     } finally {
       setActionLoading(false);
     }
@@ -249,7 +258,7 @@ const PatientDetails = () => {
       setTxForm({ spaceId: "", bedNumber: null, note: "" });
       fetchPatient();
     } catch (err) {
-      setActionError(err?.response?.data?.error ?? "Transfer failed");
+      setActionError(getErrorMessage(err, "Transfer failed"));
     } finally {
       setActionLoading(false);
     }
@@ -266,7 +275,7 @@ const PatientDetails = () => {
       setChangeDoc(false);
       fetchPatient();
     } catch (err) {
-      setActionError(err?.response?.data?.error ?? "Failed to change doctor");
+      setActionError(getErrorMessage(err, "Failed to change doctor"));
     } finally {
       setActionLoading(false);
     }
@@ -278,7 +287,7 @@ const PatientDetails = () => {
       await indoorPatientService.release(patientId, {});
       navigate("/ipd/patients");
     } catch (err) {
-      setActionError(err?.response?.data?.error ?? "Failed to release");
+      setActionError(getErrorMessage(err, "Failed to release"));
       setActionLoading(false);
     }
   };
@@ -290,7 +299,7 @@ const PatientDetails = () => {
       await indoorPatientService.deletePatient(patientId, { note: deleteNote.trim() });
       navigate("/ipd/patients");
     } catch (err) {
-      setDeleteError(err?.response?.data?.error ?? "Failed to delete patient");
+      setDeleteError(getErrorMessage(err, "Failed to delete patient"));
       setActionLoading(false);
     }
   };

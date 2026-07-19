@@ -16,7 +16,6 @@ import {
   Lock,
   Shield,
   CheckCircle2,
-  XCircle,
   Eye,
   EyeOff,
   Crown,
@@ -65,6 +64,15 @@ import { useAuthStore } from "../../store/authStore";
 import Popup from "../../components/popup";
 import LoadingScreen from "../../components/loadingPage";
 
+// ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx / ReportDownload.jsx) ──
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ROLE_META = {
@@ -85,32 +93,33 @@ const ROLE_META = {
   },
 };
 
-// Visual treatment (icon + accent color) for each known permission key.
-// Falls back to a generic Shield/indigo look for any key the server adds
+// Icon treatment for each known permission key.
+// Falls back to a generic Shield icon for any key the server adds
 // that isn't in this map yet, so new permissions don't break rendering.
 const PERMISSION_ICON_MAP = {
-  createInvoice: { icon: FilePlus, color: "#3B82F6" },
-  deleteInvoice: { icon: Trash2, color: "#EF4444" },
-  addExpense: { icon: Receipt, color: "#F59E0B" },
-  deleteExpense: { icon: Trash2, color: "#DC2626" },
-  cashmemo: { icon: FileText, color: "#10B981" },
-  salesReport: { icon: BarChart3, color: "#6366F1" },
-  expenseReport: { icon: ClipboardList, color: "#F97316" },
-  commissionReport: { icon: Percent, color: "#8B5CF6" },
-  collectionReport: { icon: Wallet, color: "#0D9488" },
-  testReportDownload: { icon: Download, color: "#0D9488" },
-  testReportUpload: { icon: Upload, color: "#8B5CF6" },
-  manageProducts: { icon: Package, color: "#3B82F6" },
-  manageReferrers: { icon: Users, color: "#10B981" },
-  manageDoctors: { icon: Stethoscope, color: "#EF4444" },
-  manageTest: { icon: FlaskConical, color: "#6366F1" },
-  manageBilling: { icon: CreditCard, color: "#F59E0B" },
-  admitPatient: { icon: UserPlus, color: "#10B981" },
-  deletePatient: { icon: UserMinus, color: "#EF4444" },
-  releasePatient: { icon: DoorOpen, color: "#6366F1" },
+  createInvoice: { icon: FilePlus },
+  deleteInvoice: { icon: Trash2 },
+  addExpense: { icon: Receipt },
+  deleteExpense: { icon: Trash2 },
+  cashmemo: { icon: FileText },
+  salesReport: { icon: BarChart3 },
+  expenseReport: { icon: ClipboardList },
+  commissionReport: { icon: Percent },
+  collectionReport: { icon: Wallet },
+  testReportDownload: { icon: Download },
+  testReportUpload: { icon: Upload },
+  manageProducts: { icon: Package },
+  manageReferrers: { icon: Users },
+  manageDoctors: { icon: Stethoscope },
+  manageTest: { icon: FlaskConical },
+  manageBilling: { icon: CreditCard },
+  admitPatient: { icon: UserPlus },
+  addExpenseToPatient: { icon: Receipt },
+  deletePatient: { icon: UserMinus },
+  releasePatient: { icon: DoorOpen },
 };
 
-const DEFAULT_PERMISSION_ICON = { icon: Shield, color: "#6366F1" };
+const DEFAULT_PERMISSION_ICON = { icon: Shield };
 
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -370,7 +379,7 @@ const PhoneModal = ({ onClose, onSuccess }) => {
       await accountService.changePhone({ phone: phone.trim(), currentPassword: password });
       onSuccess("ফোন নম্বর সফলভাবে পরিবর্তন হয়েছে!");
     } catch (err) {
-      setError(err?.response?.data?.error ?? "ফোন নম্বর পরিবর্তন করতে ব্যর্থ");
+      setError(getErrorMessage(err, "ফোন নম্বর পরিবর্তন করতে ব্যর্থ"));
     } finally {
       setLoading(false);
     }
@@ -458,7 +467,7 @@ const EmailModal = ({ onClose, onSuccess, currentEmail }) => {
       await accountService.changeEmail({ email: trimmed, currentPassword: password });
       onSuccess(currentEmail ? "ইমেইল সফলভাবে পরিবর্তন হয়েছে!" : "ইমেইল সফলভাবে যুক্ত হয়েছে!");
     } catch (err) {
-      setError(err?.response?.data?.error ?? "ইমেইল পরিবর্তন করতে ব্যর্থ");
+      setError(getErrorMessage(err, "ইমেইল পরিবর্তন করতে ব্যর্থ"));
     } finally {
       setLoading(false);
     }
@@ -546,7 +555,7 @@ const PasswordModal = ({ onClose, onSuccess }) => {
       await accountService.changePassword({ currentPassword: current, newPassword: next });
       onSuccess("পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে!");
     } catch (err) {
-      setError(err?.response?.data?.error ?? "পাসওয়ার্ড পরিবর্তন করতে ব্যর্থ");
+      setError(getErrorMessage(err, "পাসওয়ার্ড পরিবর্তন করতে ব্যর্থ"));
     } finally {
       setLoading(false);
     }
@@ -746,10 +755,11 @@ const Skeleton = () => (
   </div>
 );
 
+// Pill-shaped skeleton placeholders — matches the granted-permissions pill layout
 const PermissionsSkeleton = () => (
-  <div className="p-4 grid grid-cols-2 gap-2 animate-pulse">
-    {[1, 2, 3, 4].map((i) => (
-      <div key={i} className="h-11 bg-[#F1F5F9] rounded-xl" />
+  <div className="p-4 flex flex-wrap gap-2 animate-pulse">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <div key={i} className="h-7 rounded-full bg-[#F1F5F9]" style={{ width: 60 + (i % 3) * 30 }} />
     ))}
   </div>
 );
@@ -758,6 +768,7 @@ const PermissionsSkeleton = () => (
 
 const Account = () => {
   const logoutAll = useAuthStore((s) => s.logoutAll);
+  const labType = useAuthStore((s) => s.lab?.type);
 
   const [account, setAccount] = useState(null);
   const [sessions, setSessions] = useState([]);
@@ -765,6 +776,9 @@ const Account = () => {
   const [loadingAcct, setLoadingAcct] = useState(true);
   const [loadingSess, setLoadingSess] = useState(true);
   const [loadingPerms, setLoadingPerms] = useState(true);
+  const [acctError, setAcctError] = useState("");
+  const [sessError, setSessError] = useState("");
+  const [permError, setPermError] = useState("");
   const [logoutAllBusy, setLogoutAllBusy] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [popup, setPopup] = useState(null);
@@ -780,10 +794,12 @@ const Account = () => {
   const fetchAccount = async () => {
     try {
       setLoadingAcct(true);
+      setAcctError("");
       const res = await accountService.getMe();
       setAccount(res.data);
-    } catch {
-      setPopup({ type: "error", message: "অ্যাকাউন্ট লোড করতে ব্যর্থ।" });
+    } catch (err) {
+      setAcctError(getErrorMessage(err, "অ্যাকাউন্ট লোড করতে ব্যর্থ।"));
+      setPopup({ type: "error", message: getErrorMessage(err, "অ্যাকাউন্ট লোড করতে ব্যর্থ।") });
     } finally {
       setLoadingAcct(false);
     }
@@ -792,10 +808,11 @@ const Account = () => {
   const fetchSessions = async () => {
     try {
       setLoadingSess(true);
+      setSessError("");
       const res = await accountService.getSessions();
       setSessions(res.data.sessions ?? []);
-    } catch {
-      // sessions section just shows empty
+    } catch (err) {
+      setSessError(getErrorMessage(err, "সেশন তালিকা লোড করতে ব্যর্থ হয়েছে"));
     } finally {
       setLoadingSess(false);
     }
@@ -804,10 +821,11 @@ const Account = () => {
   const fetchPermissionsList = async () => {
     try {
       setLoadingPerms(true);
+      setPermError("");
       const res = await staticDataAPI.getStaffPermissions();
       setPermissionsList(res.data.permissions ?? []);
-    } catch {
-      // permissions section just shows empty — admin/supportAdmin banner still works
+    } catch (err) {
+      setPermError(getErrorMessage(err, "অনুমতির তালিকা লোড করতে ব্যর্থ হয়েছে"));
     } finally {
       setLoadingPerms(false);
     }
@@ -820,7 +838,7 @@ const Account = () => {
       setSessions((prev) => prev.filter((s) => s.deviceId !== deviceId));
       setPopup({ type: "success", message: "সেশন সফলভাবে লগআউট হয়েছে।" });
     } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error ?? "সেশন লগআউট করতে ব্যর্থ।" });
+      setPopup({ type: "error", message: getErrorMessage(err, "সেশন লগআউট করতে ব্যর্থ।") });
     } finally {
       setLoggingOut(false);
       setConfirmModal(null);
@@ -851,13 +869,12 @@ const Account = () => {
   const perms = account?.permissions ?? {};
   const isAdmin = role === "admin" || role === "supportAdmin";
 
-  // Only show permissions relevant to this facility type (outdoor-only
-  // diagnostic centers don't get the hospitalOnly admit/release/delete-patient rows).
-  const isIndoorFacility = account?.facilityType === "hospital" || account?.hasIndoor;
+  // Only show permissions that are (a) applicable to this lab type
+  // (hospitalOnly permissions hidden for non-hospital labs) and
+  // (b) actually granted to this staff member.
   const visiblePermissions = permissionsList.filter(
-    (p) => p.for === "both" || (p.for === "hospitalOnly" && isIndoorFacility),
+    (p) => (p.for !== "hospitalOnly" || labType === "hospital") && perms[p.key],
   );
-  const activePermCount = visiblePermissions.filter((p) => perms[p.key]).length;
 
   const currentSession = sessions.find((s) => s.isCurrent);
   const otherSessions = sessions.filter((s) => !s.isCurrent);
@@ -915,11 +932,16 @@ const Account = () => {
         {loadingAcct ? (
           <Skeleton />
         ) : !account ? (
-          <div className="bg-white border border-[#E2E8F0] rounded-[20px] py-16 text-center shadow-sm">
+          <div className="bg-white border border-[#E2E8F0] rounded-[20px] py-16 px-6 text-center shadow-sm">
             <User className="w-10 h-10 text-[#E2E8F0] mx-auto mb-3" />
-            <p className="font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#94A3B8]">
+            <p className="font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#94A3B8] mb-3">
               অ্যাকাউন্ট লোড করা যায়নি
             </p>
+            {acctError && (
+              <div className="max-w-sm mx-auto">
+                <ErrorBox msg={acctError} />
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -1002,7 +1024,7 @@ const Account = () => {
               </div>
             </div>
 
-            {/* ── Permissions ────────────────────────────────────────────── */}
+            {/* ── Permissions (granted only, pill layout) ────────────────── */}
             {!isAdmin ? (
               <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)] mb-4">
                 <div
@@ -1015,44 +1037,39 @@ const Account = () => {
                       অনুমতিসমূহ
                     </p>
                   </div>
-                  {!loadingPerms && (
-                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#6366F1] bg-[#6366F112] rounded-[6px] border border-[#6366F125]">
-                      {activePermCount} / {visiblePermissions.length} সক্রিয়
+                  {!loadingPerms && !permError && (
+                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#10B981] bg-[#10B98112] rounded-[6px] border border-[#10B98125]">
+                      {visiblePermissions.length} টি সক্রিয়
                     </span>
                   )}
                 </div>
                 {loadingPerms ? (
                   <PermissionsSkeleton />
+                ) : permError ? (
+                  <div className="p-4">
+                    <ErrorBox msg={permError} />
+                  </div>
+                ) : visiblePermissions.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <Shield className="w-8 h-8 text-[#E2E8F0] mx-auto mb-2" />
+                    <p className="font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#94A3B8]">
+                      কোনো অনুমতি প্রদান করা হয়নি
+                    </p>
+                  </div>
                 ) : (
-                  <div className="p-4 grid grid-cols-2 gap-2">
+                  <div className="p-4 flex flex-wrap gap-2">
                     {visiblePermissions.map(({ key, label }) => {
-                      const { icon: Icon, color } = PERMISSION_ICON_MAP[key] ?? DEFAULT_PERMISSION_ICON;
-                      const granted = !!perms[key];
+                      const { icon: Icon } = PERMISSION_ICON_MAP[key] ?? DEFAULT_PERMISSION_ICON;
                       return (
-                        <div
+                        <span
                           key={key}
-                          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-[1.5px] transition-all"
-                          style={
-                            granted
-                              ? { background: `${color}08`, borderColor: `${color}30`, color }
-                              : { background: "#F8FAFC", borderColor: "#E2E8F0", color: "#94A3B8" }
-                          }
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border-[1.5px] border-[#10B98130] bg-[#10B98108]"
                         >
-                          <div
-                            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                            style={{ background: granted ? `${color}15` : "#F1F5F9" }}
-                          >
-                            <Icon className="w-3.5 h-3.5" style={{ color: granted ? color : "#CBD5E1" }} />
-                          </div>
-                          <p className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold leading-tight flex-1 truncate">
+                          <Icon className="w-3.5 h-3.5 text-[#10B981] shrink-0" />
+                          <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#0D9488] whitespace-nowrap">
                             {label}
-                          </p>
-                          {granted ? (
-                            <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
-                          ) : (
-                            <XCircle className="w-4 h-4 text-[#CBD5E1] shrink-0" />
-                          )}
-                        </div>
+                          </span>
+                        </span>
                       );
                     })}
                   </div>
@@ -1159,6 +1176,8 @@ const Account = () => {
                       <div key={i} className="h-20 bg-[#F1F5F9] rounded-xl animate-pulse" />
                     ))}
                   </div>
+                ) : sessError ? (
+                  <ErrorBox msg={sessError} />
                 ) : sessions.length === 0 ? (
                   <div className="py-8 text-center">
                     <WifiOff className="w-8 h-8 text-[#E2E8F0] mx-auto mb-2" />

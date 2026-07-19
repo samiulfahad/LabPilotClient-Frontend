@@ -5,6 +5,15 @@ import indoorPatientService from "../../api/indoorPatient";
 import invoiceService from "../../api/invoice";
 import { Btn, ErrorMsg, PageHeader, Sk, fmt, totalExpenses, totalPayments } from "./indoorPatientHelpers";
 
+// ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx / ReportDownload.jsx) ──
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
 // ─── Patient Search ───────────────────────────────────────────────────────────
 
 const PatientSearch = ({ onSelect }) => {
@@ -12,21 +21,25 @@ const PatientSearch = ({ onSelect }) => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [error, setError] = useState("");
   const timer = useRef(null);
 
   const doSearch = async (q) => {
     if (!q.trim()) {
       setResults([]);
       setSearched(false);
+      setError("");
       return;
     }
     setLoading(true);
+    setError("");
     try {
       const res = await indoorPatientService.getPatients({ status: "admitted", search: q, page: 1, limit: 20 });
       setResults(res.data.patients ?? []);
       setSearched(true);
-    } catch {
+    } catch (err) {
       setResults([]);
+      setError(getErrorMessage(err, "রোগী খুঁজতে ব্যর্থ হয়েছে"));
     } finally {
       setLoading(false);
     }
@@ -75,7 +88,9 @@ const PatientSearch = ({ onSelect }) => {
           )}
         </div>
 
-        {!searched && !loading && (
+        <ErrorMsg msg={error} />
+
+        {!error && !searched && !loading && (
           <div className="text-center py-10 text-gray-300">
             <svg
               className="w-10 h-10 mx-auto mb-3 opacity-40"
@@ -94,7 +109,7 @@ const PatientSearch = ({ onSelect }) => {
           </div>
         )}
 
-        {searched && !results.length && (
+        {!error && searched && !results.length && (
           <div className="text-center py-10 text-gray-400">
             <p className="text-sm font-noto">কোনো ভর্তি রোগী পাওয়া যায়নি</p>
           </div>
@@ -218,6 +233,7 @@ const CatalogRow = ({ type, name, price, added, disabled, onAdd }) => (
 const AddItemsForm = ({ patient, onBack, onDone }) => {
   const [catalog, setCatalog] = useState({ tests: [], products: [] });
   const [catLoading, setCatLoading] = useState(true);
+  const [catError, setCatError] = useState("");
   const [itemQuery, setItemQuery] = useState("");
   const [selected, setSelected] = useState([]);
   const [paidInput, setPaidInput] = useState("");
@@ -231,7 +247,7 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
     invoiceService
       .getRequiredData()
       .then((res) => setCatalog({ tests: res.data.tests ?? [], products: res.data.products ?? [] }))
-      .catch(() => {})
+      .catch((err) => setCatError(getErrorMessage(err, "তালিকা লোড করতে ব্যর্থ হয়েছে")))
       .finally(() => setCatLoading(false));
   }, []);
 
@@ -314,7 +330,7 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
       setSelected([]);
       setPaidInput("");
     } catch (err) {
-      setError(err?.response?.data?.error ?? "আইটেম যোগ করতে ব্যর্থ হয়েছে");
+      setError(getErrorMessage(err, "আইটেম যোগ করতে ব্যর্থ হয়েছে"));
     } finally {
       setSubmitting(false);
     }
@@ -448,6 +464,10 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
               <Sk key={i} cls="h-11" />
             ))}
           </div>
+        ) : catError ? (
+          <div className="p-5">
+            <ErrorMsg msg={catError} />
+          </div>
         ) : !q ? (
           <div className="py-1 text-center text-gray-300"></div>
         ) : allTests.length === 0 && allProducts.length === 0 ? (
@@ -579,7 +599,7 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
         </div>
       )}
 
-      {selected.length === 0 && !catLoading && (
+      {selected.length === 0 && !catLoading && !catError && (
         <p className="text-center text-xs text-gray-300 font-noto py-2">উপরের তালিকা থেকে আইটেম ট্যাপ করে যোগ করুন</p>
       )}
     </div>
@@ -593,6 +613,7 @@ const AddItemsToPatient = () => {
   const [searchParams] = useSearchParams();
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [preloading, setPreloading] = useState(false);
+  const [preloadError, setPreloadError] = useState("");
 
   useEffect(() => {
     const patientId = searchParams.get("patientId");
@@ -601,7 +622,7 @@ const AddItemsToPatient = () => {
     indoorPatientService
       .getPatient(patientId)
       .then((res) => setSelectedPatient(res.data))
-      .catch(() => {})
+      .catch((err) => setPreloadError(getErrorMessage(err, "রোগীর তথ্য লোড করতে ব্যর্থ হয়েছে")))
       .finally(() => setPreloading(false));
   }, []);
 
@@ -630,6 +651,10 @@ const AddItemsToPatient = () => {
             {[1, 2, 3].map((i) => (
               <Sk key={i} cls="h-16 rounded-3xl" />
             ))}
+          </div>
+        ) : preloadError ? (
+          <div className="bg-white border border-gray-100 rounded-3xl shadow-sm p-6">
+            <ErrorMsg msg={preloadError} />
           </div>
         ) : !selectedPatient ? (
           <PatientSearch onSelect={setSelectedPatient} />
