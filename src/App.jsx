@@ -53,6 +53,8 @@ import ExpenseHub from "./pages/expense";
 import AddExpense from "./pages/expense/AddExpense";
 import ExpenseList from "./pages/expense/ExpenseList";
 import DeleteExpense from "./pages/expense/DeleteExpense";
+import ExpenseReport from "./pages/dailyReports/expenseReport";
+import DiscountReport from "./pages/dailyReports/discountReport";
 
 // ─── Route Wrapper for Protected Pages ──────────────────────────────────────
 const ProtectedRoutes = () => {
@@ -83,20 +85,21 @@ function App() {
 
       {/* ════ PROTECTED ROUTES (Login required) ════ */}
       <Route element={<ProtectedRoutes />}>
-
         <Route path="/" element={<Home />} />
         <Route path="/help" element={<Help />} />
-        
+
         {/* Daily Reports */}
         <Route path="/daily-reports" element={<DailyReports />} />
         <Route path="/cashmemo" element={<CashMemo />} />
-        <Route path="/sales-expense-report" element={<SalesReport />} />
+        <Route path="/sales-report" element={<SalesReport />} />
+        <Route path="/expense-report" element={<ExpenseReport />} />
         <Route path="/commission-report" element={<CommissionReport />} />
         <Route path="/collection-report" element={<CollectionReport />} />
+        <Route path="/discount-report" element={<DiscountReport />} />
 
         {/* Outdoor Patient */}
         <Route path="/outdoor" element={<OutdoorPatientHub />} />
-         <Route path="/invoice-master" element={<OutdoorPatientHub />} />
+        <Route path="/invoice-master" element={<OutdoorPatientHub />} />
         <Route path="/outdoor/search-invoice" element={<SearchInvoice />} />
         <Route path="/outdoor/invoice/new" element={<CreateInvoice />} />
         <Route path="/outdoor/invoice/print/:invoiceId" element={<PrintInvoice />} />

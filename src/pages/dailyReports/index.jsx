@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Receipt, FileText, Percent, ArrowLeftRight } from "lucide-react";
+import { Receipt, FileText, Percent, ArrowLeftRight, Wallet, Tag } from "lucide-react";
 
 const reportNav = [
   {
@@ -10,11 +10,25 @@ const reportNav = [
     color: "emerald",
   },
   {
-    label: "সেলস এবং এক্সপেন্স রিপোর্ট",
-    path: "/sales-expense-report",
+    label: "কালেকশন রিপোর্ট",
+    path: "/collection-report",
+    icon: ArrowLeftRight,
+    description: "আদায়কৃত অর্থের হিসাব",
+    color: "sky",
+  },
+  {
+    label: "সেলস রিপোর্ট",
+    path: "/sales-report",
     icon: FileText,
     description: "বিক্রয়ের সারসংক্ষেপ",
     color: "indigo",
+  },
+  {
+    label: "এক্সপেন্স রিপোর্ট",
+    path: "/expense-report",
+    icon: Wallet,
+    description: "ব্যয়ের সারসংক্ষেপ",
+    color: "rose",
   },
   {
     label: "কমিশন রিপোর্ট",
@@ -24,11 +38,11 @@ const reportNav = [
     color: "amber",
   },
   {
-    label: "কালেকশন রিপোর্ট",
-    path: "/collection-report",
-    icon: ArrowLeftRight,
-    description: "আদায়কৃত অর্থের হিসাব",
-    color: "sky",
+    label: "ডিসকাউন্ট রিপোর্ট",
+    path: "/discount-report",
+    icon: Tag,
+    description: "প্রদত্ত ছাড়ের হিসাব",
+    color: "violet",
   },
 ];
 
@@ -49,6 +63,14 @@ const colorMap = {
     desc: "group-hover:text-indigo-500/70",
     bar: "from-indigo-500 to-indigo-400",
   },
+  rose: {
+    card: "hover:border-rose-200 hover:bg-rose-50/60",
+    iconBox: "bg-rose-50 border-rose-100 group-hover:bg-rose-100 group-hover:border-rose-200",
+    icon: "text-rose-500",
+    label: "group-hover:text-rose-900",
+    desc: "group-hover:text-rose-500/70",
+    bar: "from-rose-500 to-rose-400",
+  },
   amber: {
     card: "hover:border-amber-200 hover:bg-amber-50/60",
     iconBox: "bg-amber-50 border-amber-100 group-hover:bg-amber-100 group-hover:border-amber-200",
@@ -64,6 +86,14 @@ const colorMap = {
     label: "group-hover:text-sky-900",
     desc: "group-hover:text-sky-500/70",
     bar: "from-sky-500 to-sky-400",
+  },
+  violet: {
+    card: "hover:border-violet-200 hover:bg-violet-50/60",
+    iconBox: "bg-violet-50 border-violet-100 group-hover:bg-violet-100 group-hover:border-violet-200",
+    icon: "text-violet-500",
+    label: "group-hover:text-violet-900",
+    desc: "group-hover:text-violet-500/70",
+    bar: "from-violet-500 to-violet-400",
   },
 };
 
@@ -87,7 +117,7 @@ const DailyReport = () => {
         </div>
 
         {/* Report cards */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {reportNav.map((item) => {
             const Icon = item.icon;
             const c = colorMap[item.color];

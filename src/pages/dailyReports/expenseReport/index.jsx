@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { ArrowLeft, Printer, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
-import salesReportAPI from "../../../api/dailyReports/salesReport";
+import expenseReportAPI from "../../../api/dailyReports/expenseReport";
 import Popup from "../../../components/popup";
 import { useAuthStore } from "../../../store/authStore";
 
 const fmt = (n) => (typeof n === "number" ? n.toLocaleString("en-IN") : "0");
+const money = (n) => `৳${fmt(n)}`;
 
 const buildHeadingLabel = (start, end) => {
   if (!start || !end) return "";
@@ -72,29 +73,20 @@ const getErrorMessage = (err, fallback) => {
   return err?.response?.data?.error ?? fallback;
 };
 
-// ─── Merge outdoor + indoor counts by id (falls back to name) ─────────────────
-const mergeCounts = (outdoor = [], indoor = [], idKey) => {
-  const map = new Map();
-
-  outdoor.forEach((o) => {
-    const key = o[idKey] ?? o.name;
-    map.set(key, { key, name: o.name, outdoorCount: o.count ?? 0, indoorCount: 0 });
-  });
-
-  indoor.forEach((i) => {
-    const key = i[idKey] ?? i.name;
-    const existing = map.get(key);
-    if (existing) {
-      existing.indoorCount = i.count ?? 0;
-    } else {
-      map.set(key, { key, name: i.name, outdoorCount: 0, indoorCount: i.count ?? 0 });
-    }
-  });
-
-  return Array.from(map.values())
-    .map((v) => ({ ...v, total: v.outdoorCount + v.indoorCount }))
-    .sort((a, b) => b.total - a.total);
+// ─── Expense type → Bengali label ──────────────────────────────────────────────
+const EXPENSE_TYPE_LABELS = {
+  staffSalary: "স্টাফ বেতন",
+  medicine: "মেডিসিন",
+  testKit: "টেস্ট কিট",
+  products: "পণ্য",
+  others: "অন্যান্য",
 };
+
+const buildExpenseRows = (byType = {}) =>
+  Object.entries(byType)
+    .map(([key, v]) => ({ key, name: EXPENSE_TYPE_LABELS[key] ?? key, total: v.total ?? 0, count: v.count ?? 0 }))
+    .filter((r) => r.count > 0)
+    .sort((a, b) => b.total - a.total);
 
 const SkeletonManifest = () => (
   <div className="bg-white border border-[#E3E0D6] rounded-lg overflow-hidden animate-pulse">
@@ -118,7 +110,7 @@ const SkeletonManifest = () => (
   </div>
 );
 
-// ── Single-channel row (diagnostic center: outdoor only) ──────────────────────
+// ── Ledger row (expense rows: name + amount + entry count) ────────────────────
 const LedgerRow = ({ rank, name, count, sub }) => (
   <div>
     <div className="flex items-baseline gap-3">
@@ -130,25 +122,6 @@ const LedgerRow = ({ rank, name, count, sub }) => (
       <span className="font-['IBM_Plex_Mono'] text-sm text-[#1C1F1E] tabular-nums shrink-0">
         {count}
         {sub && <span className="text-[#A8ACA3] ml-1">{sub}</span>}
-      </span>
-    </div>
-  </div>
-);
-
-// ── Dual-channel row (hospital: Indoor + Outdoor breakdown) ───────────────────
-const LedgerRowSplit = ({ rank, name, total, indoorCount, outdoorCount }) => (
-  <div>
-    <div className="flex items-baseline gap-3">
-      <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] tabular-nums w-5 shrink-0">
-        {String(rank).padStart(2, "0")}
-      </span>
-      <span className="text-sm text-[#1C1F1E] font-medium truncate">{name}</span>
-      <span className="flex-1 border-b border-dotted border-[#D8D5CB] translate-y-[-3px]" />
-      <span className="font-['IBM_Plex_Mono'] text-sm text-[#1C1F1E] tabular-nums shrink-0">
-        {fmt(total)}
-        <span className="text-[#A8ACA3] ml-1">
-          (Indoor-{fmt(indoorCount)}, Outdoor-{fmt(outdoorCount)})
-        </span>
       </span>
     </div>
   </div>
@@ -195,40 +168,27 @@ const RoundSeal = ({ dateLabel, label }) => (
   </div>
 );
 
-// ── One report section (heading + rows) ────────────────────────────────────
-const LedgerSection = ({ title, items, isHospital, idKey, emptyLabel, bordered = true }) => (
+// ── Expense ledger section (heading + rows) ────────────────────────────────
+const LedgerSection = ({ title, items, emptyLabel, bordered = true }) => (
   <div className={`px-6 sm:px-8 py-5 ${bordered ? "border-b border-[#E3E0D6]" : ""}`}>
     <div className="mb-1 flex justify-between">
       <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">{title}</p>
       <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] font-noto">পরিমাণ</p>
     </div>
     {items.length > 0 ? (
-      items.map((it, i) =>
-        isHospital ? (
-          <LedgerRowSplit
-            key={it.key ?? i}
-            rank={i + 1}
-            name={it.name}
-            total={it.total}
-            indoorCount={it.indoorCount}
-            outdoorCount={it.outdoorCount}
-          />
-        ) : (
-          <LedgerRow key={it[idKey] ?? i} rank={i + 1} name={it.name} count={fmt(it.total)} />
-        ),
-      )
+      items.map((row, i) => (
+        <LedgerRow key={row.key} rank={i + 1} name={row.name} count={money(row.total)} sub={`(${fmt(row.count)}টি)`} />
+      ))
     ) : (
       <EmptyRow label={emptyLabel} />
     )}
   </div>
 );
 
-const SalesReport = () => {
-  const user = useAuthStore((s) => s.user);
+const ExpenseReport = () => {
   const lab = useAuthStore((s) => s.lab);
-  const isHospital = user?.type === "hospital";
 
-  const [salesData, setSalesData] = useState(null);
+  const [expenseData, setExpenseData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
   const [timeRange, setTimeRange] = useState(null);
@@ -242,8 +202,8 @@ const SalesReport = () => {
   const fetchData = async (range) => {
     try {
       setLoading(true);
-      const res = await salesReportAPI.getSummary({ startDate: range.start, endDate: range.end });
-      setSalesData(res.data);
+      const res = await expenseReportAPI.getSummary({ startDate: range.start, endDate: range.end });
+      setExpenseData(res.data);
     } catch (err) {
       setPopup({ type: "error", message: getErrorMessage(err, "রিপোর্ট লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।") });
     } finally {
@@ -257,27 +217,10 @@ const SalesReport = () => {
     fetchData(range);
   };
 
-  // ── Sales derived data ──────────────────────────────────────────────────
-  const testCounts = isHospital
-    ? mergeCounts(salesData?.testCounts, salesData?.indoorTestCounts, "testId")
-    : (salesData?.testCounts ?? []).map((t) => ({ ...t, total: t.count }));
-
-  const productCounts = isHospital
-    ? mergeCounts(salesData?.productCounts, salesData?.indoorProductCounts, "productId")
-    : (salesData?.productCounts ?? []).map((p) => ({ ...p, total: p.count }));
-
-  const medicineCounts = isHospital
-    ? mergeCounts(salesData?.medicineCounts, salesData?.indoorMedicineCounts, "productId")
-    : (salesData?.medicineCounts ?? []).map((m) => ({ ...m, total: m.count }));
-
-  const serviceCounts = isHospital
-    ? mergeCounts(salesData?.serviceCounts, salesData?.indoorServiceCounts, "productId")
-    : (salesData?.serviceCounts ?? []).map((s) => ({ ...s, total: s.count }));
-
-  const totalTestOrders = testCounts.reduce((sum, t) => sum + (t.total ?? 0), 0);
-  const totalProductUnits = productCounts.reduce((sum, p) => sum + (p.total ?? 0), 0);
-  const totalMedicineUnits = medicineCounts.reduce((sum, m) => sum + (m.total ?? 0), 0);
-  const totalServiceUnits = serviceCounts.reduce((sum, s) => sum + (s.total ?? 0), 0);
+  // ── Expense derived data ────────────────────────────────────────────────
+  const expenseRows = buildExpenseRows(expenseData?.byType);
+  const grandTotal = expenseData?.grandTotal ?? 0;
+  const totalEntries = expenseData?.totalEntries ?? 0;
 
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
 
@@ -289,8 +232,8 @@ const SalesReport = () => {
         @media print {
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           body * { visibility: hidden; }
-          #salesreport-printable, #salesreport-printable * { visibility: visible; }
-          #salesreport-printable { position: fixed; top: 0; left: 0; width: 100%; padding: 32px; box-shadow: none; }
+          #expensereport-printable, #expensereport-printable * { visibility: visible; }
+          #expensereport-printable { position: fixed; top: 0; left: 0; width: 100%; padding: 32px; box-shadow: none; }
           .no-print { display: none !important; }
         }
       `}</style>
@@ -301,7 +244,7 @@ const SalesReport = () => {
             <div>
               <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1 font-noto">ল্যাব অপারেশন</p>
               <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] font-noto">
-                সেলস রিপোর্ট
+                খরচের রিপোর্ট
               </h1>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -330,7 +273,7 @@ const SalesReport = () => {
           <SkeletonManifest />
         ) : (
           <div
-            id="salesreport-printable"
+            id="expensereport-printable"
             className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
           >
             <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5]">
@@ -347,62 +290,37 @@ const SalesReport = () => {
 
             <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
               <div>
-                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">সেলস রিপোর্ট</p>
+                <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">
+                  খরচের রিপোর্ট
+                </p>
                 <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">
                   {headingLabel}
                 </h2>
                 <p className="font-['IBM_Plex_Mono'] text-sm text-[#8A8F89] mt-1.5 font-noto">
-                  মোট টেস্ট- {fmt(totalTestOrders)}টি
+                  মোট খরচ- {money(grandTotal)}
                   <br />
-                  মোট পণ্য- {fmt(totalProductUnits)}টি
-                  <br />
-                  মোট মেডিসিন- {fmt(totalMedicineUnits)}টি
-                  <br />
-                  মোট সার্ভিস- {fmt(totalServiceUnits)}টি
+                  মোট এন্ট্রি- {fmt(totalEntries)}টি
                 </p>
               </div>
 
-              <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} label="Sales Report" />
+              <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} label="Expense Report" />
             </div>
 
             <LedgerSection
-              title="টেস্টের নাম"
-              items={testCounts}
-              isHospital={isHospital}
-              idKey="testId"
-              emptyLabel="এই সময়সীমায় কোনো টেস্ট অর্ডার হয়নি"
-            />
-            <LedgerSection
-              title="পণ্যের নাম"
-              items={productCounts}
-              isHospital={isHospital}
-              idKey="productId"
-              emptyLabel="এই সময়সীমায় কোনো পণ্য বিক্রি হয়নি"
-            />
-            <LedgerSection
-              title="মেডিসিনের নাম"
-              items={medicineCounts}
-              isHospital={isHospital}
-              idKey="productId"
-              emptyLabel="এই সময়সীমায় কোনো মেডিসিন বিক্রি হয়নি"
-            />
-            <LedgerSection
-              title="সার্ভিসের নাম"
-              items={serviceCounts}
-              isHospital={isHospital}
-              idKey="productId"
-              emptyLabel="এই সময়সীমায় কোনো সার্ভিস প্রদান করা হয়নি"
+              title="খাতের নাম"
+              items={expenseRows}
+              emptyLabel="এই সময়সীমায় কোনো খরচ যুক্ত হয়নি"
               bordered={false}
             />
           </div>
         )}
 
         <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-4 pb-6 no-print font-noto">
-          শুধুমাত্র সক্রিয় (ডিলিট না হওয়া) ইনভয়েসের হিসাব অন্তর্ভুক্ত
+          শুধুমাত্র সক্রিয় (ডিলিট না হওয়া) খরচের হিসাব অন্তর্ভুক্ত
         </p>
       </div>
     </section>
   );
 };
 
-export default SalesReport;
+export default ExpenseReport;
