@@ -29,6 +29,7 @@ import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
 import invoiceService from "../../../api/invoice";
 import LoadingScreen from "../../../components/loadingPage";
+import { useAuthStore } from "../../../store/authStore"; // adjust path to your actual store
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -85,19 +86,25 @@ const calcReferrerCommission = (referredBy, initial, referrerDiscountAmt) => {
   return Math.max(0, toFixed2(gross - referrerDiscountAmt));
 };
 
+// Lab adjustment is bounded by the invoice total AFTER referrer discount is
+// applied — this bound holds for every role, including admins.
 const computeAmount = (form) => {
   const testsTotal = form.selectedTests.reduce((s, t) => s + (t.price || 0), 0);
   const productsTotal = form.selectedProducts.reduce((s, p) => s + (p.price || 0) * (p.quantity || 1), 0);
   const initial = testsTotal + productsTotal;
-  const labAdjustment = form.hasLabAdjustment ? parseFloat(form.labAdjustmentAmount) || 0 : 0;
+
   const referrerDiscount = calcReferrerDiscount({ ...form, initial });
+  const afterReferrerDiscount = Math.max(0, initial - referrerDiscount);
+
+  const labAdjustmentRaw = form.hasLabAdjustment ? parseFloat(form.labAdjustmentAmount) || 0 : 0;
+  const labAdjustment = Math.min(Math.max(0, labAdjustmentRaw), afterReferrerDiscount);
+
   const referrerCommission = calcReferrerCommission(form.referredBy, initial, referrerDiscount);
-  const afterLabAdjustment = initial - labAdjustment;
-  const afterLabAdjustmentAndReferrerDiscount = afterLabAdjustment - referrerDiscount;
-  const final = Math.max(0, afterLabAdjustmentAndReferrerDiscount);
+  const final = Math.max(0, afterReferrerDiscount - labAdjustment);
   const net = Math.max(0, final - referrerCommission);
   const paid = parseFloat(form.paidAmount) || 0;
-  return { initial, labAdjustment, referrerDiscount, referrerCommission, final, net, paid };
+
+  return { initial, labAdjustment, referrerDiscount, referrerCommission, final, net, paid, afterReferrerDiscount };
 };
 
 // ─── UI primitives ───────────────────────────────────────────────────────────
@@ -266,7 +273,7 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
                   value={`- ${fmt(amount.referrerDiscount)}`}
                   accent="text-red-600"
                 />
-                <AmountRow label="After Referrer Discount" value={fmt(amount.final)} border />
+                <AmountRow label="After Referrer Discount" value={fmt(amount.afterReferrerDiscount)} border />
               </>
             )}
             {hasLabAdjustment && amount.labAdjustment > 0 && (
@@ -341,6 +348,9 @@ const Detail = ({ label, value }) => (
 const InvoiceForm = ({
   formData,
   amount,
+  isAdmin,
+  canAdjustLab,
+  maxLabAdjustment,
   availableReferrers,
   availableTests,
   availableProducts,
@@ -411,9 +421,24 @@ const InvoiceForm = ({
     onChange("referrerDiscount", checked ? referredBy?.commissionValue || 0 : 0);
   };
 
+  // Lab adjustment is gated by canAdjustLab (hidden entirely if a staff has
+  // a zero cap) and bounded by both the staff's max (from JWT) and the
+  // invoice total after referrer discount — admins skip the dollar cap but
+  // are still bounded by the post-discount total.
+  const labAdjustmentCap = isAdmin
+    ? amount.afterReferrerDiscount
+    : Math.min(maxLabAdjustment, amount.afterReferrerDiscount);
+
   const handleLabAdjustToggle = (checked) => {
+    if (checked && !canAdjustLab) return;
     onChange("hasLabAdjustment", checked);
     if (!checked) onChange("labAdjustmentAmount", 0);
+  };
+
+  const clampLabAdjustment = (val) => {
+    if (val === "") return onChange("labAdjustmentAmount", "");
+    const num = parseFloat(val) || 0;
+    onChange("labAdjustmentAmount", Math.min(Math.max(0, num), labAdjustmentCap));
   };
 
   const clampDiscount = (val) => {
@@ -844,37 +869,51 @@ const InvoiceForm = ({
                   </Field>
                   <div className="p-3 bg-white rounded-lg border border-blue-200 flex items-center justify-between text-sm">
                     <span className="text-gray-600">After Referrer Discount</span>
-                    <span className="font-medium text-blue-600">{fmt(amount.final)}</span>
+                    <span className="font-medium text-blue-600">{fmt(amount.afterReferrerDiscount)}</span>
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* Lab Adjustment */}
-          <div className="space-y-3">
-            <CheckboxToggle
-              checked={hasLabAdjustment}
-              onChange={handleLabAdjustToggle}
-              icon={DollarSign}
-              label="Apply Lab Adjustment"
-            />
-            {hasLabAdjustment && (
-              <div className="ml-6 p-4 bg-yellow-50 rounded-lg border border-yellow-100">
-                <Field label="Lab Adjustment Amount">
-                  <IconInput
-                    icon={DollarSign}
-                    type="number"
-                    value={labAdjustmentAmount}
-                    onChange={(e) => onChange("labAdjustmentAmount", parseFloat(e.target.value) || 0)}
-                    placeholder="Enter adjustment amount"
-                    min="0"
-                    step="0.01"
-                  />
-                </Field>
-              </div>
-            )}
-          </div>
+          {/* Lab Adjustment — hidden entirely for staff with a zero cap;
+              admins always see it with no dollar cap (still bounded by the
+              post-referrer-discount total via labAdjustmentCap) */}
+          {canAdjustLab && (
+            <div className="space-y-3">
+              <CheckboxToggle
+                checked={hasLabAdjustment}
+                onChange={handleLabAdjustToggle}
+                icon={DollarSign}
+                label="Apply Lab Adjustment"
+              />
+              {hasLabAdjustment && (
+                <div className="ml-6 p-4 bg-yellow-50 rounded-lg border border-yellow-100">
+                  <Field
+                    label={
+                      <>
+                        Lab Adjustment Amount
+                        <span className="ml-1.5 text-xs font-normal text-yellow-700">
+                          (max {fmt(labAdjustmentCap)})
+                        </span>
+                      </>
+                    }
+                  >
+                    <IconInput
+                      icon={DollarSign}
+                      type="number"
+                      value={labAdjustmentAmount}
+                      onChange={(e) => clampLabAdjustment(e.target.value)}
+                      placeholder="Enter adjustment amount"
+                      min="0"
+                      max={labAdjustmentCap}
+                      step="0.01"
+                    />
+                  </Field>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Final total */}
           <div className="p-5 bg-blue-600 rounded-lg flex items-center justify-between">
@@ -982,6 +1021,11 @@ const FormSkeleton = () => (
 
 const CreateInvoice = () => {
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user); // { role, maxLabAdjustment, ... } — adjust selector to match your store
+  const isAdmin = user?.role === "admin";
+  const maxLabAdjustment = user?.maxLabAdjustment ?? 0;
+  const canAdjustLab = isAdmin || maxLabAdjustment > 0;
+
   const [availableReferrers, setAvailableReferrers] = useState([]);
   const [availableTests, setAvailableTests] = useState([]);
   const [availableProducts, setAvailableProducts] = useState([]);
@@ -1142,6 +1186,9 @@ const CreateInvoice = () => {
             <InvoiceForm
               formData={formData}
               amount={amount}
+              isAdmin={isAdmin}
+              canAdjustLab={canAdjustLab}
+              maxLabAdjustment={maxLabAdjustment}
               availableReferrers={availableReferrers}
               availableTests={availableTests}
               availableProducts={availableProducts}

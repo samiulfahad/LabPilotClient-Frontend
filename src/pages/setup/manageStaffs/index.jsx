@@ -24,6 +24,7 @@ import {
   Pencil,
   UserX,
   UserCheck,
+  Wallet,
 } from "lucide-react";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
@@ -64,6 +65,7 @@ const EMPTY_FORM = {
   email: "",
   phone: "",
   isActive: true,
+  maxLabAdjustment: 0,
 };
 
 // ── Error helpers ──────────────────────────────────────────────────────────────
@@ -135,10 +137,16 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
         phone: initial.phone ?? "",
         permissions: initial.permissions ?? buildInitialPerms(permissionsList),
         isActive: initial.isActive ?? true,
+        maxLabAdjustment: initial.maxLabAdjustment ?? 0,
       };
     }
     return { ...EMPTY_FORM, permissions: buildInitialPerms(permissionsList) };
   });
+
+  // Adjustment limit is toggled on/off independently of its numeric value —
+  // turning the toggle off always zeroes maxLabAdjustment (0 = disabled per
+  // backend contract); turning it on reveals the amount input.
+  const [adjustmentEnabled, setAdjustmentEnabled] = useState((initial?.maxLabAdjustment ?? 0) > 0);
 
   const [saving, setSaving] = useState(false);
   const [apiError, setApiError] = useState("");
@@ -146,6 +154,15 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
   const set = (field, value) => {
     setForm((f) => ({ ...f, [field]: value }));
     if (apiError) setApiError("");
+  };
+
+  const toggleAdjustment = () => {
+    if (adjustmentEnabled) {
+      setAdjustmentEnabled(false);
+      set("maxLabAdjustment", 0);
+    } else {
+      setAdjustmentEnabled(true);
+    }
   };
 
   const allEnabled = permissionsList.every((p) => form.permissions[p.key]);
@@ -158,10 +175,16 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
   const handleSubmit = async () => {
     if (!form.name.trim()) return setApiError("নাম প্রয়োজন।");
     if (!form.phone.trim()) return setApiError("ফোন নম্বর প্রয়োজন।");
+    if (adjustmentEnabled && (!form.maxLabAdjustment || Number(form.maxLabAdjustment) <= 0)) {
+      return setApiError("অ্যাডজাস্টমেন্ট সীমা প্রয়োজন।");
+    }
     try {
       setSaving(true);
       setApiError("");
-      const payload = { ...form };
+      const payload = {
+        ...form,
+        maxLabAdjustment: adjustmentEnabled ? Number(form.maxLabAdjustment) : 0,
+      };
       if (isEdit) {
         await staffService.editStaff({ ...payload, _id: initial._id, type: "editStaff" });
       } else {
@@ -303,6 +326,44 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
               })}
             </div>
           </FormField>
+
+          {/* Max lab/bill adjustment — not shown for admins. Toggle first
+              (0 = disabled per backend contract), amount input reveals
+              only once enabled. */}
+          {!isAdmin && (
+            <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden bg-white">
+              <button
+                type="button"
+                onClick={toggleAdjustment}
+                className="w-full flex items-center justify-between px-4 py-3"
+              >
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-3 h-3 text-[#6366F1]" />
+                  <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
+                    বিল অ্যাডজাস্টমেন্ট সীমা
+                  </span>
+                </div>
+                <ToggleSwitch checked={adjustmentEnabled} />
+              </button>
+              {adjustmentEnabled && (
+                <div className="px-4 pb-3.5">
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.maxLabAdjustment === 0 ? "" : form.maxLabAdjustment}
+                    onChange={(e) => set("maxLabAdjustment", e.target.value === "" ? "" : Number(e.target.value))}
+                    placeholder="সর্বোচ্চ পরিমাণ (৳)"
+                    className={`${inputBase} px-3 py-2.5 text-sm`}
+                    onFocus={focusInput}
+                    onBlur={blurInput}
+                  />
+                  <p className="mt-1 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
+                    এই কর্মী সর্বোচ্চ এই পরিমাণ পর্যন্ত ল্যাব/বিল অ্যাডজাস্টমেন্ট করতে পারবেন।
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Permissions — modern toggle-switch list, 2 columns on larger screens.
               Not shown for admins, who always have full, fixed access. */}
@@ -505,6 +566,11 @@ const StaffRow = ({ member, index, permissionsList, onEdit, onDelete, onDeactiva
             {member.phone && (
               <p className="flex items-center gap-1.5">
                 <Phone className="w-3 h-3 text-[#6366F1]" /> {member.phone}
+              </p>
+            )}
+            {member.role !== "admin" && member.maxLabAdjustment > 0 && (
+              <p className="flex items-center gap-1.5">
+                <Wallet className="w-3 h-3 text-[#6366F1]" /> সর্বোচ্চ অ্যাডজাস্টমেন্ট ৳{member.maxLabAdjustment}
               </p>
             )}
           </div>
