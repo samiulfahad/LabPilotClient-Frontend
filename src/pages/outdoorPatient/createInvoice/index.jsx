@@ -44,7 +44,7 @@ const INITIAL_FORM = {
   referrerDiscount: 0,
   hasLabAdjustment: false,
   labAdjustmentAmount: 0,
-  paidAmount: 0,
+  paidAmount: "", // kept as string in state so the field can be cleared/edited freely
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -168,6 +168,37 @@ const ProductTypeBadge = ({ type }) => (
   >
     {type}
   </span>
+);
+
+// ─── Toggle switch ─────────────────────────────────────────────────────────
+// Replaces the old checkbox-based CheckboxToggle with a proper switch control.
+
+const ToggleSwitch = ({ checked, onChange, icon: Icon, label }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={checked}
+    onClick={() => onChange(!checked)}
+    className="flex items-center justify-between w-full gap-3"
+  >
+    <div className="flex items-center gap-1.5">
+      <div className={`p-1.5 rounded transition-colors duration-200 ${checked ? "bg-blue-600" : "bg-gray-100"}`}>
+        <Icon className={`w-3.5 h-3.5 transition-colors duration-200 ${checked ? "text-white" : "text-gray-500"}`} />
+      </div>
+      <span className="text-sm font-medium text-gray-700">{label}</span>
+    </div>
+    <span
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 ${
+        checked ? "bg-blue-600" : "bg-gray-300"
+      }`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+          checked ? "translate-x-6" : "translate-x-1"
+        }`}
+      />
+    </span>
+  </button>
 );
 
 // ─── Invoice Summary modal ────────────────────────────────────────────────────
@@ -835,7 +866,7 @@ const InvoiceForm = ({
           {/* Referrer Discount */}
           {referredBy && typeof referredBy === "object" && (
             <div className="space-y-3">
-              <CheckboxToggle
+              <ToggleSwitch
                 checked={hasReferrerDiscount}
                 onChange={handleReferrerDiscountToggle}
                 icon={Percent}
@@ -881,7 +912,7 @@ const InvoiceForm = ({
               post-referrer-discount total via labAdjustmentCap) */}
           {canAdjustLab && (
             <div className="space-y-3">
-              <CheckboxToggle
+              <ToggleSwitch
                 checked={hasLabAdjustment}
                 onChange={handleLabAdjustToggle}
                 icon={DollarSign}
@@ -936,7 +967,7 @@ const InvoiceForm = ({
               icon={Wallet}
               type="number"
               value={paidAmount}
-              onChange={(e) => onChange("paidAmount", parseFloat(e.target.value) || 0)}
+              onChange={(e) => onChange("paidAmount", e.target.value)}
               placeholder="Enter amount paid by patient"
               min="0"
               step="0.01"
@@ -981,23 +1012,6 @@ const InvoiceForm = ({
     </form>
   );
 };
-
-const CheckboxToggle = ({ checked, onChange, icon: Icon, label }) => (
-  <label className="flex items-center gap-2 cursor-pointer">
-    <input
-      type="checkbox"
-      checked={checked}
-      onChange={(e) => onChange(e.target.checked)}
-      className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-    />
-    <div className="flex items-center gap-1.5">
-      <div className="p-1.5 bg-white rounded">
-        <Icon className="w-3.5 h-3.5 text-blue-600" />
-      </div>
-      <span className="text-sm font-medium text-gray-700">{label}</span>
-    </div>
-  </label>
-);
 
 // ─── Skeleton loader ──────────────────────────────────────────────────────────
 
