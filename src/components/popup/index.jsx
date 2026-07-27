@@ -2,7 +2,7 @@ import React from "react";
 import { CheckCircle2, XCircle, AlertTriangle, X } from "lucide-react";
 import Portal from "../Portal";
 
-// Only three types: success, error, warning
+// Four types: success, error, warning (confirm/cancel), denied (info-only)
 const typeConfig = {
   success: {
     icon: CheckCircle2,
@@ -31,6 +31,15 @@ const typeConfig = {
     confirmButtonColor: "bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-700 hover:to-amber-700",
     cancelButtonColor: "bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700",
     singleButton: false,
+  },
+  denied: {
+    icon: AlertTriangle,
+    title: "No Permission",
+    titleColor: "text-amber-600",
+    iconBgColor: "bg-gradient-to-br from-amber-100 to-yellow-100",
+    iconColor: "text-amber-600",
+    buttonColor: "bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700",
+    singleButton: true,
   },
 };
 

@@ -1,5 +1,5 @@
 // @babel-plugin-react-compiler
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   Printer,
@@ -683,14 +683,6 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
 };
 
 // ─── Indoor (IPD) revenue-cycle receipt ──────────────────────────────────────
-//
-// Layout mirrors a real hospital finance dashboard:
-//   census + patient flow (admitted/released, ALOS)
-//   → billed / collected / due + collection rate
-//   → revenue mix by category
-//   → discounts (drill-down)
-//   → outstanding patients / AR (drill-down)
-//   → deleted patients (drill-down, mirrors outdoor tab but with detail)
 
 const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) => {
   const d = summary ?? {};
@@ -1106,7 +1098,12 @@ const SummaryReceipt = ({
       </div>
 
       <div className="px-6 sm:px-8 py-5">
-        <SummarySection title={isHospital ? "বহির্বিভাগ" : "বিস্তারিত"} icon={Wallet} accent={TEAL} rows={outdoorRows} />
+        <SummarySection
+          title={isHospital ? "বহির্বিভাগ" : "বিস্তারিত"}
+          icon={Wallet}
+          accent={TEAL}
+          rows={outdoorRows}
+        />
 
         {isHospital && <SummarySection title="অন্তঃবিভাগ (আইপিডি)" icon={Users} accent={INDIGO} rows={indoorRows} />}
 
@@ -1155,13 +1152,49 @@ const CashMemo = () => {
   const [popup, setPopup] = useState(null);
   const [timeRange, setTimeRange] = useState(null);
 
+  // Tracks which tabs have already been fetched for the CURRENT timeRange, so
+  // switching tabs back and forth doesn't refetch — only a range change does.
+  const loadedForRangeRef = useRef({ outdoor: false, indoor: false, summary: false });
+
   useEffect(() => {
     const range = todayRange();
     setTimeRange(range);
-    fetchOutdoor(range);
-    fetchExpense(range);
-    if (isHospital) fetchIndoor(range);
+    loadedForRangeRef.current = { outdoor: false, indoor: false, summary: false };
+    loadTab(activeTab, range); // only fetches what the initially-active tab needs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fetches whatever a given tab needs, skipping anything already loaded for
+  // the current range. "summary" needs outdoor + expense + (if hospital)
+  // indoor, since it aggregates all three — so it may kick off multiple
+  // fetches the first time it's opened.
+  const loadTab = (tab, range) => {
+    const loaded = loadedForRangeRef.current;
+
+    if (tab === "outdoor" && !loaded.outdoor) {
+      loaded.outdoor = true;
+      fetchOutdoor(range);
+      fetchExpense(range);
+    }
+
+    if (tab === "indoor" && isHospital && !loaded.indoor) {
+      loaded.indoor = true;
+      fetchIndoor(range);
+    }
+
+    if (tab === "summary" && !loaded.summary) {
+      loaded.summary = true;
+      if (!loaded.outdoor) {
+        loaded.outdoor = true;
+        fetchOutdoor(range);
+        fetchExpense(range);
+      }
+      if (isHospital && !loaded.indoor) {
+        loaded.indoor = true;
+        fetchIndoor(range);
+      }
+    }
+  };
 
   const fetchOutdoor = async (range) => {
     try {
@@ -1202,9 +1235,15 @@ const CashMemo = () => {
   const handleFetchData = (start, end) => {
     const range = { start, end };
     setTimeRange(range);
-    fetchOutdoor(range);
-    fetchExpense(range);
-    if (isHospital) fetchIndoor(range);
+    // A new range invalidates everything already fetched — reset the cache
+    // and load only what the currently-active tab needs.
+    loadedForRangeRef.current = { outdoor: false, indoor: false, summary: false };
+    loadTab(activeTab, range);
+  };
+
+  const handleTabClick = (key) => {
+    setActiveTab(key);
+    if (timeRange) loadTab(key, timeRange);
   };
 
   const labName = lab?.name;
@@ -1290,7 +1329,7 @@ const CashMemo = () => {
         {/* Tabs */}
         <div className="flex border-b border-[#E3E0D6] mb-5 no-print bg-white rounded-t-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)]">
           {tabs.map((t) => (
-            <TabBtn key={t.key} active={activeTab === t.key} onClick={() => setActiveTab(t.key)} accent={t.accent}>
+            <TabBtn key={t.key} active={activeTab === t.key} onClick={() => handleTabClick(t.key)} accent={t.accent}>
               {t.label}
             </TabBtn>
           ))}

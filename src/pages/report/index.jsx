@@ -27,12 +27,13 @@ import {
   Hash,
   Info,
 } from "lucide-react";
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import Popup from "../../components/popup";
 import invoiceService from "../../api/invoice";
 import indoorPatientService from "../../api/indoorPatient";
 import reportService from "../../api/report";
 import PrintId from "../../components/PrintId";
+import { useGuardedAction } from "../../hooks/useGuardedAction";
 
 // ─── ID Format Detection ──────────────────────────────────────────────────────
 
@@ -260,9 +261,6 @@ const BridgeDivider = () => (
 );
 
 // ─── Meta Modal (dates + created / edited / added info) ───────────────────────
-// Rendered via createPortal straight to document.body so it always sits
-// centered over the full viewport, independent of any ancestor stacking
-// contexts, scroll containers, or transforms in the card tree.
 
 const MetaModal = ({ record, test, onClose, onSaved }) => {
   const added = test.addedAt ? formatDateTime(test.addedAt) : null;
@@ -340,7 +338,6 @@ const MetaModal = ({ record, test, onClose, onSaved }) => {
         className="bg-white rounded-2xl shadow-[0_25px_60px_rgba(15,23,42,0.25)] w-full max-w-md max-h-[85vh] flex flex-col animate-[fadeUp_0.25s_ease]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Sticky header — clean, light */}
         <div className="shrink-0 px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-3 rounded-t-2xl">
           <div className="min-w-0 flex items-center gap-3">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${INDIGO.icon}`}>
@@ -356,9 +353,7 @@ const MetaModal = ({ record, test, onClose, onSaved }) => {
           </button>
         </div>
 
-        {/* Scrollable body — generous y padding */}
         <div className="flex-1 overflow-y-auto px-6 py-8">
-          {/* Dates first */}
           <SectionHeader icon={Calendar} label="তারিখ পরিবর্তন" token={TEAL} />
           <div className={`flex flex-wrap gap-3 p-4 rounded-xl border ${TEAL.border} ${TEAL.bg}`}>
             <DateField
@@ -394,7 +389,6 @@ const MetaModal = ({ record, test, onClose, onSaved }) => {
             <BridgeDivider />
           </div>
 
-          {/* Meta info below */}
           <SectionHeader icon={Info} label="বিস্তারিত তথ্য" token={INDIGO} />
           <div className="px-1">
             <Row
@@ -409,7 +403,6 @@ const MetaModal = ({ record, test, onClose, onSaved }) => {
           </div>
         </div>
 
-        {/* Sticky footer — clean, light */}
         <div className="shrink-0 px-6 py-4 border-t border-gray-100 rounded-b-2xl">
           <button
             onClick={onClose}
@@ -429,20 +422,28 @@ const MetaModal = ({ record, test, onClose, onSaved }) => {
 const TestActions = ({ record, test }) => {
   const { _type, _patientId, displayId } = record;
   const { testId, name, isCompleted, addedAt } = test;
+  const navigate = useNavigate();
+  const { guard, denied, closeDenied } = useGuardedAction();
+
+  const goToUpload = (isEdit) => {
+    const state =
+      _type === "indoor"
+        ? { patientId: _patientId, testId, testName: name, type: "indoor", addedAt, ...(isEdit && { isEdit: true }) }
+        : { invoiceId: displayId, testId, testName: name, invoice: record, ...(isEdit && { isEdit: true }) };
+    navigate("/report-upload", { state });
+  };
 
   if (!isCompleted) {
     return (
-      <Link
-        to="/report-upload"
-        state={
-          _type === "indoor"
-            ? { patientId: _patientId, testId, testName: name, type: "indoor", addedAt }
-            : { invoiceId: displayId, testId, testName: name, invoice: record }
-        }
-        className="flex items-center gap-1.5 px-3 py-2 bg-gray-900 text-white hover:bg-gray-700 text-xs font-bold rounded-xl transition-all shadow-sm"
-      >
-        <Upload className="w-3 h-3" /> Upload
-      </Link>
+      <>
+        <button
+          onClick={guard("uploadReport", () => goToUpload(false))}
+          className="flex items-center gap-1.5 px-3 py-2 bg-gray-900 text-white hover:bg-gray-700 text-xs font-bold rounded-xl transition-all shadow-sm"
+        >
+          <Upload className="w-3 h-3" /> Upload
+        </button>
+        {denied && <Popup type="denied" message={denied} onClose={closeDenied} />}
+      </>
     );
   }
 
@@ -471,18 +472,14 @@ const TestActions = ({ record, test }) => {
         <Printer className="w-3 h-3" />
         <span className="hidden sm:inline">A4</span>
       </Link>
-      <Link
-        to="/report-upload"
-        state={
-          _type === "indoor"
-            ? { patientId: _patientId, testId, testName: name, type: "indoor", isEdit: true, addedAt }
-            : { invoiceId: displayId, testId, testName: name, invoice: record, isEdit: true }
-        }
+      <button
+        onClick={guard("uploadReport", () => goToUpload(true))}
         className="flex items-center gap-1 px-2.5 py-2 border border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-800 text-xs font-semibold rounded-xl transition-all"
       >
         <Pencil className="w-3 h-3" />
         <span className="hidden sm:inline">Edit</span>
-      </Link>
+      </button>
+      {denied && <Popup type="denied" message={denied} onClose={closeDenied} />}
     </div>
   );
 };
@@ -750,7 +747,6 @@ const Report = () => {
         setRecord(normalizeOutdoor(res.data));
       } else {
         const res = await indoorPatientService.getByAdmissionId(id.trim().toUpperCase());
-        console.log(res.data);
         setRecord(normalizeIndoor(res.data));
       }
     } catch (err) {
@@ -782,7 +778,6 @@ const Report = () => {
     setInvalidId(false);
   };
 
-  // addedAt added as second arg to pinpoint the exact entry
   const handleDatesSaved = (testId, addedAt, dates) => {
     setRecord((prev) => ({
       ...prev,
@@ -812,7 +807,6 @@ const Report = () => {
       `}</style>
 
       <div className="max-w-2xl mx-auto">
-        {/* ── Page heading ── */}
         <div className="flex items-start justify-between mb-5 fu">
           <div>
             <h1 className="text-2xl font-black text-gray-900 leading-tight">রিপোর্ট ম্যানেজমেন্ট</h1>
@@ -826,7 +820,6 @@ const Report = () => {
           </Link>
         </div>
 
-        {/* ── Search ── */}
         <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-4 shadow-sm fu fu1">
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -869,7 +862,6 @@ const Report = () => {
           </div>
         </div>
 
-        {/* ── States ── */}
         {searching && <RecordSkeleton />}
 
         {!searching && invalidId && (
