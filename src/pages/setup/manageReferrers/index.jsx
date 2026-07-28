@@ -25,7 +25,6 @@ import {
   BadgePercent,
   Banknote,
   Check,
-  CheckCircle2,
 } from "lucide-react";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
@@ -64,6 +63,11 @@ const TYPE_CONFIG = {
 };
 
 // ── Initial form data ──────────────────────────────────────────────────────────
+// On CREATE, commission is required up front (the backend needs it to insert
+// the referrer) and isActive defaults true — both are collected right here.
+// On EDIT, those two are hidden from this form: commission has its own
+// dedicated CommissionModal (below), and status is only ever changed via the
+// row's own activate/deactivate action — same split as ManageStaff.
 
 const EMPTY_FORM = {
   name: "",
@@ -110,13 +114,13 @@ const FormField = ({ label, required, children }) => (
   </div>
 );
 
-// ── Referrer Form Modal (create / edit) ─────────────────────────────────────────
-// Delete / activate / deactivate confirmations are still handled exclusively via
-// the shared <Popup type="warning"> component (see render section below).
-// Save failures (validation + API errors), however, now surface as an inline
-// `apiError` banner inside this modal — mirroring ItemModal/StockModal in
-// Products.jsx — so the form stays open and the user can just fix & retry
-// instead of losing context to a toast.
+// ── Referrer Form Modal (create / edit basic info) ──────────────────────────────
+// Handles name/contact/degree/details/type only. Commission lives in its own
+// CommissionModal, and active status is a row-level action — neither touches
+// this form, mirroring StaffFormModal / AdjustmentModal in ManageStaff.
+//
+// On a failed save the modal stays OPEN (no onClose()) so nothing typed is
+// lost; the error surfaces inline via `apiError` in the sticky footer.
 
 const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving, apiError }) => {
   const isEdit = formData.formType === "editReferrer";
@@ -175,7 +179,7 @@ const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving, apiE
           {/* Type selector */}
           <FormField label="ধরন" required>
             <div className="grid grid-cols-3 gap-2">
-              {Object.entries(TYPE_CONFIG).map(([value, { label, icon: Icon, color, bg, border, text }]) => {
+              {Object.entries(TYPE_CONFIG).map(([value, { label, icon: Icon, bg, border, text }]) => {
                 const active = formData.type === value;
                 return (
                   <button
@@ -249,118 +253,123 @@ const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving, apiE
             />
           </FormField>
 
-          {/* Status */}
-          <FormField label="স্ট্যাটাস">
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                {
-                  value: true,
-                  label: "সক্রিয়",
-                  bg: "bg-[#0D948812]",
-                  border: "border-[#0D948860]",
-                  text: "text-[#0D9488]",
-                },
-                {
-                  value: false,
-                  label: "নিষ্ক্রিয়",
-                  bg: "bg-[#EF444412]",
-                  border: "border-[#EF444460]",
-                  text: "text-[#EF4444]",
-                },
-              ].map(({ value, label, bg, border, text }) => {
-                const active = formData.isActive === value;
-                return (
-                  <button
-                    key={String(value)}
-                    type="button"
-                    onClick={() => onChange("isActive", value)}
-                    className={`flex items-center gap-2 px-3 py-3 transition-all font-semibold rounded-xl border-[1.5px] font-['IBM_Plex_Mono',monospace] text-xs
-                      ${active ? `${bg} ${border} ${text}` : "bg-white border-[#E2E8F0] text-[#64748B]"}`}
-                  >
-                    {active && <Check className="w-3 h-3" />}
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </FormField>
-
-          {/* Commission */}
-          <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden">
-            <div className="px-4 py-3 flex items-center gap-2 bg-white border-b border-[#E2E8F0]">
-              <BadgePercent className="w-[13px] h-[13px] text-[#6366F1]" />
-              <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
-                কমিশন
-              </span>
-            </div>
-            <div className="p-4 space-y-3 bg-[#F8FAFC]">
+          {/* Status — create only. On edit, status is a row-level action. */}
+          {!isEdit && (
+            <FormField label="স্ট্যাটাস">
               <div className="grid grid-cols-2 gap-2">
                 {[
                   {
-                    type: "percentage",
-                    label: "শতাংশ (%)",
-                    Icon: BadgePercent,
-                    bg: "bg-[#F59E0B12]",
-                    border: "border-[#F59E0B60]",
-                    text: "text-[#F59E0B]",
-                  },
-                  {
-                    type: "fixed",
-                    label: "নির্দিষ্ট (৳)",
-                    Icon: Banknote,
+                    value: true,
+                    label: "সক্রিয়",
                     bg: "bg-[#0D948812]",
                     border: "border-[#0D948860]",
                     text: "text-[#0D9488]",
                   },
-                ].map(({ type, label, Icon, bg, border, text }) => {
-                  const active = formData.commissionType === type;
+                  {
+                    value: false,
+                    label: "নিষ্ক্রিয়",
+                    bg: "bg-[#EF444412]",
+                    border: "border-[#EF444460]",
+                    text: "text-[#EF4444]",
+                  },
+                ].map(({ value, label, bg, border, text }) => {
+                  const active = formData.isActive === value;
                   return (
                     <button
-                      key={type}
+                      key={String(value)}
                       type="button"
-                      onClick={() => {
-                        onChange("commissionType", type);
-                        onChange("commissionValue", 0);
-                      }}
+                      onClick={() => onChange("isActive", value)}
                       className={`flex items-center gap-2 px-3 py-3 transition-all font-semibold rounded-xl border-[1.5px] font-['IBM_Plex_Mono',monospace] text-xs
                         ${active ? `${bg} ${border} ${text}` : "bg-white border-[#E2E8F0] text-[#64748B]"}`}
                     >
-                      <Icon className="w-[14px] h-[14px] shrink-0" />
+                      {active && <Check className="w-3 h-3" />}
                       {label}
                     </button>
                   );
                 })}
               </div>
-              <div className="relative">
-                <input
-                  type="number"
-                  min="0"
-                  step={formData.commissionType === "percentage" ? "0.1" : "1"}
-                  max={formData.commissionType === "percentage" ? 100 : undefined}
-                  value={formData.commissionValue || ""}
-                  onChange={handleCommissionChange}
-                  placeholder={formData.commissionType === "percentage" ? "০ – ১০০" : "পরিমাণ লিখুন"}
-                  className={`${inputBase} text-sm ${formData.commissionType === "percentage" ? "pl-3.5 pr-9" : "pl-8 pr-3.5"} py-2.5`}
-                  onFocus={focusInput}
-                  onBlur={blurInput}
-                />
-                {formData.commissionType === "percentage" ? (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#F59E0B]">
-                    %
-                  </span>
-                ) : (
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#0D9488]">
-                    ৳
-                  </span>
-                )}
-                {formData.commissionType === "percentage" && (
-                  <p className="mt-1 text-[10px] text-[#94A3B8] font-['IBM_Plex_Mono',monospace]">
-                    সর্বোচ্চ ১০০% পর্যন্ত
-                  </p>
-                )}
+            </FormField>
+          )}
+
+          {/* Commission — create only. On edit, commission has its own
+              dedicated CommissionModal (see below). */}
+          {!isEdit && (
+            <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden">
+              <div className="px-4 py-3 flex items-center gap-2 bg-white border-b border-[#E2E8F0]">
+                <BadgePercent className="w-[13px] h-[13px] text-[#6366F1]" />
+                <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
+                  কমিশন
+                </span>
+              </div>
+              <div className="p-4 space-y-3 bg-[#F8FAFC]">
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    {
+                      type: "percentage",
+                      label: "শতাংশ (%)",
+                      Icon: BadgePercent,
+                      bg: "bg-[#F59E0B12]",
+                      border: "border-[#F59E0B60]",
+                      text: "text-[#F59E0B]",
+                    },
+                    {
+                      type: "fixed",
+                      label: "নির্দিষ্ট (৳)",
+                      Icon: Banknote,
+                      bg: "bg-[#0D948812]",
+                      border: "border-[#0D948860]",
+                      text: "text-[#0D9488]",
+                    },
+                  ].map(({ type, label, Icon, bg, border, text }) => {
+                    const active = formData.commissionType === type;
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => {
+                          onChange("commissionType", type);
+                          onChange("commissionValue", 0);
+                        }}
+                        className={`flex items-center gap-2 px-3 py-3 transition-all font-semibold rounded-xl border-[1.5px] font-['IBM_Plex_Mono',monospace] text-xs
+                          ${active ? `${bg} ${border} ${text}` : "bg-white border-[#E2E8F0] text-[#64748B]"}`}
+                      >
+                        <Icon className="w-[14px] h-[14px] shrink-0" />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    step={formData.commissionType === "percentage" ? "0.1" : "1"}
+                    max={formData.commissionType === "percentage" ? 100 : undefined}
+                    value={formData.commissionValue || ""}
+                    onChange={handleCommissionChange}
+                    placeholder={formData.commissionType === "percentage" ? "০ – ১০০" : "পরিমাণ লিখুন"}
+                    className={`${inputBase} text-sm ${formData.commissionType === "percentage" ? "pl-3.5 pr-9" : "pl-8 pr-3.5"} py-2.5`}
+                    onFocus={focusInput}
+                    onBlur={blurInput}
+                  />
+                  {formData.commissionType === "percentage" ? (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#F59E0B]">
+                      %
+                    </span>
+                  ) : (
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#0D9488]">
+                      ৳
+                    </span>
+                  )}
+                  {formData.commissionType === "percentage" && (
+                    <p className="mt-1 text-[10px] text-[#94A3B8] font-['IBM_Plex_Mono',monospace]">
+                      সর্বোচ্চ ১০০% পর্যন্ত
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Footer — fixed, never scrolls. apiError banner sits directly
@@ -407,6 +416,197 @@ const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving, apiE
   );
 };
 
+// ── Commission Modal ─────────────────────────────────────────────────────────
+// Standalone modal, separate from ReferrerFormModal, dedicated to setting one
+// referrer's commission type/value. Mirrors AdjustmentModal in ManageStaff —
+// PUTs only commissionType/commissionValue to its own dedicated route.
+
+const CommissionModal = ({ referrer, onClose, onSaved }) => {
+  const [commissionType, setCommissionType] = useState(referrer.commissionType ?? "percentage");
+  const [commissionValue, setCommissionValue] = useState(referrer.commissionValue ?? 0);
+  const [saving, setSaving] = useState(false);
+  const [apiError, setApiError] = useState("");
+
+  const handleValueChange = (e) => {
+    let val = e.target.value === "" ? "" : parseFloat(e.target.value) || 0;
+    if (commissionType === "percentage" && val > 100) val = 100;
+    setCommissionValue(val);
+    if (apiError) setApiError("");
+  };
+
+  const selectType = (type) => {
+    setCommissionType(type);
+    setCommissionValue(0);
+    if (apiError) setApiError("");
+  };
+
+  const handleSubmit = async () => {
+    if (!commissionValue || Number(commissionValue) <= 0) {
+      return setApiError("কমিশনের পরিমাণ প্রয়োজন।");
+    }
+    try {
+      setSaving(true);
+      setApiError("");
+      await referrerService.updateCommission({
+        _id: referrer._id,
+        commissionType,
+        commissionValue: Number(commissionValue),
+      });
+      onSaved();
+    } catch (err) {
+      setApiError(getErrorMessage(err, "সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal isOpen size="sm" onClose={onClose}>
+      <div className="flex flex-col overflow-hidden">
+        {/* Header */}
+        <div
+          className="shrink-0 px-6 py-5 flex items-center justify-between border-b border-[#6366F120]"
+          style={{ background: "linear-gradient(135deg,#6366F115 0%,#4F46E508 100%)" }}
+        >
+          <div className="flex items-center gap-3.5">
+            <div
+              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px]"
+              style={{ background: "linear-gradient(135deg,#6366F1,#4F46E5)", boxShadow: "0 8px 20px #6366F140" }}
+            >
+              <BadgePercent className="w-[18px] h-[18px] text-white" />
+            </div>
+            <div>
+              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] text-[#6366F1]">
+                কমিশন সম্পাদনা
+              </p>
+              <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">{referrer.name}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-8 h-8 rounded-[10px] text-[#94A3B8] border-[1.5px] border-[#E2E8F0] transition-all hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+          >
+            <X className="w-[15px] h-[15px]" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-4 bg-[#F8FAFC]">
+          <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden bg-white">
+            <div className="px-4 py-3 flex items-center gap-2 border-b border-[#E2E8F0]">
+              <BadgePercent className="w-[13px] h-[13px] text-[#6366F1]" />
+              <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
+                কমিশন
+              </span>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  {
+                    type: "percentage",
+                    label: "শতাংশ (%)",
+                    Icon: BadgePercent,
+                    bg: "bg-[#F59E0B12]",
+                    border: "border-[#F59E0B60]",
+                    text: "text-[#F59E0B]",
+                  },
+                  {
+                    type: "fixed",
+                    label: "নির্দিষ্ট (৳)",
+                    Icon: Banknote,
+                    bg: "bg-[#0D948812]",
+                    border: "border-[#0D948860]",
+                    text: "text-[#0D9488]",
+                  },
+                ].map(({ type, label, Icon, bg, border, text }) => {
+                  const active = commissionType === type;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => selectType(type)}
+                      className={`flex items-center gap-2 px-3 py-3 transition-all font-semibold rounded-xl border-[1.5px] font-['IBM_Plex_Mono',monospace] text-xs
+                        ${active ? `${bg} ${border} ${text}` : "bg-white border-[#E2E8F0] text-[#64748B]"}`}
+                    >
+                      <Icon className="w-[14px] h-[14px] shrink-0" />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  step={commissionType === "percentage" ? "0.1" : "1"}
+                  max={commissionType === "percentage" ? 100 : undefined}
+                  value={commissionValue === 0 ? "" : commissionValue}
+                  onChange={handleValueChange}
+                  placeholder={commissionType === "percentage" ? "০ – ১০০" : "পরিমাণ লিখুন"}
+                  className={`${inputBase} text-sm ${commissionType === "percentage" ? "pl-3.5 pr-9" : "pl-8 pr-3.5"} py-2.5`}
+                  onFocus={focusInput}
+                  onBlur={blurInput}
+                  autoFocus
+                />
+                {commissionType === "percentage" ? (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#F59E0B]">
+                    %
+                  </span>
+                ) : (
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#0D9488]">
+                    ৳
+                  </span>
+                )}
+                {commissionType === "percentage" && (
+                  <p className="mt-1 text-[10px] text-[#94A3B8] font-['IBM_Plex_Mono',monospace]">
+                    সর্বোচ্চ ১০০% পর্যন্ত
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
+            </div>
+          )}
+          <div className="px-6 py-4 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
+            >
+              বাতিল
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={saving}
+              className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+              style={{
+                background: saving ? "#94A3B8" : "linear-gradient(135deg,#6366F1,#4F46E5)",
+                cursor: saving ? "not-allowed" : "pointer",
+              }}
+            >
+              {saving ? (
+                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <BadgePercent className="w-[13px] h-[13px]" />
+              )}
+              সংরক্ষণ করুন
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 // ── Action Chip ────────────────────────────────────────────────────────────────
 
 const ActionChip = ({ onClick, icon: Icon, label, color }) => (
@@ -434,7 +634,7 @@ const ActionChip = ({ onClick, icon: Icon, label, color }) => (
 
 // ── Referrer Row ───────────────────────────────────────────────────────────────
 
-const ReferrerRow = ({ input, index, onEdit, onDelete, onDeactivate, onActivate }) => {
+const ReferrerRow = ({ input, index, onEdit, onCommission, onDelete, onDeactivate, onActivate }) => {
   const [expanded, setExpanded] = useState(false);
   const cfg = TYPE_CONFIG[input.type] ?? TYPE_CONFIG.doctor;
   const TypeIcon = cfg.icon;
@@ -494,13 +694,14 @@ const ReferrerRow = ({ input, index, onEdit, onDelete, onDeactivate, onActivate 
             {input.details && <p className="mt-[2px]">{input.details}</p>}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <ActionChip onClick={onEdit} icon={Pencil} label="সম্পাদনা" color="#6366F1" />
+            <ActionChip onClick={onEdit} icon={Pencil} label="Edit" color="#6366F1" />
+            <ActionChip onClick={onCommission} icon={BadgePercent} label="Commission" color="#8B5CF6" />
             {input.isActive ? (
-              <ActionChip onClick={onDeactivate} icon={UserX} label="নিষ্ক্রিয়" color="#F59E0B" />
+              <ActionChip onClick={onDeactivate} icon={UserX} label="Deactivate" color="#F59E0B" />
             ) : (
-              <ActionChip onClick={onActivate} icon={UserCheck} label="সক্রিয়" color="#10B981" />
+              <ActionChip onClick={onActivate} icon={UserCheck} label="Activate" color="#10B981" />
             )}
-            <ActionChip onClick={onDelete} icon={Trash2} label="মুছুন" color="#EF4444" />
+            <ActionChip onClick={onDelete} icon={Trash2} label="Delete" color="#EF4444" />
           </div>
         </div>
       )}
@@ -588,7 +789,8 @@ const ManageReferrer = () => {
   const [popup, setPopup] = useState(null);
   const [formModal, setFormModal] = useState(null);
   const [formApiError, setFormApiError] = useState("");
-  // modal now only carries the destructive/status-change confirmations
+  const [commissionModal, setCommissionModal] = useState(null); // null | referrer object
+  // modal only carries the destructive/status-change confirmations
   // (delete / deactivate / activate), each rendered via the shared
   // <Popup type="warning"> component — no bespoke confirm dialog.
   const [modal, setModal] = useState(null); // { type: "delete" | "deactivate" | "activate", item }
@@ -652,11 +854,10 @@ const ManageReferrer = () => {
     setFormApiError("");
   };
 
-  // Both client-side validation and API failures now surface inline via
-  // `formApiError` inside ReferrerFormModal (mirroring ItemModal in
-  // Products.jsx), instead of the separate <Popup>. The modal stays open
-  // on failure so nothing the user typed gets lost — they just fix and
-  // retry. Only success closes it.
+  // Both client-side validation and API failures surface inline via
+  // `formApiError` inside ReferrerFormModal. The modal stays open on failure
+  // so nothing the user typed gets lost — they just fix and retry. Only
+  // success closes it.
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formModal.name?.trim()) return setFormApiError("নাম প্রয়োজন।");
@@ -665,7 +866,15 @@ const ManageReferrer = () => {
       setSaving(true);
       setFormApiError("");
       const isEdit = formModal.formType === "editReferrer";
-      isEdit ? await referrerService.editReferrer(formModal) : await referrerService.addReferrer(formModal);
+      if (isEdit) {
+        // Edit route now only accepts basic-info fields (additionalProperties:
+        // false on the backend) — commission/isActive extras are stripped by
+        // referrerService.editReferrer before the request goes out.
+        const { name, contactNumber, degree, details, type, _id } = formModal;
+        await referrerService.editReferrer({ name, contactNumber, degree, details, type, _id });
+      } else {
+        await referrerService.addReferrer(formModal);
+      }
       await loadReferrers();
       setPopup({ type: "success", message: isEdit ? "রেফারার আপডেট হয়েছে।" : "রেফারার নিবন্ধিত হয়েছে।" });
       setFormModal(null);
@@ -674,6 +883,12 @@ const ManageReferrer = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCommissionSaved = async () => {
+    setCommissionModal(null);
+    await loadReferrers();
+    setPopup({ type: "success", message: "কমিশন আপডেট হয়েছে।" });
   };
 
   // No in-flight spinner here — the warning Popup closes itself as soon as
@@ -716,6 +931,14 @@ const ManageReferrer = () => {
           onClose={closeFormModal}
           saving={saving}
           apiError={formApiError}
+        />
+      )}
+
+      {commissionModal && (
+        <CommissionModal
+          referrer={commissionModal}
+          onClose={() => setCommissionModal(null)}
+          onSaved={handleCommissionSaved}
         />
       )}
 
@@ -914,6 +1137,7 @@ const ManageReferrer = () => {
                     input={item}
                     index={index}
                     onEdit={() => openFormModal({ ...item, formType: "editReferrer" })}
+                    onCommission={() => setCommissionModal(item)}
                     onDelete={() => setModal({ type: "delete", item })}
                     onDeactivate={() => setModal({ type: "deactivate", item })}
                     onActivate={() => setModal({ type: "activate", item })}

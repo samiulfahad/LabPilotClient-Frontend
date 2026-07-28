@@ -13,7 +13,6 @@ import {
   Wifi,
   WifiOff,
   ArrowLeft,
-  Settings,
   Trash2,
   ChevronDown,
   ChevronRight,
@@ -22,6 +21,7 @@ import {
   AlertCircle,
   Eye,
   FileText,
+  Banknote,
   Loader2,
   XCircle,
   AlertTriangle,
@@ -82,14 +82,15 @@ const blurInput = (e) => {
   e.target.style.boxShadow = "";
 };
 
-// ── Test Config Modal ───────────────────────────────────────────────────────────
-// Internalizes its own save call. On a failed save the modal stays OPEN
-// (no onClose()) and the error surfaces inline via `apiError` in the sticky
-// footer — so a permission error or network hiccup doesn't discard the
-// price/schema selection and the user can just retry.
+// ── Format Modal ────────────────────────────────────────────────────────────────
+// Schema/report-format picker only — price lives in its own PriceModal now,
+// same split as space chargePerDay and referrer commission each getting a
+// dedicated route/modal. Internalizes its own save call; on a failed save
+// the modal stays OPEN (no onClose()) and the error surfaces inline via
+// `apiError` in the sticky footer, so a permission error or network hiccup
+// doesn't discard the schema selection.
 
-const TestConfigModal = ({ test, onClose, onSave }) => {
-  const [price, setPrice] = useState(test.price ?? "");
+const FormatModal = ({ test, onClose, onSave }) => {
   const [schemas, setSchemas] = useState([]);
   const [selectedSchemaId, setSelectedSchemaId] = useState(test.schemaId ?? null);
   const [loadingSchemas, setLoadingSchemas] = useState(false);
@@ -118,16 +119,15 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
   const handleSubmit = async () => {
     setSaving(true);
     setApiError("");
-    const updated = { ...test, price: parseFloat(price) || 0, schemaId: selectedSchemaId };
     try {
-      await testService.editTest({ testId: updated._id, price: updated.price, schemaId: updated.schemaId });
-      onSave(updated);
+      await testService.updateSchema(test._id, selectedSchemaId);
+      onSave({ ...test, schemaId: selectedSchemaId });
     } catch (err) {
       if (getErrorStatus(err) === 404) {
-        onSave({ ...updated, __notFound: true });
+        onSave({ ...test, __notFound: true });
         return;
       }
-      setApiError(getErrorMessage(err, "কনফিগারেশন সংরক্ষণ ব্যর্থ।"));
+      setApiError(getErrorMessage(err, "ফরম্যাট সংরক্ষণ ব্যর্থ।"));
     } finally {
       setSaving(false);
     }
@@ -146,11 +146,11 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
               className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] shadow-[0_8px_20px_#0D948840]"
               style={{ background: "linear-gradient(135deg,#0D9488,#0F766E)" }}
             >
-              <Settings className="w-[18px] h-[18px] text-white" />
+              <FileText className="w-[18px] h-[18px] text-white" />
             </div>
             <div>
               <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] text-[#0D9488]">
-                টেস্ট কনফিগার
+                ফরম্যাট নির্বাচন
               </p>
               <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A] truncate max-w-[320px]">
                 {test.name}
@@ -167,29 +167,6 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
 
         {/* Body — the ONLY scrollable region, fills remaining space */}
         <div className="px-6 py-5 bg-[#F8FAFC] space-y-4 flex-1 min-h-0 overflow-y-auto">
-          {/* Price */}
-          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
-            <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-2">
-              মূল্য
-            </p>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#0D9488]">
-                ৳
-              </span>
-              <input
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="০.০০"
-                min="0"
-                className={`${inputBase} pl-7 pr-3 py-2 text-sm`}
-                onFocus={focusInput}
-                onBlur={blurInput}
-              />
-            </div>
-          </div>
-
-          {/* Schemas */}
           <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
             <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-1">
               উপলব্ধ ফরম্যাট
@@ -315,7 +292,7 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
               disabled={saving}
               className="flex-1 py-2.5 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
             >
-              বাতিল
+              Cancel
             </button>
             <button
               type="button"
@@ -332,7 +309,135 @@ const TestConfigModal = ({ test, onClose, onSave }) => {
               ) : (
                 <CheckCircle2 className="w-[13px] h-[13px]" />
               )}
-              কনফিগারেশন সংরক্ষণ
+              Save Format
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+// ── Price Modal ─────────────────────────────────────────────────────────────────
+// Separate from FormatModal — same split as PriceEditModal for spaces.
+// Stays open on failure so the typed amount isn't lost.
+
+const PriceModal = ({ test, onClose, onSave }) => {
+  const [price, setPrice] = useState(String(test.price ?? ""));
+  const [saving, setSaving] = useState(false);
+  const [apiError, setApiError] = useState("");
+
+  const invalid = price === "" || isNaN(price) || Number(price) < 0;
+
+  const handleSubmit = async () => {
+    if (invalid) return;
+    setSaving(true);
+    setApiError("");
+    const parsed = parseFloat(price) || 0;
+    try {
+      await testService.updatePrice(test._id, parsed);
+      onSave({ ...test, price: parsed });
+    } catch (err) {
+      if (getErrorStatus(err) === 404) {
+        onSave({ ...test, __notFound: true });
+        return;
+      }
+      setApiError(getErrorMessage(err, "মূল্য সংরক্ষণ ব্যর্থ।"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal isOpen size="sm" onClose={onClose}>
+      <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
+        {/* Header — fixed, never scrolls */}
+        <div
+          className="shrink-0 px-6 py-5 flex items-center justify-between border-b border-[#3B82F620]"
+          style={{ background: "linear-gradient(135deg,#EFF6FF,#DBEAFE)" }}
+        >
+          <div className="flex items-center gap-3.5">
+            <div
+              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] shadow-[0_8px_20px_rgba(59,130,246,0.35)]"
+              style={{ background: "linear-gradient(135deg,#3B82F6,#2563EB)" }}
+            >
+              <Banknote className="w-[18px] h-[18px] text-white" />
+            </div>
+            <div>
+              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] text-[#2563EB]">
+                মূল্য পরিবর্তন
+              </p>
+              <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A] truncate max-w-[280px]">
+                {test.name}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-8 h-8 rounded-[10px] text-[#94A3B8] border-[1.5px] border-[#E2E8F0] bg-white transition-all hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+          >
+            <X className="w-[15px] h-[15px]" />
+          </button>
+        </div>
+
+        {/* Body — the ONLY scrollable region, fills remaining space */}
+        <div className="px-6 py-5 bg-[#F8FAFC] flex-1 min-h-0 overflow-y-auto">
+          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+            <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-2">
+              মূল্য
+            </p>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#0D9488]">
+                ৳
+              </span>
+              <input
+                type="number"
+                autoFocus
+                value={price}
+                onChange={(e) => {
+                  setPrice(e.target.value);
+                  if (apiError) setApiError("");
+                }}
+                placeholder="০.০০"
+                min="0"
+                className={`${inputBase} pl-7 pr-3 py-2.5 text-sm`}
+                onFocus={focusInput}
+                onBlur={blurInput}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Footer — fixed, never scrolls. apiError banner sits directly
+            above the action buttons so it's the last thing seen before
+            retrying. */}
+        <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
+            </div>
+          )}
+          <div className="px-6 py-4 flex gap-3">
+            <button
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
+            >
+              বাতিল
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={saving || invalid}
+              className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs disabled:opacity-60"
+              style={{ background: saving ? "#94A3B8" : "linear-gradient(135deg,#3B82F6,#2563EB)" }}
+            >
+              {saving ? (
+                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <Banknote className="w-[13px] h-[13px]" />
+              )}
+              আপডেট করুন
             </button>
           </div>
         </div>
@@ -702,7 +807,7 @@ const ActionChip = ({ onClick, icon: Icon, label, color }) => (
 
 // ── Test Row ───────────────────────────────────────────────────────────────────
 
-const TestRow = ({ test, index, onConfigure, onDelete }) => {
+const TestRow = ({ test, index, onConfigureFormat, onConfigurePrice, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -776,9 +881,10 @@ const TestRow = ({ test, index, onConfigure, onDelete }) => {
               )}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <ActionChip onClick={onConfigure} icon={Settings} label="কনফিগার" color={C.teal} />
-            <ActionChip onClick={onDelete} icon={Trash2} label="মুছুন" color={C.red} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <ActionChip onClick={onConfigureFormat} icon={FileText} label="Format" color={C.teal} />
+            <ActionChip onClick={onConfigurePrice} icon={Banknote} label="Change Price" color={C.blue} />
+            <ActionChip onClick={onDelete} icon={Trash2} label="Delete" color={C.red} />
           </div>
         </div>
       )}
@@ -870,7 +976,8 @@ const ManageTests = () => {
   const [error, setError] = useState("");
   const [popup, setPopup] = useState(null);
   const [addModal, setAddModal] = useState(false);
-  const [configTest, setConfigTest] = useState(null);
+  const [formatTest, setFormatTest] = useState(null);
+  const [priceTest, setPriceTest] = useState(null);
   // Delete confirmation uses the shared <Popup type="warning"> directly
   // (see render section below), not a bespoke modal — same pattern as
   // Products.jsx / ManageReferrer.jsx. `deleteTarget` just holds which
@@ -966,16 +1073,28 @@ const ManageTests = () => {
     }
   };
 
-  const handleConfigSave = (updatedTest) => {
+  const handleFormatSave = (updatedTest) => {
     if (updatedTest.__notFound) {
       setTests((prev) => prev.filter((t) => t._id !== updatedTest._id));
-      setConfigTest(null);
+      setFormatTest(null);
       setPopup({ type: "error", message: "টেস্টটি আর পাওয়া যায়নি।" });
       return;
     }
     setTests((prev) => prev.map((t) => (t._id === updatedTest._id ? { ...t, ...updatedTest } : t)));
-    setConfigTest(null);
-    setPopup({ type: "success", message: "টেস্ট কনফিগারেশন সংরক্ষিত।" });
+    setFormatTest(null);
+    setPopup({ type: "success", message: "ফরম্যাট সংরক্ষিত।" });
+  };
+
+  const handlePriceSave = (updatedTest) => {
+    if (updatedTest.__notFound) {
+      setTests((prev) => prev.filter((t) => t._id !== updatedTest._id));
+      setPriceTest(null);
+      setPopup({ type: "error", message: "টেস্টটি আর পাওয়া যায়নি।" });
+      return;
+    }
+    setTests((prev) => prev.map((t) => (t._id === updatedTest._id ? { ...t, ...updatedTest } : t)));
+    setPriceTest(null);
+    setPopup({ type: "success", message: "মূল্য সংরক্ষিত।" });
   };
 
   const handleAdded = async (added) => {
@@ -995,9 +1114,9 @@ const ManageTests = () => {
 
       {addModal && <AddTestModal existingTests={tests} onClose={() => setAddModal(false)} onSaved={handleAdded} />}
 
-      {configTest && (
-        <TestConfigModal test={configTest} onClose={() => setConfigTest(null)} onSave={handleConfigSave} />
-      )}
+      {formatTest && <FormatModal test={formatTest} onClose={() => setFormatTest(null)} onSave={handleFormatSave} />}
+
+      {priceTest && <PriceModal test={priceTest} onClose={() => setPriceTest(null)} onSave={handlePriceSave} />}
 
       {deleteTarget && (
         <Popup
@@ -1183,7 +1302,8 @@ const ManageTests = () => {
                         key={test._id}
                         test={test}
                         index={index}
-                        onConfigure={() => setConfigTest(test)}
+                        onConfigureFormat={() => setFormatTest(test)}
+                        onConfigurePrice={() => setPriceTest(test)}
                         onDelete={() => setDeleteTarget(test)}
                       />
                     ))}

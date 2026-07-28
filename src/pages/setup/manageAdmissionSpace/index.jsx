@@ -4,6 +4,9 @@
  * Reservation only — booking is handled via invoice flow.
  * Bed states (display only): booked | reserved | available
  * departments is now an array (multi-select), fetched from backend.
+ * Price is edited separately via PriceEditModal — the general edit form
+ * only touches name/departments/bed config, mirroring how referrer
+ * commission has its own dedicated route/modal.
  *
  * Styled to match the Referrer ledger/paper aesthetic:
  * IBM Plex Mono/Sans, shared Modal + Popup pattern, ActionChip rows,
@@ -200,6 +203,132 @@ const ReserveNoteModal = ({ title, bedNumber, onClose, onConfirm }) => {
   );
 };
 
+// ── Price Edit Modal ───────────────────────────────────────────────────────────
+// Separate from SpaceFormModal, mirroring how referrer commission is edited
+// through its own route/modal instead of the general edit form. Stays open
+// on failure (no onClose()) so the typed amount isn't lost — same pattern
+// as ReserveNoteModal above.
+
+const PriceEditModal = ({ space, onClose, onConfirm }) => {
+  const [amount, setAmount] = useState(String(space.chargePerDay ?? ""));
+  const [busy, setBusy] = useState(false);
+  const [apiError, setApiError] = useState("");
+
+  const invalid = amount === "" || isNaN(amount) || Number(amount) < 0;
+
+  const handleConfirm = async () => {
+    if (invalid) return;
+    setBusy(true);
+    setApiError("");
+    try {
+      await onConfirm(Number(amount));
+      onClose();
+    } catch (err) {
+      setApiError(getErrorMessage(err, "মূল্য পরিবর্তন ব্যর্থ হয়েছে। আবার চেষ্টা করুন।"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal isOpen size="sm" onClose={onClose}>
+      <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
+        {/* Header — fixed, never scrolls */}
+        <div
+          className="shrink-0 px-6 py-5 flex items-center justify-between border-b border-[#3B82F620]"
+          style={{ background: "linear-gradient(135deg,#EFF6FF,#DBEAFE)" }}
+        >
+          <div className="flex items-center gap-3.5">
+            <div
+              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] shadow-[0_8px_20px_rgba(59,130,246,0.35)]"
+              style={{ background: "linear-gradient(135deg,#3B82F6,#2563EB)" }}
+            >
+              <Banknote className="w-[18px] h-[18px] text-white" />
+            </div>
+            <div>
+              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] text-[#2563EB]">
+                মূল্য পরিবর্তন
+              </p>
+              <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">{space.name}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-8 h-8 rounded-[10px] text-[#94A3B8] border-[1.5px] border-[#E2E8F0] bg-white transition-all hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+          >
+            <X className="w-[15px] h-[15px]" />
+          </button>
+        </div>
+
+        {/* Body — the ONLY scrollable region, fills remaining space */}
+        <div className="px-6 py-5 bg-[#F8FAFC] flex-1 min-h-0 overflow-y-auto">
+          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+            <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-2">
+              চার্জ / দিন
+            </p>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#0D9488]">
+                ৳
+              </span>
+              <input
+                type="number"
+                min={0}
+                autoFocus
+                value={amount}
+                onChange={(e) => {
+                  setAmount(e.target.value);
+                  if (apiError) setApiError("");
+                }}
+                placeholder="০.০০"
+                className={`${inputBase} pl-7 pr-3 py-2.5 text-sm`}
+                onFocus={focusInput}
+                onBlur={blurInput}
+              />
+            </div>
+            <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8] mt-2">
+              বর্তমান: {fmt(space.chargePerDay)}
+            </p>
+          </div>
+        </div>
+
+        {/* Footer — fixed, never scrolls. apiError banner sits directly
+            above the action buttons so it's the last thing seen before
+            retrying. */}
+        <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
+            </div>
+          )}
+          <div className="px-6 py-4 flex gap-3">
+            <button
+              onClick={onClose}
+              disabled={busy}
+              className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
+            >
+              বাতিল
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={busy || invalid}
+              className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs disabled:opacity-60"
+              style={{ background: busy ? "#94A3B8" : "linear-gradient(135deg,#3B82F6,#2563EB)" }}
+            >
+              {busy ? (
+                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <Banknote className="w-[13px] h-[13px]" />
+              )}
+              আপডেট করুন
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 // ── Department Multi-Select Dropdown ───────────────────────────────────────────
 
 const DeptMultiSelect = ({ value, onChange, error, departments }) => {
@@ -347,6 +476,10 @@ const DeptMultiSelect = ({ value, onChange, error, departments }) => {
 // ManageStaff.jsx, and DoctorFormModal in ManageDoctors.jsx. `onSubmit` is
 // expected to perform the API call and throw on failure; this modal owns
 // its own `saving`/`apiError` state rather than relying on the parent.
+//
+// Price is NOT edited here — chargePerDay is set once at creation and from
+// then on is only changed through the dedicated PriceEditModal (same split
+// as referrer commission having its own route/modal).
 
 const EMPTY_FORM = {
   name: "",
@@ -395,7 +528,9 @@ const SpaceFormModal = ({ editSpace, departments, onSubmit, onClose }) => {
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = "নাম আবশ্যক";
-    if (!form.chargePerDay || isNaN(form.chargePerDay) || Number(form.chargePerDay) < 0)
+    // chargePerDay is only collected (and validated) on create — edits go
+    // through PriceEditModal instead.
+    if (!isEdit && (!form.chargePerDay || isNaN(form.chargePerDay) || Number(form.chargePerDay) < 0))
       e.chargePerDay = "সঠিক চার্জ লিখুন";
     if (!form.departments.length) e.departments = "অন্তত একটি বিভাগ নির্বাচন করুন";
     if (form.multiBed) {
@@ -482,32 +617,35 @@ const SpaceFormModal = ({ editSpace, departments, onSubmit, onClose }) => {
             )}
           </div>
 
-          {/* Charge */}
-          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
-            <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-2">
-              চার্জ / দিন
-            </p>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#0D9488]">
-                ৳
-              </span>
-              <input
-                type="number"
-                min={0}
-                value={form.chargePerDay}
-                onChange={(e) => set("chargePerDay", e.target.value)}
-                placeholder="০.০০"
-                className={`${inputBase} pl-7 pr-3 py-2 text-sm ${errors.chargePerDay ? "border-[#EF444460]" : ""}`}
-                onFocus={focusInput}
-                onBlur={blurInput}
-              />
-            </div>
-            {errors.chargePerDay && (
-              <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#EF4444] mt-1.5">
-                {errors.chargePerDay}
+          {/* Charge — creation only; price changes go through the
+              dedicated "মূল্য পরিবর্তন" action / PriceEditModal */}
+          {!isEdit && (
+            <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+              <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-2">
+                চার্জ / দিন
               </p>
-            )}
-          </div>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#0D9488]">
+                  ৳
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  value={form.chargePerDay}
+                  onChange={(e) => set("chargePerDay", e.target.value)}
+                  placeholder="০.০০"
+                  className={`${inputBase} pl-7 pr-3 py-2 text-sm ${errors.chargePerDay ? "border-[#EF444460]" : ""}`}
+                  onFocus={focusInput}
+                  onBlur={blurInput}
+                />
+              </div>
+              {errors.chargePerDay && (
+                <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#EF4444] mt-1.5">
+                  {errors.chargePerDay}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Departments */}
           <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
@@ -795,6 +933,7 @@ const SpaceRow = ({
   index,
   allDepartments,
   onEdit,
+  onEditPrice,
   onDelete,
   onReserveSingle,
   onReleaseSingle,
@@ -867,7 +1006,8 @@ const SpaceRow = ({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <ActionChip onClick={() => onEdit(space)} icon={Pencil} label="সম্পাদনা" color="#6366F1" />
+            <ActionChip onClick={() => onEdit(space)} icon={Pencil} label="Edit" color="#6366F1" />
+            <ActionChip onClick={() => onEditPrice(space)} icon={Banknote} label="Change Price" color="#3B82F6" />
             {!space.multiBed &&
               (space.reserved ? (
                 <ActionChip
@@ -886,7 +1026,7 @@ const SpaceRow = ({
                   disabled={busy === space._id}
                 />
               ))}
-            <ActionChip onClick={() => onDelete(space)} icon={Trash2} label="মুছুন" color="#EF4444" />
+            <ActionChip onClick={() => onDelete(space)} icon={Trash2} label="Delete" color="#EF4444" />
           </div>
 
           {space.multiBed && space.multiBedConf && (
@@ -981,6 +1121,7 @@ const ManageSpaces = () => {
   // ManageTests.jsx / ManageStaff.jsx / ManageDoctors.jsx.
   const [confirmTarget, setConfirmTarget] = useState(null); // { type: "delete" | "release", space }
   const [reserveModal, setReserveModal] = useState(null); // { space, bedNumber? }
+  const [priceModal, setPriceModal] = useState(null); // { space } | null
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
   const [busyId, setBusyId] = useState(null);
@@ -1036,10 +1177,13 @@ const ManageSpaces = () => {
   // The form modal itself owns saving/apiError state and stays open on
   // failure — this just performs the API call, updates local state, and
   // closes on success. Any thrown error propagates back to the modal.
+  //
+  // chargePerDay is only included in the payload on create — the update
+  // route no longer accepts it (price changes go through
+  // spaceService.updatePrice / PriceEditModal instead).
   const handleFormSubmit = async (form) => {
-    const payload = {
+    const basePayload = {
       name: form.name.trim(),
-      chargePerDay: Number(form.chargePerDay),
       departments: form.departments,
       multiBed: form.multiBed,
       multiBedConf: form.multiBed
@@ -1050,14 +1194,16 @@ const ManageSpaces = () => {
           }
         : null,
     };
+
     if (formModal.editSpace) {
-      await spaceService.update(formModal.editSpace._id, payload);
-      setSpaces((p) => p.map((s) => (s._id === formModal.editSpace._id ? { ...s, ...payload } : s)));
-      setPopup({ type: "success", message: `"${payload.name}" আপডেট করা হয়েছে।` });
+      await spaceService.update(formModal.editSpace._id, basePayload);
+      setSpaces((p) => p.map((s) => (s._id === formModal.editSpace._id ? { ...s, ...basePayload } : s)));
+      setPopup({ type: "success", message: `"${basePayload.name}" আপডেট করা হয়েছে।` });
     } else {
-      const res = await spaceService.create(payload);
-      setSpaces((p) => [{ ...res.data, ...payload }, ...p]);
-      setPopup({ type: "success", message: `"${payload.name}" সফলভাবে যোগ করা হয়েছে।` });
+      const createPayload = { ...basePayload, chargePerDay: Number(form.chargePerDay) };
+      const res = await spaceService.create(createPayload);
+      setSpaces((p) => [{ ...res.data, ...createPayload }, ...p]);
+      setPopup({ type: "success", message: `"${createPayload.name}" সফলভাবে যোগ করা হয়েছে।` });
     }
     closeForm();
   };
@@ -1078,6 +1224,13 @@ const ManageSpaces = () => {
     } finally {
       setConfirmTarget(null);
     }
+  };
+
+  // ── Price edit ──
+  const handleUpdatePrice = async (space, chargePerDay) => {
+    await spaceService.updatePrice(space._id, chargePerDay);
+    setSpaces((p) => p.map((s) => (s._id === space._id ? { ...s, chargePerDay } : s)));
+    setPopup({ type: "success", message: `"${space.name}"-এর মূল্য আপডেট করা হয়েছে।` });
   };
 
   // ── Single-space reserve / release ──
@@ -1173,6 +1326,14 @@ const ManageSpaces = () => {
               ? handleReserveBed(reserveModal.space, note)
               : handleReserveSingle(reserveModal.space, note)
           }
+        />
+      )}
+
+      {priceModal && (
+        <PriceEditModal
+          space={priceModal.space}
+          onClose={() => setPriceModal(null)}
+          onConfirm={(amount) => handleUpdatePrice(priceModal.space, amount)}
         />
       )}
 
@@ -1330,6 +1491,7 @@ const ManageSpaces = () => {
                     allDepartments={departments}
                     busy={busyId}
                     onEdit={openEdit}
+                    onEditPrice={(s) => setPriceModal({ space: s })}
                     onDelete={(s) => setConfirmTarget({ type: "delete", space: s })}
                     onReserveSingle={(s) => setReserveModal({ space: s })}
                     onReleaseSingle={(s) => setConfirmTarget({ type: "release", space: s })}

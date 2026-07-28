@@ -28,11 +28,24 @@ const doctorService = {
   create: (data) => api.post("/doctor/add", data),
 
   /**
-   * Update an existing doctor.
+   * Update a doctor's basic info only (name, degree, contactNumber,
+   * designation, departments). Commission is edited separately via
+   * updateCommission below.
    * @param {string} id    MongoDB ObjectId string
-   * @param {object} data  Partial doctor fields to update
+   * @param {object} data  Partial basic-info fields to update
    */
   update: (id, data) => api.put(`/doctor/edit/${id}`, data),
+
+  /**
+   * Update a doctor's commission only.
+   * @param {string} id    MongoDB ObjectId string
+   * @param {{ commissionType, commissionValue }} data
+   */
+  updateCommission: (id, data) =>
+    api.put(`/doctor/${id}/commission`, {
+      commissionType: data.commissionType,
+      commissionValue: data.commissionValue,
+    }),
 
   /**
    * Hard-delete a doctor.

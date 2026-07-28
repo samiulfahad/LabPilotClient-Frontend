@@ -64,6 +64,10 @@ const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? nu
 const fmt = (n, type) =>
   type === "percentage" ? `${n}%` : `৳${typeof n === "number" ? n.toLocaleString("en-IN") : n}`;
 
+// On CREATE, commission is required up front (the backend needs it to insert
+// the doctor). On EDIT, commission is hidden from this form entirely — it
+// has its own dedicated CommissionModal (below), same split as
+// ManageReferrer.jsx / ManageStaff.jsx.
 const EMPTY_FORM = {
   name: "",
   degree: "",
@@ -207,7 +211,12 @@ const DepartmentMultiSelect = ({ departments, selected, onChange }) => {
   );
 };
 
-// ── Doctor Form Modal ──────────────────────────────────────────────────────────
+// ── Doctor Form Modal (create / edit basic info) ────────────────────────────
+// Handles name/degree/contactNumber/designation/departments only on edit.
+// Commission lives in its own CommissionModal (below), and is only present
+// in this form during create — same split as ReferrerFormModal /
+// CommissionModal in ManageReferrer.jsx.
+//
 // On a failed save, this modal stays OPEN and shows the error inline via
 // `apiError` in the sticky footer, directly above the action buttons — same
 // pattern as ItemModal/StockModal in Products.jsx, ReferrerFormModal in
@@ -224,8 +233,8 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
           contactNumber: initial.contactNumber ?? "",
           designation: initial.designation ?? "",
           departments: initial.departments ?? (initial.department ? [initial.department] : []),
-          commissionType: initial.commissionType ?? "percentage",
-          commissionValue: initial.commissionValue ?? "",
+          commissionType: "percentage",
+          commissionValue: "",
         }
       : EMPTY_FORM,
   );
@@ -241,15 +250,30 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.departments.length) return setApiError("অন্তত একটি বিভাগ নির্বাচন করুন।");
+
+    if (isEdit) {
+      try {
+        setSaving(true);
+        setApiError("");
+        const { name, degree, contactNumber, designation, departments: depts } = form;
+        await doctorService.update(initial._id, { name, degree, contactNumber, designation, departments: depts });
+        onSaved(true);
+      } catch (err) {
+        setApiError(getErrorMessage(err, "সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
     const val = Number(form.commissionValue);
     if (isNaN(val) || val < 0) return setApiError("কমিশন মান অবশ্যই ধনাত্মক সংখ্যা হতে হবে।");
     if (form.commissionType === "percentage" && val > 100) return setApiError("শতাংশ ০–১০০ এর মধ্যে হতে হবে।");
     try {
       setSaving(true);
       setApiError("");
-      const payload = { ...form, commissionValue: val };
-      isEdit ? await doctorService.update(initial._id, payload) : await doctorService.create(payload);
-      onSaved(isEdit);
+      await doctorService.create({ ...form, commissionValue: val });
+      onSaved(false);
     } catch (err) {
       setApiError(getErrorMessage(err, "সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
     } finally {
@@ -379,81 +403,83 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
               />
             )}
           </FormField>
-          {/* Commission */}
-          <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden">
-            <div className="px-4 py-3 flex items-center gap-2 bg-white border-b border-[#E2E8F0]">
-              <BadgePercent className="w-[13px] h-[13px] text-[#6366F1]" />
-              <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
-                কমিশন
-              </span>
-            </div>
-            <div className="p-4 space-y-3 bg-[#F8FAFC]">
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  {
-                    type: "percentage",
-                    label: "শতাংশ (%)",
-                    Icon: BadgePercent,
-                    color: C.amber,
-                    bg: "bg-[#F59E0B12]",
-                    border: "border-[#F59E0B60]",
-                    text: "text-[#F59E0B]",
-                  },
-                  {
-                    type: "fixed",
-                    label: "নির্দিষ্ট (৳)",
-                    Icon: Banknote,
-                    color: C.teal,
-                    bg: "bg-[#0D948812]",
-                    border: "border-[#0D948860]",
-                    text: "text-[#0D9488]",
-                  },
-                ].map(({ type, label, Icon, color, bg, border, text }) => {
-                  const active = form.commissionType === type;
-                  return (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => {
-                        set("commissionType", type);
-                        set("commissionValue", "");
-                      }}
-                      className={`flex items-center gap-2 px-3 py-3 transition-all font-semibold rounded-xl border-[1.5px] font-['IBM_Plex_Mono',monospace] text-xs
-                        ${active ? `${bg} ${border} ${text}` : "bg-white border-[#E2E8F0] text-[#64748B]"}`}
-                    >
-                      <Icon className="w-[14px] h-[14px] shrink-0" />
-                      {label}
-                    </button>
-                  );
-                })}
+
+          {/* Commission — create only. On edit, commission has its own
+              dedicated CommissionModal (see below). */}
+          {!isEdit && (
+            <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden">
+              <div className="px-4 py-3 flex items-center gap-2 bg-white border-b border-[#E2E8F0]">
+                <BadgePercent className="w-[13px] h-[13px] text-[#6366F1]" />
+                <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
+                  কমিশন
+                </span>
               </div>
-              <div className="relative">
-                <input
-                  name="commissionValue"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  max={form.commissionType === "percentage" ? 100 : undefined}
-                  value={form.commissionValue}
-                  onChange={handle}
-                  required
-                  placeholder={form.commissionType === "percentage" ? "০ – ১০০" : "পরিমাণ লিখুন"}
-                  className={`${inputBase} text-sm ${form.commissionType === "percentage" ? "pl-3.5 pr-9" : "pl-8 pr-3.5"} py-2.5`}
-                  onFocus={focusInput}
-                  onBlur={blurInput}
-                />
-                {form.commissionType === "percentage" ? (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#F59E0B]">
-                    %
-                  </span>
-                ) : (
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#0D9488]">
-                    ৳
-                  </span>
-                )}
+              <div className="p-4 space-y-3 bg-[#F8FAFC]">
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    {
+                      type: "percentage",
+                      label: "শতাংশ (%)",
+                      Icon: BadgePercent,
+                      bg: "bg-[#F59E0B12]",
+                      border: "border-[#F59E0B60]",
+                      text: "text-[#F59E0B]",
+                    },
+                    {
+                      type: "fixed",
+                      label: "নির্দিষ্ট (৳)",
+                      Icon: Banknote,
+                      bg: "bg-[#0D948812]",
+                      border: "border-[#0D948860]",
+                      text: "text-[#0D9488]",
+                    },
+                  ].map(({ type, label, Icon, bg, border, text }) => {
+                    const active = form.commissionType === type;
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => {
+                          set("commissionType", type);
+                          set("commissionValue", "");
+                        }}
+                        className={`flex items-center gap-2 px-3 py-3 transition-all font-semibold rounded-xl border-[1.5px] font-['IBM_Plex_Mono',monospace] text-xs
+                          ${active ? `${bg} ${border} ${text}` : "bg-white border-[#E2E8F0] text-[#64748B]"}`}
+                      >
+                        <Icon className="w-[14px] h-[14px] shrink-0" />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="relative">
+                  <input
+                    name="commissionValue"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    max={form.commissionType === "percentage" ? 100 : undefined}
+                    value={form.commissionValue}
+                    onChange={handle}
+                    required
+                    placeholder={form.commissionType === "percentage" ? "০ – ১০০" : "পরিমাণ লিখুন"}
+                    className={`${inputBase} text-sm ${form.commissionType === "percentage" ? "pl-3.5 pr-9" : "pl-8 pr-3.5"} py-2.5`}
+                    onFocus={focusInput}
+                    onBlur={blurInput}
+                  />
+                  {form.commissionType === "percentage" ? (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#F59E0B]">
+                      %
+                    </span>
+                  ) : (
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#0D9488]">
+                      ৳
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Footer — fixed, never scrolls. apiError banner sits directly
@@ -505,6 +531,192 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
   );
 };
 
+// ── Commission Modal ─────────────────────────────────────────────────────────
+// Standalone modal, separate from DoctorFormModal, dedicated to setting one
+// doctor's commission type/value. Mirrors CommissionModal in
+// ManageReferrer.jsx / AdjustmentModal in ManageStaff.jsx — PUTs only
+// commissionType/commissionValue to its own dedicated route.
+
+const CommissionModal = ({ doctor, onClose, onSaved }) => {
+  const [commissionType, setCommissionType] = useState(doctor.commissionType ?? "percentage");
+  const [commissionValue, setCommissionValue] = useState(doctor.commissionValue ?? 0);
+  const [saving, setSaving] = useState(false);
+  const [apiError, setApiError] = useState("");
+
+  const handleValueChange = (e) => {
+    let val = e.target.value === "" ? "" : parseFloat(e.target.value) || 0;
+    if (commissionType === "percentage" && val > 100) val = 100;
+    setCommissionValue(val);
+    if (apiError) setApiError("");
+  };
+
+  const selectType = (type) => {
+    setCommissionType(type);
+    setCommissionValue(0);
+    if (apiError) setApiError("");
+  };
+
+  const handleSubmit = async () => {
+    if (!commissionValue || Number(commissionValue) <= 0) {
+      return setApiError("কমিশনের পরিমাণ প্রয়োজন।");
+    }
+    try {
+      setSaving(true);
+      setApiError("");
+      await doctorService.updateCommission(doctor._id, {
+        commissionType,
+        commissionValue: Number(commissionValue),
+      });
+      onSaved();
+    } catch (err) {
+      setApiError(getErrorMessage(err, "সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal isOpen size="sm" onClose={onClose}>
+      <div className="flex flex-col overflow-hidden">
+        {/* Header */}
+        <div
+          className="shrink-0 px-6 py-5 flex items-center justify-between border-b border-[#6366F120]"
+          style={{ background: "linear-gradient(135deg,#6366F115 0%,#4F46E508 100%)" }}
+        >
+          <div className="flex items-center gap-3.5">
+            <div
+              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px]"
+              style={{ background: "linear-gradient(135deg,#6366F1,#4F46E5)", boxShadow: "0 8px 20px #6366F140" }}
+            >
+              <BadgePercent className="w-[18px] h-[18px] text-white" />
+            </div>
+            <div>
+              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] text-[#6366F1]">
+                কমিশন সম্পাদনা
+              </p>
+              <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">{doctor.name}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-8 h-8 rounded-[10px] text-[#94A3B8] border-[1.5px] border-[#E2E8F0] transition-all hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+          >
+            <X className="w-[15px] h-[15px]" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-4 bg-[#F8FAFC]">
+          <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden bg-white">
+            <div className="px-4 py-3 flex items-center gap-2 border-b border-[#E2E8F0]">
+              <BadgePercent className="w-[13px] h-[13px] text-[#6366F1]" />
+              <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
+                কমিশন
+              </span>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  {
+                    type: "percentage",
+                    label: "শতাংশ (%)",
+                    Icon: BadgePercent,
+                    bg: "bg-[#F59E0B12]",
+                    border: "border-[#F59E0B60]",
+                    text: "text-[#F59E0B]",
+                  },
+                  {
+                    type: "fixed",
+                    label: "নির্দিষ্ট (৳)",
+                    Icon: Banknote,
+                    bg: "bg-[#0D948812]",
+                    border: "border-[#0D948860]",
+                    text: "text-[#0D9488]",
+                  },
+                ].map(({ type, label, Icon, bg, border, text }) => {
+                  const active = commissionType === type;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => selectType(type)}
+                      className={`flex items-center gap-2 px-3 py-3 transition-all font-semibold rounded-xl border-[1.5px] font-['IBM_Plex_Mono',monospace] text-xs
+                        ${active ? `${bg} ${border} ${text}` : "bg-white border-[#E2E8F0] text-[#64748B]"}`}
+                    >
+                      <Icon className="w-[14px] h-[14px] shrink-0" />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  step={commissionType === "percentage" ? "0.1" : "1"}
+                  max={commissionType === "percentage" ? 100 : undefined}
+                  value={commissionValue === 0 ? "" : commissionValue}
+                  onChange={handleValueChange}
+                  placeholder={commissionType === "percentage" ? "০ – ১০০" : "পরিমাণ লিখুন"}
+                  className={`${inputBase} text-sm ${commissionType === "percentage" ? "pl-3.5 pr-9" : "pl-8 pr-3.5"} py-2.5`}
+                  onFocus={focusInput}
+                  onBlur={blurInput}
+                  autoFocus
+                />
+                {commissionType === "percentage" ? (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#F59E0B]">
+                    %
+                  </span>
+                ) : (
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-sm font-bold text-[#0D9488]">
+                    ৳
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
+            </div>
+          )}
+          <div className="px-6 py-4 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
+            >
+              বাতিল
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={saving}
+              className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+              style={{
+                background: saving ? "#94A3B8" : "linear-gradient(135deg,#6366F1,#4F46E5)",
+                cursor: saving ? "not-allowed" : "pointer",
+              }}
+            >
+              {saving ? (
+                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <BadgePercent className="w-[13px] h-[13px]" />
+              )}
+              সংরক্ষণ করুন
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 // ── Action Chip ────────────────────────────────────────────────────────────────
 
 const ActionChip = ({ onClick, icon: Icon, label, color }) => (
@@ -532,7 +744,7 @@ const ActionChip = ({ onClick, icon: Icon, label, color }) => (
 
 // ── Doctor Row ─────────────────────────────────────────────────────────────────
 
-const DoctorRow = ({ doctor, index, deptLabelMap, desigLabelMap, onEdit, onDelete }) => {
+const DoctorRow = ({ doctor, index, deptLabelMap, desigLabelMap, onEdit, onCommission, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
   const isPercent = doctor.commissionType === "percentage";
   const commGrad = isPercent ? "linear-gradient(135deg,#F59E0B,#D97706)" : "linear-gradient(135deg,#0D9488,#0F766E)";
@@ -588,9 +800,10 @@ const DoctorRow = ({ doctor, index, deptLabelMap, desigLabelMap, onEdit, onDelet
               </p>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <ActionChip onClick={onEdit} icon={Pencil} label="সম্পাদনা" color={C.indigo} />
-            <ActionChip onClick={onDelete} icon={Trash2} label="মুছুন" color={C.red} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <ActionChip onClick={onEdit} icon={Pencil} label="Edit" color={C.indigo} />
+            <ActionChip onClick={onCommission} icon={BadgePercent} label="Commission" color={C.purple} />
+            <ActionChip onClick={onDelete} icon={Trash2} label="Delete" color={C.red} />
           </div>
         </div>
       )}
@@ -734,6 +947,7 @@ const ManageDoctors = () => {
   const [commFilter, setCommFilter] = useState("all");
   const [popup, setPopup] = useState(null);
   const [formModal, setFormModal] = useState(null);
+  const [commissionModal, setCommissionModal] = useState(null); // null | doctor object
   // Delete confirmation goes through the shared <Popup type="warning">
   // component (see render section below) instead of a bespoke modal —
   // same one-consistent-confirm-flow pattern used in ManageReferrer.jsx /
@@ -788,6 +1002,12 @@ const ManageDoctors = () => {
     setPopup({ type: "success", message: isEdit ? "ডাক্তারের তথ্য আপডেট হয়েছে।" : "ডাক্তার নিবন্ধিত হয়েছে।" });
   };
 
+  const handleCommissionSaved = () => {
+    setCommissionModal(null);
+    fetchDoctors({ search, department: deptFilter !== "all" ? deptFilter : "", page: pagination.page });
+    setPopup({ type: "success", message: "কমিশন আপডেট হয়েছে।" });
+  };
+
   // No in-flight spinner here — the warning Popup closes itself as soon as
   // onConfirm fires, so a failure just surfaces as a follow-up error toast.
   // Mirrors handleDelete in Products.jsx / ManageReferrer.jsx / ManageTests.jsx.
@@ -838,6 +1058,14 @@ const ManageDoctors = () => {
           onSaved={handleSaved}
           departments={departments}
           designations={designations}
+        />
+      )}
+
+      {commissionModal && (
+        <CommissionModal
+          doctor={commissionModal}
+          onClose={() => setCommissionModal(null)}
+          onSaved={handleCommissionSaved}
         />
       )}
 
@@ -1026,6 +1254,7 @@ const ManageDoctors = () => {
                     deptLabelMap={deptLabelMap}
                     desigLabelMap={desigLabelMap}
                     onEdit={() => setFormModal(doctor)}
+                    onCommission={() => setCommissionModal(doctor)}
                     onDelete={() => setDeleteTarget(doctor)}
                   />
                 ))
