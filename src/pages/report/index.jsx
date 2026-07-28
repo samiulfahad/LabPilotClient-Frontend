@@ -34,6 +34,7 @@ import indoorPatientService from "../../api/indoorPatient";
 import reportService from "../../api/report";
 import PrintId from "../../components/PrintId";
 import { useGuardedAction } from "../../hooks/useGuardedAction";
+import { useAuthStore } from "../../store/authStore";
 
 // ─── ID Format Detection ──────────────────────────────────────────────────────
 
@@ -425,6 +426,12 @@ const TestActions = ({ record, test }) => {
   const navigate = useNavigate();
   const { guard, denied, closeDenied } = useGuardedAction();
 
+  const role = useAuthStore((s) => s.user?.role);
+  const permissions = useAuthStore((s) => s.user?.permissions);
+  const isAdmin = role === "admin";
+  const canUpload = isAdmin || !!permissions?.testReportUpload;
+  const canDownload = isAdmin || !!permissions?.testReportDownload;
+
   const goToUpload = (isEdit) => {
     const state =
       _type === "indoor"
@@ -437,8 +444,14 @@ const TestActions = ({ record, test }) => {
     return (
       <>
         <button
-          onClick={guard("uploadReport", () => goToUpload(false))}
-          className="flex items-center gap-1.5 px-3 py-2 bg-gray-900 text-white hover:bg-gray-700 text-xs font-bold rounded-xl transition-all shadow-sm"
+          onClick={canUpload ? () => goToUpload(false) : undefined}
+          disabled={!canUpload}
+          title={!canUpload ? "No Permission" : undefined}
+          className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-all shadow-sm ${
+            canUpload
+              ? "bg-gray-900 text-white hover:bg-gray-700 cursor-pointer"
+              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+          }`}
         >
           <Upload className="w-3 h-3" /> Upload
         </button>
@@ -452,33 +465,59 @@ const TestActions = ({ record, test }) => {
       ? `/report-download?patientId=${_patientId}&testId=${testId}&testName=${encodeURIComponent(name)}&type=indoor&addedAt=${addedAt}`
       : `/report-download?invoiceId=${displayId}&testId=${testId}&testName=${encodeURIComponent(name)}`;
 
+  const printBtnClass = (enabled) =>
+    `flex items-center gap-1 px-2.5 py-2 border text-xs font-semibold rounded-xl transition-all ${
+      enabled
+        ? "border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-800 cursor-pointer"
+        : "border-gray-100 text-gray-300 cursor-not-allowed"
+    }`;
+
   return (
     <div className="flex items-center gap-1.5">
-      <Link
-        to={`${printBase}&printType=PAD`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-1 px-2.5 py-2 border border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-800 text-xs font-semibold rounded-xl transition-all"
-      >
-        <Printer className="w-3 h-3" />
-        <span className="hidden sm:inline">Pad</span>
-      </Link>
-      <Link
-        to={`${printBase}&printType=PLAIN`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-1 px-2.5 py-2 border border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-800 text-xs font-semibold rounded-xl transition-all"
-      >
-        <Printer className="w-3 h-3" />
-        <span className="hidden sm:inline">A4</span>
-      </Link>
+      {canDownload ? (
+        <Link
+          to={`${printBase}&printType=PAD`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={printBtnClass(true)}
+        >
+          <Printer className="w-3 h-3" />
+          <span className="hidden sm:inline">Pad</span>
+        </Link>
+      ) : (
+        <span title="No Permission" className={printBtnClass(false)}>
+          <Printer className="w-3 h-3" />
+          <span className="hidden sm:inline">Pad</span>
+        </span>
+      )}
+
+      {canDownload ? (
+        <Link
+          to={`${printBase}&printType=PLAIN`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={printBtnClass(true)}
+        >
+          <Printer className="w-3 h-3" />
+          <span className="hidden sm:inline">A4</span>
+        </Link>
+      ) : (
+        <span title="No Permission" className={printBtnClass(false)}>
+          <Printer className="w-3 h-3" />
+          <span className="hidden sm:inline">A4</span>
+        </span>
+      )}
+
       <button
-        onClick={guard("uploadReport", () => goToUpload(true))}
-        className="flex items-center gap-1 px-2.5 py-2 border border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-800 text-xs font-semibold rounded-xl transition-all"
+        onClick={canUpload ? () => goToUpload(true) : undefined}
+        disabled={!canUpload}
+        title={!canUpload ? "No Permission" : undefined}
+        className={printBtnClass(canUpload)}
       >
         <Pencil className="w-3 h-3" />
         <span className="hidden sm:inline">Edit</span>
       </button>
+
       {denied && <Popup type="denied" message={denied} onClose={closeDenied} />}
     </div>
   );

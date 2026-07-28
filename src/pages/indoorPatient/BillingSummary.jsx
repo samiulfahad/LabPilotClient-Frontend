@@ -4,7 +4,8 @@
 import { useState, useEffect } from "react";
 import { Badge, Btn, ErrorMsg, Field, Input, Modal, SectionCard, Select, fmt } from "./indoorPatientHelpers";
 import indoorPatientService from "../../api/indoorPatient";
-import { Printer } from "lucide-react";
+import { useAuthStore } from "../../store/authStore";
+import { Printer, Lock } from "lucide-react";
 
 // ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx / ReportDownload.jsx / PatientDetails.jsx) ──
 
@@ -481,10 +482,24 @@ function DiscountHistoryModal({ open, onClose, patient }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function BillingSummary({ patient, lab, onCollect, onExtra, onAddExpenses, onRefresh, patientId }) {
+export default function BillingSummary({
+  patient,
+  lab,
+  onCollect,
+  onExtra,
+  onAddExpenses,
+  canAddExpenses = true,
+  onRefresh,
+  patientId,
+}) {
   const [bedDetailsOpen, setBedDetailsOpen] = useState(false);
   const [addDiscountOpen, setAddDiscountOpen] = useState(false);
   const [discountHistoryOpen, setDiscountHistoryOpen] = useState(false);
+
+  const role = useAuthStore((s) => s.user?.role);
+  const permissions = useAuthStore((s) => s.user?.permissions);
+  const isAdmin = role === "admin";
+  const canApplyDiscount = isAdmin || !!permissions?.applyDiscountToPatient;
 
   const isAdmitted = patient.status === "admitted";
   const isPackage = patient.dealType === "package";
@@ -655,15 +670,25 @@ export default function BillingSummary({ patient, lab, onCollect, onExtra, onAdd
           {/* Right: Add Expenses + Collect + Add Discount buttons together */}
           {isAdmitted && (
             <div className="no-print flex items-center gap-2 shrink-0 flex-wrap justify-end">
-              {onAddExpenses && (
-                <button
-                  type="button"
-                  onClick={onAddExpenses}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] border border-slate-300 bg-white hover:bg-slate-50 active:scale-95 text-slate-600 text-[12px] font-semibold transition-all"
-                >
-                  ➕ Add Expenses
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={canAddExpenses ? onAddExpenses : undefined}
+                disabled={!canAddExpenses}
+                title={!canAddExpenses ? "No Permission" : undefined}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] border text-[12px] font-semibold transition-all ${
+                  canAddExpenses
+                    ? "border-slate-300 bg-white hover:bg-slate-50 active:scale-95 text-slate-600 cursor-pointer"
+                    : "border-slate-200 bg-slate-50 text-slate-300 cursor-not-allowed"
+                }`}
+              >
+                {canAddExpenses ? (
+                  "➕ Add Expenses"
+                ) : (
+                  <>
+                    <Lock className="w-3 h-3" /> Add Expenses
+                  </>
+                )}
+              </button>
               {due > 0 && (
                 <button
                   type="button"
@@ -684,18 +709,28 @@ export default function BillingSummary({ patient, lab, onCollect, onExtra, onAdd
               )}
               <button
                 type="button"
-                onClick={() => setAddDiscountOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] bg-[#0F6E5C] hover:bg-[#0a5a4a] active:scale-95 text-white text-[12px] font-bold tracking-wide transition-all shadow-sm"
+                onClick={canApplyDiscount ? () => setAddDiscountOpen(true) : undefined}
+                disabled={!canApplyDiscount}
+                title={!canApplyDiscount ? "No Permission" : undefined}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] text-[12px] font-bold tracking-wide transition-all ${
+                  canApplyDiscount
+                    ? "bg-[#0F6E5C] hover:bg-[#0a5a4a] active:scale-95 text-white shadow-sm cursor-pointer"
+                    : "bg-slate-100 text-slate-300 cursor-not-allowed"
+                }`}
               >
-                <svg
-                  className="w-3.5 h-3.5 shrink-0"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
+                {canApplyDiscount ? (
+                  <svg
+                    className="w-3.5 h-3.5 shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                ) : (
+                  <Lock className="w-3 h-3 shrink-0" />
+                )}
                 Discount
               </button>
             </div>

@@ -126,6 +126,12 @@ const PatientDetails = () => {
   const { id: patientId } = useParams();
   const navigate = useNavigate();
   const lab = useAuthStore((s) => s.lab);
+  const role = useAuthStore((s) => s.user?.role);
+  const permissions = useAuthStore((s) => s.user?.permissions);
+  const isAdmin = role === "admin";
+  const canRelease = isAdmin || !!permissions?.releasePatient;
+  const canDelete = isAdmin || !!permissions?.deletePatient;
+  const canAddExpense = isAdmin || !!permissions?.addExpenseToPatient;
 
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -467,7 +473,13 @@ const PatientDetails = () => {
                     {editInfo ? "Cancel" : "Edit"}
                   </Btn>
                   {isAdmitted && (
-                    <Btn variant="danger" size="sm" onClick={() => setReleaseConfirm(true)}>
+                    <Btn
+                      variant="danger"
+                      size="sm"
+                      disabled={!canRelease}
+                      title={!canRelease ? "No Permission" : undefined}
+                      onClick={canRelease ? () => setReleaseConfirm(true) : undefined}
+                    >
                       Discharge
                     </Btn>
                   )}
@@ -814,7 +826,14 @@ const PatientDetails = () => {
                   Permanently remove this record from all lists and reports. This is different from Discharge — use it
                   only to correct an admission created by mistake.
                 </p>
-                <Btn variant="danger" size="sm" className="shrink-0" onClick={() => setDeleteConfirm(true)}>
+                <Btn
+                  variant="danger"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={!canDelete}
+                  title={!canDelete ? "No Permission" : undefined}
+                  onClick={canDelete ? () => setDeleteConfirm(true) : undefined}
+                >
                   Delete Patient
                 </Btn>
               </div>
@@ -852,6 +871,7 @@ const PatientDetails = () => {
                 onCollect={() => setShowCollectPayment(true)}
                 onExtra={() => setShowExtraPayment(true)}
                 onAddExpenses={() => navigate(`/ipd/add-items?patientId=${patientId}`)}
+                canAddExpenses={canAddExpense}
                 patientId={patientId}
                 onRefresh={fetchPatient}
               />
