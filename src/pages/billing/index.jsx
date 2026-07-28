@@ -26,9 +26,11 @@ import {
   BadgeCheck,
   CircleDollarSign,
   History,
+  Lock,
 } from "lucide-react";
 import billingService from "../../api/billing";
 import Popup from "../../components/popup";
+import { useAuthStore } from "../../store/authStore";
 
 // ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx) ──
 
@@ -509,9 +511,35 @@ const SectionHeader = ({ icon: Icon, eyebrow, label, subtitle, accentColor, righ
   </div>
 );
 
+// ── Locked Access Screen ────────────────────────────────────────────────────────
+
+const LockedBilling = () => (
+  <section
+    className="min-h-screen px-4 py-6 font-['IBM_Plex_Sans',sans-serif] flex items-center justify-center"
+    style={{ background: "linear-gradient(to bottom right,#f8fafc,#eff6ff,#eef2ff)" }}
+  >
+    <div className="max-w-md w-full bg-white border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)] p-8 text-center">
+      <div className="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto mb-4">
+        <Lock className="w-6 h-6 text-slate-400" strokeWidth={2.25} />
+      </div>
+      <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A] mb-1.5">
+        আপনার অ্যাক্সেস নেই
+      </p>
+      <p className="text-sm text-[#64748B] leading-relaxed">
+        মাসিক বিলিং দেখা বা পরিশোধ করার অনুমতি আপনার নেই। প্রয়োজনে আপনার কর্তৃপক্ষের সাথে যোগাযোগ করুন।
+      </p>
+    </div>
+  </section>
+);
+
 // ── Main Billing Page ──────────────────────────────────────────────────────────
 
 const Billing = () => {
+  const role = useAuthStore((s) => s.user?.role);
+  const permissions = useAuthStore((s) => s.user?.permissions);
+  const isAdmin = role === "admin";
+  const canManageBilling = isAdmin || !!permissions?.manageBilling;
+
   const [status, setStatus] = useState(null);
   const [history, setHistory] = useState([]);
   const [loadingStatus, setLoadingStatus] = useState(true);
@@ -548,9 +576,14 @@ const Billing = () => {
   };
 
   useEffect(() => {
+    if (!canManageBilling) return;
     fetchStatus();
     fetchHistory();
-  }, []);
+  }, [canManageBilling]);
+
+  if (!canManageBilling) {
+    return <LockedBilling />;
+  }
 
   const handleRefresh = async () => {
     setRefreshing(true);

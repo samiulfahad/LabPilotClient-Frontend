@@ -19,7 +19,6 @@ import {
   Phone,
   Mail,
   Trash2,
-  Check,
   AlertTriangle,
   Pencil,
   UserX,
@@ -52,6 +51,33 @@ const C = {
 
 const buildInitialPerms = (list) => Object.fromEntries(list.map((p) => [p.key, false]));
 
+// ── Permission group labels ──────────────────────────────────────────────────
+// Matches the `group` key on each entry in ALLOWED_PERMISSIONS (staticData).
+
+const GROUP_LABELS = {
+  invoice: "ইনভয়েস",
+  expense: "খরচ/ব্যয়",
+  dailyReport: "দৈনিক রিপোর্ট",
+  testReport: "টেস্ট রিপোর্ট",
+  setup: "সেটআপ",
+  billing: "বিলিং",
+  indoorPatient: "ভর্তি রোগী (ইনডোর)",
+};
+
+// Distinct accent color per group — makes the modal's group headers
+// immediately scannable instead of one flat gray label repeated.
+const GROUP_COLORS = {
+  invoice: "#6366F1",
+  expense: "#F59E0B",
+  dailyReport: "#0D9488",
+  testReport: "#8B5CF6",
+  setup: "#64748B",
+  billing: "#10B981",
+  indoorPatient: "#EF4444",
+};
+
+const groupColor = (groupKey) => GROUP_COLORS[groupKey] ?? C.indigo;
+
 // ── Status / filter options ───────────────────────────────────────────────────
 
 const STATUS_OPTIONS = [
@@ -64,8 +90,6 @@ const EMPTY_FORM = {
   name: "",
   email: "",
   phone: "",
-  isActive: true,
-  maxLabAdjustment: 0,
 };
 
 // ── Error helpers ──────────────────────────────────────────────────────────────
@@ -124,6 +148,14 @@ const ToggleSwitch = ({ checked }) => (
 // On a failed save the modal stays OPEN (no onClose()) — a permission error
 // or network hiccup shouldn't discard what the user entered. The error
 // surfaces inline via `apiError` in the sticky footer so they can just retry.
+//
+// On EDIT, name/email/phone are immutable (set at registration) and are
+// hidden entirely rather than shown read-only — the edit modal only ever
+// touches permissions here. Active status is handled via the row's own
+// activate/deactivate action, and the bill adjustment limit has its own
+// dedicated modal (see AdjustmentModal below) — neither lives in this form.
+// This mirrors the backend, which rejects name/email/phone outright on the
+// update route regardless of how the request is made.
 
 const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
   const isEdit = !!initial?._id;
@@ -136,17 +168,10 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
         email: initial.email ?? "",
         phone: initial.phone ?? "",
         permissions: initial.permissions ?? buildInitialPerms(permissionsList),
-        isActive: initial.isActive ?? true,
-        maxLabAdjustment: initial.maxLabAdjustment ?? 0,
       };
     }
     return { ...EMPTY_FORM, permissions: buildInitialPerms(permissionsList) };
   });
-
-  // Adjustment limit is toggled on/off independently of its numeric value —
-  // turning the toggle off always zeroes maxLabAdjustment (0 = disabled per
-  // backend contract); turning it on reveals the amount input.
-  const [adjustmentEnabled, setAdjustmentEnabled] = useState((initial?.maxLabAdjustment ?? 0) > 0);
 
   const [saving, setSaving] = useState(false);
   const [apiError, setApiError] = useState("");
@@ -156,15 +181,6 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
     if (apiError) setApiError("");
   };
 
-  const toggleAdjustment = () => {
-    if (adjustmentEnabled) {
-      setAdjustmentEnabled(false);
-      set("maxLabAdjustment", 0);
-    } else {
-      setAdjustmentEnabled(true);
-    }
-  };
-
   const allEnabled = permissionsList.every((p) => form.permissions[p.key]);
 
   const toggleAll = () => {
@@ -172,23 +188,34 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
     set("permissions", next);
   };
 
+  const toggleGroup = (groupKey, groupPerms, groupAllEnabled) => {
+    set("permissions", {
+      ...form.permissions,
+      ...Object.fromEntries(groupPerms.map((p) => [p.key, !groupAllEnabled])),
+    });
+  };
+
+  // Group permissions by their `group` key (invoice, expense, dailyReport, …)
+  // so the modal can render them as labeled sections instead of one flat grid.
+  const groupedPermissions = permissionsList.reduce((acc, p) => {
+    (acc[p.group] ??= []).push(p);
+    return acc;
+  }, {});
+
   const handleSubmit = async () => {
-    if (!form.name.trim()) return setApiError("নাম প্রয়োজন।");
-    if (!form.phone.trim()) return setApiError("ফোন নম্বর প্রয়োজন।");
-    if (adjustmentEnabled && (!form.maxLabAdjustment || Number(form.maxLabAdjustment) <= 0)) {
-      return setApiError("অ্যাডজাস্টমেন্ট সীমা প্রয়োজন।");
+    if (!isEdit) {
+      if (!form.name.trim()) return setApiError("নাম প্রয়োজন।");
+      if (!form.phone.trim()) return setApiError("ফোন নম্বর প্রয়োজন।");
     }
     try {
       setSaving(true);
       setApiError("");
-      const payload = {
-        ...form,
-        maxLabAdjustment: adjustmentEnabled ? Number(form.maxLabAdjustment) : 0,
-      };
       if (isEdit) {
-        await staffService.editStaff({ ...payload, _id: initial._id, type: "editStaff" });
+        // name/email/phone are intentionally NOT sent on edit — the backend
+        // rejects them anyway, and the form doesn't even collect them here.
+        await staffService.editStaff({ permissions: form.permissions, _id: initial._id, type: "editStaff" });
       } else {
-        await staffService.addStaff({ ...payload, type: "addStaff" });
+        await staffService.addStaff({ ...form, type: "addStaff" });
       }
       onSaved(isEdit);
     } catch (err) {
@@ -229,10 +256,10 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
               <p
                 className={`font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] ${accentText}`}
               >
-                {isEdit ? "তথ্য সম্পাদনা" : "নতুন নিবন্ধন"}
+                {isEdit ? "অনুমতি সম্পাদনা" : "নতুন নিবন্ধন"}
               </p>
               <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">
-                {isEdit ? "কর্মী সম্পাদনা" : "কর্মী নিবন্ধন"}
+                {isEdit ? initial.name : "কর্মী নিবন্ধন"}
               </p>
             </div>
           </div>
@@ -246,127 +273,66 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
 
         {/* Body — the ONLY scrollable region, fills remaining space */}
         <div className="px-6 py-5 space-y-4 bg-[#F8FAFC] flex-1 min-h-0 overflow-y-auto">
-          {/* Name */}
-          <FormField label="পূর্ণ নাম" required>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              placeholder="কর্মীর নাম"
-              className={`${inputBase} px-3 py-2.5 text-sm`}
-              onFocus={focusInput}
-              onBlur={blurInput}
-            />
-          </FormField>
+          {/* Name / Email / Phone — registration only. These are fixed at
+              signup and can't be changed afterwards, so the edit modal
+              never shows them at all. The backend enforces this too, so
+              even a direct API call can't change them post-registration. */}
+          {!isEdit && (
+            <>
+              <FormField label="পূর্ণ নাম" required>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => set("name", e.target.value)}
+                  placeholder="কর্মীর নাম"
+                  className={`${inputBase} px-3 py-2.5 text-sm`}
+                  onFocus={focusInput}
+                  onBlur={blurInput}
+                />
+              </FormField>
 
-          {/* Email + Phone */}
-          <div className="grid grid-cols-2 gap-3">
-            <FormField label="ইমেইল">
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => set("email", e.target.value)}
-                placeholder="email@example.com"
-                className={`${inputBase} px-3 py-2.5 text-sm`}
-                onFocus={focusInput}
-                onBlur={blurInput}
-              />
-            </FormField>
-            <FormField
-              label="ফোন নম্বর"
-              required={!isEdit}
-              hint={isEdit ? "নিবন্ধনের পরে পরিবর্তন করা যাবে না।" : undefined}
-            >
-              <input
-                type="tel"
-                value={form.phone}
-                onChange={(e) => set("phone", e.target.value)}
-                placeholder="01XXXXXXXXX"
-                maxLength={15}
-                readOnly={isEdit}
-                className={`${inputBase} px-3 py-2.5 text-sm ${isEdit ? "opacity-50 cursor-not-allowed" : ""}`}
-                onFocus={isEdit ? undefined : focusInput}
-                onBlur={isEdit ? undefined : blurInput}
-              />
-            </FormField>
-          </div>
-
-          {/* Status */}
-          <FormField label="স্ট্যাটাস">
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                {
-                  value: true,
-                  label: "সক্রিয়",
-                  bg: "bg-[#0D948812]",
-                  border: "border-[#0D948860]",
-                  text: "text-[#0D9488]",
-                },
-                {
-                  value: false,
-                  label: "নিষ্ক্রিয়",
-                  bg: "bg-[#EF444412]",
-                  border: "border-[#EF444460]",
-                  text: "text-[#EF4444]",
-                },
-              ].map(({ value, label, bg, border, text }) => {
-                const active = form.isActive === value;
-                return (
-                  <button
-                    key={String(value)}
-                    type="button"
-                    onClick={() => set("isActive", value)}
-                    className={`flex items-center gap-2 px-3 py-3 transition-all font-semibold rounded-xl border-[1.5px] font-['IBM_Plex_Mono',monospace] text-xs
-                      ${active ? `${bg} ${border} ${text}` : "bg-white border-[#E2E8F0] text-[#64748B]"}`}
-                  >
-                    {active && <Check className="w-3 h-3" />}
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </FormField>
-
-          {/* Max lab/bill adjustment — not shown for admins. Toggle first
-              (0 = disabled per backend contract), amount input reveals
-              only once enabled. */}
-          {!isAdmin && (
-            <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden bg-white">
-              <button
-                type="button"
-                onClick={toggleAdjustment}
-                className="w-full flex items-center justify-between px-4 py-3"
-              >
-                <div className="flex items-center gap-2">
-                  <Wallet className="w-3 h-3 text-[#6366F1]" />
-                  <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
-                    বিল অ্যাডজাস্টমেন্ট সীমা
-                  </span>
-                </div>
-                <ToggleSwitch checked={adjustmentEnabled} />
-              </button>
-              {adjustmentEnabled && (
-                <div className="px-4 pb-3.5">
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="ইমেইল">
                   <input
-                    type="number"
-                    min="0"
-                    value={form.maxLabAdjustment === 0 ? "" : form.maxLabAdjustment}
-                    onChange={(e) => set("maxLabAdjustment", e.target.value === "" ? "" : Number(e.target.value))}
-                    placeholder="সর্বোচ্চ পরিমাণ (৳)"
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => set("email", e.target.value)}
+                    placeholder="email@example.com"
                     className={`${inputBase} px-3 py-2.5 text-sm`}
                     onFocus={focusInput}
                     onBlur={blurInput}
                   />
-                  <p className="mt-1 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-                    এই কর্মী সর্বোচ্চ এই পরিমাণ পর্যন্ত ল্যাব/বিল অ্যাডজাস্টমেন্ট করতে পারবেন।
-                  </p>
-                </div>
-              )}
+                </FormField>
+                <FormField label="ফোন নম্বর" required>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => set("phone", e.target.value)}
+                    placeholder="01XXXXXXXXX"
+                    maxLength={15}
+                    className={`${inputBase} px-3 py-2.5 text-sm`}
+                    onFocus={focusInput}
+                    onBlur={blurInput}
+                  />
+                </FormField>
+              </div>
+            </>
+          )}
+
+          {/* Immutable-fields notice on edit, so it's clear this isn't an
+              oversight — name/email/phone simply can't be changed here. */}
+          {isEdit && !isAdmin && (
+            <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl border-[1.5px] border-[#E2E8F025] bg-[#94A3B808]">
+              <AlertCircle className="w-[13px] h-[13px] text-[#94A3B8] shrink-0 mt-[1px]" />
+              <p className="font-['IBM_Plex_Mono',monospace] text-[10.5px] leading-[1.5] text-[#64748B]">
+                নাম, ইমেইল ও ফোন নম্বর নিবন্ধনের পর পরিবর্তনযোগ্য নয়। স্ট্যাটাস ও অ্যাডজাস্টমেন্ট সীমা তালিকার অ্যাকশন
+                বাটন থেকে পরিবর্তন করুন।
+              </p>
             </div>
           )}
 
-          {/* Permissions — modern toggle-switch list, 2 columns on larger screens.
-              Not shown for admins, who always have full, fixed access. */}
+          {/* Permissions — grouped by category with color-coded, eye-catching
+              headers. Not shown for admins, who always have full, fixed access. */}
           {!isAdmin && (
             <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden bg-white">
               <div className="px-4 pt-3 pb-2.5">
@@ -403,28 +369,79 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
                 </div>
               </div>
 
-              <div className="px-2.5 pb-2.5 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                {permissionsList.map(({ key, label }) => {
-                  const checked = form.permissions[key];
+              <div className="px-2.5 pb-2.5 space-y-3">
+                {Object.entries(groupedPermissions).map(([groupKey, groupPerms]) => {
+                  const groupAllEnabled = groupPerms.every((p) => form.permissions[p.key]);
+                  const groupEnabledCount = groupPerms.filter((p) => form.permissions[p.key]).length;
+                  const groupHasSome = groupEnabledCount > 0;
+                  const gc = groupColor(groupKey);
                   return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => set("permissions", { ...form.permissions, [key]: !checked })}
-                      className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border transition-all text-left"
-                      style={{
-                        background: checked ? `${C.indigo}0A` : "#F8FAFC",
-                        borderColor: checked ? `${C.indigo}40` : "#E2E8F0",
-                      }}
-                    >
-                      <span
-                        className="font-['IBM_Plex_Mono',monospace] text-[11.5px] leading-[1.35] font-medium break-words"
-                        style={{ color: checked ? "#0F172A" : C.sub }}
+                    <div key={groupKey}>
+                      {/* Eye-catching group header — colored pill with a
+                          status dot, bold label, count, and the group
+                          toggle all bundled into one strip. */}
+                      <div
+                        className="flex items-center gap-2 px-2.5 py-[7px] rounded-lg mb-1.5 border transition-all"
+                        style={{
+                          background: groupHasSome ? `${gc}12` : "#F8FAFC",
+                          borderColor: groupHasSome ? `${gc}35` : "#E2E8F0",
+                        }}
                       >
-                        {label}
-                      </span>
-                      <ToggleSwitch checked={checked} />
-                    </button>
+                        <span
+                          className="w-[7px] h-[7px] rounded-full shrink-0"
+                          style={{ background: groupHasSome ? gc : "#CBD5E1" }}
+                        />
+                        <span
+                          className="font-['IBM_Plex_Mono',monospace] text-[10.5px] font-extrabold uppercase tracking-[0.07em]"
+                          style={{ color: groupHasSome ? gc : "#94A3B8" }}
+                        >
+                          {GROUP_LABELS[groupKey] ?? groupKey}
+                        </span>
+                        <span
+                          className="font-['IBM_Plex_Mono',monospace] text-[9.5px] font-bold px-1.5 py-[1px] rounded-full"
+                          style={{
+                            color: groupHasSome ? gc : "#94A3B8",
+                            background: groupHasSome ? `${gc}18` : "#E2E8F0",
+                          }}
+                        >
+                          {groupEnabledCount}/{groupPerms.length}
+                        </span>
+                        <div className="flex-1" />
+                        <button
+                          type="button"
+                          onClick={() => toggleGroup(groupKey, groupPerms, groupAllEnabled)}
+                          className={`font-['IBM_Plex_Mono',monospace] text-[9.5px] font-bold px-1.5 py-[2px] rounded-md transition-all
+                          ${groupAllEnabled ? "text-[#EF4444] bg-[#EF444415]" : "text-[#6366F1] bg-[#6366F115]"}`}
+                        >
+                          {groupAllEnabled ? "বাদ দিন" : "সব নিন"}
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                        {groupPerms.map(({ key, label }) => {
+                          const checked = form.permissions[key];
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => set("permissions", { ...form.permissions, [key]: !checked })}
+                              className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border transition-all text-left"
+                              style={{
+                                background: checked ? `${C.indigo}0A` : "#F8FAFC",
+                                borderColor: checked ? `${C.indigo}40` : "#E2E8F0",
+                              }}
+                            >
+                              <span
+                                className="font-['IBM_Plex_Mono',monospace] text-[11.5px] leading-[1.35] font-medium break-words"
+                                style={{ color: checked ? "#0F172A" : C.sub }}
+                              >
+                                {label}
+                              </span>
+                              <ToggleSwitch checked={checked} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -476,6 +493,155 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
   );
 };
 
+// ── Adjustment Limit Modal ──────────────────────────────────────────────────
+// Standalone modal, separate from StaffFormModal, dedicated to setting the
+// max lab/bill adjustment limit for one staff member. Reuses the same
+// toggle-then-reveal pattern (0 = disabled per backend contract) and PUTs
+// only `maxLabAdjustment` — the backend update route accepts each field
+// independently, so this never touches permissions or isActive.
+
+const AdjustmentModal = ({ member, onClose, onSaved }) => {
+  const [enabled, setEnabled] = useState((member.maxLabAdjustment ?? 0) > 0);
+  const [amount, setAmount] = useState(member.maxLabAdjustment ?? 0);
+  const [saving, setSaving] = useState(false);
+  const [apiError, setApiError] = useState("");
+
+  const toggle = () => {
+    if (enabled) {
+      setEnabled(false);
+      setAmount(0);
+    } else {
+      setEnabled(true);
+    }
+    if (apiError) setApiError("");
+  };
+
+  const handleSubmit = async () => {
+    if (enabled && (!amount || Number(amount) <= 0)) {
+      return setApiError("অ্যাডজাস্টমেন্ট সীমা প্রয়োজন।");
+    }
+    try {
+      setSaving(true);
+      setApiError("");
+      await staffService.editStaff({
+        maxLabAdjustment: enabled ? Number(amount) : 0,
+        _id: member._id,
+        type: "editStaff",
+      });
+      onSaved();
+    } catch (err) {
+      setApiError(getErrorMessage(err, "সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal isOpen size="sm" onClose={onClose}>
+      <div className="flex flex-col overflow-hidden">
+        {/* Header */}
+        <div
+          className="shrink-0 px-6 py-5 flex items-center justify-between border-b border-[#6366F120]"
+          style={{ background: "linear-gradient(135deg,#6366F115 0%,#4F46E508 100%)" }}
+        >
+          <div className="flex items-center gap-3.5">
+            <div
+              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px]"
+              style={{ background: "linear-gradient(135deg,#6366F1,#4F46E5)", boxShadow: "0 8px 20px #6366F140" }}
+            >
+              <Wallet className="w-[18px] h-[18px] text-white" />
+            </div>
+            <div>
+              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] text-[#6366F1]">
+                অ্যাডজাস্টমেন্ট সীমা
+              </p>
+              <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">{member.name}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-8 h-8 rounded-[10px] text-[#94A3B8] border-[1.5px] border-[#E2E8F0] transition-all hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+          >
+            <X className="w-[15px] h-[15px]" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-4 bg-[#F8FAFC]">
+          <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden bg-white">
+            <button type="button" onClick={toggle} className="w-full flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-3 h-3 text-[#6366F1]" />
+                <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
+                  বিল অ্যাডজাস্টমেন্ট সীমা সক্রিয়
+                </span>
+              </div>
+              <ToggleSwitch checked={enabled} />
+            </button>
+            {enabled && (
+              <div className="px-4 pb-3.5">
+                <input
+                  type="number"
+                  min="0"
+                  value={amount === 0 ? "" : amount}
+                  onChange={(e) => {
+                    setAmount(e.target.value === "" ? "" : Number(e.target.value));
+                    if (apiError) setApiError("");
+                  }}
+                  placeholder="সর্বোচ্চ পরিমাণ (৳)"
+                  className={`${inputBase} px-3 py-2.5 text-sm`}
+                  onFocus={focusInput}
+                  onBlur={blurInput}
+                  autoFocus
+                />
+                <p className="mt-1 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
+                  এই কর্মী সর্বোচ্চ এই পরিমাণ পর্যন্ত ল্যাব/বিল অ্যাডজাস্টমেন্ট করতে পারবেন।
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
+            </div>
+          )}
+          <div className="px-6 py-4 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
+            >
+              বাতিল
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={saving}
+              className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+              style={{
+                background: saving ? C.muted : "linear-gradient(135deg,#6366F1,#4F46E5)",
+                cursor: saving ? "not-allowed" : "pointer",
+              }}
+            >
+              {saving ? (
+                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <Wallet className="w-[13px] h-[13px]" />
+              )}
+              সংরক্ষণ করুন
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 // ── Action Chip ────────────────────────────────────────────────────────────────
 
 const ActionChip = ({ onClick, icon: Icon, label, color }) => (
@@ -499,7 +665,7 @@ const ActionChip = ({ onClick, icon: Icon, label, color }) => (
 
 // ── Staff Row ──────────────────────────────────────────────────────────────────
 
-const StaffRow = ({ member, index, permissionsList, onEdit, onDelete, onDeactivate, onActivate }) => {
+const StaffRow = ({ member, index, permissionsList, onEdit, onAdjust, onDelete, onDeactivate, onActivate }) => {
   const [expanded, setExpanded] = useState(false);
   const activePerms = permissionsList.filter((p) => member.permissions[p.key]);
   const hasFullAccess = activePerms.length === permissionsList.length;
@@ -575,7 +741,9 @@ const StaffRow = ({ member, index, permissionsList, onEdit, onDelete, onDeactiva
             )}
           </div>
 
-          {/* Permissions — not shown for admins, who always have full, fixed access */}
+          {/* Permissions — flat, side-by-side badges (not grouped). Not
+              shown for admins who always have full, fixed access. Grouping
+              is reserved for the edit modal only. */}
           {member.role !== "admin" && (
             <div className="mb-3">
               <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] mb-1.5">
@@ -602,6 +770,9 @@ const StaffRow = ({ member, index, permissionsList, onEdit, onDelete, onDeactiva
           {/* Actions */}
           <div className="flex items-center gap-2 flex-wrap">
             {member.role !== "admin" && <ActionChip onClick={onEdit} icon={Pencil} label="সম্পাদনা" color={C.indigo} />}
+            {member.role !== "admin" && (
+              <ActionChip onClick={onAdjust} icon={Wallet} label="অ্যাডজাস্টমেন্ট সীমা" color={C.purple} />
+            )}
             {member.role === "admin" && (
               <span className="inline-flex items-center gap-1.5 px-3 py-[5px] font-['IBM_Plex_Mono',monospace] text-[11px] font-semibold text-[#94A3B8]">
                 <Shield className="w-[11px] h-[11px]" /> অ্যাডমিন অ্যাকাউন্ট সুরক্ষিত
@@ -712,6 +883,7 @@ const ManageStaff = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [popup, setPopup] = useState(null);
   const [formModal, setFormModal] = useState(null); // null | {} | member object
+  const [adjustModal, setAdjustModal] = useState(null); // null | member object
   // Delete / activate / deactivate confirmations use the shared
   // <Popup type="warning"> directly (see render section below), not a
   // bespoke modal — same pattern as Products.jsx / ManageReferrer.jsx /
@@ -789,6 +961,12 @@ const ManageStaff = () => {
     setPopup({ type: "success", message: isEdit ? "কর্মী আপডেট হয়েছে।" : "কর্মী নিবন্ধিত হয়েছে।" });
   };
 
+  const handleAdjustSaved = async () => {
+    setAdjustModal(null);
+    await loadStaff();
+    setPopup({ type: "success", message: "অ্যাডজাস্টমেন্ট সীমা আপডেট হয়েছে।" });
+  };
+
   // No in-flight spinner on the confirm popup itself — it closes as soon as
   // onConfirm fires, so a failure just surfaces as a follow-up error toast.
   // Mirrors handleDelete in Products.jsx / ManageReferrer.jsx / ManageTests.jsx.
@@ -821,6 +999,7 @@ const ManageStaff = () => {
     member,
     permissionsList,
     onEdit: () => setFormModal(member),
+    onAdjust: () => setAdjustModal(member),
     onDelete: () => setModal({ type: "delete", member }),
     onDeactivate: () => setModal({ type: "deactivate", member }),
     onActivate: () => setModal({ type: "activate", member }),
@@ -840,6 +1019,10 @@ const ManageStaff = () => {
           onClose={() => setFormModal(null)}
           onSaved={handleSaved}
         />
+      )}
+
+      {adjustModal !== null && (
+        <AdjustmentModal member={adjustModal} onClose={() => setAdjustModal(null)} onSaved={handleAdjustSaved} />
       )}
 
       {modal?.type === "delete" && (
