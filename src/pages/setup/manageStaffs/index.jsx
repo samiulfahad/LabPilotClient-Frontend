@@ -154,8 +154,8 @@ const ToggleSwitch = ({ checked }) => (
 // touches permissions here. Active status is handled via the row's own
 // activate/deactivate action, and the bill adjustment limit has its own
 // dedicated modal (see AdjustmentModal below) — neither lives in this form.
-// This mirrors the backend, which rejects name/email/phone outright on the
-// update route regardless of how the request is made.
+// This mirrors the backend, which now exposes permissions, adjustment, and
+// active-status as three separate routes rather than one combined update.
 
 const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
   const isEdit = !!initial?._id;
@@ -213,7 +213,9 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
       if (isEdit) {
         // name/email/phone are intentionally NOT sent on edit — the backend
         // rejects them anyway, and the form doesn't even collect them here.
-        await staffService.editStaff({ permissions: form.permissions, _id: initial._id, type: "editStaff" });
+        // Dedicated permissions-only route — activate/deactivate and the
+        // adjustment limit each live on their own routes now.
+        await staffService.updatePermissions({ permissions: form.permissions, _id: initial._id });
       } else {
         await staffService.addStaff({ ...form, type: "addStaff" });
       }
@@ -497,8 +499,8 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
 // Standalone modal, separate from StaffFormModal, dedicated to setting the
 // max lab/bill adjustment limit for one staff member. Reuses the same
 // toggle-then-reveal pattern (0 = disabled per backend contract) and PUTs
-// only `maxLabAdjustment` — the backend update route accepts each field
-// independently, so this never touches permissions or isActive.
+// only `maxLabAdjustment` to its own dedicated route — this never touches
+// permissions or isActive, which each have their own routes now.
 
 const AdjustmentModal = ({ member, onClose, onSaved }) => {
   const [enabled, setEnabled] = useState((member.maxLabAdjustment ?? 0) > 0);
@@ -523,10 +525,9 @@ const AdjustmentModal = ({ member, onClose, onSaved }) => {
     try {
       setSaving(true);
       setApiError("");
-      await staffService.editStaff({
+      await staffService.updateAdjustment({
         maxLabAdjustment: enabled ? Number(amount) : 0,
         _id: member._id,
-        type: "editStaff",
       });
       onSaved();
     } catch (err) {
@@ -769,9 +770,9 @@ const StaffRow = ({ member, index, permissionsList, onEdit, onAdjust, onDelete, 
 
           {/* Actions */}
           <div className="flex items-center gap-2 flex-wrap">
-            {member.role !== "admin" && <ActionChip onClick={onEdit} icon={Pencil} label="সম্পাদনা" color={C.indigo} />}
+            {member.role !== "admin" && <ActionChip onClick={onEdit} icon={Pencil} label="Permissions" color={C.indigo} />}
             {member.role !== "admin" && (
-              <ActionChip onClick={onAdjust} icon={Wallet} label="অ্যাডজাস্টমেন্ট সীমা" color={C.purple} />
+              <ActionChip onClick={onAdjust} icon={Wallet} label="Adjustment Limit" color={C.purple} />
             )}
             {member.role === "admin" && (
               <span className="inline-flex items-center gap-1.5 px-3 py-[5px] font-['IBM_Plex_Mono',monospace] text-[11px] font-semibold text-[#94A3B8]">
@@ -781,11 +782,11 @@ const StaffRow = ({ member, index, permissionsList, onEdit, onAdjust, onDelete, 
             {member.role !== "admin" && (
               <>
                 {member.isActive ? (
-                  <ActionChip onClick={onDeactivate} icon={UserX} label="নিষ্ক্রিয়" color={C.amber} />
+                  <ActionChip onClick={onDeactivate} icon={UserX} label="Deactivate" color={C.amber} />
                 ) : (
-                  <ActionChip onClick={onActivate} icon={UserCheck} label="সক্রিয়" color={C.green} />
+                  <ActionChip onClick={onActivate} icon={UserCheck} label="Activate" color={C.green} />
                 )}
-                <ActionChip onClick={onDelete} icon={Trash2} label="মুছুন" color={C.red} />
+                <ActionChip onClick={onDelete} icon={Trash2} label="Delete" color={C.red} />
               </>
             )}
           </div>
