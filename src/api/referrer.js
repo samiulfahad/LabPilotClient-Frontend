@@ -9,8 +9,6 @@ const referrerService = {
       commissionType: data.commissionType,
       commissionValue: data.commissionValue,
     }),
-  deactivateReferrer: (_id) => api.patch(`/referrer/${_id}/deactivate`),
-  activateReferrer: (_id) => api.patch(`/referrer/${_id}/activate`),
   deleteReferrer: (_id) => api.delete(`/referrer/${_id}`),
 };
 

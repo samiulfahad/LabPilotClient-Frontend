@@ -58,6 +58,7 @@ const CARDS = [
 const colorMap = {
   blue: {
     ring: "group-hover:ring-blue-200",
+    focusRing: "focus-visible:ring-blue-200",
     iconBox: "bg-blue-50 border-blue-100 group-hover:bg-blue-100 group-hover:border-blue-200",
     icon: "text-blue-500",
     label: "group-hover:text-blue-900",
@@ -67,6 +68,7 @@ const colorMap = {
   },
   amber: {
     ring: "group-hover:ring-amber-200",
+    focusRing: "focus-visible:ring-amber-200",
     iconBox: "bg-amber-50 border-amber-100 group-hover:bg-amber-100 group-hover:border-amber-200",
     icon: "text-amber-600",
     label: "group-hover:text-amber-900",
@@ -76,6 +78,7 @@ const colorMap = {
   },
   emerald: {
     ring: "group-hover:ring-emerald-200",
+    focusRing: "focus-visible:ring-emerald-200",
     iconBox: "bg-emerald-50 border-emerald-100 group-hover:bg-emerald-100 group-hover:border-emerald-200",
     icon: "text-emerald-500",
     label: "group-hover:text-emerald-900",
@@ -85,6 +88,7 @@ const colorMap = {
   },
   purple: {
     ring: "group-hover:ring-purple-200",
+    focusRing: "focus-visible:ring-purple-200",
     iconBox: "bg-purple-50 border-purple-100 group-hover:bg-purple-100 group-hover:border-purple-200",
     icon: "text-purple-500",
     label: "group-hover:text-purple-900",
@@ -94,6 +98,7 @@ const colorMap = {
   },
   sky: {
     ring: "group-hover:ring-sky-200",
+    focusRing: "focus-visible:ring-sky-200",
     iconBox: "bg-sky-50 border-sky-100 group-hover:bg-sky-100 group-hover:border-sky-200",
     icon: "text-sky-500",
     label: "group-hover:text-sky-900",
@@ -103,6 +108,7 @@ const colorMap = {
   },
   rose: {
     ring: "group-hover:ring-rose-200",
+    focusRing: "focus-visible:ring-rose-200",
     iconBox: "bg-rose-50 border-rose-100 group-hover:bg-rose-100 group-hover:border-rose-200",
     icon: "text-rose-500",
     label: "group-hover:text-rose-900",
@@ -204,8 +210,11 @@ const Setup = () => {
               </>
             );
 
+            // outline-none removes the browser's default focus/hover outline
+            // (which can render as a black/dark ring in some browsers).
+            // focus-visible:ring keeps a themed indicator for keyboard users.
             const baseClass =
-              "group relative flex flex-col items-center gap-3 p-5 rounded-2xl border bg-white transition-all duration-200 overflow-hidden animate-[cardIn_0.4s_cubic-bezier(.22,1,.36,1)_both]";
+              "group relative flex flex-col items-center gap-3 p-5 rounded-2xl border bg-white transition-all duration-200 overflow-hidden outline-none focus:outline-none hover:outline-none focus-visible:outline-none active:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 animate-[cardIn_0.4s_cubic-bezier(.22,1,.36,1)_both]";
 
             if (!allowed) {
               return (
@@ -213,7 +222,7 @@ const Setup = () => {
                   key={item.link}
                   title="No Permission"
                   style={{ animationDelay: `${idx * 40}ms` }}
-                  className={`${baseClass} border-slate-100 cursor-not-allowed select-none opacity-70 saturate-0`}
+                  className={`${baseClass} border-slate-100 hover:border-slate-100 cursor-not-allowed select-none opacity-70 saturate-0`}
                 >
                   {cardInner}
                 </div>
@@ -224,8 +233,8 @@ const Setup = () => {
               <Link
                 key={item.link}
                 to={item.link}
-                style={{ animationDelay: `${idx * 40}ms` }}
-                className={`${baseClass} border-slate-200 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-200/60 hover:ring-1 ${c.ring}`}
+                style={{ animationDelay: `${idx * 40}ms`, outline: "none" }}
+                className={`${baseClass} border-slate-200 hover:border-slate-200 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-200/60 group-hover:ring-1 ${c.ring} ${c.focusRing}`}
               >
                 {cardInner}
               </Link>

@@ -292,25 +292,27 @@ const FormatModal = ({ test, onClose, onSave }) => {
               disabled={saving}
               className="flex-1 py-2.5 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
             >
-              Cancel
+              Close
             </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={saving}
-              className="flex-1 py-2.5 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
-              style={{
-                background: saving ? C.muted : "linear-gradient(135deg,#0D9488,#0F766E)",
-                boxShadow: saving ? "none" : "0 4px 14px rgba(13,148,136,0.4)",
-              }}
-            >
-              {saving ? (
-                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-              ) : (
-                <CheckCircle2 className="w-[13px] h-[13px]" />
-              )}
-              Save Format
-            </button>
+            {schemas.length > 0 && (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={saving}
+                className="flex-1 py-2.5 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+                style={{
+                  background: saving ? C.muted : "linear-gradient(135deg,#0D9488,#0F766E)",
+                  boxShadow: saving ? "none" : "0 4px 14px rgba(13,148,136,0.4)",
+                }}
+              >
+                {saving ? (
+                  <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+                ) : (
+                  <CheckCircle2 className="w-[13px] h-[13px]" />
+                )}
+                Save Format
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -424,7 +426,7 @@ const PriceModal = ({ test, onClose, onSave }) => {
               disabled={saving}
               className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
             >
-              বাতিল
+              Cancel
             </button>
             <button
               onClick={handleSubmit}
@@ -437,7 +439,7 @@ const PriceModal = ({ test, onClose, onSave }) => {
               ) : (
                 <Banknote className="w-[13px] h-[13px]" />
               )}
-              আপডেট করুন
+              Save
             </button>
           </div>
         </div>
@@ -757,7 +759,7 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
                 disabled={saving}
                 className="py-2.5 px-5 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
               >
-                বাতিল
+                Cancel
               </button>
               <button
                 onClick={handleSave}
@@ -1121,9 +1123,9 @@ const ManageTests = () => {
       {deleteTarget && (
         <Popup
           type="warning"
-          message={`"${deleteTarget.name}" স্থায়ীভাবে মুছে যাবে। এই কাজ পূর্বাবস্থায় ফেরানো যাবে না।`}
-          confirmText="হ্যাঁ, মুছুন"
-          cancelText="রাখুন"
+          message={`"${deleteTarget.name}" ডিলিট করে দিতে চান?`}
+          confirmText="Delete"
+          cancelText="Cancel"
           onConfirm={handleDelete}
           onClose={() => setDeleteTarget(null)}
         />

@@ -11,8 +11,6 @@ import {
   X,
   RotateCcw,
   UserPlus,
-  UserCheck,
-  UserX,
   Stethoscope,
   Briefcase,
   Building2,
@@ -64,10 +62,9 @@ const TYPE_CONFIG = {
 
 // ── Initial form data ──────────────────────────────────────────────────────────
 // On CREATE, commission is required up front (the backend needs it to insert
-// the referrer) and isActive defaults true — both are collected right here.
-// On EDIT, those two are hidden from this form: commission has its own
-// dedicated CommissionModal (below), and status is only ever changed via the
-// row's own activate/deactivate action — same split as ManageStaff.
+// the referrer) — collected right here. On EDIT, commission is hidden from
+// this form: it has its own dedicated CommissionModal (below), same split as
+// ManageStaff.
 
 const EMPTY_FORM = {
   name: "",
@@ -77,7 +74,6 @@ const EMPTY_FORM = {
   type: "doctor",
   commissionType: "percentage",
   commissionValue: 0,
-  isActive: true,
 };
 
 // ── Error helpers ──────────────────────────────────────────────────────────────
@@ -116,8 +112,7 @@ const FormField = ({ label, required, children }) => (
 
 // ── Referrer Form Modal (create / edit basic info) ──────────────────────────────
 // Handles name/contact/degree/details/type only. Commission lives in its own
-// CommissionModal, and active status is a row-level action — neither touches
-// this form, mirroring StaffFormModal / AdjustmentModal in ManageStaff.
+// CommissionModal, mirroring StaffFormModal / AdjustmentModal in ManageStaff.
 //
 // On a failed save the modal stays OPEN (no onClose()) so nothing typed is
 // lost; the error surfaces inline via `apiError` in the sticky footer.
@@ -252,44 +247,6 @@ const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving, apiE
               onBlur={blurInput}
             />
           </FormField>
-
-          {/* Status — create only. On edit, status is a row-level action. */}
-          {!isEdit && (
-            <FormField label="স্ট্যাটাস">
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  {
-                    value: true,
-                    label: "সক্রিয়",
-                    bg: "bg-[#0D948812]",
-                    border: "border-[#0D948860]",
-                    text: "text-[#0D9488]",
-                  },
-                  {
-                    value: false,
-                    label: "নিষ্ক্রিয়",
-                    bg: "bg-[#EF444412]",
-                    border: "border-[#EF444460]",
-                    text: "text-[#EF4444]",
-                  },
-                ].map(({ value, label, bg, border, text }) => {
-                  const active = formData.isActive === value;
-                  return (
-                    <button
-                      key={String(value)}
-                      type="button"
-                      onClick={() => onChange("isActive", value)}
-                      className={`flex items-center gap-2 px-3 py-3 transition-all font-semibold rounded-xl border-[1.5px] font-['IBM_Plex_Mono',monospace] text-xs
-                        ${active ? `${bg} ${border} ${text}` : "bg-white border-[#E2E8F0] text-[#64748B]"}`}
-                    >
-                      {active && <Check className="w-3 h-3" />}
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </FormField>
-          )}
 
           {/* Commission — create only. On edit, commission has its own
               dedicated CommissionModal (see below). */}
@@ -634,7 +591,7 @@ const ActionChip = ({ onClick, icon: Icon, label, color }) => (
 
 // ── Referrer Row ───────────────────────────────────────────────────────────────
 
-const ReferrerRow = ({ input, index, onEdit, onCommission, onDelete, onDeactivate, onActivate }) => {
+const ReferrerRow = ({ input, index, onEdit, onCommission, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
   const cfg = TYPE_CONFIG[input.type] ?? TYPE_CONFIG.doctor;
   const TypeIcon = cfg.icon;
@@ -643,7 +600,7 @@ const ReferrerRow = ({ input, index, onEdit, onCommission, onDelete, onDeactivat
   const commShadow = isPercent ? "shadow-[0_3px_8px_#F59E0B30]" : "shadow-[0_3px_8px_#0D948830]";
 
   return (
-    <div className={`transition-all border-b border-[#E2E8F0] ${input.isActive ? "opacity-100" : "opacity-55"}`}>
+    <div className="transition-all border-b border-[#E2E8F0]">
       <button onClick={() => setExpanded((v) => !v)} className="w-full text-left">
         <div className="flex items-center gap-3 py-3 px-2 rounded-xl transition-all hover:bg-[#F1F5F9]">
           <span className="flex items-center justify-center shrink-0 w-[26px] h-[26px] rounded-lg bg-[#EEF2FF] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#64748B]">
@@ -653,11 +610,6 @@ const ReferrerRow = ({ input, index, onEdit, onCommission, onDelete, onDeactivat
             <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A]">{input.name}</span>
             {input.degree && (
               <span className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8]">{input.degree}</span>
-            )}
-            {!input.isActive && (
-              <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#EF4444] bg-[#EF444410] border border-[#EF444425] rounded-[6px] px-1.5 py-px">
-                নিষ্ক্রিয়
-              </span>
             )}
           </div>
           <span
@@ -696,11 +648,6 @@ const ReferrerRow = ({ input, index, onEdit, onCommission, onDelete, onDeactivat
           <div className="flex items-center gap-2 flex-wrap">
             <ActionChip onClick={onEdit} icon={Pencil} label="Edit" color="#6366F1" />
             <ActionChip onClick={onCommission} icon={BadgePercent} label="Commission" color="#8B5CF6" />
-            {input.isActive ? (
-              <ActionChip onClick={onDeactivate} icon={UserX} label="Deactivate" color="#F59E0B" />
-            ) : (
-              <ActionChip onClick={onActivate} icon={UserCheck} label="Activate" color="#10B981" />
-            )}
             <ActionChip onClick={onDelete} icon={Trash2} label="Delete" color="#EF4444" />
           </div>
         </div>
@@ -775,10 +722,6 @@ const TYPE_OPTIONS = [
   { value: "agent", label: "এজেন্ট" },
   { value: "institute", label: "প্রতিষ্ঠান" },
 ];
-const STATUS_OPTIONS = [
-  { value: "active", label: "সক্রিয়" },
-  { value: "inactive", label: "নিষ্ক্রিয়" },
-];
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
@@ -790,13 +733,11 @@ const ManageReferrer = () => {
   const [formModal, setFormModal] = useState(null);
   const [formApiError, setFormApiError] = useState("");
   const [commissionModal, setCommissionModal] = useState(null); // null | referrer object
-  // modal only carries the destructive/status-change confirmations
-  // (delete / deactivate / activate), each rendered via the shared
-  // <Popup type="warning"> component — no bespoke confirm dialog.
-  const [modal, setModal] = useState(null); // { type: "delete" | "deactivate" | "activate", item }
+  // modal only carries the destructive confirmation (delete), rendered via
+  // the shared <Popup type="warning"> component — no bespoke confirm dialog.
+  const [modal, setModal] = useState(null); // { type: "delete", item }
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
 
   const loadReferrers = async () => {
     try {
@@ -816,7 +757,6 @@ const ManageReferrer = () => {
   const stats = useMemo(
     () => ({
       total: referrers.length,
-      active: referrers.filter((r) => r.isActive).length,
       doctors: referrers.filter((r) => r.type === "doctor").length,
       agents: referrers.filter((r) => r.type === "agent").length,
       institutes: referrers.filter((r) => r.type === "institute").length,
@@ -828,15 +768,13 @@ const ManageReferrer = () => {
     () =>
       referrers.filter((r) => {
         if (typeFilter !== "all" && r.type !== typeFilter) return false;
-        if (statusFilter === "active" && !r.isActive) return false;
-        if (statusFilter === "inactive" && r.isActive) return false;
         if (search.trim()) {
           const q = search.toLowerCase();
           return r.name.toLowerCase().includes(q) || r.contactNumber.includes(q) || r.degree?.toLowerCase().includes(q);
         }
         return true;
       }),
-    [referrers, typeFilter, statusFilter, search],
+    [referrers, typeFilter, search],
   );
 
   const handleFormChange = (field, value) => {
@@ -868,7 +806,7 @@ const ManageReferrer = () => {
       const isEdit = formModal.formType === "editReferrer";
       if (isEdit) {
         // Edit route now only accepts basic-info fields (additionalProperties:
-        // false on the backend) — commission/isActive extras are stripped by
+        // false on the backend) — commission extras are stripped by
         // referrerService.editReferrer before the request goes out.
         const { name, contactNumber, degree, details, type, _id } = formModal;
         await referrerService.editReferrer({ name, contactNumber, degree, details, type, _id });
@@ -904,17 +842,7 @@ const ManageReferrer = () => {
     }
   };
 
-  const handleToggle = async (_id, activate) => {
-    try {
-      activate ? await referrerService.activateReferrer(_id) : await referrerService.deactivateReferrer(_id);
-      setReferrers((prev) => prev.map((r) => (r._id === _id ? { ...r, isActive: activate } : r)));
-      setPopup({ type: "success", message: activate ? "রেফারার সক্রিয় হয়েছে।" : "রেফারার নিষ্ক্রিয় হয়েছে।" });
-    } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "স্ট্যাটাস পরিবর্তন ব্যর্থ।") });
-    }
-  };
-
-  const hasFilters = typeFilter !== "all" || statusFilter !== "all";
+  const hasFilters = typeFilter !== "all";
 
   return (
     <section
@@ -945,32 +873,10 @@ const ManageReferrer = () => {
       {modal?.type === "delete" && (
         <Popup
           type="warning"
-          message={`"${modal.item.name}" স্থায়ীভাবে মুছে যাবে। এই কাজ পূর্বাবস্থায় ফেরানো যাবে না।`}
-          confirmText="হ্যাঁ, মুছুন"
-          cancelText="রাখুন"
+          message={`"${modal.item.name}" স্থায়ীভাবে ডিলিট হয়ে যাবে। এই কাজ পূর্বাবস্থায় ফেরানো যাবে না।`}
+          confirmText="Delete"
+          cancelText="Cancel"
           onConfirm={() => handleDelete(modal.item._id)}
-          onClose={() => setModal(null)}
-        />
-      )}
-
-      {modal?.type === "deactivate" && (
-        <Popup
-          type="warning"
-          message={`"${modal.item.name}" নিষ্ক্রিয় করবেন?`}
-          confirmText="হ্যাঁ, নিষ্ক্রিয় করুন"
-          cancelText="বাতিল"
-          onConfirm={() => handleToggle(modal.item._id, false)}
-          onClose={() => setModal(null)}
-        />
-      )}
-
-      {modal?.type === "activate" && (
-        <Popup
-          type="warning"
-          message={`"${modal.item.name}" সক্রিয় করবেন?`}
-          confirmText="হ্যাঁ, সক্রিয় করুন"
-          cancelText="বাতিল"
-          onConfirm={() => handleToggle(modal.item._id, true)}
           onClose={() => setModal(null)}
         />
       )}
@@ -1056,11 +962,6 @@ const ManageReferrer = () => {
                   <span className="font-['IBM_Plex_Mono',monospace] text-[13px] font-semibold text-[#64748B]">
                     মোট {stats.total}জন
                   </span>
-                  {stats.active > 0 && (
-                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#10B981] bg-[#10B98110] rounded-[6px] border border-[#10B98125]">
-                      সক্রিয় {stats.active}জন
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
@@ -1088,18 +989,9 @@ const ManageReferrer = () => {
                 )}
               </div>
               <FilterDropdown value={typeFilter} onChange={setTypeFilter} options={TYPE_OPTIONS} placeholder="সব ধরন" />
-              <FilterDropdown
-                value={statusFilter}
-                onChange={setStatusFilter}
-                options={STATUS_OPTIONS}
-                placeholder="সব স্ট্যাটাস"
-              />
               {hasFilters && (
                 <button
-                  onClick={() => {
-                    setTypeFilter("all");
-                    setStatusFilter("all");
-                  }}
+                  onClick={() => setTypeFilter("all")}
                   className="flex items-center gap-1.5 transition-all font-semibold py-[7px] px-3 border-[1.5px] border-[#EF444430] rounded-[10px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] text-[11px] bg-[#EF444406] hover:bg-[#EF444412]"
                 >
                   <RotateCcw className="w-3 h-3" /> রিসেট
@@ -1139,8 +1031,6 @@ const ManageReferrer = () => {
                     onEdit={() => openFormModal({ ...item, formType: "editReferrer" })}
                     onCommission={() => setCommissionModal(item)}
                     onDelete={() => setModal({ type: "delete", item })}
-                    onDeactivate={() => setModal({ type: "deactivate", item })}
-                    onActivate={() => setModal({ type: "activate", item })}
                   />
                 ))
               )}
@@ -1149,7 +1039,7 @@ const ManageReferrer = () => {
             {/* Footer note */}
             <div className="px-6 py-3 border-t border-[#E2E8F0] bg-[#F8FAFC]">
               <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-                * শুধুমাত্র সক্রিয় রেফারারের কমিশন প্রযোজ্য
+                * সকল রেফারারের কমিশন প্রযোজ্য
               </p>
             </div>
           </div>

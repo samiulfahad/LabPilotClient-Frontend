@@ -2,7 +2,7 @@
  * useCallback / useMemo are intentionally absent throughout this file.
  * babel-plugin-react-compiler handles all memoization automatically.
  */
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Users,
@@ -702,12 +702,12 @@ const StaffRow = ({ member, index, permissionsList, onEdit, onAdjust, onDelete, 
               </span>
             )}
           </div>
-          {hasFullAccess && (
+          {member.role !== "admin" && hasFullAccess && (
             <span className="shrink-0 hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg border-[1.5px] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold bg-[#6366F115] border-[#6366F130] text-[#6366F1]">
               <Shield className="w-[10px] h-[10px]" /> সম্পূর্ণ
             </span>
           )}
-          {!hasFullAccess && (
+          {member.role !== "admin" && !hasFullAccess && (
             <span className="shrink-0 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
               {activePerms.length}/{permissionsList.length}
             </span>
@@ -770,7 +770,9 @@ const StaffRow = ({ member, index, permissionsList, onEdit, onAdjust, onDelete, 
 
           {/* Actions */}
           <div className="flex items-center gap-2 flex-wrap">
-            {member.role !== "admin" && <ActionChip onClick={onEdit} icon={Pencil} label="Permissions" color={C.indigo} />}
+            {member.role !== "admin" && (
+              <ActionChip onClick={onEdit} icon={Pencil} label="Permissions" color={C.indigo} />
+            )}
             {member.role !== "admin" && (
               <ActionChip onClick={onAdjust} icon={Wallet} label="Adjustment Limit" color={C.purple} />
             )}
@@ -922,39 +924,32 @@ const ManageStaff = () => {
   };
 
   // Derived permission filter options — always in sync with the server list
-  const permFilterOptions = useMemo(
-    () => [{ value: "all", label: "সব অনুমতি" }, ...permissionsList.map((p) => ({ value: p.key, label: p.label }))],
-    [permissionsList],
-  );
+  const permFilterOptions = [
+    { value: "all", label: "সব অনুমতি" },
+    ...permissionsList.map((p) => ({ value: p.key, label: p.label })),
+  ];
 
-  const stats = useMemo(
-    () => ({
-      total: staff.length,
-      active: staff.filter((s) => s.isActive).length,
-      inactive: staff.filter((s) => !s.isActive).length,
-      fullAccess: staff.filter((s) => permissionsList.every((p) => s.permissions[p.key])).length,
-    }),
-    [staff, permissionsList],
-  );
+  const stats = {
+    total: staff.length,
+    active: staff.filter((s) => s.isActive).length,
+    inactive: staff.filter((s) => !s.isActive).length,
+    fullAccess: staff.filter((s) => s.role === "admin" || permissionsList.every((p) => s.permissions[p.key])).length,
+  };
 
-  const filtered = useMemo(
-    () =>
-      staff.filter((s) => {
-        if (permFilter !== "all" && !s.permissions[permFilter]) return false;
-        if (statusFilter === "active" && !s.isActive) return false;
-        if (statusFilter === "inactive" && s.isActive) return false;
-        if (search.trim()) {
-          const q = search.toLowerCase();
-          return s.name.toLowerCase().includes(q) || s.email?.toLowerCase().includes(q) || s.phone?.includes(q);
-        }
-        return true;
-      }),
-    [staff, permFilter, statusFilter, search],
-  );
+  const filtered = staff.filter((s) => {
+    if (permFilter !== "all" && !s.permissions[permFilter]) return false;
+    if (statusFilter === "active" && !s.isActive) return false;
+    if (statusFilter === "inactive" && s.isActive) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      return s.name.toLowerCase().includes(q) || s.email?.toLowerCase().includes(q) || s.phone?.includes(q);
+    }
+    return true;
+  });
 
-  const admins = useMemo(() => filtered.filter((s) => s.role === "admin"), [filtered]);
-  const staffMembers = useMemo(() => filtered.filter((s) => s.role === "staff"), [filtered]);
-  const others = useMemo(() => filtered.filter((s) => s.role !== "admin" && s.role !== "staff"), [filtered]);
+  const admins = filtered.filter((s) => s.role === "admin");
+  const staffMembers = filtered.filter((s) => s.role === "staff");
+  const others = filtered.filter((s) => s.role !== "admin" && s.role !== "staff");
 
   const handleSaved = async (isEdit) => {
     setFormModal(null);

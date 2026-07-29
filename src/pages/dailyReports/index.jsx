@@ -144,7 +144,7 @@ const DailyReport = () => {
                 style={{ animationDelay: `${idx * 40}ms` }}
                 className={`group relative flex flex-col items-center gap-3 p-5 rounded-2xl border bg-white transition-all duration-200 overflow-hidden animate-[cardIn_0.4s_cubic-bezier(.22,1,.36,1)_both] ${
                   allowed
-                    ? `border-slate-200 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-200/60 hover:ring-1 ${c.ring}`
+                    ? `border-slate-200 cursor-pointer outline-none hover:outline-none focus:outline-none hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-200/60 group-hover:ring-1 ${c.ring}`
                     : "border-slate-100 cursor-not-allowed select-none opacity-70 saturate-0"
                 }`}
               >

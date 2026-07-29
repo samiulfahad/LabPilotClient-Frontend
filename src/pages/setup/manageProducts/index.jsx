@@ -17,10 +17,10 @@ import {
   Pill,
   FlaskConical,
   BarChart3,
+  Banknote,
   AlertCircle,
   Grid3X3,
   AlertTriangle,
-  Loader2,
   CheckCircle2,
   RotateCcw,
   ChevronDown,
@@ -124,6 +124,8 @@ const getErrorMessage = (err, fallback) => {
   return err?.response?.data?.error ?? fallback;
 };
 
+const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
+
 // ── Shared input helpers ───────────────────────────────────────────────────────
 
 const inputBase =
@@ -139,13 +141,8 @@ const blurInput = (e) => {
 };
 
 // ── Stock Modal ────────────────────────────────────────────────────────────────
-// Delete confirmation uses the shared <Popup type="warning"> component
-// directly (see the JSX render section below) instead of a bespoke modal,
-// so there's one consistent confirm/cancel pattern across the app.
-//
-// On a failed save the modal now stays OPEN (no onClose()) — a network
-// hiccup on first click shouldn't silently discard what the user entered.
-// The error surfaces inline via `apiError` so they can just retry.
+// Delta-based adjustment (unchanged) — its own route, its own button.
+// On a failed save the modal stays OPEN so the entered delta isn't lost.
 
 const StockModal = ({ item, onClose, onSave }) => {
   const [delta, setDelta] = useState(1);
@@ -308,7 +305,7 @@ const StockModal = ({ item, onClose, onSave }) => {
               onClick={onClose}
               className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
             >
-              বাতিল
+              Cancel
             </button>
             <button
               onClick={handleSubmit}
@@ -324,7 +321,7 @@ const StockModal = ({ item, onClose, onSave }) => {
               ) : (
                 <CheckCircle2 className="w-[13px] h-[13px]" />
               )}
-              নিশ্চিত করুন
+              Save
             </button>
           </div>
         </div>
@@ -333,24 +330,406 @@ const StockModal = ({ item, onClose, onSave }) => {
   );
 };
 
-// ── Item Modal (Create / Edit) ─────────────────────────────────────────────────
-// Same rule as StockModal: on a failed save, stay open and show the error
-// inline (apiError) instead of closing — so the user doesn't lose the form
-// on a transient network issue and can just hit save again.
+// ── Price Modal ────────────────────────────────────────────────────────────────
+// Its own route (PATCH /products/:itemId/price) — separate from info edits
+// and stock adjustments. Stays open on failure so the typed value isn't lost.
 
-const ItemModal = ({ mode, item, activeType, onClose, onSave }) => {
-  const isEdit = mode === "edit";
+const PriceModal = ({ item, onClose, onSave }) => {
+  const [price, setPrice] = useState(String(item.price ?? ""));
+  const [saving, setSaving] = useState(false);
+  const [apiError, setApiError] = useState("");
+
+  const invalid = price === "" || isNaN(price) || Number(price) < 0;
+
+  const handleSubmit = async () => {
+    if (invalid) return;
+    setSaving(true);
+    setApiError("");
+    try {
+      await productService.updateProductPrice(item._id, parseFloat(price));
+      onSave();
+    } catch (err) {
+      if (getErrorStatus(err) === 404) {
+        setApiError("আইটেমটি আর পাওয়া যায়নি।");
+        return;
+      }
+      setApiError(getErrorMessage(err, "মূল্য সংরক্ষণ ব্যর্থ।"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal isOpen size="sm" onClose={onClose}>
+      <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
+        {/* Header — fixed, never scrolls */}
+        <div
+          className="shrink-0 px-6 py-5 flex items-center justify-between border-b border-[#3B82F620]"
+          style={{ background: "linear-gradient(135deg,#EFF6FF,#DBEAFE)" }}
+        >
+          <div className="flex items-center gap-3.5">
+            <div
+              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] shadow-[0_8px_20px_rgba(59,130,246,0.35)]"
+              style={{ background: "linear-gradient(135deg,#3B82F6,#2563EB)" }}
+            >
+              <Banknote className="w-[18px] h-[18px] text-white" />
+            </div>
+            <div>
+              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] text-[#2563EB]">
+                মূল্য পরিবর্তন
+              </p>
+              <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A] truncate max-w-[280px]">
+                {item.name}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-8 h-8 rounded-[10px] text-[#94A3B8] border-[1.5px] border-[#E2E8F0] bg-white transition-all hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+          >
+            <X className="w-[15px] h-[15px]" />
+          </button>
+        </div>
+
+        {/* Body — the ONLY scrollable region, fills remaining space */}
+        <div className="px-6 py-5 bg-[#F8FAFC] flex-1 min-h-0 overflow-y-auto">
+          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+            <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-2">
+              মূল্য
+            </p>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#0D9488]">
+                ৳
+              </span>
+              <input
+                type="number"
+                autoFocus
+                value={price}
+                onChange={(e) => {
+                  setPrice(e.target.value);
+                  if (apiError) setApiError("");
+                }}
+                placeholder="০.০০"
+                min="0"
+                className={`${inputBase} pl-7 pr-3 py-2.5 text-sm`}
+                onFocus={focusInput}
+                onBlur={blurInput}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Footer — fixed, never scrolls */}
+        <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
+            </div>
+          )}
+          <div className="px-6 py-4 flex gap-3">
+            <button
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={saving || invalid}
+              className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs disabled:opacity-60"
+              style={{ background: saving ? "#94A3B8" : "linear-gradient(135deg,#3B82F6,#2563EB)" }}
+            >
+              {saving ? (
+                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <Banknote className="w-[13px] h-[13px]" />
+              )}
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+// ── Info Modal (Edit) ─────────────────────────────────────────────────────────
+// Name, description, unit, and the hasStock toggle only — price has its own
+// modal/route, and the stock number itself only ever moves via StockModal's
+// delta+note adjustment, never a raw overwrite here.
+
+const InfoModal = ({ item, onClose, onSave }) => {
+  const typeDef = ITEM_TYPES[item.type] ?? ITEM_TYPES.product;
+  const TypeIcon = typeDef.icon;
+
+  const [form, setForm] = useState({
+    name: item.name ?? "",
+    description: item.description ?? "",
+    hasStock: item.hasStock ?? false,
+    unitType: item.unitType ?? "stripe",
+    unitQty: item.unitQty ?? "",
+  });
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState("");
+
+  const set = (key, val) => {
+    setForm((f) => ({ ...f, [key]: val }));
+    setErrors((e) => ({ ...e, [key]: "" }));
+  };
+
+  const validate = () => {
+    const e = {};
+    if (!form.name.trim()) e.name = "প্রয়োজনীয়";
+    else if (form.name.length > 100) e.name = "সর্বোচ্চ ১০০ অক্ষর";
+    if (form.description.length > 500) e.description = "সর্বোচ্চ ৫০০ অক্ষর";
+    return e;
+  };
+
+  const handleSubmit = async () => {
+    const e = validate();
+    if (Object.keys(e).length) {
+      setErrors(e);
+      return;
+    }
+    setLoading(true);
+    setApiError("");
+    try {
+      const activeUnitDef = MED_UNIT_TYPES.find((u) => u.value === form.unitType);
+      const payload = {
+        name: form.name.trim(),
+        description: form.description.trim() || null,
+        ...(typeDef.hasStock && { hasStock: form.hasStock }),
+        ...(item.type === "medicine" && { unitType: form.unitType }),
+        ...(item.type === "medicine" &&
+          activeUnitDef?.qtyLabel &&
+          form.unitQty !== "" && { unitQty: Number(form.unitQty) }),
+      };
+      await productService.updateProductInfo(item._id, payload);
+      onSave();
+    } catch (err) {
+      setApiError(getErrorMessage(err, "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen size="md" onClose={onClose}>
+      <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
+        {/* Header — fixed, never scrolls */}
+        <div
+          className="shrink-0 px-6 py-5 flex items-center justify-between border-b"
+          style={{
+            background: `linear-gradient(135deg,${typeDef.softBg} 0%,transparent 100%)`,
+            borderColor: typeDef.softBorder,
+          }}
+        >
+          <div className="flex items-center gap-3.5">
+            <div
+              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px]"
+              style={{ background: typeDef.grad, boxShadow: `0 8px 20px ${typeDef.accent}40` }}
+            >
+              <TypeIcon className="w-[18px] h-[18px] text-white" />
+            </div>
+            <div>
+              <p
+                className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px]"
+                style={{ color: typeDef.accent }}
+              >
+                তথ্য সম্পাদনা
+              </p>
+              <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">{item.name}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-8 h-8 rounded-[10px] text-[#94A3B8] border-[1.5px] border-[#E2E8F0] transition-all hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+          >
+            <X className="w-[15px] h-[15px]" />
+          </button>
+        </div>
+
+        {/* Body — the ONLY scrollable region, fills remaining space */}
+        <div className="px-6 py-5 bg-[#F8FAFC] space-y-4 flex-1 min-h-0 overflow-y-auto">
+          {/* Name */}
+          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+            <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-2">
+              নাম
+            </p>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => set("name", e.target.value)}
+              className={`${inputBase} px-3 py-2 text-sm ${errors.name ? "border-[#EF444460]" : ""}`}
+              onFocus={focusInput}
+              onBlur={blurInput}
+            />
+            {errors.name && (
+              <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#EF4444] mt-1.5">{errors.name}</p>
+            )}
+          </div>
+
+          {/* Medicine unit */}
+          {item.type === "medicine" && (
+            <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+              <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-3">
+                ইউনিট ধরন
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {MED_UNIT_TYPES.map((u) => (
+                  <button
+                    key={u.value}
+                    type="button"
+                    onClick={() => set("unitType", u.value)}
+                    className="px-3 py-1.5 font-['IBM_Plex_Mono',monospace] text-xs font-bold rounded-lg border-[1.5px] transition-all"
+                    style={
+                      form.unitType === u.value
+                        ? {
+                            background: typeDef.grad,
+                            color: "white",
+                            borderColor: "transparent",
+                            boxShadow: `0 4px 10px ${typeDef.accent}30`,
+                          }
+                        : { background: "white", color: C.sub, borderColor: C.border }
+                    }
+                  >
+                    {u.label}
+                  </button>
+                ))}
+              </div>
+              {MED_UNIT_TYPES.find((u) => u.value === form.unitType)?.qtyLabel && (
+                <div className="flex items-center gap-2 mt-3">
+                  <input
+                    type="number"
+                    value={form.unitQty}
+                    min={1}
+                    onChange={(e) => set("unitQty", e.target.value)}
+                    placeholder={MED_UNIT_TYPES.find((u) => u.value === form.unitType)?.placeholder}
+                    className={`${inputBase} w-24 px-3 py-2 text-xs`}
+                    onFocus={focusInput}
+                    onBlur={blurInput}
+                  />
+                  <span className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B]">
+                    {MED_UNIT_TYPES.find((u) => u.value === form.unitType)?.qtyLabel}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Stock tracking toggle */}
+          {typeDef.hasStock && (
+            <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8]">
+                    স্টক ট্র্যাকিং
+                  </p>
+                  {!item.hasStock && form.hasStock && (
+                    <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8] mt-1">
+                      চালু করলে স্টক ০ থেকে শুরু হবে — এরপর Stock বাটন দিয়ে সমন্বয় করুন।
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => set("hasStock", !form.hasStock)}
+                  className="relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
+                  style={{ background: form.hasStock ? C.teal : C.muted }}
+                >
+                  <span
+                    className="pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform"
+                    style={{ transform: form.hasStock ? "translateX(12px)" : "translateX(0)" }}
+                  />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Note */}
+          <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8]">
+                নোট
+              </p>
+              <span className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
+                {form.description.length}/500
+              </span>
+            </div>
+            <textarea
+              value={form.description}
+              onChange={(e) => set("description", e.target.value)}
+              placeholder="সংক্ষিপ্ত বিবরণ… (ঐচ্ছিক)"
+              rows={2}
+              className={`${inputBase} px-3 py-2 text-xs resize-none`}
+              onFocus={focusInput}
+              onBlur={blurInput}
+            />
+            {errors.description && (
+              <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#EF4444] mt-1.5">{errors.description}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Footer — fixed, never scrolls */}
+        <div className="shrink-0 border-t border-[#E2E8F0] bg-white">
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
+              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
+              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
+            </div>
+          )}
+          <div className="px-6 py-4 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="flex-1 py-2.5 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
+              style={{
+                background: loading ? C.muted : typeDef.grad,
+                boxShadow: loading ? "none" : `0 4px 14px ${typeDef.accent}40`,
+              }}
+            >
+              {loading ? (
+                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <CheckCircle2 className="w-[13px] h-[13px]" />
+              )}
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+// ── Create Modal ───────────────────────────────────────────────────────────────
+// Create only — name, price, description, initial stock, unit. Editing an
+// existing item is split across InfoModal / PriceModal / StockModal instead.
+
+const CreateItemModal = ({ activeType, onClose, onSave }) => {
   const typeDef = ITEM_TYPES[activeType];
   const TypeIcon = typeDef.icon;
 
   const [form, setForm] = useState({
-    name: item?.name ?? "",
-    price: item?.price ?? "",
-    description: item?.description ?? "",
-    hasStock: item?.hasStock ?? false,
-    stock: item?.stock ?? 0,
-    unitType: item?.unitType ?? "stripe",
-    unitQty: item?.unitQty ?? "",
+    name: "",
+    price: "",
+    description: "",
+    hasStock: false,
+    stock: 0,
+    unitType: "stripe",
+    unitQty: "",
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -395,8 +774,7 @@ const ItemModal = ({ mode, item, activeType, onClose, onSave }) => {
           activeUnitDef?.qtyLabel &&
           form.unitQty !== "" && { unitQty: Number(form.unitQty) }),
       };
-      if (isEdit) await productService.updateProduct(item._id, payload);
-      else await productService.createProduct(payload);
+      await productService.createProduct(payload);
       onSave();
     } catch (err) {
       setApiError(getErrorMessage(err, "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
@@ -428,10 +806,10 @@ const ItemModal = ({ mode, item, activeType, onClose, onSave }) => {
                 className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px]"
                 style={{ color: typeDef.accent }}
               >
-                {isEdit ? "সম্পাদনা" : "নতুন আইটেম"}
+                নতুন আইটেম
               </p>
               <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">
-                {isEdit ? item.name : `নতুন ${typeDef.bangla}`}
+                নতুন {typeDef.bangla}
               </p>
             </div>
           </div>
@@ -548,7 +926,7 @@ const ItemModal = ({ mode, item, activeType, onClose, onSave }) => {
             <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
               <div className="flex items-center justify-between mb-3">
                 <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8]">
-                  {isEdit ? "স্টক" : "প্রারম্ভিক স্টক"}
+                  প্রারম্ভিক স্টক
                 </p>
                 <button
                   type="button"
@@ -635,9 +1013,7 @@ const ItemModal = ({ mode, item, activeType, onClose, onSave }) => {
           </div>
         </div>
 
-        {/* Footer — fixed, never scrolls. apiError banner sits directly
-            above the action buttons so it's the last thing seen before
-            retrying, right where the eye lands after Save fails. */}
+        {/* Footer — fixed, never scrolls */}
         <div className="shrink-0 border-t border-[#E2E8F0] bg-white">
           {apiError && (
             <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
@@ -651,7 +1027,7 @@ const ItemModal = ({ mode, item, activeType, onClose, onSave }) => {
               onClick={onClose}
               className="flex-1 py-2.5 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9]"
             >
-              বাতিল
+              Cancel
             </button>
             <button
               type="button"
@@ -668,7 +1044,7 @@ const ItemModal = ({ mode, item, activeType, onClose, onSave }) => {
               ) : (
                 <CheckCircle2 className="w-[13px] h-[13px]" />
               )}
-              {isEdit ? "পরিবর্তন সংরক্ষণ" : "তৈরি করুন"}
+              Create
             </button>
           </div>
         </div>
@@ -717,7 +1093,7 @@ const Skeleton = () => (
 
 // ── Item Row ───────────────────────────────────────────────────────────────────
 
-const ItemRow = ({ item, index, onEdit, onDelete, onAdjustStock }) => {
+const ItemRow = ({ item, index, onEditInfo, onEditPrice, onDelete, onAdjustStock }) => {
   const [expanded, setExpanded] = useState(false);
   const typeDef = ITEM_TYPES[item.type] ?? ITEM_TYPES.product;
   const TypeIcon = typeDef.icon;
@@ -790,11 +1166,12 @@ const ItemRow = ({ item, index, onEdit, onDelete, onAdjustStock }) => {
             {item.description && <span className="w-full text-[#94A3B8] truncate">{item.description}</span>}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <ActionChip onClick={() => onEdit(item)} icon={Pencil} label="সম্পাদনা" color={C.blue} />
+            <ActionChip onClick={() => onEditInfo(item)} icon={Pencil} label="Edit" color={C.blue} />
+            <ActionChip onClick={() => onEditPrice(item)} icon={Banknote} label="Price" color={C.teal} />
             {item.hasStock && (
-              <ActionChip onClick={() => onAdjustStock(item)} icon={BarChart3} label="স্টক" color={C.teal} />
+              <ActionChip onClick={() => onAdjustStock(item)} icon={BarChart3} label="Stock" color={C.purple} />
             )}
-            <ActionChip onClick={() => onDelete(item)} icon={Trash2} label="মুছুন" color={C.red} />
+            <ActionChip onClick={() => onDelete(item)} icon={Trash2} label="Delete" color={C.red} />
           </div>
         </div>
       )}
@@ -1013,7 +1390,7 @@ export default function Products() {
   // is also the shared <Popup type="warning">, which closes as soon as
   // onConfirm fires, so there's no in-flight spinner here — a failure just
   // surfaces as a follow-up error toast. (Delete has no form data to lose,
-  // so this one is fine to auto-close, unlike ItemModal/StockModal above.)
+  // so this one is fine to auto-close, unlike the other modals above.)
   const handleDelete = async () => {
     try {
       await productService.deleteProduct(modal.item._id);
@@ -1063,21 +1440,17 @@ export default function Products() {
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       {/* Modals */}
-      {(modal?.type === "create" || modal?.type === "edit") && (
-        <ItemModal
-          mode={modal.type === "edit" ? "edit" : "create"}
-          item={modal.item}
-          activeType={activeType}
-          onClose={() => setModal(null)}
-          onSave={handleSave}
-        />
+      {modal?.type === "create" && (
+        <CreateItemModal activeType={activeType} onClose={() => setModal(null)} onSave={handleSave} />
       )}
+      {modal?.type === "info" && <InfoModal item={modal.item} onClose={() => setModal(null)} onSave={handleSave} />}
+      {modal?.type === "price" && <PriceModal item={modal.item} onClose={() => setModal(null)} onSave={handleSave} />}
       {modal?.type === "delete" && (
         <Popup
           type="warning"
-          message={`${modal.item.name} স্থায়ীভাবে মুছে যাবে। এই কাজ পূর্বাবস্থায় ফেরানো যাবে না।`}
-          confirmText="হ্যাঁ, মুছুন"
-          cancelText="রাখুন"
+          message={`${modal.item.name} স্থায়ীভাবে ডিলিট হয়ে যাবে।`}
+          confirmText="Delete"
+          cancelText="Cancel"
           onConfirm={handleDelete}
           onClose={closeDeleteModal}
         />
@@ -1321,7 +1694,8 @@ export default function Products() {
                       key={item._id}
                       item={item}
                       index={index}
-                      onEdit={(i) => setModal({ type: "edit", item: i })}
+                      onEditInfo={(i) => setModal({ type: "info", item: i })}
+                      onEditPrice={(i) => setModal({ type: "price", item: i })}
                       onDelete={openDeleteModal}
                       onAdjustStock={(i) => setModal({ type: "stock", item: i })}
                     />
