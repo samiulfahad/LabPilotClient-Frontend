@@ -1104,7 +1104,7 @@ const ManageDoctors = () => {
               className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none shadow-[0_4px_14px_rgba(13,148,136,0.4)] hover:shadow-[0_6px_20px_rgba(13,148,136,0.5)]"
               style={{ background: "linear-gradient(135deg,#0D9488,#0F766E)" }}
             >
-              <UserPlus className="w-[13px] h-[13px]" /> নতুন
+              <UserPlus className="w-[13px] h-[13px]" /> নতুন ডাক্তার
             </button>
           </div>
         </div>

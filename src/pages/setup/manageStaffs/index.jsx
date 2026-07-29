@@ -153,9 +153,15 @@ const ToggleSwitch = ({ checked }) => (
 // hidden entirely rather than shown read-only — the edit modal only ever
 // touches permissions here. Active status is handled via the row's own
 // activate/deactivate action, and the bill adjustment limit has its own
-// dedicated modal (see AdjustmentModal below) — neither lives in this form.
-// This mirrors the backend, which now exposes permissions, adjustment, and
-// active-status as three separate routes rather than one combined update.
+// dedicated modal (see AdjustmentModal below) for CHANGING an existing
+// staff member's limit — neither lives in this form on edit.
+//
+// On CREATE, the adjustment limit CAN be set up front (toggle-then-reveal,
+// same pattern as AdjustmentModal) so admins don't have to immediately jump
+// into a second modal right after registering someone. This mirrors the
+// backend, which now accepts `maxLabAdjustment` on the create route while
+// still exposing permissions, adjustment, and active-status as three
+// separate routes for edits.
 
 const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
   const isEdit = !!initial?._id;
@@ -175,6 +181,23 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
 
   const [saving, setSaving] = useState(false);
   const [apiError, setApiError] = useState("");
+
+  // Billing/lab adjustment limit — creation only. Same toggle-then-reveal
+  // pattern as AdjustmentModal below, but scoped to this form since it's set
+  // once at registration; changing it later still goes through the
+  // dedicated AdjustmentModal/route.
+  const [adjustmentEnabled, setAdjustmentEnabled] = useState(false);
+  const [adjustmentAmount, setAdjustmentAmount] = useState(0);
+
+  const toggleAdjustment = () => {
+    if (adjustmentEnabled) {
+      setAdjustmentEnabled(false);
+      setAdjustmentAmount(0);
+    } else {
+      setAdjustmentEnabled(true);
+    }
+    if (apiError) setApiError("");
+  };
 
   const set = (field, value) => {
     setForm((f) => ({ ...f, [field]: value }));
@@ -206,6 +229,9 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
     if (!isEdit) {
       if (!form.name.trim()) return setApiError("নাম প্রয়োজন।");
       if (!form.phone.trim()) return setApiError("ফোন নম্বর প্রয়োজন।");
+      if (adjustmentEnabled && (!adjustmentAmount || Number(adjustmentAmount) <= 0)) {
+        return setApiError("অ্যাডজাস্টমেন্ট সীমা প্রয়োজন।");
+      }
     }
     try {
       setSaving(true);
@@ -217,7 +243,11 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
         // adjustment limit each live on their own routes now.
         await staffService.updatePermissions({ permissions: form.permissions, _id: initial._id });
       } else {
-        await staffService.addStaff({ ...form, type: "addStaff" });
+        await staffService.addStaff({
+          ...form,
+          maxLabAdjustment: adjustmentEnabled ? Number(adjustmentAmount) : 0,
+          type: "addStaff",
+        });
       }
       onSaved(isEdit);
     } catch (err) {
@@ -317,6 +347,46 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
                     onBlur={blurInput}
                   />
                 </FormField>
+              </div>
+
+              {/* Billing/lab adjustment limit — optional, creation only.
+                  Toggle-then-reveal, same UX as the standalone
+                  AdjustmentModal used for editing this later. */}
+              <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden bg-white">
+                <button
+                  type="button"
+                  onClick={toggleAdjustment}
+                  className="w-full flex items-center justify-between px-4 py-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <Wallet className="w-3 h-3 text-[#6366F1]" />
+                    <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
+                      বিল অ্যাডজাস্টমেন্ট সীমা সক্রিয়
+                    </span>
+                  </div>
+                  <ToggleSwitch checked={adjustmentEnabled} />
+                </button>
+                {adjustmentEnabled && (
+                  <div className="px-4 pb-3.5">
+                    <input
+                      type="number"
+                      min="0"
+                      value={adjustmentAmount === 0 ? "" : adjustmentAmount}
+                      onChange={(e) => {
+                        setAdjustmentAmount(e.target.value === "" ? "" : Number(e.target.value));
+                        if (apiError) setApiError("");
+                      }}
+                      placeholder="সর্বোচ্চ পরিমাণ (৳)"
+                      className={`${inputBase} px-3 py-2.5 text-sm`}
+                      onFocus={focusInput}
+                      onBlur={blurInput}
+                      autoFocus
+                    />
+                    <p className="mt-1 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
+                      এই কর্মী সর্বোচ্চ এই পরিমাণ পর্যন্ত ল্যাব/বিল অ্যাডজাস্টমেন্ট করতে পারবেন।
+                    </p>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -468,7 +538,7 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
               disabled={saving}
               className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
             >
-              বাতিল
+              Cancel
             </button>
             <button
               onClick={handleSubmit}
@@ -486,7 +556,7 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
               ) : (
                 <UserPlus className="w-[13px] h-[13px]" />
               )}
-              {isEdit ? "পরিবর্তন সংরক্ষণ" : "নিবন্ধন করুন"}
+              {isEdit ? "Save" : "Add Staff"}
             </button>
           </div>
         </div>
@@ -496,11 +566,12 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
 };
 
 // ── Adjustment Limit Modal ──────────────────────────────────────────────────
-// Standalone modal, separate from StaffFormModal, dedicated to setting the
-// max lab/bill adjustment limit for one staff member. Reuses the same
-// toggle-then-reveal pattern (0 = disabled per backend contract) and PUTs
-// only `maxLabAdjustment` to its own dedicated route — this never touches
-// permissions or isActive, which each have their own routes now.
+// Standalone modal, separate from StaffFormModal, dedicated to CHANGING the
+// max lab/bill adjustment limit for an EXISTING staff member. Reuses the
+// same toggle-then-reveal pattern (0 = disabled per backend contract) and
+// PUTs only `maxLabAdjustment` to its own dedicated route — this never
+// touches permissions or isActive, which each have their own routes now.
+// (The limit can also be set up front at creation time, in StaffFormModal.)
 
 const AdjustmentModal = ({ member, onClose, onSaved }) => {
   const [enabled, setEnabled] = useState((member.maxLabAdjustment ?? 0) > 0);
@@ -1075,7 +1146,7 @@ const ManageStaff = () => {
               className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none shadow-[0_4px_14px_rgba(99,102,241,0.4)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.5)]"
               style={{ background: "linear-gradient(135deg,#6366F1,#4F46E5)" }}
             >
-              <UserPlus className="w-[13px] h-[13px]" /> নতুন
+              <UserPlus className="w-[13px] h-[13px]" /> নতুন স্টাফ
             </button>
           </div>
         </div>

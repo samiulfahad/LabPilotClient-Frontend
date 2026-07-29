@@ -905,7 +905,7 @@ const ManageReferrer = () => {
               className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none shadow-[0_4px_14px_rgba(99,102,241,0.4)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.5)]"
               style={{ background: "linear-gradient(135deg,#6366F1,#4F46E5)" }}
             >
-              <UserPlus className="w-[13px] h-[13px]" /> নতুন
+              <UserPlus className="w-[13px] h-[13px]" /> নতুন রেফারার
             </button>
           </div>
         </div>
