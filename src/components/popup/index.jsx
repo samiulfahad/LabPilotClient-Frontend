@@ -43,6 +43,14 @@ const typeConfig = {
   },
 };
 
+// Matching ring/focus colors keyed by type, so buttons and icon halo stay in sync with the config above
+const ringColor = {
+  success: "ring-green-100 focus:ring-green-200",
+  error: "ring-red-100 focus:ring-red-200",
+  warning: "ring-yellow-100 focus:ring-yellow-200",
+  denied: "ring-amber-100 focus:ring-amber-200",
+};
+
 const Popup = ({
   type = "success",
   message = "",
@@ -64,7 +72,7 @@ const Popup = ({
     setIsClosing(true);
     setTimeout(() => {
       onClose?.();
-    }, 200);
+    }, 180);
   };
 
   const handleBackdropClick = (e) => {
@@ -86,33 +94,43 @@ const Popup = ({
   return (
     <Portal>
       <div
-        className={`fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-[99999] p-4 transition-all duration-200 ${
+        className={`fixed inset-0 flex items-center justify-center bg-slate-900/30 backdrop-blur-md z-[99999] p-4 transition-opacity duration-200 ${
           isClosing ? "opacity-0" : "opacity-100"
         }`}
         onClick={handleBackdropClick}
       >
         <div
-          className={`bg-white rounded-3xl shadow-2xl max-w-md w-full mx-auto border border-gray-100 relative transition-all duration-200 ${
-            isClosing ? "opacity-0 scale-50 -translate-y-4" : "opacity-100 scale-100 translate-y-0"
+          className={`relative w-full max-w-sm bg-white/95 rounded-[28px] shadow-[0_20px_60px_-15px_rgba(15,23,42,0.35)] ring-1 ring-slate-900/5 transition-all duration-200 ease-out ${
+            isClosing ? "opacity-0 scale-90 translate-y-3" : "opacity-100 scale-100 translate-y-0"
           }`}
         >
-          {/* Content */}
-          <div className="px-8 py-10 text-center">
-            {/* Icon */}
-            <div className="flex justify-center mb-6">
+          {/* Close button */}
+          <button
+            onClick={handleClose}
+            className={`absolute top-3.5 right-3.5 text-slate-400 hover:text-slate-600 transition-all duration-200 p-1.5 rounded-full hover:bg-slate-100 ${
+              isClosing ? "opacity-0" : "opacity-100"
+            }`}
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" strokeWidth={2} />
+          </button>
+
+          <div className="px-8 pt-9 pb-8 text-center">
+            {/* Icon with halo ring instead of flat block */}
+            <div className="flex justify-center mb-5">
               <div
-                className={`${config.iconBgColor} p-5 rounded-2xl shadow-lg transition-all duration-300 ${
-                  isClosing ? "scale-50 opacity-0" : "scale-100 opacity-100"
+                className={`relative flex items-center justify-center w-16 h-16 rounded-full ${config.iconBgColor} ring-8 ring-slate-50 transition-all duration-300 ${
+                  isClosing ? "scale-75 opacity-0" : "scale-100 opacity-100"
                 }`}
               >
-                <IconComponent className={`w-10 h-10 ${config.iconColor}`} strokeWidth={1.5} />
+                <IconComponent className={`w-8 h-8 ${config.iconColor}`} strokeWidth={1.75} />
               </div>
             </div>
 
             {/* Title */}
             <h3
-              className={`text-2xl font-bold mb-3 ${config.titleColor} transition-all duration-200 delay-75 ${
-                isClosing ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"
+              className={`text-xl font-semibold tracking-tight mb-2 ${config.titleColor} transition-all duration-200 delay-75 ${
+                isClosing ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"
               }`}
             >
               {config.title}
@@ -120,8 +138,8 @@ const Popup = ({
 
             {/* Message */}
             <p
-              className={`text-gray-600 mb-8 text-base leading-relaxed font-medium transition-all duration-200 delay-100 ${
-                isClosing ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"
+              className={`text-slate-500 mb-7 text-[15px] leading-relaxed transition-all duration-200 delay-100 ${
+                isClosing ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"
               }`}
             >
               {message}
@@ -130,16 +148,16 @@ const Popup = ({
             {/* Buttons */}
             <div
               className={`transition-all duration-200 delay-150 ${
-                isClosing ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"
+                isClosing ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"
               }`}
             >
               {config.singleButton ? (
                 <button
                   onClick={handleClose}
                   className={`
-                    w-full py-3.5 px-6 text-white font-semibold rounded-xl
-                    transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-green-200
-                    shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]
+                    w-full py-3 px-6 text-white text-[15px] font-semibold rounded-2xl
+                    transition-all duration-200 focus:outline-none focus:ring-4 ${ringColor[type]}
+                    shadow-md shadow-slate-900/10 hover:shadow-lg transform hover:scale-[1.015] active:scale-[0.98]
                     ${config.buttonColor}
                   `}
                   autoFocus
@@ -147,24 +165,24 @@ const Popup = ({
                   OK
                 </button>
               ) : (
-                <div className="flex gap-3">
+                <div className="flex gap-2.5">
                   <button
                     onClick={handleClose}
-                    className={`
-                      flex-1 py-3.5 px-6 text-white font-semibold rounded-xl
-                      transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-300
-                      shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]
-                      ${config.cancelButtonColor}
-                    `}
+                    className="
+                      flex-1 py-3 px-6 text-slate-600 text-[15px] font-semibold rounded-2xl
+                      border border-slate-200 bg-white
+                      transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-slate-100
+                      hover:bg-slate-50 hover:border-slate-300 transform hover:scale-[1.015] active:scale-[0.98]
+                    "
                   >
                     {cancelText}
                   </button>
                   <button
                     onClick={handleConfirm}
                     className={`
-                      flex-1 py-3.5 px-6 text-white font-semibold rounded-xl
-                      transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-yellow-200
-                      shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]
+                      flex-1 py-3 px-6 text-white text-[15px] font-semibold rounded-2xl
+                      transition-all duration-200 focus:outline-none focus:ring-4 ${ringColor[type]}
+                      shadow-md shadow-slate-900/10 hover:shadow-lg transform hover:scale-[1.015] active:scale-[0.98]
                       ${config.confirmButtonColor}
                     `}
                     autoFocus
@@ -175,17 +193,6 @@ const Popup = ({
               )}
             </div>
           </div>
-
-          {/* Close button */}
-          <button
-            onClick={handleClose}
-            className={`absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-all duration-200 p-2 hover:bg-gray-100 rounded-lg hover:rotate-90 ${
-              isClosing ? "opacity-0 scale-75" : "opacity-100 scale-100"
-            }`}
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
       </div>
     </Portal>

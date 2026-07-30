@@ -177,7 +177,7 @@ const blurInput = (e) => {
 
 // ─── Modal Shell ────────────────────────────────────────────────────────────────
 
-const ModalShell = ({ onClose, children, wide }) => {
+const ModalShell = ({ onClose, children }) => {
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -193,11 +193,7 @@ const ModalShell = ({ onClose, children, wide }) => {
         style={{ background: "rgba(15,23,42,0.6)" }}
         onClick={onClose}
       />
-      <div
-        className={`relative w-full ${wide ? "max-w-[560px]" : "max-w-[480px]"} max-h-[calc(100svh-48px)] overflow-y-auto`}
-      >
-        {children}
-      </div>
+      <div className="relative w-full max-w-[480px] max-h-[calc(100svh-48px)] overflow-y-auto">{children}</div>
     </div>
   );
 };
@@ -1192,7 +1188,6 @@ const Account = () => {
                         session={currentSession}
                         onRevoke={(deviceId) =>
                           setConfirmModal({
-                            deviceId,
                             message: "ডিভাইস লগআউট করুন",
                             description: "এটি নির্বাচিত ডিভাইসটি সাইন আউট করবে। তাদের আবার লগইন করতে হবে।",
                             tone: "danger",
@@ -1208,7 +1203,6 @@ const Account = () => {
                         session={s}
                         onRevoke={(deviceId) =>
                           setConfirmModal({
-                            deviceId,
                             message: "ডিভাইস লগআউট করুন",
                             description: `এটি ${s.device?.deviceType || "ডিভাইস"} (${s.device?.ip || "অজানা আইপি"}) সাইন আউট করবে। তাদের আবার লগইন করতে হবে।`,
                             tone: "danger",
