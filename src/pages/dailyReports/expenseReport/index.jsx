@@ -242,7 +242,6 @@ const ExpenseReport = () => {
         <div className="mb-5 no-print">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
-              <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1 font-noto">ল্যাব অপারেশন</p>
               <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] font-noto">
                 খরচের রিপোর্ট
               </h1>

@@ -6,6 +6,7 @@ const testService = {
   getTestList: () => api.get("/test/all"),
   addTest: (data) => api.post("/test", data),
   updatePrice: (testId, price) => api.patch(`/test/${testId}/price`, { price }),
+  updateCommission: (testId, commission) => api.patch(`/test/${testId}/commission`, { commission }),
   updateSchema: (testId, schemaId) => api.patch(`/test/${testId}/schema`, { schemaId }),
   deleteTest: (_id) => api.delete(`/test/${_id}`),
   getSchemasByTestId: (testId) => api.get("/test/schema/" + testId),

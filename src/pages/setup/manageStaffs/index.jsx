@@ -24,6 +24,13 @@ import {
   UserX,
   UserCheck,
   Wallet,
+  Receipt,
+  BanknoteArrowUp,
+  FileBarChart,
+  FlaskConical,
+  Settings2,
+  CreditCard,
+  BedDouble,
 } from "lucide-react";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
@@ -76,7 +83,20 @@ const GROUP_COLORS = {
   indoorPatient: "#EF4444",
 };
 
+// One glyph per group so headers are scannable by shape, not just color —
+// mirrors GROUP_COLORS by key with a neutral fallback for unknown groups.
+const GROUP_ICONS = {
+  invoice: Receipt,
+  expense: BanknoteArrowUp,
+  dailyReport: FileBarChart,
+  testReport: FlaskConical,
+  setup: Settings2,
+  billing: CreditCard,
+  indoorPatient: BedDouble,
+};
+
 const groupColor = (groupKey) => GROUP_COLORS[groupKey] ?? C.indigo;
+const groupIcon = (groupKey) => GROUP_ICONS[groupKey] ?? Shield;
 
 // ── Status / filter options ───────────────────────────────────────────────────
 
@@ -230,7 +250,7 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
       if (!form.name.trim()) return setApiError("নাম প্রয়োজন।");
       if (!form.phone.trim()) return setApiError("ফোন নম্বর প্রয়োজন।");
       if (adjustmentEnabled && (!adjustmentAmount || Number(adjustmentAmount) <= 0)) {
-        return setApiError("অ্যাডজাস্টমেন্ট সীমা প্রয়োজন।");
+        return setApiError("অ্যাডজাস্টমেন্ট লিমিট প্রয়োজন।");
       }
     }
     try {
@@ -361,7 +381,7 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
                   <div className="flex items-center gap-2">
                     <Wallet className="w-3 h-3 text-[#6366F1]" />
                     <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
-                      বিল অ্যাডজাস্টমেন্ট সীমা সক্রিয়
+                      বিল অ্যাডজাস্টমেন্ট
                     </span>
                   </div>
                   <ToggleSwitch checked={adjustmentEnabled} />
@@ -383,7 +403,7 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
                       autoFocus
                     />
                     <p className="mt-1 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-                      এই কর্মী সর্বোচ্চ এই পরিমাণ পর্যন্ত ল্যাব/বিল অ্যাডজাস্টমেন্ট করতে পারবেন।
+                      এই কর্মী সর্বোচ্চ এই পরিমাণ পর্যন্ত বিল অ্যাডজাস্টমেন্ট করতে পারবেন।
                     </p>
                   </div>
                 )}
@@ -397,7 +417,7 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
             <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl border-[1.5px] border-[#E2E8F025] bg-[#94A3B808]">
               <AlertCircle className="w-[13px] h-[13px] text-[#94A3B8] shrink-0 mt-[1px]" />
               <p className="font-['IBM_Plex_Mono',monospace] text-[10.5px] leading-[1.5] text-[#64748B]">
-                নাম, ইমেইল ও ফোন নম্বর নিবন্ধনের পর পরিবর্তনযোগ্য নয়। স্ট্যাটাস ও অ্যাডজাস্টমেন্ট সীমা তালিকার অ্যাকশন
+                নাম, ইমেইল ও ফোন নম্বর নিবন্ধনের পর পরিবর্তনযোগ্য নয়। স্ট্যাটাস ও অ্যাডজাস্টমেন্ট লিমিট তালিকার অ্যাকশন
                 বাটন থেকে পরিবর্তন করুন।
               </p>
             </div>
@@ -447,46 +467,74 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
                   const groupEnabledCount = groupPerms.filter((p) => form.permissions[p.key]).length;
                   const groupHasSome = groupEnabledCount > 0;
                   const gc = groupColor(groupKey);
+                  const GIcon = groupIcon(groupKey);
                   return (
                     <div key={groupKey}>
-                      {/* Eye-catching group header — colored pill with a
-                          status dot, bold label, count, and the group
-                          toggle all bundled into one strip. */}
+                      {/* Group header — icon chip + label/count on the left,
+                          a compact per-group progress bar underneath, and the
+                          group toggle-all pinned to the right. Reads as one
+                          cohesive card rather than a single-line pill strip. */}
                       <div
-                        className="flex items-center gap-2 px-2.5 py-[7px] rounded-lg mb-1.5 border transition-all"
+                        className="relative overflow-hidden rounded-xl mb-1.5 border bg-white transition-all"
                         style={{
-                          background: groupHasSome ? `${gc}12` : "#F8FAFC",
                           borderColor: groupHasSome ? `${gc}35` : "#E2E8F0",
+                          boxShadow: groupHasSome ? `0 1px 6px ${gc}12` : "none",
                         }}
                       >
-                        <span
-                          className="w-[7px] h-[7px] rounded-full shrink-0"
+                        {/* Accent bar */}
+                        <div
+                          className="absolute left-0 top-0 bottom-0 w-[3px]"
                           style={{ background: groupHasSome ? gc : "#CBD5E1" }}
                         />
-                        <span
-                          className="font-['IBM_Plex_Mono',monospace] text-[10.5px] font-extrabold uppercase tracking-[0.07em]"
-                          style={{ color: groupHasSome ? gc : "#94A3B8" }}
-                        >
-                          {GROUP_LABELS[groupKey] ?? groupKey}
-                        </span>
-                        <span
-                          className="font-['IBM_Plex_Mono',monospace] text-[9.5px] font-bold px-1.5 py-[1px] rounded-full"
-                          style={{
-                            color: groupHasSome ? gc : "#94A3B8",
-                            background: groupHasSome ? `${gc}18` : "#E2E8F0",
-                          }}
-                        >
-                          {groupEnabledCount}/{groupPerms.length}
-                        </span>
-                        <div className="flex-1" />
-                        <button
-                          type="button"
-                          onClick={() => toggleGroup(groupKey, groupPerms, groupAllEnabled)}
-                          className={`font-['IBM_Plex_Mono',monospace] text-[9.5px] font-bold px-1.5 py-[2px] rounded-md transition-all
-                          ${groupAllEnabled ? "text-[#EF4444] bg-[#EF444415]" : "text-[#6366F1] bg-[#6366F115]"}`}
-                        >
-                          {groupAllEnabled ? "বাদ দিন" : "সব নিন"}
-                        </button>
+                        <div className="flex items-center gap-2.5 pl-3.5 pr-2.5 py-2">
+                          <div
+                            className="flex items-center justify-center shrink-0 w-6 h-6 rounded-[8px]"
+                            style={{
+                              background: groupHasSome ? `${gc}18` : "#E2E8F0",
+                              color: groupHasSome ? gc : "#94A3B8",
+                            }}
+                          >
+                            <GIcon className="w-3 h-3" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline gap-1.5">
+                              <span
+                                className="font-['IBM_Plex_Mono',monospace] text-[11px] font-extrabold uppercase tracking-[0.06em]"
+                                style={{ color: groupHasSome ? gc : "#64748B" }}
+                              >
+                                {GROUP_LABELS[groupKey] ?? groupKey}
+                              </span>
+                              <span
+                                className="font-['IBM_Plex_Mono',monospace] text-[9.5px] font-bold"
+                                style={{ color: groupHasSome ? `${gc}B0` : "#94A3B8" }}
+                              >
+                                {groupEnabledCount}/{groupPerms.length}
+                              </span>
+                            </div>
+                            {/* Mini progress bar — same idea as the top-level
+                                one, scoped to this group */}
+                            <div className="mt-1 h-[3px] w-full max-w-[140px] rounded-full bg-[#E2E8F0] overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-300"
+                                style={{
+                                  width: `${(groupEnabledCount / (groupPerms.length || 1)) * 100}%`,
+                                  background: gc,
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => toggleGroup(groupKey, groupPerms, groupAllEnabled)}
+                            className="shrink-0 font-['IBM_Plex_Mono',monospace] text-[9.5px] font-bold px-2 py-[4px] rounded-[7px] transition-all"
+                            style={{
+                              color: groupAllEnabled ? "#EF4444" : gc,
+                              background: groupAllEnabled ? "#EF444415" : `${gc}15`,
+                            }}
+                          >
+                            {groupAllEnabled ? "বাদ দিন" : "সব নিন"}
+                          </button>
+                        </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                         {groupPerms.map(({ key, label }) => {
@@ -591,7 +639,7 @@ const AdjustmentModal = ({ member, onClose, onSaved }) => {
 
   const handleSubmit = async () => {
     if (enabled && (!amount || Number(amount) <= 0)) {
-      return setApiError("অ্যাডজাস্টমেন্ট সীমা প্রয়োজন।");
+      return setApiError("অ্যাডজাস্টমেন্ট লিমিট প্রয়োজন।");
     }
     try {
       setSaving(true);
@@ -625,7 +673,7 @@ const AdjustmentModal = ({ member, onClose, onSaved }) => {
             </div>
             <div>
               <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] text-[#6366F1]">
-                অ্যাডজাস্টমেন্ট সীমা
+                অ্যাডজাস্টমেন্ট লিমিট
               </p>
               <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">{member.name}</p>
             </div>
@@ -645,7 +693,7 @@ const AdjustmentModal = ({ member, onClose, onSaved }) => {
               <div className="flex items-center gap-2">
                 <Wallet className="w-3 h-3 text-[#6366F1]" />
                 <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
-                  বিল অ্যাডজাস্টমেন্ট সীমা সক্রিয়
+                  বিল অ্যাডজাস্টমেন্ট
                 </span>
               </div>
               <ToggleSwitch checked={enabled} />
@@ -667,7 +715,7 @@ const AdjustmentModal = ({ member, onClose, onSaved }) => {
                   autoFocus
                 />
                 <p className="mt-1 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-                  এই কর্মী সর্বোচ্চ এই পরিমাণ পর্যন্ত ল্যাব/বিল অ্যাডজাস্টমেন্ট করতে পারবেন।
+                  এই কর্মী সর্বোচ্চ এই পরিমাণ পর্যন্ত বিল অ্যাডজাস্টমেন্ট করতে পারবেন।
                 </p>
               </div>
             )}
@@ -689,7 +737,7 @@ const AdjustmentModal = ({ member, onClose, onSaved }) => {
               disabled={saving}
               className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
             >
-              বাতিল
+              Cancel
             </button>
             <button
               onClick={handleSubmit}
@@ -705,7 +753,7 @@ const AdjustmentModal = ({ member, onClose, onSaved }) => {
               ) : (
                 <Wallet className="w-[13px] h-[13px]" />
               )}
-              সংরক্ষণ করুন
+              Save
             </button>
           </div>
         </div>
@@ -1031,7 +1079,7 @@ const ManageStaff = () => {
   const handleAdjustSaved = async () => {
     setAdjustModal(null);
     await loadStaff();
-    setPopup({ type: "success", message: "অ্যাডজাস্টমেন্ট সীমা আপডেট হয়েছে।" });
+    setPopup({ type: "success", message: "অ্যাডজাস্টমেন্ট লিমিট আপডেট হয়েছে।" });
   };
 
   // No in-flight spinner on the confirm popup itself — it closes as soon as
@@ -1130,7 +1178,7 @@ const ManageStaff = () => {
         <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[26px] font-bold text-[#0F172A] leading-tight">
-              ল্যাব স্টাফ
+              স্টাফ অ্যাকাউন্ট
             </h1>
             <p className="text-sm text-[#64748B] mt-1">অ্যাকাউন্ট ও অনুমতি পরিচালনা।</p>
           </div>
@@ -1311,10 +1359,6 @@ const ManageStaff = () => {
             </div>
           </div>
         )}
-
-        <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] text-center mt-4 pb-6">
-          LabPilotPro · কর্মী ম্যানেজমেন্ট সিস্টেম
-        </p>
       </div>
     </section>
   );

@@ -402,7 +402,6 @@ const DiscountReport = () => {
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-5 no-print">
           <div>
-            <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1 font-noto">ল্যাব অপারেশন</p>
             <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] font-noto">
               ডিসকাউন্ট রিপোর্ট
             </h1>

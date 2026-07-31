@@ -1218,10 +1218,6 @@ const Account = () => {
             </div>
           </>
         )}
-
-        <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] text-center mt-4 pb-2">
-          LabPilotPro · অ্যাকাউন্ট ব্যবস্থাপনা
-        </p>
       </div>
 
       {loggingOut && <LoadingScreen message="সাইন আউট করা হচ্ছে" />}

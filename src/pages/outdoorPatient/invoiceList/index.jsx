@@ -502,7 +502,6 @@ const InvoiceList = () => {
         {/* Page header */}
         <div className="flex items-center justify-between mb-5 no-print">
           <div>
-            <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1">ল্যাব অপারেশন</p>
             <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E]">ইনভয়েস তালিকা</h1>
             <p className="text-base text-[#767D78] mt-1">নির্ধারিত সময়সীমায় তৈরি সকল ইনভয়েস।</p>
           </div>
@@ -654,10 +653,6 @@ const InvoiceList = () => {
             </div>
           </div>
         )}
-
-        <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-4 pb-6 no-print">
-          LabPilotPro · ইনভয়েস ম্যানেজমেন্ট সিস্টেম
-        </p>
       </div>
     </section>
   );

@@ -1084,9 +1084,6 @@ const ManageDoctors = () => {
         {/* Page header */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <p className="font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-[0.1em] text-[#0D9488] mb-1">
-              ল্যাব অপারেশন
-            </p>
             <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[26px] font-bold text-[#0F172A] leading-tight">
               ডাক্তার তালিকা
             </h1>
@@ -1276,10 +1273,6 @@ const ManageDoctors = () => {
             </div>
           </div>
         )}
-
-        <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] text-center mt-4 pb-6">
-          LabPilotPro · ডাক্তার ম্যানেজমেন্ট সিস্টেম
-        </p>
       </div>
     </section>
   );

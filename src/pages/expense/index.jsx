@@ -32,6 +32,7 @@ const expenseNav = [
 const colorMap = {
   teal: {
     ring: "group-hover:ring-teal-200",
+    focusRing: "focus-visible:ring-teal-200",
     iconBox: "bg-teal-50 border-teal-100 group-hover:bg-teal-100 group-hover:border-teal-200",
     icon: "text-teal-600",
     label: "group-hover:text-teal-900",
@@ -40,6 +41,7 @@ const colorMap = {
   },
   ochre: {
     ring: "group-hover:ring-amber-200",
+    focusRing: "focus-visible:ring-amber-200",
     iconBox: "bg-amber-50 border-amber-100 group-hover:bg-amber-100 group-hover:border-amber-200",
     icon: "text-amber-600",
     label: "group-hover:text-amber-900",
@@ -48,6 +50,7 @@ const colorMap = {
   },
   rust: {
     ring: "group-hover:ring-orange-200",
+    focusRing: "focus-visible:ring-orange-200",
     iconBox: "bg-orange-50 border-orange-100 group-hover:bg-orange-100 group-hover:border-orange-200",
     icon: "text-orange-700",
     label: "group-hover:text-orange-900",
@@ -92,6 +95,12 @@ const Expense = () => {
             const isLastOdd = expenseNav.length % 2 !== 0 && idx === expenseNav.length - 1;
             const allowed = hasAccess(item);
 
+            // outline-none removes the browser's default focus/hover outline
+            // (which can render as a black/dark ring in some browsers).
+            // focus-visible:ring keeps a themed indicator for keyboard users.
+            const baseClass =
+              "group relative flex flex-col items-center gap-3 p-5 rounded-2xl border bg-white shadow-sm transition-all duration-200 overflow-hidden outline-none focus:outline-none hover:outline-none focus-visible:outline-none active:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 animate-[cardIn_0.4s_cubic-bezier(.22,1,.36,1)_both]";
+
             return (
               <button
                 key={item.path}
@@ -99,12 +108,10 @@ const Expense = () => {
                 disabled={!allowed}
                 title={!allowed ? "No Permission" : undefined}
                 style={{ animationDelay: `${idx * 40}ms` }}
-                className={`group relative flex flex-col items-center gap-3 p-5 rounded-2xl border bg-white shadow-sm transition-all duration-200 overflow-hidden animate-[cardIn_0.4s_cubic-bezier(.22,1,.36,1)_both] ${
-                  isLastOdd ? "col-span-2" : ""
-                } ${
+                className={`${baseClass} ${isLastOdd ? "col-span-2" : ""} ${
                   allowed
-                    ? `border-gray-100 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-200/60 hover:ring-1 ${c.ring}`
-                    : "border-gray-100 cursor-not-allowed select-none opacity-70 saturate-0"
+                    ? `border-gray-100 hover:border-gray-100 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-200/60 group-hover:ring-1 ${c.ring} ${c.focusRing}`
+                    : "border-gray-100 hover:border-gray-100 cursor-not-allowed select-none opacity-70 saturate-0"
                 }`}
               >
                 {/* Top accent bar on hover */}

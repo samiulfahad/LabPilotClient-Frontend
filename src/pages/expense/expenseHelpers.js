@@ -1,4 +1,4 @@
-import { Users, Pill, FlaskConical, Package, MoreHorizontal } from "lucide-react";
+import { Users, Pill, FlaskConical, Package, Percent, MoreHorizontal } from "lucide-react";
 
 export const fmt = (n) =>
   new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", minimumFractionDigits: 0 }).format(n || 0);
@@ -51,7 +51,28 @@ export const EXPENSE_TYPES = [
   { key: "medicine", label: "মেডিসিন", icon: Pill, color: "#C0312B" },
   { key: "testKit", label: "টেস্ট কিট", icon: FlaskConical, color: "#0F6E5C" },
   { key: "products", label: "প্রোডাক্টস", icon: Package, color: "#9C6B1F" },
+  { key: "commission", label: "কমিশন", icon: Percent, color: "#7C3AED" },
   { key: "others", label: "অন্যান্য", icon: MoreHorizontal, color: "#6F756F" },
 ];
 
-export const typeConfig = (key) => EXPENSE_TYPES.find((t) => t.key === key) ?? EXPENSE_TYPES[4];
+export const typeConfig = (key) => EXPENSE_TYPES.find((t) => t.key === key) ?? EXPENSE_TYPES[EXPENSE_TYPES.length - 1];
+
+// Groups a flat expense array into { key, config, expenses, total }[] ordered by EXPENSE_TYPES,
+// skipping categories with no entries.
+export const groupByCategory = (expenses) => {
+  const buckets = new Map();
+  for (const e of expenses) {
+    const key = e.type;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(e);
+  }
+  return EXPENSE_TYPES.filter((t) => buckets.has(t.key)).map((t) => {
+    const items = buckets.get(t.key);
+    return {
+      key: t.key,
+      config: t,
+      expenses: items,
+      total: items.reduce((s, e) => s + (e.amount ?? 0), 0),
+    };
+  });
+};

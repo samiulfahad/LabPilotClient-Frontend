@@ -124,24 +124,33 @@ const buildDoctorTestRows = (registered, unregistered) => {
   });
 };
 
-// ─── Merge outdoor+indoor counts per test name (test-wise view) ─────────────
+// ─── Merge outdoor+indoor counts per test name, attach commission (count × rate) ──
 
-const mergeTestChannels = (outdoorTests, indoorTests) => {
+const mergeTestChannels = (outdoorTests, indoorTests, testRates) => {
   const map = new Map();
   for (const [name, count] of outdoorTests) {
     map.set(name, { name, outdoor: count, indoor: 0 });
   }
   for (const [name, count] of indoorTests) {
     if (map.has(name)) {
-      map.get(name).indoor = count;
+      map.get(name).indoor += count;
     } else {
       map.set(name, { name, outdoor: 0, indoor: count });
     }
   }
   return Array.from(map.values())
-    .map((t) => ({ ...t, total: t.outdoor + t.indoor }))
-    .sort((a, b) => b.total - a.total);
+    .map((t) => {
+      const total = t.outdoor + t.indoor;
+      const rate = testRates?.[t.name?.trim?.()] ?? 0;
+      return { ...t, total, rate, commission: total * rate };
+    })
+    .sort((a, b) => b.commission - a.commission || b.total - a.total);
 };
+
+// ─── Sum a referrer's test-wise commission across outdoor + indoor tests ────
+
+const sumTestCommission = (outdoorTests, indoorTests, testRates) =>
+  mergeTestChannels(outdoorTests, indoorTests, testRates).reduce((s, t) => s + t.commission, 0);
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -162,6 +171,7 @@ const TYPE_META = {
 const EMPTY_DATA = {
   registered: [],
   unregistered: [],
+  testRates: {},
   totals: { totalCommission: 0, totalDiscount: 0, totalInvoices: 0 },
 };
 
@@ -398,18 +408,25 @@ const ViewToggle = ({ view, onChange }) => (
   </div>
 );
 
-// ─── Test-wise: single merged test row ───────────────────────────────────────
+// ─── Test-wise: shared grid template for merged test rows + the total line ──
+// Fixed track widths (not `fr` for the numeric columns) so every row's
+// count×rate / commission / channel-breakdown text lines up in the same
+// vertical column regardless of how many digits each value has.
+const TEST_ROW_GRID = "grid items-baseline gap-x-3 grid-cols-[1fr_92px_84px_128px]";
+const TEST_ROW_GRID_NO_HOSPITAL = "grid items-baseline gap-x-3 grid-cols-[1fr_92px_84px]";
 
-const MergedTestRow = ({ name, total, outdoor, indoor, isHospital }) => (
-  <div className="flex items-baseline gap-2 py-1">
-    <span className="font-noto text-sm text-[#1C1F1E] leading-tight">{name}</span>
-    <span className="flex-1 border-b border-dotted border-[#E3E0D6] translate-y-[-2px]" />
-    <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums shrink-0" style={{ color: TEAL }}>
-      {total}
+const MergedTestRow = ({ name, total, outdoor, indoor, rate, commission, isHospital }) => (
+  <div className={`${isHospital ? TEST_ROW_GRID : TEST_ROW_GRID_NO_HOSPITAL} py-1`}>
+    <span className="font-noto text-sm text-[#1C1F1E] leading-tight truncate">{name}</span>
+    <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] tabular-nums text-right">
+      {total} × ৳{fmt(rate)}
+    </span>
+    <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums text-right" style={{ color: TEAL }}>
+      ৳{fmt(commission)}
     </span>
     {isHospital && (
-      <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] shrink-0 font-noto">
-        (আউটডোর {outdoor}, ইনডোর {indoor})
+      <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] font-noto text-right whitespace-nowrap">
+        আউটডোর {outdoor}, ইনডোর {indoor}
       </span>
     )}
   </div>
@@ -417,13 +434,24 @@ const MergedTestRow = ({ name, total, outdoor, indoor, isHospital }) => (
 
 // ─── Test-wise: single doctor card ──────────────────────────────────────────
 
-const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorTests, indoorTests, isHospital }) => {
+const DoctorTestCard = ({
+  rank,
+  name,
+  type,
+  isRegistered,
+  invoiceCount,
+  outdoorTests,
+  indoorTests,
+  isHospital,
+  testRates,
+}) => {
   const accent = isRegistered ? TEAL : OCHRE;
   const meta = TYPE_META[type] ?? TYPE_META.unknown;
   const Icon = isRegistered ? meta.Icon : UserX;
   const typeLabel = isRegistered ? meta.label : "ওয়াক-ইন";
-  const mergedTests = mergeTestChannels(outdoorTests, indoorTests);
+  const mergedTests = mergeTestChannels(outdoorTests, indoorTests, testRates);
   const totalTests = mergedTests.reduce((s, t) => s + t.total, 0);
+  const totalTestCommission = mergedTests.reduce((s, t) => s + t.commission, 0);
 
   return (
     <div className="py-4 border-b border-dashed border-[#E3E0D6] last:border-b-0">
@@ -443,19 +471,37 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorT
         </span>
       </div>
 
-      {/* Merged test list */}
+      {/* Merged test list + per-referrer commission total */}
       <div className="pl-8">
         {mergedTests.length > 0 ? (
-          mergedTests.map((t) => (
-            <MergedTestRow
-              key={t.name}
-              name={t.name}
-              total={t.total}
-              outdoor={t.outdoor}
-              indoor={t.indoor}
-              isHospital={isHospital}
-            />
-          ))
+          <>
+            {mergedTests.map((t) => (
+              <MergedTestRow
+                key={t.name}
+                name={t.name}
+                total={t.total}
+                outdoor={t.outdoor}
+                indoor={t.indoor}
+                rate={t.rate}
+                commission={t.commission}
+                isHospital={isHospital}
+              />
+            ))}
+            <div
+              className={`${isHospital ? TEST_ROW_GRID : TEST_ROW_GRID_NO_HOSPITAL} pt-1.5 mt-1 border-t border-[#E3E0D6]`}
+            >
+              <span className="col-span-2 font-['IBM_Plex_Mono'] text-xs uppercase text-[#8A8F89] font-noto text-right">
+                মোট কমিশন
+              </span>
+              <span
+                className="font-['IBM_Plex_Mono'] text-sm font-bold tabular-nums text-right"
+                style={{ color: TEAL }}
+              >
+                ৳{fmt(totalTestCommission)}
+              </span>
+              {isHospital && <span />}
+            </div>
+          </>
         ) : (
           <p className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] font-noto">নেই</p>
         )}
@@ -466,10 +512,11 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorT
 
 // ─── Test-wise view ───────────────────────────────────────────────────────────
 
-const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, lab, isHospital }) => {
+const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, lab, isHospital, testRates }) => {
   const rows = useMemo(() => buildDoctorTestRows(registered, unregistered), [registered, unregistered]);
   const totalOutdoorOccurrences = rows.reduce((s, r) => s + r.outdoorTests.reduce((ss, [, c]) => ss + c, 0), 0);
   const totalIndoorOccurrences = rows.reduce((s, r) => s + r.indoorTests.reduce((ss, [, c]) => ss + c, 0), 0);
+  const totalTestCommission = rows.reduce((s, r) => s + sumTestCommission(r.outdoorTests, r.indoorTests, testRates), 0);
 
   return (
     <div
@@ -507,7 +554,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
 
       {/* Summary strip */}
       <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
-        <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
+        <div className="grid grid-cols-3 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
           <LedgerCell
             icon={FlaskConical}
             label="মোট টেস্ট (বার)"
@@ -516,10 +563,17 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
             sub={isHospital ? `আউটডোর ${totalOutdoorOccurrences} · ইনডোর ${totalIndoorOccurrences}` : undefined}
           />
           <LedgerCell
+            icon={BadgeDollarSign}
+            label="টেস্ট-ভিত্তিক কমিশন"
+            value={`৳${fmt(totalTestCommission)}`}
+            accent={SEAL_BLUE}
+            sub="প্রতি টেস্টের হার অনুযায়ী"
+          />
+          <LedgerCell
             icon={ReceiptText}
             label="মোট ইনভয়েস"
             value={fmt(d.totals.totalInvoices)}
-            accent={SEAL_BLUE}
+            accent={RUST}
             sub={`কমিশন ৳${fmt(d.totals.totalCommission)}`}
           />
         </div>
@@ -539,6 +593,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
               outdoorTests={r.outdoorTests}
               indoorTests={r.indoorTests}
               isHospital={isHospital}
+              testRates={testRates}
             />
           ))
         ) : (
@@ -690,6 +745,7 @@ const CommissionReport = () => {
   };
 
   const d = data ?? EMPTY_DATA;
+  const testRates = d.testRates ?? {};
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
   const referrerCount = d.registered.length + d.unregistered.length;
 
@@ -711,7 +767,6 @@ const CommissionReport = () => {
         {/* Top nav */}
         <div className="flex items-center justify-between mb-5 no-print">
           <div>
-            <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1 font-noto">ল্যাব অপারেশন</p>
             <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] font-noto">
               কমিশন রিপোর্ট
             </h1>
@@ -767,6 +822,7 @@ const CommissionReport = () => {
             d={d}
             lab={lab}
             isHospital={isHospital}
+            testRates={testRates}
           />
         )}
 

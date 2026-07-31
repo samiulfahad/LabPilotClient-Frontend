@@ -8,6 +8,7 @@ import Report from "./pages/report";
 import ReportUpload from "./pages/reportUpload";
 import ReportDownload from "./pages/reportDownload";
 import Help from "./pages/help";
+import SetPassword from "./pages/setPassword";
 
 // Account
 import Account from "./pages/account";
@@ -81,7 +82,9 @@ function App() {
       {/* ════ PUBLIC ROUTES (No login required) ════ */}
       {/* If they are already logged in, don't show them the login page again */}
       <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LabPilotLogin />} />
+
       {/* Help is now public and accessible without logging in */}
+      <Route path="/set-password" element={<SetPassword/> } />
 
       {/* ════ PROTECTED ROUTES (Login required) ════ */}
       <Route element={<ProtectedRoutes />}>

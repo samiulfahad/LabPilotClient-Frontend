@@ -10,9 +10,22 @@ import Modal from "../../components/modal";
 import LoadingScreen from "../../components/loadingPage";
 import expenseService from "../../api/expense";
 import TimeFrame from "../../components/timeFrame";
-import { fmt, fmtNum, formatDateTime, headingLabel, EXPENSE_TYPES, typeConfig } from "./expenseHelpers";
+import { useAuthStore } from "../../store/authStore";
+import {
+  fmt,
+  fmtNum,
+  formatDateTime,
+  headingLabel,
+  EXPENSE_TYPES,
+  typeConfig,
+  groupByCategory,
+} from "./expenseHelpers";
 
 const ExpenseList = () => {
+  const currentUserId = useAuthStore((s) => s.user?.id);
+  const role = useAuthStore((s) => s.user?.role);
+  const isAdmin = role === "admin";
+
   const [expenses, setExpenses] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -63,13 +76,14 @@ const ExpenseList = () => {
     loadExpenses(null, true, timeRange, key);
   };
 
-  const handleEdited = (expenseId, description) => {
-    setExpenses((prev) => prev.map((e) => (e._id === expenseId ? { ...e, description } : e)));
+  const handleEdited = (expenseId, description, updated) => {
+    setExpenses((prev) => prev.map((e) => (e._id === expenseId ? { ...e, description, updated } : e)));
   };
 
   const total = expenses.length;
   const totalAmount = expenses.reduce((s, e) => s + (e.amount ?? 0), 0);
   const heading = headingLabel(timeRange);
+  const categories = groupByCategory(expenses);
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-4 font-noto">
@@ -98,7 +112,6 @@ const ExpenseList = () => {
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-3 no-print">
           <div>
-            <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-0.5">ল্যাব অপারেশন</p>
             <h1 className="font-['IBM_Plex_Sans'] text-xl sm:text-2xl font-semibold text-[#1C1F1E]">খরচের তালিকা</h1>
           </div>
           <div className="flex items-center gap-2">
@@ -193,12 +206,6 @@ const ExpenseList = () => {
               </div>
             </div>
 
-            <div className="px-6 sm:px-8 pt-3 pb-1 flex items-center gap-3">
-              <span className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-[#A8ACA3] w-5 shrink-0">#</span>
-              <span className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-[#A8ACA3] flex-1">বিবরণ</span>
-              <span className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-[#A8ACA3] shrink-0">পরিমাণ</span>
-            </div>
-
             <div className="px-6 sm:px-8 pb-3">
               {expenses.length === 0 ? (
                 <div className="flex items-center gap-2 py-6 text-[#A8ACA3]">
@@ -206,13 +213,13 @@ const ExpenseList = () => {
                   <p className="font-['IBM_Plex_Mono'] text-xs">নির্ধারিত সময়সীমায় কোনো খরচ যোগ হয়নি</p>
                 </div>
               ) : (
-                <div className="divide-y divide-[#EDEBE3]">
-                  {expenses.map((expense, index) => (
-                    <ExpenseRow
-                      key={expense._id}
-                      expense={expense}
-                      index={index}
-                      onEdit={() => setEditingExpense(expense)}
+                <div className="space-y-4 pt-3">
+                  {categories.map((group) => (
+                    <CategoryGroup
+                      key={group.key}
+                      group={group}
+                      canEditExpense={(expense) => isAdmin || String(expense.createdBy?.id) === String(currentUserId)}
+                      onEdit={(expense) => setEditingExpense(expense)}
                     />
                   ))}
                 </div>
@@ -239,20 +246,51 @@ const ExpenseList = () => {
             </div>
           </div>
         )}
-
-        <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-3 pb-4 no-print">
-          LabPilotPro · খরচ ব্যবস্থাপনা সিস্টেম
-        </p>
       </div>
     </section>
   );
 };
 
-const ExpenseRow = ({ expense, index, onEdit }) => {
+// ─── Category group: header (icon, label, count, subtotal) + numbered rows ────
+
+const CategoryGroup = ({ group, canEditExpense, onEdit }) => {
+  const { config, expenses, total } = group;
+  const Icon = config.icon;
+
+  return (
+    <div className="px-6 sm:px-8">
+      <div className="flex items-center gap-2.5 pb-1.5 mb-1 border-b" style={{ borderColor: `${config.color}33` }}>
+        <div
+          className="w-6 h-6 rounded-[4px] flex items-center justify-center shrink-0"
+          style={{ backgroundColor: `${config.color}14` }}
+        >
+          <Icon className="w-3.5 h-3.5" style={{ color: config.color }} />
+        </div>
+        <span className="font-['IBM_Plex_Sans'] text-sm font-bold text-[#1C1F1E]">{config.label}</span>
+        <span className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3]">({fmtNum(expenses.length)}টি)</span>
+        <span className="flex-1" />
+        <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: config.color }}>
+          {fmt(total)}
+        </span>
+      </div>
+      <div className="divide-y divide-[#EDEBE3]">
+        {expenses.map((expense, index) => (
+          <ExpenseRow
+            key={expense._id}
+            expense={expense}
+            index={index}
+            canEdit={canEditExpense(expense)}
+            onEdit={() => onEdit(expense)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ExpenseRow = ({ expense, index, canEdit, onEdit }) => {
   const { date, time } = formatDateTime(expense.createdAt);
   const [expanded, setExpanded] = useState(false);
-  const cfg = typeConfig(expense.type);
-  const Icon = cfg.icon;
 
   const hasDescription = !!expense.description;
   const isShortDescription = hasDescription && expense.description.length <= 20;
@@ -264,19 +302,18 @@ const ExpenseRow = ({ expense, index, onEdit }) => {
           <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] tabular-nums w-5 shrink-0">
             {String(index + 1).padStart(2, "0")}
           </span>
-          <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: cfg.color }} />
           <div className="flex-1 min-w-0 flex items-baseline gap-2">
-            <span className="text-sm text-[#1C1F1E] font-medium truncate">{cfg.label}</span>
             {isShortDescription && (
-              <span className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3] truncate">{expense.description}</span>
+              <span className="font-['IBM_Plex_Mono'] text-xs text-[#1C1F1E] truncate">{expense.description}</span>
             )}
-            {hasDescription && !isShortDescription && (
-              <span className="w-1 h-1 rounded-full bg-[#C0312B]/50 shrink-0" title="বিবরণ আছে" />
+            {!isShortDescription && (
+              <span className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3]">বিবরণ দেখুন</span>
             )}
+            {expense.updated?.at && <span className="w-1 h-1 rounded-full bg-amber-500 shrink-0" title="সম্পাদিত" />}
           </div>
           <span className="flex-1 border-b border-dotted border-[#D8D5CB] translate-y-[-3px] hidden sm:block" />
           <div className="flex items-center gap-2 shrink-0">
-            <span className="font-['IBM_Plex_Mono'] text-sm tabular-nums shrink-0" style={{ color: cfg.color }}>
+            <span className="font-['IBM_Plex_Mono'] text-sm tabular-nums text-[#1C1F1E] shrink-0">
               {fmt(expense.amount)}
             </span>
             <ChevronDown
@@ -294,19 +331,31 @@ const ExpenseRow = ({ expense, index, onEdit }) => {
             </p>
           )}
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3]">
-              {date} · {time}
-              {expense.createdBy?.name && ` · ${expense.createdBy.name}`}
-            </p>
-            <div className="flex flex-wrap items-center gap-1.5 no-print">
-              <button
-                onClick={onEdit}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-['IBM_Plex_Mono'] uppercase tracking-wide border border-[#D8D5CB] text-[#6F756F] hover:bg-[#EDEBE3] rounded-[2px] transition-colors"
-              >
-                <Pencil className="w-3 h-3" />
-                সম্পাদনা
-              </button>
+            <div>
+              <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3]">
+                {date} · {time}
+                {expense.createdBy?.name && ` · ${expense.createdBy.name}`}
+              </p>
+              {expense.updated?.at && (
+                <p className="font-['IBM_Plex_Mono'] text-[10px] text-amber-600 font-medium mt-0.5">
+                  Edit করেছেন — {expense.updated.by?.name ?? "—"}
+                  {expense.updated.by?.name && expense.updated.by.name !== expense.createdBy?.name && " (অ্যাডমিন)"}
+                  {" · "}
+                  {formatDateTime(expense.updated.at).date} {formatDateTime(expense.updated.at).time}
+                </p>
+              )}
             </div>
+            {canEdit && (
+              <div className="flex flex-wrap items-center gap-1.5 no-print">
+                <button
+                  onClick={onEdit}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-['IBM_Plex_Mono'] uppercase tracking-wide border border-[#D8D5CB] text-[#6F756F] hover:bg-[#EDEBE3] rounded-[2px] transition-colors"
+                >
+                  <Pencil className="w-3 h-3" />
+                  Edit
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -328,8 +377,9 @@ const EditExpenseModal = ({ expense, isOpen, onClose, onSaved, onLoadingChange, 
     onClose();
     try {
       onLoadingChange("Updating description...");
-      await expenseService.editExpense(expense._id, { description: description.trim() });
-      onSaved(expense._id, description.trim());
+      const trimmed = description.trim();
+      const { data } = await expenseService.editExpense(expense._id, { description: trimmed });
+      onSaved(expense._id, trimmed, data.updated);
     } catch {
       onError("বিবরণ আপডেট করা যায়নি। আবার চেষ্টা করুন।");
     } finally {
@@ -348,7 +398,7 @@ const EditExpenseModal = ({ expense, isOpen, onClose, onSaved, onLoadingChange, 
             <Pencil className="w-4 h-4 text-[#1E4FA0]" />
           </div>
           <div>
-            <h2 className="font-['IBM_Plex_Sans'] text-sm font-bold text-[#1C1F1E] leading-tight">বিবরণ সম্পাদনা</h2>
+            <h2 className="font-['IBM_Plex_Sans'] text-sm font-bold text-[#1C1F1E] leading-tight">Edit</h2>
             {cfg && <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3] mt-0.5">{cfg.label}</p>}
           </div>
         </div>
@@ -362,7 +412,7 @@ const EditExpenseModal = ({ expense, isOpen, onClose, onSaved, onLoadingChange, 
 
       <div className="px-5 py-5 space-y-3">
         <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3]">
-          পরিমাণ ও ধরন পরিবর্তনযোগ্য নয় — শুধুমাত্র বিবরণ সম্পাদনা করা যাবে।
+          পরিমাণ ও ধরন পরিবর্তনযোগ্য নয় — শুধুমাত্র বিবরণ Edit করা যাবে।
         </p>
         <textarea
           value={description}
@@ -379,13 +429,13 @@ const EditExpenseModal = ({ expense, isOpen, onClose, onSaved, onLoadingChange, 
           onClick={onClose}
           className="flex-1 py-2 font-['IBM_Plex_Mono'] text-xs uppercase border border-[#D8D5CB] text-[#6F756F] hover:bg-[#EDEBE3] rounded-[2px] transition-colors"
         >
-          বাতিল
+          Cancel
         </button>
         <button
           onClick={handleSubmit}
           className="flex-1 py-2 font-['IBM_Plex_Mono'] text-xs uppercase border border-[#0F6E5C] text-[#0F6E5C] hover:bg-[#0F6E5C] hover:text-white rounded-[2px] transition-colors"
         >
-          সংরক্ষণ করুন
+          Save
         </button>
       </div>
     </Modal>

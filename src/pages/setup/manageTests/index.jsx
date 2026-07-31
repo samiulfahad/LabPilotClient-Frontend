@@ -22,6 +22,7 @@ import {
   Eye,
   FileText,
   Banknote,
+  Percent,
   Loader2,
   XCircle,
   AlertTriangle,
@@ -83,12 +84,12 @@ const blurInput = (e) => {
 };
 
 // ── Format Modal ────────────────────────────────────────────────────────────────
-// Schema/report-format picker only — price lives in its own PriceModal now,
-// same split as space chargePerDay and referrer commission each getting a
-// dedicated route/modal. Internalizes its own save call; on a failed save
-// the modal stays OPEN (no onClose()) and the error surfaces inline via
-// `apiError` in the sticky footer, so a permission error or network hiccup
-// doesn't discard the schema selection.
+// Schema/report-format picker only — price and commission each live in their
+// own modal now, same split as space chargePerDay and referrer commission
+// each getting a dedicated route/modal. Internalizes its own save call; on a
+// failed save the modal stays OPEN (no onClose()) and the error surfaces
+// inline via `apiError` in the sticky footer, so a permission error or
+// network hiccup doesn't discard the schema selection.
 
 const FormatModal = ({ test, onClose, onSave }) => {
   const [schemas, setSchemas] = useState([]);
@@ -320,31 +321,63 @@ const FormatModal = ({ test, onClose, onSave }) => {
   );
 };
 
-// ── Price Modal ─────────────────────────────────────────────────────────────────
-// Separate from FormatModal — same split as PriceEditModal for spaces.
-// Stays open on failure so the typed amount isn't lost.
+// ── Amount Modal (shared shell for Price / Commission) ─────────────────────────
+// One generic modal driven by a `field` config so price and commission stay
+// visually identical without duplicating the shell. Stays open on failure so
+// the typed amount isn't lost.
 
-const PriceModal = ({ test, onClose, onSave }) => {
-  const [price, setPrice] = useState(String(test.price ?? ""));
+const AMOUNT_FIELD_CONFIG = {
+  price: {
+    label: "মূল্য পরিবর্তন",
+    icon: Banknote,
+    accent: "#3B82F6",
+    accentDark: "#2563EB",
+    headerBg: "linear-gradient(135deg,#EFF6FF,#DBEAFE)",
+    headerBorder: "#3B82F620",
+    errorLabel: "মূল্য সংরক্ষণ ব্যর্থ।",
+    save: (testId, value) => testService.updatePrice(testId, value),
+  },
+  commission: {
+    label: "কমিশন পরিবর্তন",
+    icon: Percent,
+    accent: "#8B5CF6",
+    accentDark: "#7C3AED",
+    headerBg: "linear-gradient(135deg,#F5F3FF,#EDE9FE)",
+    headerBorder: "#8B5CF620",
+    errorLabel: "কমিশন সংরক্ষণ ব্যর্থ।",
+    save: (testId, value) => testService.updateCommission(testId, value),
+  },
+};
+
+const AmountModal = ({ field, test, onClose, onSave }) => {
+  const cfg = AMOUNT_FIELD_CONFIG[field];
+  const Icon = cfg.icon;
+  const [value, setValue] = useState(String(test[field] ?? ""));
   const [saving, setSaving] = useState(false);
   const [apiError, setApiError] = useState("");
 
-  const invalid = price === "" || isNaN(price) || Number(price) < 0;
+  const numeric = parseFloat(value);
+  const isEmpty = value === "" || isNaN(numeric) || numeric < 0;
+  // Cross-field guard: commission can never exceed price, checked against
+  // whichever value isn't being edited right now.
+  const counterpart = field === "price" ? (test.commission ?? 0) : (test.price ?? 0);
+  const exceedsCounterpart = !isEmpty && (field === "price" ? numeric < counterpart : numeric > counterpart);
+  const invalid = isEmpty || exceedsCounterpart;
 
   const handleSubmit = async () => {
     if (invalid) return;
     setSaving(true);
     setApiError("");
-    const parsed = parseFloat(price) || 0;
+    const parsed = parseFloat(value) || 0;
     try {
-      await testService.updatePrice(test._id, parsed);
-      onSave({ ...test, price: parsed });
+      await cfg.save(test._id, parsed);
+      onSave({ ...test, [field]: parsed });
     } catch (err) {
       if (getErrorStatus(err) === 404) {
         onSave({ ...test, __notFound: true });
         return;
       }
-      setApiError(getErrorMessage(err, "মূল্য সংরক্ষণ ব্যর্থ।"));
+      setApiError(getErrorMessage(err, cfg.errorLabel));
     } finally {
       setSaving(false);
     }
@@ -355,19 +388,25 @@ const PriceModal = ({ test, onClose, onSave }) => {
       <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
         {/* Header — fixed, never scrolls */}
         <div
-          className="shrink-0 px-6 py-5 flex items-center justify-between border-b border-[#3B82F620]"
-          style={{ background: "linear-gradient(135deg,#EFF6FF,#DBEAFE)" }}
+          className="shrink-0 px-6 py-5 flex items-center justify-between border-b"
+          style={{ background: cfg.headerBg, borderColor: cfg.headerBorder }}
         >
           <div className="flex items-center gap-3.5">
             <div
-              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px] shadow-[0_8px_20px_rgba(59,130,246,0.35)]"
-              style={{ background: "linear-gradient(135deg,#3B82F6,#2563EB)" }}
+              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px]"
+              style={{
+                background: `linear-gradient(135deg,${cfg.accent},${cfg.accentDark})`,
+                boxShadow: `0 8px 20px ${cfg.accent}59`,
+              }}
             >
-              <Banknote className="w-[18px] h-[18px] text-white" />
+              <Icon className="w-[18px] h-[18px] text-white" />
             </div>
             <div>
-              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] text-[#2563EB]">
-                মূল্য পরিবর্তন
+              <p
+                className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px]"
+                style={{ color: cfg.accentDark }}
+              >
+                {cfg.label}
               </p>
               <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A] truncate max-w-[280px]">
                 {test.name}
@@ -386,18 +425,21 @@ const PriceModal = ({ test, onClose, onSave }) => {
         <div className="px-6 py-5 bg-[#F8FAFC] flex-1 min-h-0 overflow-y-auto">
           <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
             <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-2">
-              মূল্য
+              {cfg.label}
             </p>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#0D9488]">
+              <span
+                className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-xs font-bold"
+                style={{ color: cfg.accentDark }}
+              >
                 ৳
               </span>
               <input
                 type="number"
                 autoFocus
-                value={price}
+                value={value}
                 onChange={(e) => {
-                  setPrice(e.target.value);
+                  setValue(e.target.value);
                   if (apiError) setApiError("");
                 }}
                 placeholder="০.০০"
@@ -407,6 +449,13 @@ const PriceModal = ({ test, onClose, onSave }) => {
                 onBlur={blurInput}
               />
             </div>
+            {exceedsCounterpart && (
+              <p className="mt-2 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#EF4444]">
+                {field === "price"
+                  ? "মূল্য বিদ্যমান কমিশনের চেয়ে কম হতে পারবে না।"
+                  : "কমিশন মূল্যের চেয়ে বেশি হতে পারবে না।"}
+              </p>
+            )}
           </div>
         </div>
 
@@ -432,12 +481,12 @@ const PriceModal = ({ test, onClose, onSave }) => {
               onClick={handleSubmit}
               disabled={saving || invalid}
               className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs disabled:opacity-60"
-              style={{ background: saving ? "#94A3B8" : "linear-gradient(135deg,#3B82F6,#2563EB)" }}
+              style={{ background: saving ? "#94A3B8" : `linear-gradient(135deg,${cfg.accent},${cfg.accentDark})` }}
             >
               {saving ? (
                 <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
               ) : (
-                <Banknote className="w-[13px] h-[13px]" />
+                <Icon className="w-[13px] h-[13px]" />
               )}
               Save
             </button>
@@ -520,14 +569,14 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
       } else {
         const test = availableTests.find((t) => t._id === testKey);
         if (!test) return prev;
-        updated[testKey] = { price: "" };
+        updated[testKey] = { price: "", commission: "" };
       }
       return updated;
     });
   };
 
-  const updatePrice = (testKey, value) =>
-    setSelectedTests((prev) => ({ ...prev, [testKey]: { ...prev[testKey], price: value } }));
+  const updateField = (testKey, field, value) =>
+    setSelectedTests((prev) => ({ ...prev, [testKey]: { ...prev[testKey], [field]: value } }));
 
   const toggleCategory = (catKey) => setExpandedCategories((prev) => ({ ...prev, [catKey]: !prev[catKey] }));
 
@@ -535,6 +584,13 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
     const selectedCount = Object.keys(selectedTests).length;
     if (selectedCount === 0) {
       setApiError("কমপক্ষে একটি টেস্ট নির্বাচন করুন।");
+      return;
+    }
+    const hasInvalidRow = Object.values(selectedTests).some(
+      (config) => (parseFloat(config.commission) || 0) > (parseFloat(config.price) || 0),
+    );
+    if (hasInvalidRow) {
+      setApiError("কমিশন মূল্যের চেয়ে বেশি হতে পারবে না।");
       return;
     }
     const toSave = Object.entries(selectedTests).map(([testKey, config]) => {
@@ -545,6 +601,7 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
         categoryId: test.categoryId ?? null,
         schemaId: test.schemaId ?? null,
         price: parseFloat(config.price) || 0,
+        commission: parseFloat(config.commission) || 0,
       };
     });
     try {
@@ -697,19 +754,26 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3">
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A]">
-                                  {test.name}
+                            <div className="flex items-center gap-2 pt-0.5">
+                              <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A]">
+                                {test.name}
+                              </span>
+                              {isAlreadyAdded && (
+                                <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#10B981] bg-[#10B98110] border border-[#10B98125] rounded-[6px] px-1.5 py-px shrink-0">
+                                  যোগ করা আছে
                                 </span>
-                                {isAlreadyAdded && (
-                                  <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#10B981] bg-[#10B98110] border border-[#10B98125] rounded-[6px] px-1.5 py-px shrink-0">
-                                    যোগ করা আছে
-                                  </span>
-                                )}
-                              </div>
-                              {isSelected && !isAlreadyAdded && (
-                                <div className="mt-2 sm:mt-0 sm:w-40 shrink-0" onClick={(e) => e.stopPropagation()}>
+                              )}
+                            </div>
+
+                            {isSelected && !isAlreadyAdded && (
+                              <div
+                                className="mt-2.5 grid grid-cols-2 gap-2.5 p-3 rounded-xl border-[1.5px] border-[#E2E8F0] bg-[#F8FAFC]"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div>
+                                  <label className="flex items-center gap-1 mb-1.5 font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#0D9488]">
+                                    <Banknote className="w-3 h-3" /> মূল্য
+                                  </label>
                                   <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#0D9488]">
                                       ৳
@@ -717,17 +781,48 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
                                     <input
                                       type="number"
                                       value={selectedTests[testKey]?.price ?? ""}
-                                      onChange={(e) => updatePrice(testKey, e.target.value)}
-                                      placeholder="মূল্য"
+                                      onChange={(e) => updateField(testKey, "price", e.target.value)}
+                                      placeholder="০.০০"
                                       min="0"
-                                      className={`${inputBase} pl-7 pr-3 py-1.5 text-xs`}
+                                      className={`${inputBase} pl-7 pr-2 py-2 text-xs bg-white`}
                                       onFocus={focusInput}
                                       onBlur={blurInput}
                                     />
                                   </div>
                                 </div>
-                              )}
-                            </div>
+                                <div>
+                                  <label className="flex items-center gap-1 mb-1.5 font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#8B5CF6]">
+                                    <Percent className="w-3 h-3" /> কমিশন
+                                  </label>
+                                  <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#8B5CF6]">
+                                      ৳
+                                    </span>
+                                    <input
+                                      type="number"
+                                      value={selectedTests[testKey]?.commission ?? ""}
+                                      onChange={(e) => updateField(testKey, "commission", e.target.value)}
+                                      placeholder="০.০০"
+                                      min="0"
+                                      className={`${inputBase} pl-7 pr-2 py-2 text-xs bg-white ${
+                                        (parseFloat(selectedTests[testKey]?.commission) || 0) >
+                                        (parseFloat(selectedTests[testKey]?.price) || 0)
+                                          ? "!border-[#EF4444]"
+                                          : ""
+                                      }`}
+                                      onFocus={focusInput}
+                                      onBlur={blurInput}
+                                    />
+                                  </div>
+                                  {(parseFloat(selectedTests[testKey]?.commission) || 0) >
+                                    (parseFloat(selectedTests[testKey]?.price) || 0) && (
+                                    <p className="mt-1 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#EF4444]">
+                                      মূল্যের চেয়ে বেশি হতে পারবে না
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -809,7 +904,7 @@ const ActionChip = ({ onClick, icon: Icon, label, color }) => (
 
 // ── Test Row ───────────────────────────────────────────────────────────────────
 
-const TestRow = ({ test, index, onConfigureFormat, onConfigurePrice, onDelete }) => {
+const TestRow = ({ test, index, onConfigureFormat, onConfigurePrice, onConfigureCommission, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -866,6 +961,12 @@ const TestRow = ({ test, index, onConfigureFormat, onConfigurePrice, onDelete })
               </span>
             </span>
             <span>
+              কমিশন:{" "}
+              <span className="font-bold text-[#8B5CF6]">
+                {test.commission > 0 ? `৳${test.commission.toLocaleString("en-IN")}` : "নির্ধারিত নয়"}
+              </span>
+            </span>
+            <span>
               বিভাগ: <span className="font-bold text-[#0F172A]">{test.categoryName}</span>
             </span>
             <span className="flex items-center gap-1">
@@ -886,6 +987,7 @@ const TestRow = ({ test, index, onConfigureFormat, onConfigurePrice, onDelete })
           <div className="flex items-center gap-2 flex-wrap">
             <ActionChip onClick={onConfigureFormat} icon={FileText} label="Format" color={C.teal} />
             <ActionChip onClick={onConfigurePrice} icon={Banknote} label="Change Price" color={C.blue} />
+            <ActionChip onClick={onConfigureCommission} icon={Percent} label="Change Commission" color={C.purple} />
             <ActionChip onClick={onDelete} icon={Trash2} label="Delete" color={C.red} />
           </div>
         </div>
@@ -980,6 +1082,7 @@ const ManageTests = () => {
   const [addModal, setAddModal] = useState(false);
   const [formatTest, setFormatTest] = useState(null);
   const [priceTest, setPriceTest] = useState(null);
+  const [commissionTest, setCommissionTest] = useState(null);
   // Delete confirmation uses the shared <Popup type="warning"> directly
   // (see render section below), not a bespoke modal — same pattern as
   // Products.jsx / ManageReferrer.jsx. `deleteTarget` just holds which
@@ -1099,6 +1202,18 @@ const ManageTests = () => {
     setPopup({ type: "success", message: "মূল্য সংরক্ষিত।" });
   };
 
+  const handleCommissionSave = (updatedTest) => {
+    if (updatedTest.__notFound) {
+      setTests((prev) => prev.filter((t) => t._id !== updatedTest._id));
+      setCommissionTest(null);
+      setPopup({ type: "error", message: "টেস্টটি আর পাওয়া যায়নি।" });
+      return;
+    }
+    setTests((prev) => prev.map((t) => (t._id === updatedTest._id ? { ...t, ...updatedTest } : t)));
+    setCommissionTest(null);
+    setPopup({ type: "success", message: "কমিশন সংরক্ষিত।" });
+  };
+
   const handleAdded = async (added) => {
     setAddModal(false);
     await loadAll();
@@ -1118,7 +1233,18 @@ const ManageTests = () => {
 
       {formatTest && <FormatModal test={formatTest} onClose={() => setFormatTest(null)} onSave={handleFormatSave} />}
 
-      {priceTest && <PriceModal test={priceTest} onClose={() => setPriceTest(null)} onSave={handlePriceSave} />}
+      {priceTest && (
+        <AmountModal field="price" test={priceTest} onClose={() => setPriceTest(null)} onSave={handlePriceSave} />
+      )}
+
+      {commissionTest && (
+        <AmountModal
+          field="commission"
+          test={commissionTest}
+          onClose={() => setCommissionTest(null)}
+          onSave={handleCommissionSave}
+        />
+      )}
 
       {deleteTarget && (
         <Popup
@@ -1135,13 +1261,10 @@ const ManageTests = () => {
         {/* Page header */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <p className="font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-[0.1em] text-[#0D9488] mb-1">
-              ল্যাব অপারেশন
-            </p>
             <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[26px] font-bold text-[#0F172A] leading-tight">
               টেস্ট ব্যবস্থাপনা
             </h1>
-            <p className="text-sm text-[#64748B] mt-1">মূল্য, ফরম্যাট ও অনলাইন স্ট্যাটাস পরিচালনা।</p>
+            <p className="text-sm text-[#64748B] mt-1">মূল্য, কমিশন, ফরম্যাট ও অনলাইন স্ট্যাটাস পরিচালনা।</p>
           </div>
           <div className="flex items-center gap-2 pt-1">
             <Link
@@ -1306,6 +1429,7 @@ const ManageTests = () => {
                         index={index}
                         onConfigureFormat={() => setFormatTest(test)}
                         onConfigurePrice={() => setPriceTest(test)}
+                        onConfigureCommission={() => setCommissionTest(test)}
                         onDelete={() => setDeleteTarget(test)}
                       />
                     ))}
@@ -1313,19 +1437,8 @@ const ManageTests = () => {
                 ))
               )}
             </div>
-
-            {/* Footer */}
-            <div className="px-6 py-3 border-t border-[#E2E8F0] bg-[#F8FAFC]">
-              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-                * অনলাইন টেস্টে রিপোর্ট ফরম্যাট নির্ধারিত আছে
-              </p>
-            </div>
           </div>
         )}
-
-        <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] text-center mt-4 pb-6">
-          LabPilotPro · টেস্ট ম্যানেজমেন্ট সিস্টেম
-        </p>
       </div>
     </section>
   );

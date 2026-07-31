@@ -20,7 +20,7 @@ const CARDS = [
     permission: "manageProducts",
   },
   {
-    title: "ল্যাব স্টাফ",
+    title: "স্টাফ অ্যাকাউন্ট",
     subtitle: "স্টাফদের তথ্য",
     icon: Users,
     link: "/manage-staffs",
@@ -241,11 +241,6 @@ const Setup = () => {
             );
           })}
         </div>
-
-        {/* Footer */}
-        <p className="text-center text-xs text-slate-400 pt-2 border-t border-slate-200/60">
-          ল্যাবপাইলটপ্রো · ল্যাব ম্যানেজমেন্ট সিস্টেম
-        </p>
       </div>
 
       <style>{`

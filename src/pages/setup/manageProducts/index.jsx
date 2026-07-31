@@ -1461,9 +1461,6 @@ export default function Products() {
         {/* Page header */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <p className="font-['IBM_Plex_Mono',monospace] text-[10px] uppercase tracking-[0.1em] text-[#0D9488] mb-1">
-              ইনভেন্টরি
-            </p>
             <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[26px] font-bold text-[#0F172A] leading-tight">
               পণ্য ব্যবস্থাপনা
             </h1>
@@ -1715,10 +1712,6 @@ export default function Products() {
             </div>
           </div>
         )}
-
-        <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] text-center mt-4 pb-6">
-          LabPilotPro · পণ্য ব্যবস্থাপনা সিস্টেম
-        </p>
       </div>
     </section>
   );
