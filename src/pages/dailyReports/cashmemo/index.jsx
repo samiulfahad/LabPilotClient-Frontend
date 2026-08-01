@@ -382,8 +382,6 @@ const OutstandingPatientsInline = ({ loading, patients }) => (
 );
 
 // ─── Deleted patient drill-down (IPD, inline) ─────────────────────────────────
-// Shows soft-deleted admissions with their billed/collected figures so the
-// deletion figure on the header can be audited, not just counted.
 
 const DeletedPatientsInline = ({ loading, patients }) => (
   <div className="border border-t-0 border-[#E3D9D5] rounded-b-sm bg-[#FFFBFA] overflow-hidden">
@@ -431,8 +429,6 @@ const DeletedPatientsInline = ({ loading, patients }) => (
 );
 
 // ─── Deleted invoice drill-down (Outdoor, inline) ─────────────────────────────
-// Mirrors DeletedPatientsInline but for soft-deleted OPD invoices, showing
-// billed/collected figures so the header deletion count/amount can be audited.
 
 const DeletedInvoicesInline = ({ loading, invoices }) => (
   <div className="border border-t-0 border-[#E3D9D5] rounded-b-sm bg-[#FFFBFA] overflow-hidden">
@@ -506,6 +502,46 @@ const CategoryBreakdown = ({ breakdown }) => {
   );
 };
 
+// ─── Payment-mode breakdown (compact inline "Cash 10000 | bKash 5000 | Others 3000" line) ───────
+// Reads paymentModeBreakdown from /cashmemo/summary (outdoor) or
+// /cashmemo/ipd-summary (indoor) — a fixed-shape object with one key per
+// PAYMENT_MODES value. Modes with 0 collected in the range are filtered out
+// entirely rather than shown, per the requirement to hide zero rows.
+
+const PAYMENT_MODE_LABELS = {
+  cash: "Cash",
+  bkash: "bKash",
+  nagad: "Nagad",
+  card: "Card",
+  bank_transfer: "Bank Transfer",
+  others: "Others",
+};
+
+const PaymentModeBreakdown = ({ breakdown }) => {
+  const b = breakdown ?? {};
+  const entries = Object.entries(PAYMENT_MODE_LABELS)
+    .map(([key, label]) => ({ key, label, amount: b[key] ?? 0 }))
+    .filter((e) => e.amount > 0); // hide zero-amount modes
+
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="border border-[#E3E0D6] rounded-sm px-4 py-3 mb-3">
+      <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#8A8F89] font-noto mb-1.5">
+        পেমেন্ট মাধ্যম অনুযায়ী আদায়
+      </p>
+      <p className="font-['IBM_Plex_Mono'] text-sm text-[#1C1F1E] tabular-nums leading-relaxed">
+        {entries.map((e, idx) => (
+          <span key={e.key}>
+            <span className="text-[#3A3F3E] font-noto">{e.label}</span> {fmt(e.amount)}
+            {idx < entries.length - 1 && <span className="text-[#C7C4B8] mx-2">|</span>}
+          </span>
+        ))}
+      </p>
+    </div>
+  );
+};
+
 // ─── Outdoor cashmemo receipt ─────────────────────────────────────────────────
 
 const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddress, labPhone, isHospital }) => {
@@ -513,13 +549,8 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
   const e = expenseSummary ?? {};
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
   const grossCounterAmount = (d.initial ?? 0) - (d.labAdjustment ?? 0) - (d.referrerDiscount ?? 0);
-  // Hospitals have both an outdoor (OPD) and indoor (IPD) module, so this tab
-  // needs the "বহির্বিভাগ" (outdoor) label to distinguish it from indoor.
-  // Diagnostic centers have no IPD module at all, so "বহির্বিভাগ" is
-  // meaningless there — everything is just the lab's sales/cash memo.
   const eyebrowLabel = isHospital ? "বহির্বিভাগ ক্যাশ মেমু" : "ক্যাশ মেমু";
 
-  // ── Deleted-invoices drill-down state (mirrors IPD's toggleDeleted) ──
   const [deletedOpen, setDeletedOpen] = useState(false);
   const [deletedInvoices, setDeletedInvoices] = useState(null);
   const [deletedLoading, setDeletedLoading] = useState(false);
@@ -545,8 +576,6 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
     }
   };
 
-  // Reset the drill-down whenever the reporting range changes so stale data
-  // from a previous range isn't shown under a new header count.
   useEffect(() => {
     setDeletedOpen(false);
     setDeletedInvoices(null);
@@ -557,7 +586,6 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
       id="cashmemo-printable"
       className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
     >
-      {/* Letterhead */}
       <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5]">
         <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
           {labName ?? "LabPilot Pro"}
@@ -566,7 +594,6 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
         {labPhone && <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{labPhone}</p>}
       </div>
 
-      {/* Header band */}
       <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
         <div>
           <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">{eyebrowLabel}</p>
@@ -579,14 +606,12 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
       </div>
 
       <div className="px-6 sm:px-8 py-5">
-        {/* Line items */}
         <div className="divide-y divide-[#F0EEE6]">
           <ReceiptLine label="মোট বিক্রি" value={`৳${fmt(d.initial)}`} bold />
           <ReceiptLine label="ল্যাব ডিস্কাউন্ট" value={`− ৳${fmt(d.labAdjustment)}`} tone={OCHRE} />
           <ReceiptLine label="রেফারার ডিস্কাউন্ট" value={`− ৳${fmt(d.referrerDiscount)}`} tone={OCHRE} />
         </div>
 
-        {/* নিট টোটাল */}
         <div className="mt-4 border border-[#E3E0D6] rounded-sm overflow-hidden">
           <div
             className="flex items-center justify-between px-4 py-3 bg-[#F5F4EF] border-l-4"
@@ -599,13 +624,13 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
           </div>
         </div>
 
-        {/* নগদ / বাকি */}
         <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm my-4">
           <LedgerCell icon={PackageCheck} label="নগদ" value={`৳${fmt(d.totalPaid)}`} accent={TEAL} />
           <LedgerCell icon={Clock} label="বাকি" value={`৳${fmt(d.totalDue)}`} accent={RUST} />
         </div>
 
-        {/* কমিশন */}
+        <PaymentModeBreakdown breakdown={d.paymentModeBreakdown} />
+
         <div className="border border-[#E3D9C6] rounded-sm overflow-hidden mb-4">
           <div
             className="flex items-center justify-between px-4 py-3 bg-[#FBF7EF] border-l-4"
@@ -622,7 +647,6 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
 
         <NetStamp amount={d.totalNet} label="নিট আয়" accent={TEAL} />
 
-        {/* মোট খরচ — shown right before the deleted-invoices drill-down */}
         <div className="border border-[#E3D9EE] rounded-sm overflow-hidden mt-3 mb-3">
           <div
             className="flex items-center justify-between px-4 py-3 bg-[#F8F5FC] border-l-4"
@@ -638,7 +662,6 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
           </div>
         </div>
 
-        {/* Deleted invoices — clickable, expands inline list (mirrors IPD tab) */}
         <div className="mt-0 mb-0">
           <button
             type="button"
@@ -687,7 +710,6 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
 const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) => {
   const d = summary ?? {};
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
-  const collectionRate = d.collectionRate ?? 0;
 
   const [discountOpen, setDiscountOpen] = useState(false);
   const [discountPatients, setDiscountPatients] = useState(null);
@@ -703,7 +725,6 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
   const [outstandingPatients, setOutstandingPatients] = useState(null);
   const [outstandingLoading, setOutstandingLoading] = useState(false);
 
-  // ── Deleted-patients drill-down state ──
   const [deletedOpen, setDeletedOpen] = useState(false);
   const [deletedPatients, setDeletedPatients] = useState(null);
   const [deletedLoading, setDeletedLoading] = useState(false);
@@ -806,8 +827,6 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
     }
   };
 
-  // Reset date-scoped drill-downs when the reporting range changes. Outstanding
-  // patients is real-time (not date-bound) so it's left alone.
   useEffect(() => {
     setDiscountOpen(false);
     setDiscountPatients(null);
@@ -823,7 +842,6 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
       id="cashmemo-ipd-printable"
       className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
     >
-      {/* Letterhead */}
       <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#F8F8FC]">
         <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
           {labName ?? "LabPilot Pro"}
@@ -832,7 +850,6 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
         {labPhone && <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{labPhone}</p>}
       </div>
 
-      {/* Header band */}
       <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
         <div>
           <p className="font-['IBM_Plex_Mono'] text-xs uppercase mb-1.5 font-noto" style={{ color: INDIGO }}>
@@ -844,7 +861,6 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
       </div>
 
       <div className="px-6 sm:px-8 py-5">
-        {/* ── Census + ALOS (real-time, not date-bound) ── */}
         <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm mb-3">
           <LedgerCell icon={Activity} label="বর্তমানে ভর্তি" value={`${d.currentlyAdmitted ?? 0}`} accent={INDIGO} />
           <LedgerCell
@@ -856,7 +872,6 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
           />
         </div>
 
-        {/* ── ভর্তি / ছাড়প্রাপ্ত রোগী (clickable, expands inline list) ── */}
         <div className="border border-[#E3E0D6] rounded-sm mb-4 overflow-hidden">
           <div className="grid grid-cols-2 divide-x divide-[#E3E0D6]">
             <ClickableLedgerCell
@@ -884,41 +899,15 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
           )}
         </div>
 
-        {/* ── বিল / আদায় ── */}
         <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm mb-3">
           <LedgerCell icon={Wallet} label="মোট বিল" value={`৳${fmt(d.totalBilled)}`} accent={INDIGO} />
           <LedgerCell icon={PackageCheck} label="মোট আদায়" value={`৳${fmt(d.totalCollected)}`} accent={TEAL} />
         </div>
 
-        {/* ── বাকি + আদায়ের হার ── */}
-        <div className="border border-[#E3D5D2] bg-[#FBF2F0] rounded-sm mb-3 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-l-4" style={{ borderColor: RUST }}>
-            <div className="flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5" style={{ color: RUST }} />
-              <p className="text-sm font-semibold text-[#1C1F1E] font-noto">বাকি</p>
-            </div>
-            <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums" style={{ color: RUST }}>
-              ৳{fmt(d.totalDue)}
-            </p>
-          </div>
-          <div className="px-4 pb-3">
-            <div className="flex items-center justify-between mb-1">
-              <span className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] font-noto">আদায়ের হার</span>
-              <span className="font-['IBM_Plex_Mono'] text-xs font-semibold text-[#1C1F1E]">{collectionRate}%</span>
-            </div>
-            <div className="h-1.5 w-full bg-white rounded-full overflow-hidden border border-[#E3D5D2]">
-              <div
-                className="h-full rounded-full"
-                style={{ width: `${Math.min(100, collectionRate)}%`, backgroundColor: TEAL }}
-              />
-            </div>
-          </div>
-        </div>
+        <PaymentModeBreakdown breakdown={d.paymentModeBreakdown} />
 
-        {/* ── খাত অনুযায়ী আয় ── */}
         <CategoryBreakdown breakdown={d.categoryBreakdown} />
 
-        {/* ── মোট ডিসকাউন্ট (tap to expand patient list inline) ── */}
         <div className="mb-3">
           <button
             type="button"
@@ -957,7 +946,6 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
           {discountOpen && <DiscountPatientsInline loading={discountLoading} patients={discountPatients} />}
         </div>
 
-        {/* ── বকেয়া রোগী তালিকা (AR — real-time, tap to expand) ── */}
         <div className="mb-3">
           <button
             type="button"
@@ -988,7 +976,6 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
           {outstandingOpen && <OutstandingPatientsInline loading={outstandingLoading} patients={outstandingPatients} />}
         </div>
 
-        {/* ── ডিলিট করা রোগী (soft-deleted admissions — tap to expand) ── */}
         <div className="mb-0">
           <button
             type="button"
@@ -1049,8 +1036,6 @@ const SummaryReceipt = ({
   const e = expenseSummary ?? {};
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
 
-  // Bill − discounts only (no commission deducted) — matches the
-  // "সকল ডিসকাউন্ট বাদে আয়" figure shown on the Outdoor tab itself.
   const outdoorGrossCounterAmount = (o.initial ?? 0) - (o.labAdjustment ?? 0) - (o.referrerDiscount ?? 0);
 
   const outdoorRows = [
@@ -1060,14 +1045,10 @@ const SummaryReceipt = ({
     { label: "বাকি", value: `৳${fmt(o.totalDue)}`, tone: RUST },
   ];
 
-  // Order: bill → collected → due → discount. Due is bill vs. collection only
-  // (discount is shown separately, informational).
   const indoorRows = [
     { label: "মোট বিলড", value: `৳${fmt(i.totalBilled)}`, bold: true },
     { label: "আদায়", value: `৳${fmt(i.totalCollected)}`, tone: TEAL },
-    { label: "বাকি", value: `৳${fmt(i.totalDue)}`, tone: RUST },
     { label: "মোট ডিসকাউন্ট", value: `− ৳${fmt(i.totalDiscounts)}`, tone: OCHRE },
-    { label: "আদায়ের হার", value: `${i.collectionRate ?? 0}%`, tone: INDIGO },
   ];
 
   const expenseRows = [{ label: "মোট খরচ", value: `৳${fmt(e.totalExpense)}`, bold: true, tone: VIOLET }];
@@ -1077,7 +1058,6 @@ const SummaryReceipt = ({
       id="cashmemo-summary-printable"
       className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
     >
-      {/* Letterhead */}
       <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9FC]">
         <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
           {labName ?? "LabPilot Pro"}
@@ -1086,7 +1066,6 @@ const SummaryReceipt = ({
         {labPhone && <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{labPhone}</p>}
       </div>
 
-      {/* Header band */}
       <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
         <div>
           <p className="font-['IBM_Plex_Mono'] text-xs uppercase mb-1.5 font-noto" style={{ color: VIOLET }}>
@@ -1105,7 +1084,14 @@ const SummaryReceipt = ({
           rows={outdoorRows}
         />
 
-        {isHospital && <SummarySection title="অন্তঃবিভাগ (আইপিডি)" icon={Users} accent={INDIGO} rows={indoorRows} />}
+        <PaymentModeBreakdown breakdown={o.paymentModeBreakdown} />
+
+        {isHospital && (
+          <>
+            <SummarySection title="অন্তঃবিভাগ (আইপিডি)" icon={Users} accent={INDIGO} rows={indoorRows} />
+            <PaymentModeBreakdown breakdown={i.paymentModeBreakdown} />
+          </>
+        )}
 
         <SummarySection title="খরচ" icon={ReceiptIcon} accent={VIOLET} rows={expenseRows} />
       </div>
@@ -1137,37 +1123,28 @@ const CashMemo = () => {
 
   const [activeTab, setActiveTab] = useState("outdoor");
 
-  // Outdoor state
   const [outdoorSummary, setOutdoorSummary] = useState(null);
   const [outdoorLoading, setOutdoorLoading] = useState(true);
 
-  // Indoor state
   const [indoorSummary, setIndoorSummary] = useState(null);
   const [indoorLoading, setIndoorLoading] = useState(!isHospital ? false : true);
 
-  // Expense state (used by the Outdoor tab and the Summary tab, for both lab types)
   const [expenseSummary, setExpenseSummary] = useState(null);
   const [expenseLoading, setExpenseLoading] = useState(true);
 
   const [popup, setPopup] = useState(null);
   const [timeRange, setTimeRange] = useState(null);
 
-  // Tracks which tabs have already been fetched for the CURRENT timeRange, so
-  // switching tabs back and forth doesn't refetch — only a range change does.
   const loadedForRangeRef = useRef({ outdoor: false, indoor: false, summary: false });
 
   useEffect(() => {
     const range = todayRange();
     setTimeRange(range);
     loadedForRangeRef.current = { outdoor: false, indoor: false, summary: false };
-    loadTab(activeTab, range); // only fetches what the initially-active tab needs
+    loadTab(activeTab, range);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetches whatever a given tab needs, skipping anything already loaded for
-  // the current range. "summary" needs outdoor + expense + (if hospital)
-  // indoor, since it aggregates all three — so it may kick off multiple
-  // fetches the first time it's opened.
   const loadTab = (tab, range) => {
     const loaded = loadedForRangeRef.current;
 
@@ -1235,8 +1212,6 @@ const CashMemo = () => {
   const handleFetchData = (start, end) => {
     const range = { start, end };
     setTimeRange(range);
-    // A new range invalidates everything already fetched — reset the cache
-    // and load only what the currently-active tab needs.
     loadedForRangeRef.current = { outdoor: false, indoor: false, summary: false };
     loadTab(activeTab, range);
   };
@@ -1261,9 +1236,6 @@ const CashMemo = () => {
         { key: "summary", label: "সারসংক্ষেপ", accent: VIOLET },
       ];
 
-  // Outdoor tab now shows the expense figure too, so its "still loading" state
-  // must wait on expenseLoading as well — otherwise ৳0 flashes briefly if
-  // expense resolves after outdoorSummary.
   const currentLoading =
     activeTab === "outdoor"
       ? outdoorLoading || expenseLoading
@@ -1283,19 +1255,35 @@ const CashMemo = () => {
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       <style>{`
+        @page {
+          size: A4;
+          margin: 12mm;
+        }
         @media print {
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          html, body { height: auto !important; }
           body * { visibility: hidden; }
           #${printableId}, #${printableId} * { visibility: visible; }
           #${printableId} {
-            position: fixed; top: 0; left: 0; width: 100%; padding: 32px; box-shadow: none;
+            position: absolute; top: 0; left: 0; width: 100%;
+            box-shadow: none; border: none; border-radius: 0;
+            font-size: 11px;
+            page-break-inside: avoid;
+            transform-origin: top left;
           }
+          #${printableId} .px-6, #${printableId} .sm\\:px-8 { padding-left: 10px !important; padding-right: 10px !important; }
+          #${printableId} .py-5, #${printableId} .pt-6, #${printableId} .pb-5, #${printableId} .pt-5, #${printableId} .pb-4 {
+            padding-top: 6px !important; padding-bottom: 6px !important;
+          }
+          #${printableId} .mb-3, #${printableId} .mb-4, #${printableId} .my-4, #${printableId} .mt-4, #${printableId} .mt-3 {
+            margin-top: 4px !important; margin-bottom: 4px !important;
+          }
+          #${printableId} .max-h-72 { max-height: none !important; overflow: visible !important; }
           .no-print { display: none !important; }
         }
       `}</style>
 
       <div className="max-w-2xl mx-auto">
-        {/* Page header */}
         <div className="flex items-center justify-between mb-5 no-print">
           <div>
             <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] font-noto">
@@ -1320,12 +1308,10 @@ const CashMemo = () => {
           </div>
         </div>
 
-        {/* TimeFrame picker */}
         <div className="mb-4 no-print">
           <TimeFrame onFetchData={handleFetchData} />
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-[#E3E0D6] mb-5 no-print bg-white rounded-t-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)]">
           {tabs.map((t) => (
             <TabBtn key={t.key} active={activeTab === t.key} onClick={() => handleTabClick(t.key)} accent={t.accent}>
@@ -1334,7 +1320,6 @@ const CashMemo = () => {
           ))}
         </div>
 
-        {/* Receipt */}
         {activeTab === "outdoor" &&
           (currentLoading ? (
             <SkeletonReceipt />

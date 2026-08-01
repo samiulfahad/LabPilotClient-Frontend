@@ -24,6 +24,7 @@ import {
   Building2,
   Wallet,
   Package,
+  CreditCard,
 } from "lucide-react";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
@@ -35,6 +36,15 @@ import { useAuthStore } from "../../../store/authStore"; // adjust path to your 
 
 const GENDERS = ["male", "female"];
 
+const PAYMENT_MODES = [
+  { value: "cash", label: "Cash" },
+  { value: "bkash", label: "bKash" },
+  { value: "nagad", label: "Nagad" },
+  { value: "card", label: "Card" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "others", label: "Others" },
+];
+
 const INITIAL_FORM = {
   patient: { name: "", gender: "", age: "", contactNumber: "" },
   referredBy: null,
@@ -45,6 +55,7 @@ const INITIAL_FORM = {
   hasLabAdjustment: false,
   labAdjustmentAmount: 0,
   paidAmount: "", // kept as string in state so the field can be cleared/edited freely
+  paymentMode: "cash",
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -53,6 +64,8 @@ const fmt = (n) =>
   new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", minimumFractionDigits: 0 }).format(n);
 
 const toFixed2 = (n) => parseFloat(n.toFixed(2));
+
+const paymentModeLabel = (value) => PAYMENT_MODES.find((m) => m.value === value)?.label ?? value;
 
 // ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / SalesReport.jsx) ──
 
@@ -201,6 +214,36 @@ const ToggleSwitch = ({ checked, onChange, icon: Icon, label }) => (
   </button>
 );
 
+// ─── Payment mode selector ─────────────────────────────────────────────────
+
+const PaymentModeSelector = ({ value, onChange }) => (
+  <div>
+    <div className="flex items-center gap-2 mb-2">
+      <div className="p-1.5 bg-blue-50 rounded">
+        <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+      </div>
+      <span className="text-sm font-medium text-gray-700">Payment Mode</span>
+    </div>
+    <div className="flex flex-wrap gap-2">
+      {PAYMENT_MODES.map((mode) => (
+        <button
+          key={mode.value}
+          type="button"
+          onClick={() => onChange(mode.value)}
+          aria-pressed={value === mode.value}
+          className={`px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors ${
+            value === mode.value
+              ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+              : "bg-white border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50"
+          }`}
+        >
+          {mode.label}
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
 // ─── Invoice Summary modal ────────────────────────────────────────────────────
 
 const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
@@ -212,6 +255,7 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
     hasReferrerDiscount,
     referrerDiscount,
     hasLabAdjustment,
+    paymentMode,
   } = formData;
   const due = Math.max(0, amount.final - amount.paid);
 
@@ -316,6 +360,7 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
                 label={
                   <span className="flex items-center gap-1.5">
                     <Wallet className="w-3.5 h-3.5 text-green-600" /> Paid Amount
+                    <span className="text-xs font-normal text-gray-400">({paymentModeLabel(paymentMode)})</span>
                   </span>
                 }
                 value={fmt(amount.paid)}
@@ -409,6 +454,7 @@ const InvoiceForm = ({
     hasLabAdjustment,
     labAdjustmentAmount,
     paidAmount,
+    paymentMode,
   } = formData;
   const due = Math.max(0, amount.final - amount.paid);
 
@@ -454,7 +500,7 @@ const InvoiceForm = ({
 
   // Lab adjustment is gated by canAdjustLab (hidden entirely if a staff has
   // a zero cap) and bounded by both the staff's max (from JWT) and the
-  // invoice total after referrer discount — admins skip the dollar cap but
+  // invoice total after referrer discount - admins skip the dollar cap but
   // are still bounded by the post-discount total.
   const labAdjustmentCap = isAdmin
     ? amount.afterReferrerDiscount
@@ -973,6 +1019,10 @@ const InvoiceForm = ({
               step="0.01"
               className="focus:ring-green-500/20 focus:border-green-500"
             />
+
+            {/* Payment Mode */}
+            <PaymentModeSelector value={paymentMode} onChange={(val) => onChange("paymentMode", val)} />
+
             {amount.final > 0 && (
               <div className="p-4 rounded-lg border border-gray-200 bg-gray-50 space-y-2 text-sm">
                 <div className="flex justify-between">
@@ -1124,7 +1174,7 @@ const CreateInvoice = () => {
   const handleConfirm = async () => {
     try {
       setSubmitting(true);
-      const { patient, referredBy, selectedTests, selectedProducts } = formData;
+      const { patient, referredBy, selectedTests, selectedProducts, paymentMode } = formData;
 
       const invoiceData = {
         patient,
@@ -1152,6 +1202,7 @@ const CreateInvoice = () => {
           type,
         })),
         amount,
+        paymentMode,
       };
 
       const { data } = await invoiceService.createInvoice(invoiceData);

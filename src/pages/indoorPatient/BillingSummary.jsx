@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Badge, Btn, ErrorMsg, Field, Input, Modal, SectionCard, Select, fmt } from "./indoorPatientHelpers";
 import indoorPatientService from "../../api/indoorPatient";
 import { useAuthStore } from "../../store/authStore";
-import { Printer, Lock } from "lucide-react";
+import { Printer, Lock, Loader2, Wallet, AlertCircle } from "lucide-react";
 
 // ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx / ReportDownload.jsx / PatientDetails.jsx) ──
 
@@ -15,6 +15,17 @@ const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
+
+// ─── Payment modes (mirrors invoiceRoutes.js / SearchInvoice.jsx) ─────────────
+
+const PAYMENT_MODES = [
+  { value: "cash", label: "Cash" },
+  { value: "bkash", label: "bKash" },
+  { value: "nagad", label: "Nagad" },
+  { value: "card", label: "Card" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "others", label: "Others" },
+];
 
 // ─── BST helpers ──────────────────────────────────────────────────────────────
 
@@ -160,6 +171,153 @@ const CAT_LABEL = {
   "bed-charge": "Bed Charge",
   "grand-total": "Grand Total",
 };
+
+// ─── Collect Payment Modal ─────────────────────────────────────────────────────
+// Mirrors CollectDueModal in SearchInvoice.jsx — amount clamped to (0, due],
+// with a payment mode pill selector.
+
+function CollectPaymentModal({ open, onClose, onSuccess, patient, patientId, due }) {
+  const [amount, setAmount] = useState(due);
+  const [paymentMode, setPaymentMode] = useState("cash");
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setAmount(due);
+      setPaymentMode("cash");
+      setNote("");
+      setError("");
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, patientId]);
+
+  if (!open) return null;
+
+  const clampAmount = (val) => {
+    if (val === "") return setAmount("");
+    const num = parseFloat(val);
+    if (Number.isNaN(num)) return setAmount("");
+    setAmount(Math.min(Math.max(0, num), due));
+  };
+
+  const numericAmount = parseFloat(amount) || 0;
+  const isValid = numericAmount > 0 && numericAmount <= due;
+
+  const handleClose = () => {
+    if (loading) return;
+    onClose();
+  };
+
+  const handleSubmit = async () => {
+    if (!isValid) return setError(`Amount must be between ৳1 and ${fmt.currency(due)}`);
+    if (!patientId || patientId === "undefined") {
+      return setError("Patient ID is missing — please refresh the page.");
+    }
+    setError("");
+    setLoading(true);
+    try {
+      const toFixed2 = (n) => parseFloat(n.toFixed(2));
+      await indoorPatientService.addPayment(patientId, {
+        amount: toFixed2(numericAmount),
+        paymentMode,
+        note: note.trim(),
+      });
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to collect payment"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={handleClose} title="Collect Payment" width="max-w-lg">
+      <div className="space-y-5">
+        <div className="flex items-center justify-between px-3.5 py-3 rounded-[3px] bg-red-50 border border-red-100">
+          <span className="text-xs font-bold text-red-500">Total Due</span>
+          <span className="text-lg font-black text-red-600">{fmt.currency(due)}</span>
+        </div>
+
+        <ErrorMsg msg={error} />
+
+        {/* Amount */}
+        <Field label="Amount to Collect">
+          <div className="relative">
+            <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <Input
+              type="number"
+              min="0"
+              max={due}
+              step="0.01"
+              value={amount}
+              disabled={loading}
+              onChange={(e) => clampAmount(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <div className="flex items-center justify-between mt-1.5">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => setAmount(due)}
+              className="text-xs font-semibold text-[#0F6E5C] hover:underline"
+            >
+              Collect full due ({fmt.currency(due)})
+            </button>
+            <span className="text-[11px] text-slate-400">Max {fmt.currency(due)}</span>
+          </div>
+        </Field>
+
+        {/* Payment mode */}
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 mb-2">Payment Mode</p>
+          <div className="flex flex-wrap gap-1.5">
+            {PAYMENT_MODES.map((mode) => (
+              <button
+                key={mode.value}
+                type="button"
+                disabled={loading}
+                onClick={() => setPaymentMode(mode.value)}
+                aria-pressed={paymentMode === mode.value}
+                className={`px-3.5 py-2 rounded-[3px] text-[13px] font-semibold border transition-colors disabled:opacity-50 ${
+                  paymentMode === mode.value
+                    ? "bg-[#0F6E5C] border-[#0F6E5C] text-white"
+                    : "bg-white border-slate-200 text-slate-600 hover:border-[#0F6E5C]/40 hover:bg-[#0F6E5C]/5"
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <Field label="Note (optional)">
+          <Input placeholder="Reason…" value={note} onChange={(e) => setNote(e.target.value)} disabled={loading} />
+        </Field>
+
+        <div className="flex gap-2 pt-1">
+          <Btn variant="secondary" size="lg" className="flex-1" onClick={handleClose} disabled={loading}>
+            Cancel
+          </Btn>
+          <Btn
+            variant="primary"
+            size="lg"
+            className="flex-1"
+            loading={loading}
+            disabled={!isValid}
+            onClick={handleSubmit}
+          >
+            Collect {numericAmount > 0 ? fmt.currency(numericAmount) : ""}
+          </Btn>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 // ─── Bed Charge Details Modal ─────────────────────────────────────────────────
 
@@ -495,6 +653,7 @@ export default function BillingSummary({
   const [bedDetailsOpen, setBedDetailsOpen] = useState(false);
   const [addDiscountOpen, setAddDiscountOpen] = useState(false);
   const [discountHistoryOpen, setDiscountHistoryOpen] = useState(false);
+  const [collectOpen, setCollectOpen] = useState(false);
 
   const role = useAuthStore((s) => s.user?.role);
   const permissions = useAuthStore((s) => s.user?.permissions);
@@ -692,7 +851,7 @@ export default function BillingSummary({
               {due > 0 && (
                 <button
                   type="button"
-                  onClick={onCollect}
+                  onClick={() => setCollectOpen(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-[12px] font-bold tracking-wide transition-all shadow-sm"
                 >
                   💳 Collect {fmt.currency(due)}
@@ -868,6 +1027,14 @@ export default function BillingSummary({
         onSuccess={() => onRefresh?.()}
         patient={patient}
         patientId={patientId}
+      />
+      <CollectPaymentModal
+        open={collectOpen}
+        onClose={() => setCollectOpen(false)}
+        onSuccess={() => onRefresh?.()}
+        patient={patient}
+        patientId={patientId}
+        due={due}
       />
       <DiscountHistoryModal
         open={discountHistoryOpen}

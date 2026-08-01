@@ -14,6 +14,8 @@ const indoorPatientService = {
   addExpense: (id, data) => api.post(`/indoor-patient/${id}/expense`, data),
   addPayment: (id, data) => api.post(`/indoor-patient/${id}/payment`, data),
   addDiscount: (id, data) => api.post(`/indoor-patient/${id}/discount`, data),
+  updatePaymentMode: (id, paymentId, paymentMode) =>
+    api.patch(`/indoor-patient/${id}/payment/${paymentId}/mode`, { paymentMode }),
   release: (id, data) => api.patch(`/indoor-patient/${id}/release`, data),
   deletePatient: (id, data) => api.delete(`/indoor-patient/${id}`, { data }),
 };

@@ -30,6 +30,8 @@ import {
   Printer,
   Copy,
   Check,
+  CreditCard,
+  Loader2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Popup from "../../../components/popup";
@@ -108,6 +110,17 @@ const getErrorMessage = (err, fallback) => {
 const SEAL_BLUE = "#1E4FA0";
 const SEAL_RED = "#C0312B";
 
+// ─── Payment modes (mirrors CreateInvoice.jsx / SearchInvoice.jsx) ───────────
+
+const PAYMENT_MODES = [
+  { value: "cash", label: "Cash" },
+  { value: "bkash", label: "bKash" },
+  { value: "nagad", label: "Nagad" },
+  { value: "card", label: "Card" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "others", label: "Others" },
+];
+
 // ─── Copy Invoice ID Button ───────────────────────────────────────────────────
 // Shared, reusable across the row and the details modal so the copy behaviour
 // (feedback state, timeout, fallback) lives in exactly one place.
@@ -174,9 +187,190 @@ const RoundSeal = ({ dateLabel }) => (
   </div>
 );
 
+// ─── Collect Due Modal (ledger-styled) ────────────────────────────────────────
+// Matches this file's own manifest/ledger aesthetic — IBM Plex Mono, sharp
+// [2px]/[3px] corners, #0F6E5C / #C0312B / #1E4FA0 palette — rather than the
+// rounded blue UI used in CreateInvoice/SearchInvoice.
+
+const CollectDueModal = ({ invoice, isOpen, onClose, onConfirm }) => {
+  const due = invoice ? getDue(invoice) : 0;
+  const [amount, setAmount] = useState(due);
+  const [paymentMode, setPaymentMode] = useState("cash");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setAmount(due);
+      setPaymentMode("cash");
+      setError("");
+      setSubmitting(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, invoice?.invoiceId]);
+
+  if (!isOpen || !invoice) return null;
+
+  const clampAmount = (val) => {
+    if (val === "") return setAmount("");
+    const num = parseFloat(val);
+    if (Number.isNaN(num)) return setAmount("");
+    setAmount(Math.min(Math.max(0, num), due));
+  };
+
+  const toFixed2 = (n) => parseFloat(n.toFixed(2));
+  const numericAmount = parseFloat(amount) || 0;
+  const isValid = numericAmount > 0 && numericAmount <= due;
+
+  const handleSubmit = async () => {
+    if (!isValid) {
+      setError(`পরিমাণ ৳১ থেকে ${fmt(due)} এর মধ্যে হতে হবে`);
+      return;
+    }
+    try {
+      setSubmitting(true);
+      setError("");
+      await onConfirm({ amount: toFixed2(numericAmount), paymentMode });
+    } catch {
+      setError("আদায় ব্যর্থ হয়েছে, আবার চেষ্টা করুন।");
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={submitting ? undefined : onClose} size="sm">
+      <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#E3E0D6] bg-[#FAF9F5]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-[3px] border border-[#0F6E5C]/30 flex items-center justify-center shrink-0 bg-white">
+            <Banknote className="w-4 h-4 text-[#0F6E5C]" />
+          </div>
+          <div>
+            <h2 className="font-['IBM_Plex_Sans'] text-sm font-bold text-[#1C1F1E] leading-tight">বকেয়া আদায়</h2>
+            <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3] mt-0.5">
+              #{invoice.invoiceId} · {invoice.patient?.name}
+            </p>
+          </div>
+        </div>
+        {!submitting && (
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center rounded-sm text-[#A8ACA3] hover:text-[#1C1F1E] hover:bg-[#EDEBE3] transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      <div className="px-5 py-5 space-y-4">
+        {/* Total due */}
+        <div className="flex items-center justify-between p-3 rounded-[3px] border border-[#C0312B]/25 bg-[#C0312B]/5">
+          <span className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-[#C0312B]">মোট বাকি</span>
+          <span className="font-['IBM_Plex_Mono'] text-base font-bold text-[#C0312B] tabular-nums">{fmt(due)}</span>
+        </div>
+
+        {/* Amount */}
+        <div>
+          <label className="block font-['IBM_Plex_Mono'] text-[10px] uppercase text-[#6F756F] mb-1.5">
+            আদায়কৃত পরিমাণ
+          </label>
+          <div className="relative">
+            <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#A8ACA3] pointer-events-none" />
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => clampAmount(e.target.value)}
+              min="0"
+              max={due}
+              step="0.01"
+              disabled={submitting}
+              className="w-full pl-9 pr-3 py-2.5 text-sm border border-[#D8D5CB] rounded-[2px] focus:outline-none focus:ring-1 focus:ring-[#0F6E5C]/30 focus:border-[#0F6E5C] transition-all placeholder-[#A8ACA3] bg-[#FAF9F5] focus:bg-white font-['IBM_Plex_Mono'] disabled:opacity-60"
+            />
+          </div>
+          <div className="flex items-center justify-between mt-1.5">
+            <button
+              type="button"
+              onClick={() => setAmount(due)}
+              disabled={submitting}
+              className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-[#0F6E5C] hover:underline"
+            >
+              সম্পূর্ণ বাকি আদায় করুন ({fmt(due)})
+            </button>
+            <span className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3]">সর্বোচ্চ {fmt(due)}</span>
+          </div>
+        </div>
+
+        {/* Payment mode */}
+        <div>
+          <label className="block font-['IBM_Plex_Mono'] text-[10px] uppercase text-[#6F756F] mb-1.5">
+            পেমেন্ট মাধ্যম
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {PAYMENT_MODES.map((mode) => (
+              <button
+                key={mode.value}
+                type="button"
+                disabled={submitting}
+                onClick={() => setPaymentMode(mode.value)}
+                aria-pressed={paymentMode === mode.value}
+                className={`px-3 py-1.5 rounded-[2px] font-['IBM_Plex_Mono'] text-[11px] uppercase tracking-wide border transition-colors disabled:opacity-50 ${
+                  paymentMode === mode.value
+                    ? "border-[#0F6E5C] bg-[#0F6E5C] text-white"
+                    : "border-[#D8D5CB] text-[#6F756F] hover:bg-[#EDEBE3]"
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && (
+          <p className="flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-[11px] text-[#C0312B]">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {error}
+          </p>
+        )}
+      </div>
+
+      <div className="flex gap-2 px-5 pb-5 border-t border-[#E3E0D6] pt-4">
+        <button
+          onClick={onClose}
+          disabled={submitting}
+          className="flex-1 py-2 font-['IBM_Plex_Mono'] text-xs uppercase border border-[#D8D5CB] text-[#6F756F] hover:bg-[#EDEBE3] rounded-[2px] transition-colors disabled:opacity-50"
+        >
+          বাতিল
+        </button>
+        <button
+          onClick={handleSubmit}
+          disabled={!isValid || submitting}
+          className="flex-1 py-2 font-['IBM_Plex_Mono'] text-xs uppercase border border-[#0F6E5C] text-[#0F6E5C] hover:bg-[#0F6E5C] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed rounded-[2px] transition-colors flex items-center justify-center gap-1.5"
+        >
+          {submitting ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> আদায় হচ্ছে...
+            </>
+          ) : (
+            <>
+              <Banknote className="w-3.5 h-3.5" /> আদায় করুন {numericAmount > 0 ? `(${fmt(numericAmount)})` : ""}
+            </>
+          )}
+        </button>
+      </div>
+    </Modal>
+  );
+};
+
 // ─── Invoice Row (Ledger style) ───────────────────────────────────────────────
 
-const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated, onLoadingChange, onError }) => {
+const InvoiceRow = ({
+  invoice,
+  index,
+  onDelivered,
+  onCollected,
+  onPatientUpdated,
+  onLoadingChange,
+  onError,
+  onSuccess,
+}) => {
   const { date, time } = formatDateTime(invoice.createdAt);
   const [confirming, setConfirming] = useState(false);
   const [collectingDue, setCollectingDue] = useState(false);
@@ -203,17 +397,15 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
     }
   };
 
-  const handleCollectDue = async () => {
+  const handleCollectDue = async ({ amount, paymentMode }) => {
+    const { data } = await invoiceService.collectDue(invoice.invoiceId, { amount, paymentMode });
+    onCollected(invoice.invoiceId, amount);
     setCollectingDue(false);
-    try {
-      onLoadingChange("Collecting due amount...");
-      await invoiceService.collectDue(invoice.invoiceId);
-      onCollected(invoice.invoiceId);
-    } catch (err) {
-      onError(getErrorMessage(err, "Failed to collect due amount. Please try again."));
-    } finally {
-      onLoadingChange(null);
-    }
+    onSuccess(
+      data?.due > 0
+        ? `${patient.name} থেকে ${fmt(amount)} আদায় হয়েছে। অবশিষ্ট বাকি: ${fmt(data.due)}।`
+        : `${patient.name} থেকে ${fmt(amount)} আদায় হয়েছে। ইনভয়েস #${invoice.invoiceId} সম্পূর্ণ পরিশোধিত।`,
+    );
   };
 
   return (
@@ -228,16 +420,13 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
           onClose={() => setConfirming(false)}
         />
       )}
-      {collectingDue && (
-        <Popup
-          type="warning"
-          message={`Collect the full due amount of ৳${due.toLocaleString()} from ${patient.name} (Invoice #${invoice.invoiceId})? This will mark the invoice as fully paid.`}
-          confirmText={`Collect ৳${due.toLocaleString()}`}
-          cancelText="Cancel"
-          onConfirm={handleCollectDue}
-          onClose={() => setCollectingDue(false)}
-        />
-      )}
+
+      <CollectDueModal
+        invoice={invoice}
+        isOpen={collectingDue}
+        onClose={() => setCollectingDue(false)}
+        onConfirm={handleCollectDue}
+      />
 
       <EditPatientModal
         invoice={invoice}
@@ -317,23 +506,27 @@ const InvoiceRow = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
-                <ManifestChip onClick={() => setViewingDetails(true)} icon={Eye} label="বিস্তারিত" />
-                <ManifestLinkChip to={`/outdoor/invoice/print/${invoice.invoiceId}`} icon={FileText} label="ইনভয়েস" />
+                <ManifestChip onClick={() => setViewingDetails(true)} icon={Eye} label="Details" />
+                <ManifestLinkChip
+                  to={`/outdoor/invoice/print/${invoice.invoiceId}`}
+                  icon={FileText}
+                  label="Invoice"
+                />
                 {hasReports && (
                   <ManifestLinkChip
                     to="/report"
                     state={{ invoiceId: invoice.invoiceId }}
                     icon={FlaskConical}
-                    label="রিপোর্ট"
+                    label="Reports"
                     accent
                   />
                 )}
-                <ManifestChip onClick={() => setEditingPatient(true)} icon={Pencil} label="সম্পাদনা" />
+                <ManifestChip onClick={() => setEditingPatient(true)} icon={Pencil} label="Edit" />
                 {!fullyPaid && (
-                  <ManifestChip onClick={() => setCollectingDue(true)} icon={Banknote} label="আদায়" green />
+                  <ManifestChip onClick={() => setCollectingDue(true)} icon={CreditCard} label="Collect Due" green />
                 )}
                 {!delivered && (
-                  <ManifestChip onClick={() => setConfirming(true)} icon={PackageCheck} label="ডেলিভারি" blue />
+                  <ManifestChip onClick={() => setConfirming(true)} icon={PackageCheck} label="Delivery" blue />
                 )}
               </div>
             </div>
@@ -475,9 +668,22 @@ const InvoiceList = () => {
       prev.map((inv) => (inv.invoiceId === id ? { ...inv, delivery: { ...inv.delivery, status: true } } : inv)),
     );
 
-  const handleCollected = (id) =>
+  // Adds the collected amount to `paid`, capped at `final` — mirrors the
+  // backend's own clamping so the UI never shows an impossible state even
+  // before the network response comes back.
+  const handleCollected = (id, collectedAmount) =>
     setInvoices((prev) =>
-      prev.map((inv) => (inv.invoiceId === id ? { ...inv, amount: { ...inv.amount, paid: inv.amount.final } } : inv)),
+      prev.map((inv) =>
+        inv.invoiceId === id
+          ? {
+              ...inv,
+              amount: {
+                ...inv.amount,
+                paid: Math.min(inv.amount.final, (inv.amount.paid || 0) + collectedAmount),
+              },
+            }
+          : inv,
+      ),
     );
 
   const handlePatientUpdated = (id, fields) =>
@@ -625,6 +831,7 @@ const InvoiceList = () => {
                       onPatientUpdated={handlePatientUpdated}
                       onLoadingChange={(msg) => setLoadingMessage(msg)}
                       onError={(msg) => setPopup({ type: "error", message: msg })}
+                      onSuccess={(msg) => setPopup({ type: "success", message: msg })}
                     />
                   ))}
                 </div>
@@ -705,6 +912,8 @@ export const InvoiceDetailsModal = ({
   const hasDiscount = (amount?.referrerDiscount ?? 0) > 0;
   const hasCommission = (amount?.referrerCommission ?? 0) > 0;
   const showSubtotal = hasDiscount || (amount?.labAdjustment ?? 0) > 0;
+
+  const paymentModeLabel = (value) => PAYMENT_MODES.find((m) => m.value === value)?.label ?? value;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="sm">
@@ -844,7 +1053,10 @@ export const InvoiceDetailsModal = ({
                       <div key={i} className="flex items-center justify-between">
                         <div>
                           <p className="text-xs text-[#1C1F1E] font-medium">{c.by?.name ?? "—"}</p>
-                          <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3]">{`${cDate} · ${cTime}`}</p>
+                          <p className="font-['IBM_Plex_Mono'] text-[10px] text-[#A8ACA3]">
+                            {`${cDate} · ${cTime}`}
+                            {c.mode && ` · ${paymentModeLabel(c.mode)}`}
+                          </p>
                         </div>
                         <span className="font-['IBM_Plex_Mono'] text-sm text-[#0F6E5C] tabular-nums font-semibold">
                           {fmt(c.amount)}
@@ -879,6 +1091,13 @@ export const InvoiceDetailsModal = ({
                   <span className="text-[#1E4FA0]">{fmt(amount.final)}</span>
                 </div>
                 <LedgerPayRow label="আদায়" value={fmt(amount.paid)} valueClass="text-[#0F6E5C] font-semibold" />
+                {invoice.paymentMode && (
+                  <LedgerPayRow
+                    label="সর্বশেষ মাধ্যম"
+                    value={paymentModeLabel(invoice.paymentMode)}
+                    valueClass="text-[#6F756F]"
+                  />
+                )}
                 {!fullyPaid ? (
                   <LedgerPayRow label="বাকি" value={fmt(due)} valueClass="text-[#C0312B] font-semibold" />
                 ) : (

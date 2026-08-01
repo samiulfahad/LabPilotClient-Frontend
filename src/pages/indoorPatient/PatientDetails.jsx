@@ -22,7 +22,7 @@ import {
   totalExpenses,
   totalPayments,
 } from "./indoorPatientHelpers";
-import { Printer } from "lucide-react";
+import { Printer, Pencil } from "lucide-react";
 
 // ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx / ReportDownload.jsx) ──
 
@@ -33,10 +33,22 @@ const getErrorMessage = (err, fallback) => {
   return err?.response?.data?.error ?? fallback;
 };
 
+// ─── Payment modes (mirrors invoiceRoutes.js / SearchInvoice.jsx) ─────────────
+
+const PAYMENT_MODES = [
+  { value: "cash", label: "Cash" },
+  { value: "bkash", label: "bKash" },
+  { value: "nagad", label: "Nagad" },
+  { value: "card", label: "Card" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "others", label: "Others" },
+];
+
 // ─── Collect Payment Modal ────────────────────────────────────────────────────
 
 const CollectPaymentModal = ({ open, patientId, onClose, onSuccess, isExtra = false, defaultAmount = "" }) => {
   const [amount, setAmount] = useState(defaultAmount);
+  const [paymentMode, setPaymentMode] = useState("cash");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -44,6 +56,7 @@ const CollectPaymentModal = ({ open, patientId, onClose, onSuccess, isExtra = fa
   useEffect(() => {
     if (open) {
       setAmount(defaultAmount);
+      setPaymentMode("cash");
       setNote("");
       setError("");
     }
@@ -55,8 +68,13 @@ const CollectPaymentModal = ({ open, patientId, onClose, onSuccess, isExtra = fa
     if (isExtra && !note.trim()) return setError("A note is required for extra payments");
     setLoading(true);
     try {
-      await indoorPatientService.addPayment(patientId, { amount: parseFloat(amount), note: note.trim() });
+      await indoorPatientService.addPayment(patientId, {
+        amount: parseFloat(amount),
+        paymentMode,
+        note: note.trim(),
+      });
       setAmount("");
+      setPaymentMode("cash");
       setNote("");
       onSuccess();
       onClose();
@@ -76,6 +94,27 @@ const CollectPaymentModal = ({ open, patientId, onClose, onSuccess, isExtra = fa
           </div>
         )}
         <ErrorMsg msg={error} />
+
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 mb-2">Payment Mode</p>
+          <div className="flex flex-wrap gap-1.5">
+            {PAYMENT_MODES.map((mode) => (
+              <button
+                key={mode.value}
+                type="button"
+                onClick={() => setPaymentMode(mode.value)}
+                className={`px-3 py-1.5 rounded-[3px] text-[12px] font-semibold border transition-colors ${
+                  paymentMode === mode.value
+                    ? "bg-[#0F6E5C] border-[#0F6E5C] text-white"
+                    : "bg-white border-slate-200 text-slate-600 hover:border-[#0F6E5C]/40 hover:bg-[#0F6E5C]/5"
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <Field label="Amount (BDT)">
             <Input
@@ -113,6 +152,80 @@ const CollectPaymentModal = ({ open, patientId, onClose, onSuccess, isExtra = fa
   );
 };
 
+// ─── Edit Payment Mode Modal — creator only ───────────────────────────────────
+// Access to this modal is gated by the caller (only rendered/openable for the
+// staff member whose id matches payment.collectedBy.id); the backend enforces
+// the same rule independently on PATCH /payment/:paymentId/mode.
+
+const EditPaymentModeModal = ({ open, patientId, paymentId, currentMode, onClose, onSuccess }) => {
+  const [paymentMode, setPaymentMode] = useState(currentMode ?? "cash");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setPaymentMode(currentMode ?? "cash");
+      setError("");
+    }
+  }, [open, currentMode]);
+
+  const handleSave = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      await indoorPatientService.updatePaymentMode(patientId, paymentId, paymentMode);
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to update payment mode"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Edit Payment Mode" width="max-w-md">
+      <div className="space-y-4">
+        <ErrorMsg msg={error} />
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 mb-2">Payment Mode</p>
+          <div className="flex flex-wrap gap-1.5">
+            {PAYMENT_MODES.map((mode) => (
+              <button
+                key={mode.value}
+                type="button"
+                onClick={() => setPaymentMode(mode.value)}
+                className={`px-3 py-1.5 rounded-[3px] text-[12px] font-semibold border transition-colors ${
+                  paymentMode === mode.value
+                    ? "bg-[#0F6E5C] border-[#0F6E5C] text-white"
+                    : "bg-white border-slate-200 text-slate-600 hover:border-[#0F6E5C]/40 hover:bg-[#0F6E5C]/5"
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-3 pt-1">
+          <Btn variant="secondary" size="lg" className="flex-1" onClick={onClose}>
+            Cancel
+          </Btn>
+          <Btn
+            variant="primary"
+            size="lg"
+            className="flex-1"
+            loading={loading}
+            disabled={paymentMode === currentMode}
+            onClick={handleSave}
+          >
+            Save
+          </Btn>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
 const TABS = [
@@ -128,6 +241,7 @@ const PatientDetails = () => {
   const lab = useAuthStore((s) => s.lab);
   const role = useAuthStore((s) => s.user?.role);
   const permissions = useAuthStore((s) => s.user?.permissions);
+  const currentUserId = useAuthStore((s) => s.user?.id);
   const isAdmin = role === "admin";
   const canRelease = isAdmin || !!permissions?.releasePatient;
   const canDelete = isAdmin || !!permissions?.deletePatient;
@@ -148,6 +262,7 @@ const PatientDetails = () => {
   const [deleteNote, setDeleteNote] = useState("");
   const [showCollectPayment, setShowCollectPayment] = useState(false);
   const [showExtraPayment, setShowExtraPayment] = useState(false);
+  const [editModeTarget, setEditModeTarget] = useState(null); // { paymentId, mode } | null
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
   const [deleteError, setDeleteError] = useState("");
@@ -487,27 +602,35 @@ const PatientDetails = () => {
               }
             >
               {!editInfo ? (
-                <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
-                  {[
-                    ["Name", patient.patient.name],
-                    ["Age / Gender", `${patient.patient.age}y / ${patient.patient.gender}`],
-                    ["Blood Group", patient.patient.bloodGroup ?? "—"],
-                    ["Contact", patient.patient.contactNumber, true],
-                    ["Address", patient.patient.address || "—"],
-                    [
-                      "Guardian",
-                      patient.patient.guardian?.name
-                        ? `${patient.patient.guardian.name} (${patient.patient.guardian.relation}) — ${patient.patient.guardian.contactNumber}`
-                        : "—",
-                    ],
-                  ].map(([k, v, mono]) => (
-                    <div key={k}>
-                      <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">{k}</span>
-                      <div className={`font-medium text-slate-700 mt-0.5 ${mono ? "font-mono text-[13px]" : ""}`}>
-                        {v}
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
+                    {[
+                      ["Name", patient.patient.name],
+                      ["Age / Gender", `${patient.patient.age}y / ${patient.patient.gender}`],
+                      ["Blood Group", patient.patient.bloodGroup ?? "—"],
+                      ["Contact", patient.patient.contactNumber, true],
+                      ["Address", patient.patient.address || "—"],
+                      [
+                        "Guardian",
+                        patient.patient.guardian?.name
+                          ? `${patient.patient.guardian.name} (${patient.patient.guardian.relation}) — ${patient.patient.guardian.contactNumber}`
+                          : "—",
+                      ],
+                    ].map(([k, v, mono]) => (
+                      <div key={k}>
+                        <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">{k}</span>
+                        <div className={`font-medium text-slate-700 mt-0.5 ${mono ? "font-mono text-[13px]" : ""}`}>
+                          {v}
+                        </div>
                       </div>
+                    ))}
+                  </div>
+                  {patient.patient.updatedAt && (
+                    <div className="text-[11px] text-slate-400 italic pt-1">
+                      Last edited {fmt.datetime(patient.patient.updatedAt)}
+                      {patient.patient.updatedBy?.name ? ` by ${patient.patient.updatedBy.name}` : ""}
                     </div>
-                  ))}
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -982,6 +1105,7 @@ const PatientDetails = () => {
                         return patient.payments.map((p, i) => {
                           runningTotal += p.amount;
                           const isExtraPayment = patient.dealType === "package" && runningTotal > total && p.note;
+                          const canEditMode = !!p.paymentId && p.collectedBy?.id === currentUserId;
                           return (
                             <div
                               key={i}
@@ -990,18 +1114,36 @@ const PatientDetails = () => {
                               }`}
                             >
                               <div className="min-w-0">
-                                <div className="font-mono text-sm font-bold text-slate-800">
-                                  {fmt.currency(p.amount)}
+                                <div className="font-mono text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                                  <span>{fmt.currency(p.amount)}</span>
                                   {isExtraPayment && (
-                                    <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-amber-600">
+                                    <span className="text-[10px] font-mono uppercase tracking-wider text-amber-600">
                                       extra
                                     </span>
+                                  )}
+                                  {p.mode && (
+                                    <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                                      {p.mode}
+                                    </span>
+                                  )}
+                                  {canEditMode && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditModeTarget({ paymentId: p.paymentId, mode: p.mode })}
+                                      title="Edit payment mode"
+                                      className="no-print flex items-center justify-center w-5 h-5 rounded-[3px] text-slate-300 hover:text-[#0F6E5C] hover:bg-[#0F6E5C]/10 transition-colors shrink-0"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
                                   )}
                                 </div>
                                 <div className="text-[11px] text-slate-400 mt-0.5">
                                   {p.collectedBy?.name} ·{" "}
                                   <span className="font-mono">{fmt.datetime(p.collectedAt)}</span>
                                   {p.note && ` · ${p.note}`}
+                                  {p.modeUpdatedAt && (
+                                    <span className="italic"> · mode edited {fmt.datetime(p.modeUpdatedAt)}</span>
+                                  )}
                                 </div>
                               </div>
                               <Badge color={isExtraPayment ? "amber" : "green"}>
@@ -1046,6 +1188,14 @@ const PatientDetails = () => {
           isExtra={true}
           defaultAmount=""
           onClose={() => setShowExtraPayment(false)}
+          onSuccess={fetchPatient}
+        />
+        <EditPaymentModeModal
+          open={!!editModeTarget}
+          patientId={patientId}
+          paymentId={editModeTarget?.paymentId}
+          currentMode={editModeTarget?.mode}
+          onClose={() => setEditModeTarget(null)}
           onSuccess={fetchPatient}
         />
 

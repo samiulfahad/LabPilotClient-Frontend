@@ -15,7 +15,9 @@ const invoiceService = {
   // status + dates only. No report body, no referrer, no schema details.
   getReportSummary: (invoiceId) => api.get(`/invoice/${invoiceId}/report-summary`),
   updatePatientInfo: (invoiceId, data) => api.patch(`/invoice/${invoiceId}/patient-info`, data),
-  collectDue: (invoiceId) => api.patch(`/invoice/${invoiceId}/collect-due`),
+  // Pass { amount, paymentMode } — amount is optional (omit to collect the
+  // full due amount); the backend always re-clamps it to (0, due] anyway.
+  collectDue: (invoiceId, data = {}) => api.patch(`/invoice/${invoiceId}/collect-due`, data),
   markDelivered: (invoiceId) => api.patch(`/invoice/${invoiceId}/mark-delivered`),
   deleteInvoice: (invoiceId) => api.patch(`/invoice/${invoiceId}/delete`),
   getDeletedInvoices: ({ cursor = null, limit = 20, startDate = null, endDate = null } = {}) => {

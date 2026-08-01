@@ -2,7 +2,7 @@
  * useCallback / useMemo are intentionally absent throughout this file.
  * babel-plugin-react-compiler handles all memoization automatically.
  */
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Search,
   X,
@@ -19,12 +19,14 @@ import {
   Eye,
   AlertCircle,
   Loader2,
+  CreditCard,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import invoiceService from "../../../api/invoice";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
 import LoadingScreen from "../../../components/loadingPage";
+import PrintId from "../../../components/PrintId";
 import { InvoiceDetailsModal } from "../invoiceList/index"; // ← extract from InvoiceList if needed
 import { EditPatientModal } from "../invoiceList/index"; // ← extract from InvoiceList if needed
 
@@ -70,6 +72,17 @@ const QUERY_HINTS = {
   name: { icon: User, color: "text-emerald-500", label: "Searching by name" },
 };
 
+// ─── Payment modes (mirrors CreateInvoice.jsx) ────────────────────────────────
+
+const PAYMENT_MODES = [
+  { value: "cash", label: "Cash" },
+  { value: "bkash", label: "bKash" },
+  { value: "nagad", label: "Nagad" },
+  { value: "card", label: "Card" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "others", label: "Others" },
+];
+
 // ─── Action chip ──────────────────────────────────────────────────────────────
 
 const ActionChip = ({ onClick, icon: Icon, label, className }) => (
@@ -91,9 +104,178 @@ const LinkChip = ({ to, state, icon: Icon, label, className }) => (
   </Link>
 );
 
+// ─── Collect Due modal ─────────────────────────────────────────────────────────
+// Lets staff collect a partial or full payment against the due amount, with a
+// payment mode selection. The amount is always clamped to (0, due].
+
+const CollectDueModal = ({ invoice, isOpen, onClose, onConfirm }) => {
+  const due = getDue(invoice);
+  const [amount, setAmount] = useState(due);
+  const [paymentMode, setPaymentMode] = useState("cash");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  // Reset fields whenever the modal is opened for (possibly) a different invoice
+  useEffect(() => {
+    if (isOpen) {
+      setAmount(due);
+      setPaymentMode("cash");
+      setError("");
+      setSubmitting(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, invoice?.invoiceId]);
+
+  if (!isOpen) return null;
+
+  const clampAmount = (val) => {
+    if (val === "") return setAmount("");
+    const num = parseFloat(val);
+    if (Number.isNaN(num)) return setAmount("");
+    setAmount(Math.min(Math.max(0, num), due));
+  };
+
+  const numericAmount = parseFloat(amount) || 0;
+  const isValid = numericAmount > 0 && numericAmount <= due;
+
+  const handleSubmit = async () => {
+    if (!isValid) {
+      setError(`Amount must be between ৳1 and ${fmt(due)}`);
+      return;
+    }
+    try {
+      setSubmitting(true);
+      setError("");
+      await onConfirm({ amount: toFixed2(numericAmount), paymentMode });
+    } catch {
+      setError("Failed to collect due amount. Please try again.");
+      setSubmitting(false);
+    }
+  };
+
+  const toFixed2 = (n) => parseFloat(n.toFixed(2));
+
+  return (
+    <Modal isOpen={isOpen} onClose={submitting ? undefined : onClose} size="sm">
+      <div className="p-6">
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Collect Due Amount</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              #{invoice.invoiceId} · {invoice.patient?.name}
+            </p>
+          </div>
+          {!submitting && (
+            <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        <div className="p-3.5 bg-red-50 border border-red-100 rounded-xl flex items-center justify-between mb-5">
+          <span className="text-xs font-semibold text-red-500">Total Due</span>
+          <span className="text-lg font-bold text-red-600">{fmt(due)}</span>
+        </div>
+
+        {/* Amount */}
+        <div className="mb-5">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Amount to Collect</label>
+          <div className="relative">
+            <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => clampAmount(e.target.value)}
+              min="0"
+              max={due}
+              step="0.01"
+              disabled={submitting}
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 disabled:bg-gray-50"
+            />
+          </div>
+          <div className="flex items-center justify-between mt-1.5">
+            <button
+              type="button"
+              onClick={() => setAmount(due)}
+              disabled={submitting}
+              className="text-xs font-semibold text-emerald-600 hover:underline"
+            >
+              Collect full due ({fmt(due)})
+            </button>
+            <span className="text-[11px] text-gray-400">Max {fmt(due)}</span>
+          </div>
+        </div>
+
+        {/* Payment mode */}
+        <div className="mb-5">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Payment Mode</label>
+          <div className="flex flex-wrap gap-2">
+            {PAYMENT_MODES.map((mode) => (
+              <button
+                key={mode.value}
+                type="button"
+                disabled={submitting}
+                onClick={() => setPaymentMode(mode.value)}
+                aria-pressed={paymentMode === mode.value}
+                className={`px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 ${
+                  paymentMode === mode.value
+                    ? "bg-emerald-600 border-emerald-600 text-white shadow-sm"
+                    : "bg-white border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50"
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && (
+          <p className="flex items-center gap-1.5 text-xs font-medium text-red-600 mb-4">
+            <AlertCircle className="w-3.5 h-3.5" /> {error}
+          </p>
+        )}
+
+        <div className="flex items-center justify-end gap-3 pt-1">
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            className="px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!isValid || submitting}
+            className="px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Collecting...
+              </>
+            ) : (
+              <>
+                <Banknote className="w-4 h-4" /> Collect {numericAmount > 0 ? fmt(numericAmount) : ""}
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 // ─── Single result card ───────────────────────────────────────────────────────
 
-const ResultCard = ({ invoice, index, onDelivered, onCollected, onPatientUpdated, onLoadingChange, onError }) => {
+const ResultCard = ({
+  invoice,
+  index,
+  onDelivered,
+  onCollected,
+  onPatientUpdated,
+  onLoadingChange,
+  onError,
+  onSuccess,
+}) => {
   const { date, time } = formatDateTime(invoice.createdAt);
   const [viewingDetails, setViewingDetails] = useState(false);
   const [editingPatient, setEditingPatient] = useState(false);
@@ -119,17 +301,15 @@ const ResultCard = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
     }
   };
 
-  const handleCollectDue = async () => {
+  const handleCollectDue = async ({ amount, paymentMode }) => {
+    const { data } = await invoiceService.collectDue(invoice.invoiceId, { amount, paymentMode });
+    onCollected(invoice.invoiceId, amount);
     setCollectingDue(false);
-    try {
-      onLoadingChange("Collecting due amount...");
-      await invoiceService.collectDue(invoice.invoiceId);
-      onCollected(invoice.invoiceId);
-    } catch {
-      onError("Failed to collect due amount. Please try again.");
-    } finally {
-      onLoadingChange(null);
-    }
+    onSuccess(
+      data?.due > 0
+        ? `Collected ${fmt(amount)} from ${patient.name}. Remaining due: ${fmt(data.due)}.`
+        : `Collected ${fmt(amount)} from ${patient.name}. Invoice #${invoice.invoiceId} is now fully paid.`,
+    );
   };
 
   return (
@@ -144,16 +324,13 @@ const ResultCard = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
           onClose={() => setConfirming(false)}
         />
       )}
-      {collectingDue && (
-        <Popup
-          type="warning"
-          message={`Collect ৳${due.toLocaleString()} from ${patient.name} (Invoice #${invoice.invoiceId})? This will mark it as fully paid.`}
-          confirmText={`Collect ৳${due.toLocaleString()}`}
-          cancelText="Cancel"
-          onConfirm={handleCollectDue}
-          onClose={() => setCollectingDue(false)}
-        />
-      )}
+
+      <CollectDueModal
+        invoice={invoice}
+        isOpen={collectingDue}
+        onClose={() => setCollectingDue(false)}
+        onConfirm={handleCollectDue}
+      />
 
       <InvoiceDetailsModal
         invoiceId={invoice.invoiceId}
@@ -173,86 +350,91 @@ const ResultCard = ({ invoice, index, onDelivered, onCollected, onPatientUpdated
         onError={onError}
       />
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all duration-200 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 pt-3.5 pb-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 shadow-sm">
-            <span className="text-[11px] font-bold text-white">{index + 1}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-gray-900 text-sm leading-tight truncate">{patient.name}</p>
-            <p className="text-[11px] text-gray-400 mt-0.5 truncate">
-              #{invoice.invoiceId} · {date} · {time}
-              {invoice.createdBy?.name && (
-                <span className="text-gray-300 hidden sm:inline"> · by {invoice.createdBy.name}</span>
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {fullyPaid ? (
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-50 text-green-700 border border-green-100 text-xs font-medium">
-                <CheckCircle2 className="w-3 h-3" /> Paid
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-50 text-red-600 border border-red-100 text-xs font-medium whitespace-nowrap">
-                <Wallet className="w-3 h-3" />৳{due.toLocaleString()}
-              </span>
-            )}
-            {delivered && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-semibold">
-                <PackageCheck className="w-3 h-3" />
-                <span className="hidden sm:inline">Delivered</span>
-              </span>
-            )}
-          </div>
-        </div>
+      <div className="space-y-2">
+        {/* Barcode / QR print — same PrintId component used in Report.jsx, placed above the card */}
+        <PrintId displayId={invoice.invoiceId} onError={onError} />
 
-        {/* Actions */}
-        <div className="px-3 pb-3">
-          <div className="flex items-center gap-1.5 flex-wrap justify-start">
-            <ActionChip
-              onClick={() => setViewingDetails(true)}
-              icon={Eye}
-              label="Details"
-              className="text-violet-700 bg-violet-50 hover:bg-violet-100 border-violet-100"
-            />
-            <LinkChip
-              to={`/outdoor/invoice/print/${invoice.invoiceId}`}
-              icon={FileText}
-              label="Invoice"
-              className="text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border-indigo-100"
-            />
-            {hasReports && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all duration-200 overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center gap-3 px-4 pt-3.5 pb-3">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 shadow-sm">
+              <span className="text-[11px] font-bold text-white">{index + 1}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-gray-900 text-sm leading-tight truncate">{patient.name}</p>
+              <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                #{invoice.invoiceId} · {date} · {time}
+                {invoice.createdBy?.name && (
+                  <span className="text-gray-300 hidden sm:inline"> · by {invoice.createdBy.name}</span>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {fullyPaid ? (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-50 text-green-700 border border-green-100 text-xs font-medium">
+                  <CheckCircle2 className="w-3 h-3" /> Paid
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-50 text-red-600 border border-red-100 text-xs font-medium whitespace-nowrap">
+                  <Wallet className="w-3 h-3" />৳{due.toLocaleString()}
+                </span>
+              )}
+              {delivered && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-semibold">
+                  <PackageCheck className="w-3 h-3" />
+                  <span className="hidden sm:inline">Delivered</span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="px-3 pb-3">
+            <div className="flex items-center gap-1.5 flex-wrap justify-start">
+              <ActionChip
+                onClick={() => setViewingDetails(true)}
+                icon={Eye}
+                label="Details"
+                className="text-violet-700 bg-violet-50 hover:bg-violet-100 border-violet-100"
+              />
               <LinkChip
-                to="/report"
-                state={{ invoiceId: invoice.invoiceId }}
-                icon={FlaskConical}
-                label="Reports"
-                className="text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 border-transparent shadow-sm"
+                to={`/outdoor/invoice/print/${invoice.invoiceId}`}
+                icon={FileText}
+                label="Invoice"
+                className="text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border-indigo-100"
               />
-            )}
-            <ActionChip
-              onClick={() => setEditingPatient(true)}
-              icon={Pencil}
-              label="Edit"
-              className="text-gray-600 bg-gray-100 hover:bg-gray-200 border-gray-200"
-            />
-            {!fullyPaid && (
+              {hasReports && (
+                <LinkChip
+                  to="/report"
+                  state={{ invoiceId: invoice.invoiceId }}
+                  icon={FlaskConical}
+                  label="Reports"
+                  className="text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 border-transparent shadow-sm"
+                />
+              )}
               <ActionChip
-                onClick={() => setCollectingDue(true)}
-                icon={Banknote}
-                label="Collect"
-                className="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
+                onClick={() => setEditingPatient(true)}
+                icon={Pencil}
+                label="Edit"
+                className="text-gray-600 bg-gray-100 hover:bg-gray-200 border-gray-200"
               />
-            )}
-            {!delivered && (
-              <ActionChip
-                onClick={() => setConfirming(true)}
-                icon={PackageCheck}
-                label="Deliver"
-                className="text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-100"
-              />
-            )}
+              {!fullyPaid && (
+                <ActionChip
+                  onClick={() => setCollectingDue(true)}
+                  icon={CreditCard}
+                  label="Collect"
+                  className="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
+                />
+              )}
+              {!delivered && (
+                <ActionChip
+                  onClick={() => setConfirming(true)}
+                  icon={PackageCheck}
+                  label="Deliver"
+                  className="text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-100"
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -311,9 +493,22 @@ const SearchInvoice = () => {
       prev.map((inv) => (inv.invoiceId === id ? { ...inv, delivery: { ...inv.delivery, status: true } } : inv)),
     );
 
-  const handleCollected = (id) =>
+  // Adds the collected amount to `paid`, capped at `final` — mirrors the
+  // backend's own clamping so the UI never shows an impossible state even
+  // before the network response comes back.
+  const handleCollected = (id, collectedAmount) =>
     setResults((prev) =>
-      prev.map((inv) => (inv.invoiceId === id ? { ...inv, amount: { ...inv.amount, paid: inv.amount.final } } : inv)),
+      prev.map((inv) =>
+        inv.invoiceId === id
+          ? {
+              ...inv,
+              amount: {
+                ...inv.amount,
+                paid: Math.min(inv.amount.final, (inv.amount.paid || 0) + collectedAmount),
+              },
+            }
+          : inv,
+      ),
     );
 
   const handlePatientUpdated = (id, fields) =>
@@ -442,6 +637,7 @@ const SearchInvoice = () => {
                 onPatientUpdated={handlePatientUpdated}
                 onLoadingChange={(msg) => setLoadingMessage(msg)}
                 onError={(msg) => setPopup({ type: "error", message: msg })}
+                onSuccess={(msg) => setPopup({ type: "success", message: msg })}
               />
             ))}
           </div>

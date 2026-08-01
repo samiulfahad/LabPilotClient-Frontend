@@ -14,6 +14,17 @@ const getErrorMessage = (err, fallback) => {
   return err?.response?.data?.error ?? fallback;
 };
 
+// ─── Payment modes (mirrors invoiceRoutes.js / BillingSummary.jsx) ────────────
+
+const PAYMENT_MODES = [
+  { value: "cash", label: "ক্যাশ" },
+  { value: "bkash", label: "বিকাশ" },
+  { value: "nagad", label: "নগদ" },
+  { value: "card", label: "কার্ড" },
+  { value: "bank_transfer", label: "ব্যাংক ট্রান্সফার" },
+  { value: "others", label: "অন্যান্য" },
+];
+
 // ─── Patient Search ───────────────────────────────────────────────────────────
 
 const PatientSearch = ({ onSelect }) => {
@@ -237,6 +248,7 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
   const [itemQuery, setItemQuery] = useState("");
   const [selected, setSelected] = useState([]);
   const [paidInput, setPaidInput] = useState("");
+  const [paymentMode, setPaymentMode] = useState("cash");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -324,11 +336,16 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
         ),
       );
       if (!isPackage && paidAmount > 0) {
-        await indoorPatientService.addPayment(patient._id, { amount: paidAmount, note: "Collected at item entry" });
+        await indoorPatientService.addPayment(patient._id, {
+          amount: paidAmount,
+          paymentMode,
+          note: "Collected at item entry",
+        });
       }
       setSuccess(true);
       setSelected([]);
       setPaidInput("");
+      setPaymentMode("cash");
     } catch (err) {
       setError(getErrorMessage(err, "আইটেম যোগ করতে ব্যর্থ হয়েছে"));
     } finally {
@@ -571,6 +588,33 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
                     />
                   </div>
                 </div>
+
+                {/* Payment mode — mirrors CollectPaymentModal pill selector in BillingSummary.jsx */}
+                {paidAmount > 0 && (
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest font-noto mb-2">
+                      পেমেন্ট মাধ্যম
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {PAYMENT_MODES.map((mode) => (
+                        <button
+                          key={mode.value}
+                          type="button"
+                          onClick={() => setPaymentMode(mode.value)}
+                          aria-pressed={paymentMode === mode.value}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold font-noto border transition-colors ${
+                            paymentMode === mode.value
+                              ? "bg-indigo-600 border-indigo-600 text-white"
+                              : "bg-white border-gray-200 text-gray-500 hover:border-indigo-300 hover:bg-indigo-50/50"
+                          }`}
+                        >
+                          {mode.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between px-4 py-3">
                   <span className="text-xs font-bold text-gray-500 font-noto">বাকি</span>
                   <span className={`text-sm font-black font-mono ${due > 0 ? "text-red-400" : "text-emerald-500"}`}>
