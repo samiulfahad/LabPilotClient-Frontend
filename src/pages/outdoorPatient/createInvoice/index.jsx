@@ -56,6 +56,7 @@ const INITIAL_FORM = {
   labAdjustmentAmount: 0,
   paidAmount: "", // kept as string in state so the field can be cleared/edited freely
   paymentMode: "cash",
+  onlineFeeEnabled: true, // only relevant when the lab has a feePerInvoice configured
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -101,7 +102,13 @@ const calcReferrerCommission = (referredBy, initial, referrerDiscountAmt) => {
 
 // Lab adjustment is bounded by the invoice total AFTER referrer discount is
 // applied — this bound holds for every role, including admins.
-const computeAmount = (form) => {
+//
+// The online invoice fee (if the lab has one configured) is ADDED on top of
+// the total charged to the patient — it inflates `final`, and the patient's
+// due amount reflects it.
+const computeAmount = (form, feeConfig = {}) => {
+  const { feePerInvoice = 0, forceInvoiceFee = false } = feeConfig;
+
   const testsTotal = form.selectedTests.reduce((s, t) => s + (t.price || 0), 0);
   const productsTotal = form.selectedProducts.reduce((s, p) => s + (p.price || 0) * (p.quantity || 1), 0);
   const initial = testsTotal + productsTotal;
@@ -113,11 +120,29 @@ const computeAmount = (form) => {
   const labAdjustment = Math.min(Math.max(0, labAdjustmentRaw), afterReferrerDiscount);
 
   const referrerCommission = calcReferrerCommission(form.referredBy, initial, referrerDiscount);
-  const final = Math.max(0, afterReferrerDiscount - labAdjustment);
-  const net = Math.max(0, final - referrerCommission);
+
+  // Fee applies if the lab has one configured, AND either it's forced on,
+  // or the user has the toggle switched on.
+  const feeApplied = feePerInvoice > 0 && (forceInvoiceFee || form.onlineFeeEnabled);
+  const invoiceFee = feeApplied ? feePerInvoice : 0;
+
+  const beforeFee = Math.max(0, afterReferrerDiscount - labAdjustment);
+  const final = toFixed2(beforeFee + invoiceFee);
+  const net = Math.max(0, toFixed2(final - referrerCommission));
   const paid = parseFloat(form.paidAmount) || 0;
 
-  return { initial, labAdjustment, referrerDiscount, referrerCommission, final, net, paid, afterReferrerDiscount };
+  return {
+    initial,
+    labAdjustment,
+    referrerDiscount,
+    referrerCommission,
+    final,
+    net,
+    paid,
+    afterReferrerDiscount,
+    invoiceFee,
+    feeApplied,
+  };
 };
 
 // ─── UI primitives ───────────────────────────────────────────────────────────
@@ -354,6 +379,14 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
             {hasLabAdjustment && amount.labAdjustment > 0 && (
               <AmountRow label="Lab Adjustment" value={`- ${fmt(amount.labAdjustment)}`} accent="text-red-600" border />
             )}
+            {amount.feeApplied && amount.invoiceFee > 0 && (
+              <AmountRow
+                label="Online Invoice Fee"
+                value={`+ ${fmt(amount.invoiceFee)}`}
+                accent="text-blue-600"
+                border
+              />
+            )}
             <AmountRow label="Total Amount" value={fmt(amount.final)} large />
             <div className="mt-3 pt-3 border-t border-dashed border-gray-300 space-y-2">
               <AmountRow
@@ -427,6 +460,8 @@ const InvoiceForm = ({
   isAdmin,
   canAdjustLab,
   maxLabAdjustment,
+  feePerInvoice,
+  forceInvoiceFee,
   availableReferrers,
   availableTests,
   availableProducts,
@@ -455,6 +490,7 @@ const InvoiceForm = ({
     labAdjustmentAmount,
     paidAmount,
     paymentMode,
+    onlineFeeEnabled,
   } = formData;
   const due = Math.max(0, amount.final - amount.paid);
 
@@ -992,6 +1028,34 @@ const InvoiceForm = ({
             </div>
           )}
 
+          {/* Online Invoice Fee — shown only when the lab has one configured.
+              If forceInvoiceFee is on, it's mandatory (no toggle, always
+              applied). Otherwise the staff can switch it off. Always added
+              on top of the patient's total. */}
+          {feePerInvoice > 0 && (
+            <div className="space-y-2">
+              {forceInvoiceFee ? (
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                    <Wallet className="w-3.5 h-3.5 text-gray-500" />
+                    Online Invoice Fee <span className="text-xs text-gray-400 font-normal">(Mandatory)</span>
+                  </span>
+                  <span className="text-sm font-medium text-gray-900">{fmt(feePerInvoice)}</span>
+                </div>
+              ) : (
+                <ToggleSwitch
+                  checked={onlineFeeEnabled}
+                  onChange={(val) => onChange("onlineFeeEnabled", val)}
+                  icon={Wallet}
+                  label={`Apply Online Invoice Fee (${fmt(feePerInvoice)})`}
+                />
+              )}
+              {(forceInvoiceFee || onlineFeeEnabled) && (
+                <p className="text-xs text-gray-400 pl-1">This fee will be added to the patient's total amount.</p>
+              )}
+            </div>
+          )}
+
           {/* Final total */}
           <div className="p-5 bg-blue-600 rounded-lg flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1086,9 +1150,15 @@ const FormSkeleton = () => (
 const CreateInvoice = () => {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user); // { role, maxLabAdjustment, ... } — adjust selector to match your store
+  const lab = useAuthStore((s) => s.lab); // { feePerInvoive, forceInvoiceFee, ... }
   const isAdmin = user?.role === "admin";
   const maxLabAdjustment = user?.maxLabAdjustment ?? 0;
   const canAdjustLab = isAdmin || maxLabAdjustment > 0;
+
+  // Note: `feePerInvoive` is the field name as stored in the lab document
+  // (existing typo carried over from the DB schema).
+  const feePerInvoice = lab?.feePerInvoive ?? 0;
+  const forceInvoiceFee = !!lab?.forceInvoiceFee;
 
   const [availableReferrers, setAvailableReferrers] = useState([]);
   const [availableTests, setAvailableTests] = useState([]);
@@ -1100,7 +1170,7 @@ const CreateInvoice = () => {
   const [formData, setFormData] = useState(INITIAL_FORM);
   const pendingReferrerNameRef = useRef("");
 
-  const amount = computeAmount(formData);
+  const amount = computeAmount(formData, { feePerInvoice, forceInvoiceFee });
 
   useEffect(() => {
     invoiceService
@@ -1201,8 +1271,21 @@ const CreateInvoice = () => {
           quantity,
           type,
         })),
-        amount,
+        amount: {
+          initial: amount.initial,
+          referrerDiscount: amount.referrerDiscount,
+          referrerCommission: amount.referrerCommission,
+          labAdjustment: amount.labAdjustment,
+          final: amount.final,
+          net: amount.net,
+          paid: amount.paid,
+          invoiceFee: amount.invoiceFee,
+        },
         paymentMode,
+        // Only true when a fee was actually configured on the lab AND
+        // ended up applied to this invoice (forced or toggled on). The
+        // fee is added to the patient's total when applied.
+        isOnlineFeePaid: amount.feeApplied,
       };
 
       const { data } = await invoiceService.createInvoice(invoiceData);
@@ -1254,6 +1337,8 @@ const CreateInvoice = () => {
               isAdmin={isAdmin}
               canAdjustLab={canAdjustLab}
               maxLabAdjustment={maxLabAdjustment}
+              feePerInvoice={feePerInvoice}
+              forceInvoiceFee={forceInvoiceFee}
               availableReferrers={availableReferrers}
               availableTests={availableTests}
               availableProducts={availableProducts}
