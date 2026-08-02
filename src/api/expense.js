@@ -4,7 +4,6 @@ const expenseService = {
   createExpense: (data) => api.post("/expense/add", data),
   editExpense: (expenseId, data) => api.patch(`/expense/${expenseId}/edit`, data),
   deleteExpense: (expenseId) => api.patch(`/expense/${expenseId}/delete`),
-  getExpenseById: (expenseId) => api.get(`/expense/${expenseId}`),
   getExpenses: ({
     cursor = null,
     limit = 20,

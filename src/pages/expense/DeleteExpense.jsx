@@ -85,8 +85,6 @@ const DeleteExpensePanel = ({ onDeleted, onLoadingChange, onError }) => {
     loadExpenses(null, true, timeRange, typeFilter, minAmount, maxAmount);
   };
 
-  const filtered = expenses;
-
   const handleConfirmDelete = async () => {
     const expense = pendingDelete;
     setPendingDelete(null);
@@ -191,7 +189,7 @@ const DeleteExpensePanel = ({ onDeleted, onLoadingChange, onError }) => {
             <SkeletonRow key={i} />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : expenses.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
           <div className="bg-gray-50 w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3">
             <PackageSearch className="w-7 h-7 text-gray-300" />
@@ -203,7 +201,7 @@ const DeleteExpensePanel = ({ onDeleted, onLoadingChange, onError }) => {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((expense, index) => (
+          {expenses.map((expense, index) => (
             <ExpenseToDeleteRow
               key={expense._id}
               expense={expense}

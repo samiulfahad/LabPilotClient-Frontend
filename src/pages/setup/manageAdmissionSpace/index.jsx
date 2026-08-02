@@ -786,14 +786,12 @@ const SpaceFormModal = ({ editSpace, departments, onSubmit, onClose }) => {
 
 // ── Action Chip ────────────────────────────────────────────────────────────────
 
-const ActionChip = ({ onClick, icon: Icon, label, color, disabled }) => (
+const ActionChip = ({ onClick, icon: Icon, label, color }) => (
   <button
     onClick={onClick}
-    disabled={disabled}
-    className="inline-flex items-center gap-1.5 transition-all font-semibold px-3 py-[5px] rounded-lg font-['IBM_Plex_Mono',monospace] text-[11px] disabled:opacity-50"
+    className="inline-flex items-center gap-1.5 transition-all font-semibold px-3 py-[5px] rounded-lg font-['IBM_Plex_Mono',monospace] text-[11px]"
     style={{ border: `1.5px solid ${color}25`, color, background: `${color}08` }}
     onMouseEnter={(e) => {
-      if (disabled) return;
       e.currentTarget.style.background = `${color}18`;
       e.currentTarget.style.borderColor = `${color}50`;
     }}
@@ -802,7 +800,7 @@ const ActionChip = ({ onClick, icon: Icon, label, color, disabled }) => (
       e.currentTarget.style.borderColor = `${color}25`;
     }}
   >
-    {disabled ? <Loader2 className="w-[11px] h-[11px] animate-spin" /> : <Icon className="w-[11px] h-[11px]" />}
+    <Icon className="w-[11px] h-[11px]" />
     {label}
   </button>
 );
@@ -838,8 +836,11 @@ const DeptBadges = ({ departments: deptValues = [], allDepartments = [], maxVisi
 };
 
 // ── Bed Grid ───────────────────────────────────────────────────────────────────
+// `onError` surfaces a failed release to the parent (shared Popup) instead
+// of silently swallowing it — every other mutation in this file reports
+// failures the same way, this one previously didn't.
 
-const BedGrid = ({ conf, spaceId, onUpdate, onReserveClick }) => {
+const BedGrid = ({ conf, spaceId, onUpdate, onReserveClick, onError }) => {
   const [busy, setBusy] = useState(null);
   const { totalNumberOfBed, bedStartingNumber, booked = [], reserved = [] } = conf;
   const beds = Array.from({ length: totalNumberOfBed }, (_, i) => bedStartingNumber + i);
@@ -862,6 +863,8 @@ const BedGrid = ({ conf, spaceId, onUpdate, onReserveClick }) => {
           reserved: (prev.multiBedConf.reserved ?? []).filter((r) => r.bedNumber !== b),
         },
       }));
+    } catch (err) {
+      onError?.(err);
     } finally {
       setBusy(null);
     }
@@ -927,6 +930,9 @@ const BedGrid = ({ conf, spaceId, onUpdate, onReserveClick }) => {
 };
 
 // ── Space Row ──────────────────────────────────────────────────────────────────
+// `busy` prop removed — it was never set by the parent (dead loading state
+// that always evaluated false). `onBedError` threads bed-release failures
+// up to the shared Popup.
 
 const SpaceRow = ({
   space,
@@ -939,7 +945,7 @@ const SpaceRow = ({
   onReleaseSingle,
   onUpdate,
   onReserveBed,
-  busy,
+  onBedError,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const depts = space.departments ?? (space.department ? [space.department] : []);
@@ -1010,21 +1016,9 @@ const SpaceRow = ({
             <ActionChip onClick={() => onEditPrice(space)} icon={Banknote} label="Change Price" color="#3B82F6" />
             {!space.multiBed &&
               (space.reserved ? (
-                <ActionChip
-                  onClick={() => onReleaseSingle(space)}
-                  icon={BookX}
-                  label="মুক্ত করুন"
-                  color="#F59E0B"
-                  disabled={busy === space._id}
-                />
+                <ActionChip onClick={() => onReleaseSingle(space)} icon={BookX} label="মুক্ত করুন" color="#F59E0B" />
               ) : (
-                <ActionChip
-                  onClick={() => onReserveSingle(space)}
-                  icon={BookMarked}
-                  label="সংরক্ষণ"
-                  color="#F59E0B"
-                  disabled={busy === space._id}
-                />
+                <ActionChip onClick={() => onReserveSingle(space)} icon={BookMarked} label="সংরক্ষণ" color="#F59E0B" />
               ))}
             <ActionChip onClick={() => onDelete(space)} icon={Trash2} label="Delete" color="#EF4444" />
           </div>
@@ -1039,6 +1033,7 @@ const SpaceRow = ({
                 spaceId={space._id}
                 onUpdate={onUpdate}
                 onReserveClick={(bedNumber) => onReserveBed(space, bedNumber)}
+                onError={onBedError}
               />
             </div>
           )}
@@ -1124,7 +1119,6 @@ const ManageSpaces = () => {
   const [priceModal, setPriceModal] = useState(null); // { space } | null
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
-  const [busyId, setBusyId] = useState(null);
 
   const loadAll = async () => {
     try {
@@ -1276,6 +1270,11 @@ const ManageSpaces = () => {
         return typeof updater === "function" ? updater(s) : updater;
       }),
     );
+  };
+
+  // Surfaces a failed bed-release (thrown from BedGrid) via the shared popup.
+  const handleBedError = (err) => {
+    setPopup({ type: "error", message: getErrorMessage(err, "শয্যা মুক্ত করতে ব্যর্থ হয়েছে।") });
   };
 
   return (
@@ -1486,7 +1485,6 @@ const ManageSpaces = () => {
                     space={space}
                     index={index}
                     allDepartments={departments}
-                    busy={busyId}
                     onEdit={openEdit}
                     onEditPrice={(s) => setPriceModal({ space: s })}
                     onDelete={(s) => setConfirmTarget({ type: "delete", space: s })}
@@ -1494,6 +1492,7 @@ const ManageSpaces = () => {
                     onReleaseSingle={(s) => setConfirmTarget({ type: "release", space: s })}
                     onReserveBed={(s, bedNumber) => setReserveModal({ space: s, bedNumber })}
                     onUpdate={(updater) => handleSpaceUpdate(space, updater)}
+                    onBedError={handleBedError}
                   />
                 ))
               )}

@@ -19,7 +19,6 @@ import {
   Check,
   CheckCircle2,
   AlertCircle,
-  Eye,
   FileText,
   Banknote,
   Percent,
@@ -260,13 +259,6 @@ const FormatModal = ({ test, onClose, onSave }) => {
                             <CheckCircle2 className="w-3 h-3" /> নির্বাচিত
                           </span>
                         )}
-                        <button
-                          type="button"
-                          onClick={(e) => e.stopPropagation()}
-                          className="p-1.5 bg-white border-[1.5px] border-[#E2E8F0] hover:border-[#8B5CF660] hover:bg-[#8B5CF608] rounded-lg transition-all"
-                        >
-                          <Eye className="w-3.5 h-3.5 text-[#94A3B8]" />
-                        </button>
                       </div>
                     </div>
                   );

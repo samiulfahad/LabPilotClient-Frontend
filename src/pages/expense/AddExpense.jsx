@@ -82,24 +82,6 @@ const Btn = ({ variant = "primary", size = "md", loading, className = "", childr
   );
 };
 
-const Sk = ({ cls }) => <div className={`bg-slate-200 animate-pulse ${cls}`} />;
-
-const FormSkeleton = () => (
-  <div className="space-y-5">
-    {[1, 2].map((i) => (
-      <div key={i} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="bg-slate-100 px-6 py-4 animate-pulse">
-          <div className="h-5 bg-slate-200 rounded w-1/3" />
-        </div>
-        <div className="p-6 space-y-4">
-          <Sk cls="h-10 rounded-lg" />
-          <Sk cls="h-10 rounded-lg" />
-        </div>
-      </div>
-    ))}
-  </div>
-);
-
 // ─── Modal shell (matching palette, no external dependency) ───────────────────
 
 const ModalShell = ({ onClose, children }) => (

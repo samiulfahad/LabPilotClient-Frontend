@@ -156,12 +156,11 @@ const timeAgo = (d) => {
   return `${days} দিন আগে`;
 };
 
-const DeviceIcon = ({ type, className }) => {
-  if (type === "mobile") return <Smartphone className={className} />;
-  if (type === "tablet") return <Tablet className={className} />;
-  return <Monitor className={className} />;
+const DeviceIcon = ({ type, className, style }) => {
+  if (type === "mobile") return <Smartphone className={className} style={style} />;
+  if (type === "tablet") return <Tablet className={className} style={style} />;
+  return <Monitor className={className} style={style} />;
 };
-
 // ─── Shared input helpers ──────────────────────────────────────────────────────
 
 const inputBase =

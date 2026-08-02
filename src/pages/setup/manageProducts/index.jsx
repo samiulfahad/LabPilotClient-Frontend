@@ -1418,7 +1418,7 @@ export default function Products() {
     const s = item.stock ?? 0;
     if (stockFilter === "out") return s === 0;
     if (stockFilter === "low") return s > 0 && s <= 5;
-    if (stockFilter === "instock") return s > 6;
+    if (stockFilter === "instock") return s > 5;
     return true;
   });
 

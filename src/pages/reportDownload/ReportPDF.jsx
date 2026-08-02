@@ -46,7 +46,7 @@ const s = StyleSheet.create({
     borderBottom: `1 solid ${C.slate200}`,
   },
   titleText: { fontSize: 11, fontFamily: "Helvetica-Bold", color: C.dark },
-  invoiceText: { fontSize: 7.5, color: C.slate600, fontFamily: "Courier", fontFamily: "Helvetica-Bold" },
+  invoiceText: { fontSize: 7.5, color: C.slate600, fontFamily: "Courier-Bold" },
 
   patientRow: { flexDirection: "row", borderBottom: `1 solid ${C.slate200}` },
   patientCell: { flex: 1, padding: "6 10", backgroundColor: "white", borderRight: `1 solid ${C.slate200}` },

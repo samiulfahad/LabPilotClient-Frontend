@@ -10,7 +10,6 @@ import {
   Printer,
   Upload,
   User,
-  Phone,
   FlaskConical,
   FileText,
   CheckCircle2,
@@ -33,7 +32,6 @@ import invoiceService from "../../api/invoice";
 import indoorPatientService from "../../api/indoorPatient";
 import reportService from "../../api/report";
 import PrintId from "../../components/PrintId";
-import { useGuardedAction } from "../../hooks/useGuardedAction";
 import { useAuthStore } from "../../store/authStore";
 
 // ─── ID Format Detection ──────────────────────────────────────────────────────
@@ -424,7 +422,6 @@ const TestActions = ({ record, test }) => {
   const { _type, _patientId, displayId } = record;
   const { testId, name, isCompleted, addedAt } = test;
   const navigate = useNavigate();
-  const { guard, denied, closeDenied } = useGuardedAction();
 
   const role = useAuthStore((s) => s.user?.role);
   const permissions = useAuthStore((s) => s.user?.permissions);
@@ -442,27 +439,24 @@ const TestActions = ({ record, test }) => {
 
   if (!isCompleted) {
     return (
-      <>
-        <button
-          onClick={canUpload ? () => goToUpload(false) : undefined}
-          disabled={!canUpload}
-          title={!canUpload ? "No Permission" : undefined}
-          className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-all shadow-sm ${
-            canUpload
-              ? "bg-gray-900 text-white hover:bg-gray-700 cursor-pointer"
-              : "bg-gray-200 text-gray-400 cursor-not-allowed"
-          }`}
-        >
-          <Upload className="w-3 h-3" /> Upload
-        </button>
-        {denied && <Popup type="denied" message={denied} onClose={closeDenied} />}
-      </>
+      <button
+        onClick={canUpload ? () => goToUpload(false) : undefined}
+        disabled={!canUpload}
+        title={!canUpload ? "No Permission" : undefined}
+        className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-all shadow-sm ${
+          canUpload
+            ? "bg-gray-900 text-white hover:bg-gray-700 cursor-pointer"
+            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+        }`}
+      >
+        <Upload className="w-3 h-3" /> Upload
+      </button>
     );
   }
 
   const printBase =
     _type === "indoor"
-      ? `/report-download?patientId=${_patientId}&testId=${testId}&testName=${encodeURIComponent(name)}&type=indoor&addedAt=${addedAt}`
+      ? `/report-download?patientId=${_patientId}&testId=${testId}&testName=${encodeURIComponent(name)}&type=indoor&addedAt=${addedAt ?? ""}`
       : `/report-download?invoiceId=${displayId}&testId=${testId}&testName=${encodeURIComponent(name)}`;
 
   const printBtnClass = (enabled) =>
@@ -517,8 +511,6 @@ const TestActions = ({ record, test }) => {
         <Pencil className="w-3 h-3" />
         <span className="hidden sm:inline">Edit</span>
       </button>
-
-      {denied && <Popup type="denied" message={denied} onClose={closeDenied} />}
     </div>
   );
 };

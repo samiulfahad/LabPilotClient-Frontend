@@ -57,6 +57,7 @@ const INITIAL_FORM = {
   paidAmount: "", // kept as string in state so the field can be cleared/edited freely
   paymentMode: "cash",
   onlineFeeEnabled: true, // only relevant when the lab has a feePerInvoice configured
+  onlineFeePaidBy: "lab", // this page only talks to the lab fee-payment backend
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1150,15 +1151,13 @@ const FormSkeleton = () => (
 const CreateInvoice = () => {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user); // { role, maxLabAdjustment, ... } — adjust selector to match your store
-  const lab = useAuthStore((s) => s.lab); // { feePerInvoive, forceInvoiceFee, ... }
+  const lab = useAuthStore((s) => s.lab); // { billing: { feePerInvoice, forceInvoiceFee }, ... }
   const isAdmin = user?.role === "admin";
   const maxLabAdjustment = user?.maxLabAdjustment ?? 0;
   const canAdjustLab = isAdmin || maxLabAdjustment > 0;
 
-  // Note: `feePerInvoive` is the field name as stored in the lab document
-  // (existing typo carried over from the DB schema).
-  const feePerInvoice = lab?.feePerInvoive ?? 0;
-  const forceInvoiceFee = !!lab?.forceInvoiceFee;
+  const feePerInvoice = lab?.billing?.feePerInvoice ?? 0;
+  const forceInvoiceFee = !!lab?.billing?.forceInvoiceFee;
 
   const [availableReferrers, setAvailableReferrers] = useState([]);
   const [availableTests, setAvailableTests] = useState([]);
@@ -1286,6 +1285,7 @@ const CreateInvoice = () => {
         // ended up applied to this invoice (forced or toggled on). The
         // fee is added to the patient's total when applied.
         isOnlineFeePaid: amount.feeApplied,
+        onlineFeePaidBy: formData.onlineFeePaidBy,
       };
 
       const { data } = await invoiceService.createInvoice(invoiceData);

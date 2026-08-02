@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Eye, Printer, X } from "lucide-react";
+import { Eye, Printer, X } from "lucide-react";
 import ReportViewer from "./ReportViewer";
 import reportService from "../../api/report";
 import { useAuthStore } from "../../store/authStore";
