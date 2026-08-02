@@ -488,7 +488,7 @@ const PatientDetails = () => {
   const isAdmitted = patient.status === "admitted";
   const billingSummary = getBillingSummary(patient);
   const { total, paid, due } = billingSummary;
-  const discount = billingSummary.discount ?? patient.discount ?? patient.billing?.discount ?? 0;
+  const discount = billingSummary.totalDiscount ?? 0;
   const isPackageFullyPaid = patient.dealType === "package" && due <= 0;
   const collectDefaultAmount = due > 0 ? String(Math.ceil(due)) : "";
   const txSelectedSpace = spaces.find((s) => s._id === txForm.spaceId) ?? null;

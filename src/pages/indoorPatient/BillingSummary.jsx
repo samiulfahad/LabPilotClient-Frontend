@@ -2,10 +2,10 @@
 // BillingSummary.jsx
 
 import { useState, useEffect } from "react";
-import { Badge, Btn, ErrorMsg, Field, Input, Modal, SectionCard, Select, fmt } from "./indoorPatientHelpers";
+import { Badge, Btn, ErrorMsg, Field, Input, Modal, fmt } from "./indoorPatientHelpers";
 import indoorPatientService from "../../api/indoorPatient";
 import { useAuthStore } from "../../store/authStore";
-import { Printer, Lock, Loader2, Wallet, AlertCircle } from "lucide-react";
+import { Printer, Lock, Wallet } from "lucide-react";
 
 // ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx / ReportDownload.jsx / PatientDetails.jsx) ──
 

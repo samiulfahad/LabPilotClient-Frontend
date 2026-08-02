@@ -5,12 +5,11 @@ import ReactDOM from "react-dom";
 
 export const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
-export const EXPENSE_TYPES = [
-  { value: "medicine", label: "Medicine" },
-  { value: "test", label: "Lab/Test" },
-  { value: "service", label: "Service" },
-  { value: "other", label: "Other" },
-];
+// NOTE: EXPENSE_TYPES and a days() helper previously lived here but were unused
+// by every file in this module (AddItemsToPatient.jsx has its own local
+// TypeBadge map, and BillingSummary.jsx computes day counts inline via
+// calcBedAccrual). Removed as dead code. If another page outside this module
+// imports either, restore them there instead of re-adding here.
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
 
@@ -35,11 +34,6 @@ export const fmt = {
 export const totalExpenses = (expenses = []) => expenses.reduce((s, e) => s + (e.price ?? 0) * (e.quantity ?? 1), 0);
 
 export const totalPayments = (payments = []) => payments.reduce((s, p) => s + (p.amount ?? 0), 0);
-
-export const days = (admittedAt, releasedAt) => {
-  const end = releasedAt ?? Date.now();
-  return Math.max(1, Math.ceil((end - admittedAt) / (1000 * 60 * 60 * 24)));
-};
 
 // ─── UI Primitives ────────────────────────────────────────────────────────────
 

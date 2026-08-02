@@ -131,9 +131,10 @@ const AdmitPatient = () => {
 
   // ── occupied bed numbers for the selected space ──
   const occupiedBedNumbers = selectedSpace?.multiBed
-    ? (selectedSpace.multiBedConf?.beds || [])
-        .filter((b) => b.reserved === true || b.isOccupied === true)
-        .map((b) => b.bedNumber)
+    ? [
+        ...(selectedSpace.multiBedConf?.booked ?? []),
+        ...(selectedSpace.multiBedConf?.reserved ?? []).map((r) => r.bedNumber),
+      ]
     : [];
 
   const handleSubmit = async () => {
@@ -421,12 +422,7 @@ const AdmitPatient = () => {
 
                 {selectedSpace && (
                   <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                    <BedSelector
-                      space={selectedSpace}
-                      value={form.bedNumber}
-                      onChange={(b) => set("bedNumber", b)}
-                      disabledBedNumbers={occupiedBedNumbers}
-                    />
+                    <BedSelector space={selectedSpace} value={form.bedNumber} onChange={(b) => set("bedNumber", b)} />
                     {!selectedSpace.multiBed && (
                       <div className="text-sm text-slate-600 mt-2 flex items-center gap-1.5">
                         একক বেডের স্থান —
