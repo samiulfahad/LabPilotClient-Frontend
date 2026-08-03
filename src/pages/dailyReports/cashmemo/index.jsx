@@ -231,6 +231,42 @@ const SummarySection = ({ title, icon: Icon, accent, rows, badge }) => (
   </div>
 );
 
+// ─── Referrer commission toggle (%-based vs test-wise) ────────────────────────
+// Shared by OutdoorReceipt and SummaryReceipt — both work off the same
+// invoice-level fields: amount.referrerCommission (%-based) and
+// amount.referrerCommissionTestWise (sum of each test's own commission).
+// IndoorReceipt doesn't use this — IPD admissions carry no referrer
+// commission percentage, only per-item commission, so it's a plain figure there.
+
+const CommissionToggle = ({ view, onChange, accent = "#B5772A" }) => (
+  <div className="flex items-center gap-1 shrink-0 no-print">
+    <button
+      type="button"
+      onClick={() => onChange("percentage")}
+      className="font-['IBM_Plex_Mono'] text-[10px] uppercase px-2 py-1 rounded-sm border transition-colors font-noto"
+      style={
+        view === "percentage"
+          ? { color: "#fff", backgroundColor: accent, borderColor: accent }
+          : { color: accent, borderColor: `${accent}40`, backgroundColor: "transparent" }
+      }
+    >
+      রেফারার ভিত্তিক
+    </button>
+    <button
+      type="button"
+      onClick={() => onChange("testWise")}
+      className="font-['IBM_Plex_Mono'] text-[10px] uppercase px-2 py-1 rounded-sm border transition-colors font-noto"
+      style={
+        view === "testWise"
+          ? { color: "#fff", backgroundColor: accent, borderColor: accent }
+          : { color: accent, borderColor: `${accent}40`, backgroundColor: "transparent" }
+      }
+    >
+      টেস্ট ভিত্তিক
+    </button>
+  </div>
+);
+
 // ─── Stamp ────────────────────────────────────────────────────────────────────
 
 const SEAL_BLUE = "#1E4FA0";
@@ -551,6 +587,13 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
   const grossCounterAmount = (d.initial ?? 0) - (d.labAdjustment ?? 0) - (d.referrerDiscount ?? 0);
   const eyebrowLabel = isHospital ? "বহির্বিভাগ ক্যাশ মেমু" : "ক্যাশ মেমু";
 
+  const [commissionView, setCommissionView] = useState("percentage");
+  const commissionValue = commissionView === "percentage" ? d.referrerCommission : d.referrerCommissionTestWise;
+  // নিট আয় recomputed locally from the gross counter amount minus whichever
+  // commission figure is currently selected, instead of the fixed d.totalNet
+  // from the backend (which never reflected the toggle).
+  const netAmount = grossCounterAmount - (commissionValue ?? 0);
+
   const [deletedOpen, setDeletedOpen] = useState(false);
   const [deletedInvoices, setDeletedInvoices] = useState(null);
   const [deletedLoading, setDeletedLoading] = useState(false);
@@ -636,16 +679,19 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
             className="flex items-center justify-between px-4 py-3 bg-[#FBF7EF] border-l-4"
             style={{ borderColor: OCHRE }}
           >
-            <p className="text-sm font-semibold text-[#1C1F1E] font-noto">মোট কমিশন</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-[#1C1F1E] font-noto">মোট কমিশন</p>
+              <CommissionToggle view={commissionView} onChange={setCommissionView} accent={OCHRE} />
+            </div>
             <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums" style={{ color: OCHRE }}>
-              − ৳{fmt(d.referrerCommission)}
+              − ৳{fmt(commissionValue)}
             </p>
           </div>
         </div>
 
         <SectionDivider label="নিট টোটাল থেকে মোট কমিশন বাদ দেওয়ার পর" />
 
-        <NetStamp amount={d.totalNet} label="নিট আয়" accent={TEAL} />
+        <NetStamp amount={netAmount} label="নিট আয়" accent={TEAL} />
 
         <div className="border border-[#E3D9EE] rounded-sm overflow-hidden mt-3 mb-3">
           <div
@@ -908,6 +954,21 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
 
         <CategoryBreakdown breakdown={d.categoryBreakdown} />
 
+        {/* Referrer commission — IPD has no stored commission %, only each
+            test's own commission amount, so this is a single test-wise figure
+            (no toggle, unlike Outdoor/Summary). */}
+        <div className="border border-[#E3D9C6] rounded-sm overflow-hidden mb-3">
+          <div
+            className="flex items-center justify-between px-4 py-3 bg-[#FBF7EF] border-l-4"
+            style={{ borderColor: OCHRE }}
+          >
+            <p className="text-sm font-semibold text-[#1C1F1E] font-noto">রেফারার কমিশন (টেস্ট ভিত্তিক)</p>
+            <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums" style={{ color: OCHRE }}>
+              − ৳{fmt(d.totalCommission)}
+            </p>
+          </div>
+        </div>
+
         <div className="mb-3">
           <button
             type="button"
@@ -1036,6 +1097,9 @@ const SummaryReceipt = ({
   const e = expenseSummary ?? {};
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
 
+  const [commissionView, setCommissionView] = useState("percentage");
+  const outdoorCommissionValue = commissionView === "percentage" ? o.referrerCommission : o.referrerCommissionTestWise;
+
   const outdoorGrossCounterAmount = (o.initial ?? 0) - (o.labAdjustment ?? 0) - (o.referrerDiscount ?? 0);
 
   const outdoorRows = [
@@ -1049,6 +1113,7 @@ const SummaryReceipt = ({
     { label: "মোট বিলড", value: `৳${fmt(i.totalBilled)}`, bold: true },
     { label: "আদায়", value: `৳${fmt(i.totalCollected)}`, tone: TEAL },
     { label: "মোট ডিসকাউন্ট", value: `− ৳${fmt(i.totalDiscounts)}`, tone: OCHRE },
+    { label: "রেফারার কমিশন (টেস্ট ভিত্তিক)", value: `− ৳${fmt(i.totalCommission)}`, tone: OCHRE },
   ];
 
   const expenseRows = [{ label: "মোট খরচ", value: `৳${fmt(e.totalExpense)}`, bold: true, tone: VIOLET }];
@@ -1085,6 +1150,23 @@ const SummaryReceipt = ({
         />
 
         <PaymentModeBreakdown breakdown={o.paymentModeBreakdown} />
+
+        {/* Outdoor referrer commission — toggle between %-based and test-wise,
+            mirrors the block in OutdoorReceipt. */}
+        <div className="border border-[#E3D9C6] rounded-sm overflow-hidden mb-4">
+          <div
+            className="flex items-center justify-between px-4 py-3 border-l-4"
+            style={{ backgroundColor: `${OCHRE}08`, borderColor: OCHRE }}
+          >
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-[#1C1F1E] font-noto">রেফারার কমিশন (বহির্বিভাগ)</p>
+              <CommissionToggle view={commissionView} onChange={setCommissionView} accent={OCHRE} />
+            </div>
+            <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums" style={{ color: OCHRE }}>
+              − ৳{fmt(outdoorCommissionValue)}
+            </p>
+          </div>
+        </div>
 
         {isHospital && (
           <>

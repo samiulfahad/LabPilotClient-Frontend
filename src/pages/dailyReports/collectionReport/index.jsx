@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   Wallet,
+  Banknote,
   Clock,
   UserCheck,
   BedDouble,
@@ -96,10 +97,21 @@ const TEAL = "#0F6E5C";
 const INK = "#1C1F1E";
 const SEAL_BLUE = "#1E4FA0";
 const SEAL_RED = "#C0312B";
+const CASH_AMBER = "#B4770E";
+
+// Mirrors PAYMENT_MODES in invoiceRoutes.js / indoorPatients.routes.js
+const MODE_LABELS = {
+  cash: "ক্যাশ",
+  bkash: "বিকাশ",
+  nagad: "নগদ",
+  card: "কার্ড",
+  bank_transfer: "ব্যাংক ট্রান্সফার",
+  others: "অন্যান্য",
+};
 
 const EMPTY_DATA = {
   staff: [],
-  totals: { totalCollected: 0, opdCollected: 0, ipdCollected: 0 },
+  totals: { totalCollected: 0, opdCollected: 0, ipdCollected: 0, physicalCollected: 0, byMode: {} },
 };
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -160,6 +172,17 @@ const SourcePill = ({ label, value, isIpd }) => (
   </span>
 );
 
+// Small pill showing a payment method's share of the grand total.
+const ModePill = ({ label, value }) => (
+  <span
+    className="inline-flex items-center gap-1 px-2 py-1 rounded-sm font-['IBM_Plex_Mono'] text-xs font-noto"
+    style={{ backgroundColor: `${INK}0D`, color: INK }}
+  >
+    <Wallet className="w-2.5 h-2.5" />
+    {label} ৳{fmt(value)}
+  </span>
+);
+
 const CollectionRow = ({ col, idx }) => {
   const isIpd = col.source === "ipd";
   return (
@@ -183,6 +206,7 @@ const CollectionRow = ({ col, idx }) => {
         <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] mt-0.5 flex items-center gap-1">
           <Clock className="w-2.5 h-2.5" />
           {fmtDt(col.at)} · {fmtTime(col.at)} · {col.invoiceId}
+          {col.mode && <> · {MODE_LABELS[col.mode] ?? col.mode}</>}
         </p>
       </div>
       <div className="flex items-center gap-3 shrink-0 text-right">
@@ -231,7 +255,7 @@ const RoundSeal = ({ dateLabel }) => {
 
 // ─── Staff ledger entry ────────────────────────────────────────────────────────
 
-const STAFF_GRID_COLS = "grid-cols-[24px_1fr_140px]";
+const STAFF_GRID_COLS = "grid-cols-[24px_1fr_120px_140px]";
 
 const MetricCell = ({ icon: Icon, value, unit, accent, active, onClick }) => (
   <button
@@ -255,6 +279,18 @@ const MetricCell = ({ icon: Icon, value, unit, accent, active, onClick }) => (
   </button>
 );
 
+// Static (non-interactive) figure showing what a staff member needs to
+// physically hand over at end-of-day: cash + others. Kept separate from the
+// toggle-able total so it reads at a glance without opening the row.
+const CashStat = ({ value }) => (
+  <div className="flex items-center justify-end gap-1.5 py-1.5 pr-1 font-noto" title="নগদ ও অন্যান্য মাধ্যমে কালেকশন">
+    <Banknote className="w-3 h-3 shrink-0" style={{ color: CASH_AMBER }} />
+    <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: CASH_AMBER }}>
+      ৳{fmt(value)}
+    </span>
+  </div>
+);
+
 const StaffEntry = ({ member: m, rank, isHospital }) => {
   const [open, setOpen] = useState(false);
 
@@ -268,6 +304,7 @@ const StaffEntry = ({ member: m, rank, isHospital }) => {
           <span className="text-sm text-[#1C1F1E] font-medium truncate font-noto">{m.name}</span>
           <UserCheck className="w-3 h-3 text-[#A8ACA3] shrink-0" />
         </div>
+        <CashStat value={m.physicalCollected} />
         <MetricCell
           icon={Wallet}
           value={`৳${fmt(m.totalCollected)}`}
@@ -341,6 +378,7 @@ const CollectionReport = () => {
 
   const d = data ?? EMPTY_DATA;
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
+  const modeEntries = Object.entries(d.totals.byMode ?? {}).filter(([, value]) => value > 0);
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
@@ -428,6 +466,19 @@ const CollectionReport = () => {
                         <HeaderStat label="IPD" value={`৳${fmt(d.totals.ipdCollected)}`} accent={SEAL_BLUE} />
                       </>
                     )}
+                    <HeaderStat
+                      label="নগদ ও অন্যান্য"
+                      value={`৳${fmt(d.totals.physicalCollected)}`}
+                      accent={CASH_AMBER}
+                    />
+                  </div>
+                )}
+
+                {!isStaff && modeEntries.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {modeEntries.map(([mode, value]) => (
+                      <ModePill key={mode} label={MODE_LABELS[mode] ?? mode} value={value} />
+                    ))}
                   </div>
                 )}
               </div>

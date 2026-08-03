@@ -279,6 +279,7 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
         price: test.price,
         quantity: 1,
         schemaId: test.schemaId?.$oid ?? test.schemaId ?? null,
+        commission: test.commission || 0,
       },
     ]);
     setItemQuery("");
@@ -332,6 +333,7 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
             ...(item.type === "test" && item.schemaId && String(item.schemaId).length === 24
               ? { schemaId: item.schemaId }
               : {}),
+            ...(item.type === "test" ? { commission: item.commission || 0 } : {}),
           }),
         ),
       );

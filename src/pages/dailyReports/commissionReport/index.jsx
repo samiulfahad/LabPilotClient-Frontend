@@ -81,76 +81,131 @@ const recordStamp = (start, end) => {
   return generatedStamp(end);
 };
 
-const buildTestCounts = (invoices) => {
-  const map = {};
-  for (const inv of invoices) {
+// ─── Aggregate outdoor tests for one referrer's invoices ──────────────────────
+// invoices[].tests = [{ name, commission }] — commission is the rate that
+// applied AT THE TIME of that invoice, so grouping by (name, commission)
+// naturally surfaces a mid-window rate change.
+// → Map<name, { name, total, commissionTotal, rates: Map<rate, {rate,count,subtotal,firstSeenAt,lastSeenAt}> }>
+const aggregateOutdoorTests = (invoices) => {
+  const map = new Map();
+  for (const inv of invoices ?? []) {
     if (!Array.isArray(inv.tests)) continue;
-    for (const name of inv.tests) {
-      if (name) map[name] = (map[name] || 0) + 1;
+    for (const t of inv.tests) {
+      if (!t?.name) continue;
+      const rate = t.commission ?? 0;
+      let entry = map.get(t.name);
+      if (!entry) {
+        entry = { name: t.name, total: 0, commissionTotal: 0, rates: new Map() };
+        map.set(t.name, entry);
+      }
+      entry.total += 1;
+      entry.commissionTotal += rate;
+      let r = entry.rates.get(rate);
+      if (!r) {
+        r = { rate, count: 0, subtotal: 0, firstSeenAt: inv.createdAt, lastSeenAt: inv.createdAt };
+        entry.rates.set(rate, r);
+      }
+      r.count += 1;
+      r.subtotal += rate;
+      if (inv.createdAt < r.firstSeenAt) r.firstSeenAt = inv.createdAt;
+      if (inv.createdAt > r.lastSeenAt) r.lastSeenAt = inv.createdAt;
     }
   }
-  return Object.entries(map).sort((a, b) => b[1] - a[1]);
+  return map;
 };
 
-// ─── Build doctor-first test summary — outdoor + indoor kept separate ────────
-// For each referrer: { name, type, invoiceCount, outdoorTests, indoorTests }
+// ─── Aggregate indoor tests (already grouped by rate on the backend) ─────────
+const aggregateIndoorTests = (indoorTests) => {
+  const map = new Map();
+  for (const t of indoorTests ?? []) {
+    if (!t?.name) continue;
+    let entry = map.get(t.name);
+    if (!entry) {
+      entry = { name: t.name, total: 0, commissionTotal: 0, rates: new Map() };
+      map.set(t.name, entry);
+    }
+    entry.total += t.count;
+    entry.commissionTotal += t.commissionTotal;
+    entry.rates.set(t.rate, {
+      rate: t.rate,
+      count: t.count,
+      subtotal: t.commissionTotal,
+      firstSeenAt: t.firstSeenAt,
+      lastSeenAt: t.lastSeenAt,
+    });
+  }
+  return map;
+};
+
+const sumAggregateCounts = (map) => Array.from(map.values()).reduce((s, e) => s + e.total, 0);
+
+// ─── Merge outdoor + indoor per-test aggregates, keep rate history ──────────
+const mergeTestAggregates = (outdoorMap, indoorMap) => {
+  const names = new Set([...outdoorMap.keys(), ...indoorMap.keys()]);
+  const rows = [];
+  for (const name of names) {
+    const o = outdoorMap.get(name);
+    const i = indoorMap.get(name);
+    const outdoorCount = o?.total ?? 0;
+    const indoorCount = i?.total ?? 0;
+    const commissionTotal = (o?.commissionTotal ?? 0) + (i?.commissionTotal ?? 0);
+
+    const rateMap = new Map();
+    for (const r of o?.rates?.values() ?? []) rateMap.set(r.rate, { ...r });
+    for (const r of i?.rates?.values() ?? []) {
+      const existing = rateMap.get(r.rate);
+      if (existing) {
+        existing.count += r.count;
+        existing.subtotal += r.subtotal;
+        existing.firstSeenAt = Math.min(existing.firstSeenAt, r.firstSeenAt);
+        existing.lastSeenAt = Math.max(existing.lastSeenAt, r.lastSeenAt);
+      } else {
+        rateMap.set(r.rate, { ...r });
+      }
+    }
+    const rates = Array.from(rateMap.values()).sort((a, b) => a.firstSeenAt - b.firstSeenAt);
+
+    rows.push({
+      name,
+      outdoorCount,
+      indoorCount,
+      total: outdoorCount + indoorCount,
+      commissionTotal,
+      rates,
+      rateChanged: rates.length > 1,
+    });
+  }
+  return rows.sort((a, b) => b.commissionTotal - a.commissionTotal || b.total - a.total);
+};
+
+// ─── Build doctor-first test summary rows — outdoor + indoor kept separate ───
 const buildDoctorTestRows = (registered, unregistered) => {
   const rows = [];
 
   const pushRow = (r, isRegistered) => {
-    const outdoorTests = buildTestCounts(r.invoices ?? []);
-    const indoorTests = r.indoorTests ?? [];
-    if (outdoorTests.length === 0 && indoorTests.length === 0) return;
+    const outdoorMap = aggregateOutdoorTests(r.invoices ?? []);
+    const indoorMap = aggregateIndoorTests(r.indoorTests ?? []);
+    if (outdoorMap.size === 0 && indoorMap.size === 0) return;
     rows.push({
       key: isRegistered ? (r.referrerId ?? r.name) : String(r.referredBy),
       name: (isRegistered ? r.name : r.referredBy) ?? "অজানা",
       type: isRegistered ? (r.type ?? "unknown") : "unregistered",
       isRegistered,
       invoiceCount: r.totalInvoices ?? r.invoices?.length ?? 0,
-      totalCommission: r.totalCommission,
-      outdoorTests,
-      indoorTests,
+      outdoorMap,
+      indoorMap,
     });
   };
 
   for (const r of registered) pushRow(r, true);
   for (const g of unregistered) pushRow(g, false);
 
-  // sort by total test occurrences (outdoor + indoor) desc
   return rows.sort((a, b) => {
-    const ta = a.outdoorTests.reduce((s, [, c]) => s + c, 0) + a.indoorTests.reduce((s, [, c]) => s + c, 0);
-    const tb = b.outdoorTests.reduce((s, [, c]) => s + c, 0) + b.indoorTests.reduce((s, [, c]) => s + c, 0);
+    const ta = sumAggregateCounts(a.outdoorMap) + sumAggregateCounts(a.indoorMap);
+    const tb = sumAggregateCounts(b.outdoorMap) + sumAggregateCounts(b.indoorMap);
     return tb - ta;
   });
 };
-
-// ─── Merge outdoor+indoor counts per test name, attach commission (count × rate) ──
-
-const mergeTestChannels = (outdoorTests, indoorTests, testRates) => {
-  const map = new Map();
-  for (const [name, count] of outdoorTests) {
-    map.set(name, { name, outdoor: count, indoor: 0 });
-  }
-  for (const [name, count] of indoorTests) {
-    if (map.has(name)) {
-      map.get(name).indoor += count;
-    } else {
-      map.set(name, { name, outdoor: 0, indoor: count });
-    }
-  }
-  return Array.from(map.values())
-    .map((t) => {
-      const total = t.outdoor + t.indoor;
-      const rate = testRates?.[t.name?.trim?.()] ?? 0;
-      return { ...t, total, rate, commission: total * rate };
-    })
-    .sort((a, b) => b.commission - a.commission || b.total - a.total);
-};
-
-// ─── Sum a referrer's test-wise commission across outdoor + indoor tests ────
-
-const sumTestCommission = (outdoorTests, indoorTests, testRates) =>
-  mergeTestChannels(outdoorTests, indoorTests, testRates).reduce((s, t) => s + t.commission, 0);
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -171,12 +226,10 @@ const TYPE_META = {
 const EMPTY_DATA = {
   registered: [],
   unregistered: [],
-  testRates: {},
   totals: { totalCommission: 0, totalDiscount: 0, totalInvoices: 0 },
 };
 
-// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / CollectionReport.jsx) ──
-
+// ── Error helpers ──────────────────────────────────────────────────────────
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
 const getErrorMessage = (err, fallback) => {
@@ -247,7 +300,7 @@ const InvoiceRow = ({ inv, idx }) => (
   </div>
 );
 
-// ─── Referrer entry (ledger view) ─────────────────────────────────────────────
+// ─── Referrer entry (ledger view) — unchanged ────────────────────────────────
 
 const ReferrerEntry = ({
   name,
@@ -264,7 +317,7 @@ const ReferrerEntry = ({
   const invoiceCount = invoices.length;
   const netCommission = totalCommission - totalDiscount;
   const indoorOnly = isHospital && invoiceCount === 0 && (totalIndoorTests ?? 0) > 0;
-  const hasBoth = isHospital && invoiceCount > 0 && (totalIndoorTests ?? 0) > 0; // ← new
+  const hasBoth = isHospital && invoiceCount > 0 && (totalIndoorTests ?? 0) > 0;
 
   return (
     <div className="py-3 border-b border-dashed border-[#E3E0D6] last:border-b-0">
@@ -408,54 +461,64 @@ const ViewToggle = ({ view, onChange }) => (
   </div>
 );
 
-// ─── Test-wise: shared grid template for merged test rows + the total line ──
-// Fixed track widths (not `fr` for the numeric columns) so every row's
-// count×rate / commission / channel-breakdown text lines up in the same
-// vertical column regardless of how many digits each value has.
-const TEST_ROW_GRID = "grid items-baseline gap-x-3 grid-cols-[1fr_92px_84px_128px]";
-const TEST_ROW_GRID_NO_HOSPITAL = "grid items-baseline gap-x-3 grid-cols-[1fr_92px_84px]";
+// ─── Test-wise: shared grid template ──────────────────────────────────────────
+const TEST_ROW_GRID = "grid items-baseline gap-x-3 grid-cols-[1fr_112px_84px_128px]";
+const TEST_ROW_GRID_NO_HOSPITAL = "grid items-baseline gap-x-3 grid-cols-[1fr_112px_84px]";
 
-const MergedTestRow = ({ name, total, outdoor, indoor, rate, commission, isHospital }) => (
-  <div className={`${isHospital ? TEST_ROW_GRID : TEST_ROW_GRID_NO_HOSPITAL} py-1`}>
-    <span className="font-noto text-sm text-[#1C1F1E] leading-tight truncate">{name}</span>
-    <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] tabular-nums text-right">
-      {total} × ৳{fmt(rate)}
-    </span>
-    <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums text-right" style={{ color: TEAL }}>
-      ৳{fmt(commission)}
-    </span>
-    {isHospital && (
-      <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] font-noto text-right whitespace-nowrap">
-        আউটডোর {outdoor}, ইনডোর {indoor}
+const MergedTestRow = ({ name, total, outdoorCount, indoorCount, commissionTotal, rates, rateChanged, isHospital }) => (
+  <div className="py-1">
+    <div className={`${isHospital ? TEST_ROW_GRID : TEST_ROW_GRID_NO_HOSPITAL}`}>
+      <span className="font-noto text-sm text-[#1C1F1E] leading-tight truncate flex items-center gap-1.5">
+        {name}
+        {rateChanged && (
+          <span
+            className="font-['IBM_Plex_Mono'] text-[9px] uppercase px-1 py-[1px] rounded-[2px] font-noto shrink-0"
+            style={{ color: SEAL_RED, backgroundColor: `${SEAL_RED}12`, border: `1px solid ${SEAL_RED}33` }}
+            title="এই সময়সীমায় এই টেস্টের কমিশন পরিবর্তিত হয়েছে"
+          >
+            রেট পরিবর্তিত
+          </span>
+        )}
       </span>
+      <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] tabular-nums text-right">
+        {rates.length === 1 ? `${total} × ৳${fmt(rates[0].rate)}` : `${total} বার (ভিন্ন হার)`}
+      </span>
+      <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums text-right" style={{ color: TEAL }}>
+        ৳{fmt(commissionTotal)}
+      </span>
+      {isHospital && (
+        <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] font-noto text-right whitespace-nowrap">
+          আউটডোর {outdoorCount}, ইনডোর {indoorCount}
+        </span>
+      )}
+    </div>
+    {rateChanged && (
+      <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 mt-1">
+        {rates.map((r) => (
+          <span key={r.rate} className="font-['IBM_Plex_Mono'] text-[11px] text-[#8A8F89] tabular-nums">
+            {fmtDate(r.firstSeenAt)}
+            {r.firstSeenAt !== r.lastSeenAt ? `–${fmtDate(r.lastSeenAt)}` : ""}: ৳{fmt(r.rate)} × {r.count} = ৳
+            {fmt(r.subtotal)}
+          </span>
+        ))}
+      </div>
     )}
   </div>
 );
 
 // ─── Test-wise: single doctor card ──────────────────────────────────────────
 
-const DoctorTestCard = ({
-  rank,
-  name,
-  type,
-  isRegistered,
-  invoiceCount,
-  outdoorTests,
-  indoorTests,
-  isHospital,
-  testRates,
-}) => {
+const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorMap, indoorMap, isHospital }) => {
   const accent = isRegistered ? TEAL : OCHRE;
   const meta = TYPE_META[type] ?? TYPE_META.unknown;
   const Icon = isRegistered ? meta.Icon : UserX;
   const typeLabel = isRegistered ? meta.label : "ওয়াক-ইন";
-  const mergedTests = mergeTestChannels(outdoorTests, indoorTests, testRates);
+  const mergedTests = useMemo(() => mergeTestAggregates(outdoorMap, indoorMap), [outdoorMap, indoorMap]);
   const totalTests = mergedTests.reduce((s, t) => s + t.total, 0);
-  const totalTestCommission = mergedTests.reduce((s, t) => s + t.commission, 0);
+  const totalTestCommission = mergedTests.reduce((s, t) => s + t.commissionTotal, 0);
 
   return (
     <div className="py-4 border-b border-dashed border-[#E3E0D6] last:border-b-0">
-      {/* Doctor name row */}
       <div className="flex items-center gap-2.5 mb-3">
         <span className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] tabular-nums w-5 shrink-0">
           {String(rank).padStart(2, "0")}
@@ -471,7 +534,6 @@ const DoctorTestCard = ({
         </span>
       </div>
 
-      {/* Merged test list + per-referrer commission total */}
       <div className="pl-8">
         {mergedTests.length > 0 ? (
           <>
@@ -480,10 +542,11 @@ const DoctorTestCard = ({
                 key={t.name}
                 name={t.name}
                 total={t.total}
-                outdoor={t.outdoor}
-                indoor={t.indoor}
-                rate={t.rate}
-                commission={t.commission}
+                outdoorCount={t.outdoorCount}
+                indoorCount={t.indoorCount}
+                commissionTotal={t.commissionTotal}
+                rates={t.rates}
+                rateChanged={t.rateChanged}
                 isHospital={isHospital}
               />
             ))}
@@ -512,18 +575,20 @@ const DoctorTestCard = ({
 
 // ─── Test-wise view ───────────────────────────────────────────────────────────
 
-const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, lab, isHospital, testRates }) => {
+const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, lab, isHospital }) => {
   const rows = useMemo(() => buildDoctorTestRows(registered, unregistered), [registered, unregistered]);
-  const totalOutdoorOccurrences = rows.reduce((s, r) => s + r.outdoorTests.reduce((ss, [, c]) => ss + c, 0), 0);
-  const totalIndoorOccurrences = rows.reduce((s, r) => s + r.indoorTests.reduce((ss, [, c]) => ss + c, 0), 0);
-  const totalTestCommission = rows.reduce((s, r) => s + sumTestCommission(r.outdoorTests, r.indoorTests, testRates), 0);
+  const totalOutdoorOccurrences = rows.reduce((s, r) => s + sumAggregateCounts(r.outdoorMap), 0);
+  const totalIndoorOccurrences = rows.reduce((s, r) => s + sumAggregateCounts(r.indoorMap), 0);
+  const totalTestCommission = rows.reduce(
+    (s, r) => s + mergeTestAggregates(r.outdoorMap, r.indoorMap).reduce((ss, t) => ss + t.commissionTotal, 0),
+    0,
+  );
 
   return (
     <div
       id="commission-printable"
       className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
     >
-      {/* Letterhead — dynamic from auth store */}
       <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5]">
         <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
           {lab?.name ?? "LabPilot Pro"}
@@ -536,7 +601,6 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
         )}
       </div>
 
-      {/* Header band */}
       <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
         <div>
           <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">
@@ -552,7 +616,6 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
         <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} />
       </div>
 
-      {/* Summary strip */}
       <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
         <div className="grid grid-cols-3 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
           <LedgerCell
@@ -567,7 +630,6 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
             label="টেস্ট-ভিত্তিক কমিশন"
             value={`৳${fmt(totalTestCommission)}`}
             accent={SEAL_BLUE}
-            sub="প্রতি টেস্টের হার অনুযায়ী"
           />
           <LedgerCell
             icon={ReceiptText}
@@ -579,7 +641,6 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
         </div>
       </div>
 
-      {/* Doctor cards */}
       <div className="px-6 sm:px-8 py-5">
         {rows.length > 0 ? (
           rows.map((r, i) => (
@@ -590,10 +651,9 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
               type={r.type}
               isRegistered={r.isRegistered}
               invoiceCount={r.invoiceCount}
-              outdoorTests={r.outdoorTests}
-              indoorTests={r.indoorTests}
+              outdoorMap={r.outdoorMap}
+              indoorMap={r.indoorMap}
               isHospital={isHospital}
-              testRates={testRates}
             />
           ))
         ) : (
@@ -604,14 +664,13 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
   );
 };
 
-// ─── Ledger view (Referrer Based — outdoor only, unchanged) ─────────────────
+// ─── Ledger view — unchanged ─────────────────────────────────────────────────
 
 const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital }) => (
   <div
     id="commission-printable"
     className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
   >
-    {/* Letterhead */}
     <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5]">
       <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
         {lab?.name ?? "LabPilot Pro"}
@@ -624,7 +683,6 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital
       )}
     </div>
 
-    {/* Header band */}
     <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
       <div>
         <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">কমিশন রিপোর্ট</p>
@@ -637,7 +695,6 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital
       <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} />
     </div>
 
-    {/* Summary */}
     <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
       <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
         <LedgerCell
@@ -657,7 +714,6 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital
       </div>
     </div>
 
-    {/* Registered */}
     <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
       <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] mb-1 font-noto">নিবন্ধিত রেফারার</p>
       {d.registered.length > 0 ? (
@@ -683,7 +739,6 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital
       )}
     </div>
 
-    {/* Unregistered */}
     <div className="px-6 sm:px-8 py-5">
       <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] mb-1 font-noto">অনিবন্ধিত / ওয়াক-ইন</p>
       {d.unregistered.length > 0 ? (
@@ -718,7 +773,7 @@ const CommissionReport = () => {
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
   const [timeRange, setTimeRange] = useState(null);
-  const [view, setView] = useState("testwise"); // "ledger" | "testwise"
+  const [view, setView] = useState("testwise");
 
   useEffect(() => {
     const range = todayRange();
@@ -745,7 +800,6 @@ const CommissionReport = () => {
   };
 
   const d = data ?? EMPTY_DATA;
-  const testRates = d.testRates ?? {};
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
   const referrerCount = d.registered.length + d.unregistered.length;
 
@@ -764,7 +818,6 @@ const CommissionReport = () => {
       `}</style>
 
       <div className="max-w-2xl mx-auto">
-        {/* Top nav */}
         <div className="flex items-center justify-between mb-5 no-print">
           <div>
             <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] font-noto">
@@ -791,17 +844,14 @@ const CommissionReport = () => {
           </div>
         </div>
 
-        {/* TimeFrame — full width, its own row */}
         <div className="mb-3 no-print">
           <TimeFrame onFetchData={handleFetchData} />
         </div>
 
-        {/* View toggle — below TimeFrame, left-aligned, its own row */}
         <div className="mb-5 no-print">
           <ViewToggle view={view} onChange={setView} />
         </div>
 
-        {/* Content */}
         {loading ? (
           <SkeletonReceipt />
         ) : view === "ledger" ? (
@@ -822,7 +872,6 @@ const CommissionReport = () => {
             d={d}
             lab={lab}
             isHospital={isHospital}
-            testRates={testRates}
           />
         )}
 
