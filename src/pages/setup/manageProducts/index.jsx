@@ -48,6 +48,9 @@ const C = {
   emerald: "#10B981",
 };
 
+// Page background — matches ManageDoctors.jsx / ManageTests.jsx / Setup.jsx / ManageReferrer.jsx / ManageStaff.jsx
+const pageGradientBg = "bg-[radial-gradient(ellipse_120%_80%_at_50%_-10%,#eef2ff_0%,#f8fafc_45%,#f8fafc_100%)]";
+
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const LAB_PRODUCT_LIMIT = 500;
@@ -1059,7 +1062,10 @@ const StatCard = ({ label, value, color, grad, icon: Icon }) => (
   <div className="bg-white relative overflow-hidden border border-[#E2E8F0] rounded-2xl p-[14px_16px] shadow-[0_2px_8px_rgba(15,23,42,0.05)]">
     <div className="absolute top-0 right-0 w-16 h-16 opacity-5 rounded-[0_16px_0_100%]" style={{ background: grad }} />
     <div className="flex items-center gap-2 mb-2">
-      <div className="flex items-center justify-center w-[26px] h-[26px] rounded-lg" style={{ background: grad }}>
+      <div
+        className="flex items-center justify-center w-[26px] h-[26px] rounded-lg"
+        style={{ background: grad, boxShadow: `0 3px 8px ${color}30` }}
+      >
         <Icon className="w-[13px] h-[13px] text-white" />
       </div>
       <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.06em] text-[#94A3B8]">
@@ -1072,106 +1078,110 @@ const StatCard = ({ label, value, color, grad, icon: Icon }) => (
   </div>
 );
 
-// ── Skeleton ───────────────────────────────────────────────────────────────────
+// ── Avatar-style icon chip — mirrors Avatar in ManageDoctors / ManageTests ──────
+
+const ItemIconChip = ({ icon: Icon, accent, softBg }) => (
+  <div className="w-10 h-10 flex items-center justify-center shrink-0 rounded-[9px]" style={{ background: softBg }}>
+    <Icon className="w-[16px] h-[16px]" style={{ color: accent }} />
+  </div>
+);
+
+// ── Skeleton — mirrors ManageDoctors.jsx / ManageTests.jsx card-list skeleton ───
 
 const Skeleton = () => (
-  <div className="bg-white animate-pulse overflow-hidden border border-[#E2E8F0] rounded-[20px]">
-    <div className="px-6 py-4 flex gap-4 border-b border-[#E2E8F0]">
-      {[120, 70, 90].map((w, i) => (
-        <div key={i} className="h-3 bg-[#E2E8F0] rounded-md" style={{ width: w }} />
-      ))}
-    </div>
-    {[1, 2, 3, 4, 5, 6].map((i) => (
-      <div key={i} className="flex items-center gap-3 px-6 py-3.5 border-b border-[#E2E8F0]">
-        <div className="w-[26px] h-[26px] bg-[#E2E8F0] rounded-lg" />
-        <div className="flex-1 h-[13px] bg-[#E2E8F0] rounded-md" />
-        <div className="w-[60px] h-[22px] bg-[#E2E8F0] rounded-lg" />
+  <div className="space-y-2">
+    {[1, 2, 3, 4].map((i) => (
+      <div
+        key={i}
+        className="flex items-center gap-3 px-4 py-3.5 bg-white border border-[#E2E8F0] rounded-[14px] animate-pulse"
+      >
+        <div className="w-10 h-10 bg-[#E2E8F0] rounded-[9px] shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-3 w-2/5 bg-[#E2E8F0] rounded-md" />
+          <div className="h-2.5 w-3/5 bg-[#EEF2FF] rounded-md" />
+        </div>
+        <div className="w-[65px] h-[26px] bg-[#E2E8F0] rounded-[20px]" />
       </div>
     ))}
   </div>
 );
 
-// ── Item Row ───────────────────────────────────────────────────────────────────
+// ── Item Card — card style, mirrors DoctorRow in ManageDoctors.jsx ─────────────
 
-const ItemRow = ({ item, index, onEditInfo, onEditPrice, onDelete, onAdjustStock }) => {
+const ItemCard = ({ item, onEditInfo, onEditPrice, onDelete, onAdjustStock }) => {
   const [expanded, setExpanded] = useState(false);
   const typeDef = ITEM_TYPES[item.type] ?? ITEM_TYPES.product;
-  const TypeIcon = typeDef.icon;
   const stock = item.stock ?? 0;
   const badge = stockBadge(stock);
 
   return (
-    <div className="transition-all border-b border-[#E2E8F0]">
+    <div
+      className="bg-white border border-[#E2E8F0] rounded-[14px] transition-shadow"
+      style={{ boxShadow: expanded ? "0 4px 14px rgba(15,23,42,0.08)" : "0 1px 2px rgba(15,23,42,0.03)" }}
+    >
       <button onClick={() => setExpanded((v) => !v)} className="w-full text-left">
-        <div className="flex items-center gap-3 py-3 px-2 rounded-xl transition-all hover:bg-[#F1F5F9]">
-          <span className="flex items-center justify-center shrink-0 w-[26px] h-[26px] rounded-lg bg-[#EEF2FF] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#64748B]">
-            {String(index + 1).padStart(2, "0")}
-          </span>
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div
-              className="flex items-center justify-center w-6 h-6 rounded-lg shrink-0"
-              style={{ background: typeDef.softBg }}
-            >
-              <TypeIcon className="w-3 h-3" style={{ color: typeDef.accent }} />
-            </div>
-            <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A] truncate">
+        <div className="flex items-center gap-3 px-4 py-3.5">
+          <ItemIconChip icon={typeDef.icon} accent={typeDef.accent} softBg={typeDef.softBg} />
+
+          <div className="flex-1 min-w-0">
+            <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A] truncate block">
               {item.name}
             </span>
+            <p className="font-['IBM_Plex_Mono',monospace] text-[10.5px] text-[#94A3B8] mt-0.5 truncate">
+              ৳{(item.price ?? 0).toLocaleString("en-IN")}
+              {item.type === "medicine" && item.unitType ? ` · ${item.unitType}` : ""}
+            </p>
           </div>
-          {/* Price */}
-          <span className="shrink-0 font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#0D9488]">
-            ৳{(item.price ?? 0).toLocaleString("en-IN")}
-          </span>
-          {/* Stock badge (sm+) */}
+
           {item.hasStock && (
             <span
-              className="shrink-0 hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg border-[1.5px] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold"
+              className="shrink-0 flex items-center gap-1 px-3 py-1 rounded-[20px] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold border-[1.5px]"
               style={{ color: badge.color, background: badge.bg, borderColor: badge.border }}
             >
               {stock} ইউনিট
             </span>
           )}
+
           <ChevronDown
-            className={`w-[14px] h-[14px] text-[#94A3B8] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
+            className={`w-[15px] h-[15px] text-[#94A3B8] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
           />
         </div>
       </button>
 
       {expanded && (
-        <div
-          className="mx-2 mb-3 px-4 py-3 rounded-xl border border-[#E2E8F0]"
-          style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
-        >
-          <div className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B] leading-loose mb-3 flex flex-wrap gap-x-4 gap-y-1">
-            <span>
-              মূল্য: <span className="font-bold text-[#0D9488]">৳{(item.price ?? 0).toLocaleString("en-IN")}</span>
-            </span>
-            {item.type === "medicine" && item.unitType && (
+        <div className="px-4 pb-4 border-t border-[#E2E8F0]">
+          <div className="pt-3.5 space-y-3.5">
+            <div className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B] leading-loose flex flex-wrap gap-x-4 gap-y-1">
               <span>
-                ইউনিট:{" "}
-                <span className="font-bold text-[#0F172A]">
-                  {item.unitType}
-                  {item.unitQty ? ` (${item.unitQty})` : ""}
-                </span>
+                মূল্য: <span className="font-bold text-[#0D9488]">৳{(item.price ?? 0).toLocaleString("en-IN")}</span>
               </span>
-            )}
-            {item.hasStock && (
-              <span>
-                স্টক:{" "}
-                <span className="font-bold" style={{ color: badge.color }}>
-                  {stock} ইউনিট · {badge.label}
+              {item.type === "medicine" && item.unitType && (
+                <span>
+                  ইউনিট:{" "}
+                  <span className="font-bold text-[#0F172A]">
+                    {item.unitType}
+                    {item.unitQty ? ` (${item.unitQty})` : ""}
+                  </span>
                 </span>
-              </span>
-            )}
-            {item.description && <span className="w-full text-[#94A3B8] truncate">{item.description}</span>}
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <ActionChip onClick={() => onEditInfo(item)} icon={Pencil} label="Edit" color={C.blue} />
-            <ActionChip onClick={() => onEditPrice(item)} icon={Banknote} label="Price" color={C.teal} />
-            {item.hasStock && (
-              <ActionChip onClick={() => onAdjustStock(item)} icon={BarChart3} label="Stock" color={C.purple} />
-            )}
-            <ActionChip onClick={() => onDelete(item)} icon={Trash2} label="Delete" color={C.red} />
+              )}
+              {item.hasStock && (
+                <span>
+                  স্টক:{" "}
+                  <span className="font-bold" style={{ color: badge.color }}>
+                    {stock} ইউনিট · {badge.label}
+                  </span>
+                </span>
+              )}
+              {item.description && <span className="w-full text-[#94A3B8] truncate">{item.description}</span>}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <ActionChip onClick={() => onEditInfo(item)} icon={Pencil} label="Edit" color={C.blue} />
+              <ActionChip onClick={() => onEditPrice(item)} icon={Banknote} label="Price" color={C.teal} />
+              {item.hasStock && (
+                <ActionChip onClick={() => onAdjustStock(item)} icon={BarChart3} label="Stock" color={C.purple} />
+              )}
+              <ActionChip onClick={() => onDelete(item)} icon={Trash2} label="Delete" color={C.red} />
+            </div>
           </div>
         </div>
       )}
@@ -1202,8 +1212,8 @@ const ActionChip = ({ onClick, icon: Icon, label, color }) => (
 
 // ── Section Divider ────────────────────────────────────────────────────────────
 
-const SectionDivider = ({ title, count, color, grad }) => (
-  <div className="flex items-center gap-2 pt-3 pb-1 first:pt-0">
+const SectionDivider = ({ title, count, color }) => (
+  <div className="flex items-center gap-2 pt-1 pb-1">
     <span
       className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em]"
       style={{ color }}
@@ -1240,74 +1250,59 @@ const FilterDropdown = ({ value, onChange, options }) => (
   </div>
 );
 
-// ── Pagination ─────────────────────────────────────────────────────────────────
+// ── Pagination — mirrors Pagination in ManageDoctors.jsx ────────────────────────
 
 const Pagination = ({ pagination, onPageChange }) => {
-  const { page, totalPages, total, limit } = pagination;
+  const { page, totalPages } = pagination;
   if (totalPages <= 1) return null;
-  const from = (page - 1) * limit + 1;
-  const to = Math.min(page * limit, total);
-  const delta = 2;
-  const pages = [];
-  for (let i = Math.max(1, page - delta); i <= Math.min(totalPages, page + delta); i++) pages.push(i);
+  const delta = 1;
+  const start = Math.max(1, page - delta);
+  const end = Math.min(totalPages, page + delta);
+  const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+
+  const Btn = ({ onClick, disabled, active, children }) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center justify-center transition-all w-8 h-8 rounded-[10px] font-['IBM_Plex_Mono',monospace] text-xs font-bold"
+      style={{
+        background: active ? "linear-gradient(135deg,#6366F1,#4F46E5)" : "white",
+        border: `1.5px solid ${active ? "transparent" : C.border}`,
+        color: active ? "white" : disabled ? C.muted : C.sub,
+        opacity: disabled ? 0.35 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
+        boxShadow: active ? "0 4px 10px rgba(99,102,241,0.35)" : undefined,
+      }}
+    >
+      {children}
+    </button>
+  );
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-[#E2E8F0] bg-[#F8FAFC]">
-      <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-        {from}–{to} / মোট {total}
-      </p>
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => onPageChange(page - 1)}
-          disabled={page === 1}
-          className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#F1F5F9] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        {pages[0] > 1 && (
-          <>
-            <button
-              onClick={() => onPageChange(1)}
-              className="min-w-[28px] h-7 font-['IBM_Plex_Mono',monospace] text-[11px] rounded-lg hover:bg-[#F1F5F9] text-[#64748B] transition-all"
-            >
-              1
-            </button>
-            {pages[0] > 2 && (
-              <span className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] px-1">…</span>
-            )}
-          </>
-        )}
-        {pages.map((p) => (
-          <button
-            key={p}
-            onClick={() => onPageChange(p)}
-            className="min-w-[28px] h-7 font-['IBM_Plex_Mono',monospace] text-[11px] rounded-lg transition-all font-bold"
-            style={p === page ? { background: C.ink, color: "white" } : { color: C.sub }}
-          >
-            {p}
-          </button>
-        ))}
-        {pages[pages.length - 1] < totalPages && (
-          <>
-            {pages[pages.length - 1] < totalPages - 1 && (
-              <span className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] px-1">…</span>
-            )}
-            <button
-              onClick={() => onPageChange(totalPages)}
-              className="min-w-[28px] h-7 font-['IBM_Plex_Mono',monospace] text-[11px] rounded-lg hover:bg-[#F1F5F9] text-[#64748B] transition-all"
-            >
-              {totalPages}
-            </button>
-          </>
-        )}
-        <button
-          onClick={() => onPageChange(page + 1)}
-          disabled={page === totalPages}
-          className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#F1F5F9] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
+    <div className="flex items-center justify-center gap-1.5">
+      <Btn onClick={() => onPageChange(page - 1)} disabled={page === 1}>
+        <ChevronLeft className="w-[14px] h-[14px]" />
+      </Btn>
+      {start > 1 && (
+        <>
+          <Btn onClick={() => onPageChange(1)}>1</Btn>
+          {start > 2 && <span className="text-[#94A3B8] text-xs">…</span>}
+        </>
+      )}
+      {pages.map((p) => (
+        <Btn key={p} onClick={() => onPageChange(p)} active={p === page}>
+          {p}
+        </Btn>
+      ))}
+      {end < totalPages && (
+        <>
+          {end < totalPages - 1 && <span className="text-[#94A3B8] text-xs">…</span>}
+          <Btn onClick={() => onPageChange(totalPages)}>{totalPages}</Btn>
+        </>
+      )}
+      <Btn onClick={() => onPageChange(page + 1)} disabled={page === totalPages}>
+        <ChevronRight className="w-[14px] h-[14px]" />
+      </Btn>
     </div>
   );
 };
@@ -1433,10 +1428,7 @@ export default function Products() {
   };
 
   return (
-    <section
-      className="min-h-screen px-4 py-6 font-[Noto_Sans_Bengali,sans-serif]"
-      style={{ background: "linear-gradient(to bottom right,#f8fafc,#f0fdf4,#ecfdf5)" }}
-    >
+    <section className={`min-h-screen px-4 py-6 ${pageGradientBg} font-[Noto_Sans_Bengali,sans-serif]`}>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       {/* Modals */}
@@ -1448,7 +1440,7 @@ export default function Products() {
       {modal?.type === "delete" && (
         <Popup
           type="warning"
-          message={`${modal.item.name} স্থায়ীভাবে ডিলিট হয়ে যাবে।`}
+          message={`${modal.item.name} স্থায়ীভাবে ডিলিট হয়ে যাবে।`}
           confirmText="Delete"
           cancelText="Cancel"
           onConfirm={handleDelete}
@@ -1458,33 +1450,39 @@ export default function Products() {
       {modal?.type === "stock" && <StockModal item={modal.item} onClose={() => setModal(null)} onSave={handleSave} />}
 
       <div className="max-w-2xl mx-auto">
-        {/* Page header */}
+        {/* Page header — gradient icon badge, matching ManageDoctors/ManageTests/ManageReferrer/ManageStaff */}
         <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[26px] font-bold text-[#0F172A] leading-tight">
-              পণ্য ব্যবস্থাপনা
-            </h1>
-            <p className="text-sm text-[#64748B] mt-1">ওষুধ, পণ্য ও সেবা পরিচালনা করুন।</p>
-          </div>
-          <div className="flex items-center gap-2 pt-1">
-            <button
-              onClick={() => !atLimit && setModal({ type: "create" })}
-              disabled={atLimit}
-              className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none"
-              style={{
-                background: atLimit ? C.muted : typeDef.grad,
-                boxShadow: atLimit ? "none" : `0 4px 14px ${typeDef.accent}40`,
-                cursor: atLimit ? "not-allowed" : "pointer",
-              }}
-              title={atLimit ? `সর্বোচ্চ ${LAB_PRODUCT_LIMIT}টি আইটেম` : undefined}
+          <div className="flex items-center gap-3">
+            <div
+              className="w-11 h-11 flex items-center justify-center shrink-0 rounded-xl shadow-md"
+              style={{ background: typeDef.grad, boxShadow: `0 4px 10px ${typeDef.accent}35` }}
             >
-              <Plus className="w-[13px] h-[13px]" />
-              নতুন {typeDef.bangla}
-            </button>
+              <TypeIcon className="w-[18px] h-[18px] text-white" />
+            </div>
+            <div>
+              <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[22px] font-bold text-[#0F172A] leading-tight">
+                পণ্য ব্যবস্থাপনা
+              </h1>
+              <p className="text-[13px] text-[#64748B] mt-0.5">ওষুধ, পণ্য ও সেবা পরিচালনা করুন।</p>
+            </div>
           </div>
+          <button
+            onClick={() => !atLimit && setModal({ type: "create" })}
+            disabled={atLimit}
+            className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none"
+            style={{
+              background: atLimit ? C.muted : typeDef.grad,
+              boxShadow: atLimit ? "none" : `0 4px 14px ${typeDef.accent}40`,
+              cursor: atLimit ? "not-allowed" : "pointer",
+            }}
+            title={atLimit ? `সর্বোচ্চ ${LAB_PRODUCT_LIMIT}টি আইটেম` : undefined}
+          >
+            <Plus className="w-[13px] h-[13px]" />
+            নতুন {typeDef.bangla}
+          </button>
         </div>
 
-        {/* Stat cards */}
+        {/* Stats */}
         {!initialLoading && (
           <div className="grid grid-cols-4 gap-3 mb-5">
             <StatCard
@@ -1518,200 +1516,151 @@ export default function Products() {
           </div>
         )}
 
-        {/* Main card */}
+        {/* Type tab card — segmented control, own card like the toolbar below */}
+        <div className="px-4 py-3 mb-4 bg-white border border-[#E2E8F0] rounded-2xl">
+          <div className="flex items-center gap-2 flex-wrap">
+            {Object.values(ITEM_TYPES).map((t) => {
+              const Icon = t.icon;
+              const isActive = t.key === activeType;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => handleTabChange(t.key)}
+                  className="flex items-center gap-1.5 px-3 py-2 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold rounded-xl border-[1.5px] transition-all"
+                  style={
+                    isActive
+                      ? { color: t.accent, borderColor: `${t.accent}60`, background: `${t.accent}08` }
+                      : { color: C.muted, borderColor: C.border, background: "white" }
+                  }
+                >
+                  <Icon className="w-3 h-3" />
+                  {t.bangla}
+                  <span
+                    className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold px-1.5 py-px rounded-[5px]"
+                    style={
+                      isActive
+                        ? { color: t.accent, background: `${t.accent}12`, border: `1px solid ${t.accent}25` }
+                        : { color: C.muted, background: "#F1F5F9" }
+                    }
+                  >
+                    {totalsByType[t.key] ?? 0}
+                  </span>
+                </button>
+              );
+            })}
+            <div className="ml-auto flex items-center gap-2">
+              <span className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
+                {grandTotal}/{LAB_PRODUCT_LIMIT}
+              </span>
+              <div className="w-16 h-1 bg-[#E2E8F0] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min((grandTotal / LAB_PRODUCT_LIMIT) * 100, 100)}%`,
+                    background: atLimit ? C.red : grandTotal / LAB_PRODUCT_LIMIT > 0.8 ? C.amber : C.teal,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Toolbar card — standalone, mirrors ManageDoctors.jsx / ManageTests.jsx */}
+        <div className="px-4 py-3 flex flex-wrap items-center gap-2 mb-4 bg-white border border-[#E2E8F0] rounded-2xl">
+          <div className="relative flex-[1_1_160px]">
+            <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder={`${typeDef.bangla} খুঁজুন…`}
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className={`${inputBase} pl-8 ${search ? "pr-8" : "pr-3"} py-2 text-xs`}
+              onFocus={focusInput}
+              onBlur={blurInput}
+            />
+            {search && (
+              <button
+                onClick={() => handleSearchChange("")}
+                className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]"
+              >
+                <X className="w-[13px] h-[13px]" />
+              </button>
+            )}
+          </div>
+          {typeDef.hasStock && <FilterDropdown value={stockFilter} onChange={setStockFilter} options={STOCK_OPTIONS} />}
+          {hasFilters && (
+            <button
+              onClick={() => {
+                setSearch("");
+                setDebouncedSearch("");
+                setStockFilter("all");
+              }}
+              className="flex items-center gap-1.5 transition-all font-semibold py-[7px] px-3 border-[1.5px] border-[#EF444430] rounded-[10px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] text-[11px] bg-[#EF444406] hover:bg-[#EF444412]"
+            >
+              <RotateCcw className="w-3 h-3" /> রিসেট
+            </button>
+          )}
+        </div>
+
+        {/* Item cards */}
         {initialLoading ? (
           <Skeleton />
-        ) : (
-          <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)]">
-            {/* Card header with type tabs */}
-            <div
-              className="border-b border-[#E2E8F0]"
-              style={{ background: "linear-gradient(135deg,#F8FAFC,#F0FDF4)" }}
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8] bg-white border border-[#E2E8F0] rounded-2xl">
+            <AlertCircle className="w-7 h-7 opacity-40" />
+            <p className="font-['IBM_Plex_Mono',monospace] text-xs text-[#EF4444]">{error}</p>
+            <button
+              onClick={() => fetchItems()}
+              className="font-['IBM_Plex_Mono',monospace] text-xs text-[#0D9488] underline"
             >
-              {/* Tab bar */}
-              <div className="flex items-center gap-1 px-4 pt-4 pb-0">
-                {Object.values(ITEM_TYPES).map((t) => {
-                  const Icon = t.icon;
-                  const isActive = t.key === activeType;
-                  return (
-                    <button
-                      key={t.key}
-                      onClick={() => handleTabChange(t.key)}
-                      className="flex items-center gap-1.5 px-3 py-2 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold rounded-t-xl border-b-2 transition-all"
-                      style={
-                        isActive
-                          ? { color: t.accent, borderColor: t.accent, background: `${t.accent}08` }
-                          : { color: C.muted, borderColor: "transparent" }
-                      }
-                    >
-                      <Icon className="w-3 h-3" />
-                      {t.bangla}
-                      <span
-                        className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold px-1.5 py-px rounded-[5px]"
-                        style={
-                          isActive
-                            ? { color: t.accent, background: `${t.accent}12`, border: `1px solid ${t.accent}25` }
-                            : { color: C.muted, background: "#F1F5F9" }
-                        }
-                      >
-                        {totalsByType[t.key] ?? 0}
-                      </span>
-                    </button>
-                  );
-                })}
-
-                {/* Capacity pill */}
-                <div className="ml-auto flex items-center gap-2 pb-2">
-                  <span className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-                    {grandTotal}/{LAB_PRODUCT_LIMIT}
-                  </span>
-                  <div className="w-16 h-1 bg-[#E2E8F0] rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.min((grandTotal / LAB_PRODUCT_LIMIT) * 100, 100)}%`,
-                        background: atLimit ? C.red : grandTotal / LAB_PRODUCT_LIMIT > 0.8 ? C.amber : C.teal,
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Sub-header */}
-              <div className="px-6 py-3 flex items-center justify-between">
-                <div>
-                  <p
-                    className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-0.5"
-                    style={{ color: typeDef.accent }}
-                  >
-                    {typeDef.bangla} লেজার
-                  </p>
-                  <span className="font-['IBM_Plex_Mono',monospace] text-[13px] font-semibold text-[#64748B]">
-                    মোট {pagination.total}টি
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Toolbar */}
-            <div className="px-4 py-3 flex flex-wrap items-center gap-2 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-              <div className="relative flex-[1_1_160px]">
-                <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder={`${typeDef.bangla} খুঁজুন…`}
-                  value={search}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className={`${inputBase} pl-8 ${search ? "pr-8" : "pr-3"} py-2 text-xs`}
-                  onFocus={focusInput}
-                  onBlur={blurInput}
+              আবার চেষ্টা করুন
+            </button>
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8] bg-white border border-[#E2E8F0] rounded-2xl">
+            <TypeIcon className="w-7 h-7 opacity-40" />
+            <p className="font-['IBM_Plex_Mono',monospace] text-xs">
+              {hasFilters ? "কোনো আইটেম পাওয়া যায়নি" : `এখনো কোনো ${typeDef.bangla} যোগ করা হয়নি`}
+            </p>
+            {!hasFilters && !atLimit && (
+              <button
+                onClick={() => setModal({ type: "create" })}
+                className="mt-1 font-['IBM_Plex_Mono',monospace] text-xs font-bold px-3 py-1.5 rounded-lg text-white"
+                style={{ background: typeDef.grad }}
+              >
+                + প্রথম {typeDef.bangla} যোগ করুন
+              </button>
+            )}
+          </div>
+        ) : (
+          <div>
+            <SectionDivider title={typeDef.bangla} count={filteredItems.length} color={typeDef.accent} />
+            <div className="space-y-2">
+              {filteredItems.map((item) => (
+                <ItemCard
+                  key={item._id}
+                  item={item}
+                  onEditInfo={(i) => setModal({ type: "info", item: i })}
+                  onEditPrice={(i) => setModal({ type: "price", item: i })}
+                  onDelete={openDeleteModal}
+                  onAdjustStock={(i) => setModal({ type: "stock", item: i })}
                 />
-                {search && (
-                  <button
-                    onClick={() => handleSearchChange("")}
-                    className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]"
-                  >
-                    <X className="w-[13px] h-[13px]" />
-                  </button>
-                )}
-              </div>
-              {typeDef.hasStock && (
-                <FilterDropdown value={stockFilter} onChange={setStockFilter} options={STOCK_OPTIONS} />
-              )}
-              {hasFilters && (
-                <button
-                  onClick={() => {
-                    setSearch("");
-                    setDebouncedSearch("");
-                    setStockFilter("all");
-                  }}
-                  className="flex items-center gap-1.5 transition-all font-semibold py-[7px] px-3 border-[1.5px] border-[#EF444430] rounded-[10px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] text-[11px] bg-[#EF444406] hover:bg-[#EF444412]"
-                >
-                  <RotateCcw className="w-3 h-3" /> রিসেট
-                </button>
-              )}
-            </div>
-
-            {/* Column labels */}
-            <div className="flex items-center gap-3 px-4 pt-3 pb-1">
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] w-[26px] shrink-0">
-                #
-              </span>
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] flex-1">
-                নাম
-              </span>
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] shrink-0">
-                মূল্য
-              </span>
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] shrink-0 hidden sm:block">
-                স্টক
-              </span>
-              <span className="w-[14px] shrink-0" />
-            </div>
-
-            {/* Rows */}
-            <div className="px-4 pb-4">
-              {error ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8]">
-                  <AlertCircle className="w-7 h-7 opacity-40" />
-                  <p className="font-['IBM_Plex_Mono',monospace] text-xs text-[#EF4444]">{error}</p>
-                  <button
-                    onClick={() => fetchItems()}
-                    className="font-['IBM_Plex_Mono',monospace] text-xs text-[#0D9488] underline"
-                  >
-                    আবার চেষ্টা করুন
-                  </button>
-                </div>
-              ) : filteredItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8]">
-                  <TypeIcon className="w-7 h-7 opacity-40" />
-                  <p className="font-['IBM_Plex_Mono',monospace] text-xs">
-                    {hasFilters ? "কোনো আইটেম পাওয়া যায়নি" : `এখনো কোনো ${typeDef.bangla} যোগ করা হয়নি`}
-                  </p>
-                  {!hasFilters && !atLimit && (
-                    <button
-                      onClick={() => setModal({ type: "create" })}
-                      className="mt-1 font-['IBM_Plex_Mono',monospace] text-xs font-bold px-3 py-1.5 rounded-lg text-white"
-                      style={{ background: typeDef.grad }}
-                    >
-                      + প্রথম {typeDef.bangla} যোগ করুন
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <SectionDivider
-                    title={typeDef.bangla}
-                    count={filteredItems.length}
-                    color={typeDef.accent}
-                    grad={typeDef.grad}
-                  />
-                  {filteredItems.map((item, index) => (
-                    <ItemRow
-                      key={item._id}
-                      item={item}
-                      index={index}
-                      onEditInfo={(i) => setModal({ type: "info", item: i })}
-                      onEditPrice={(i) => setModal({ type: "price", item: i })}
-                      onDelete={openDeleteModal}
-                      onAdjustStock={(i) => setModal({ type: "stock", item: i })}
-                    />
-                  ))}
-                </>
-              )}
-            </div>
-
-            {/* Pagination */}
-            {pagination.totalPages > 1 && <Pagination pagination={pagination} onPageChange={setPage} />}
-
-            {/* Footer */}
-            <div className="px-6 py-3 border-t border-[#E2E8F0] bg-[#F8FAFC]">
-              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-                * সর্বোচ্চ {LAB_PRODUCT_LIMIT}টি আইটেম · বর্তমানে {grandTotal}টি
-              </p>
+              ))}
             </div>
           </div>
         )}
+
+        {/* Pagination */}
+        {!initialLoading && pagination.totalPages > 1 && (
+          <div className="mt-4 px-4 py-3 bg-white border border-[#E2E8F0] rounded-2xl">
+            <Pagination pagination={pagination} onPageChange={setPage} />
+          </div>
+        )}
+
+        {/* Footer note */}
+        <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8] mt-4 text-center">
+          * সর্বোচ্চ {LAB_PRODUCT_LIMIT}টি আইটেম · বর্তমানে {grandTotal}টি
+        </p>
       </div>
     </section>
   );

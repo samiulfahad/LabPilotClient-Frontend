@@ -60,6 +60,10 @@ const TYPE_CONFIG = {
   },
 };
 
+// ── Page background — matches Setup.jsx / DailyReport.jsx / ManageStaff.jsx ────
+
+const pageGradientBg = "bg-[radial-gradient(ellipse_120%_80%_at_50%_-10%,#eef2ff_0%,#f8fafc_45%,#f8fafc_100%)]";
+
 // ── Initial form data ──────────────────────────────────────────────────────────
 // On CREATE, commission is required up front (the backend needs it to insert
 // the referrer) — collected right here. On EDIT, commission is hidden from
@@ -346,7 +350,7 @@ const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving, apiE
               disabled={saving}
               className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
             >
-              বাতিল
+              Cancel
             </button>
             <button
               onClick={onSubmit}
@@ -364,7 +368,7 @@ const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving, apiE
               ) : (
                 <UserPlus className="w-[13px] h-[13px]" />
               )}
-              {isEdit ? "পরিবর্তন সংরক্ষণ" : "নিবন্ধন করুন"}
+              {isEdit ? "Save Changes" : "Register"}
             </button>
           </div>
         </div>
@@ -539,7 +543,7 @@ const CommissionModal = ({ referrer, onClose, onSaved }) => {
               disabled={saving}
               className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
             >
-              বাতিল
+              Cancel
             </button>
             <button
               onClick={handleSubmit}
@@ -555,7 +559,7 @@ const CommissionModal = ({ referrer, onClose, onSaved }) => {
               ) : (
                 <BadgePercent className="w-[13px] h-[13px]" />
               )}
-              সংরক্ষণ করুন
+              Save
             </button>
           </div>
         </div>
@@ -564,7 +568,7 @@ const CommissionModal = ({ referrer, onClose, onSaved }) => {
   );
 };
 
-// ── Action Chip ────────────────────────────────────────────────────────────────
+// ── Action Chip (icon + English label, mirrors ActionBtn in ManageStaff) ───────
 
 const ActionChip = ({ onClick, icon: Icon, label, color }) => (
   <button
@@ -589,7 +593,21 @@ const ActionChip = ({ onClick, icon: Icon, label, color }) => (
   </button>
 );
 
-// ── Referrer Row ───────────────────────────────────────────────────────────────
+// ── Avatar initial chip — mirrors Avatar in ManageStaff ─────────────────────────
+
+const Avatar = ({ name, color, bg }) => {
+  const initial = name?.trim()?.[0]?.toUpperCase() ?? "?";
+  return (
+    <div
+      className={`w-10 h-10 flex items-center justify-center shrink-0 text-[14px] font-bold rounded-[9px] font-['IBM_Plex_Mono',monospace] ${bg}`}
+      style={{ color }}
+    >
+      {initial}
+    </div>
+  );
+};
+
+// ── Referrer Row — card style, mirrors StaffRow in ManageStaff ─────────────────
 
 const ReferrerRow = ({ input, index, onEdit, onCommission, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
@@ -600,24 +618,31 @@ const ReferrerRow = ({ input, index, onEdit, onCommission, onDelete }) => {
   const commShadow = isPercent ? "shadow-[0_3px_8px_#F59E0B30]" : "shadow-[0_3px_8px_#0D948830]";
 
   return (
-    <div className="transition-all border-b border-[#E2E8F0]">
+    <div
+      className="bg-white border border-[#E2E8F0] rounded-[14px] transition-shadow"
+      style={{ boxShadow: expanded ? "0 4px 14px rgba(15,23,42,0.08)" : "0 1px 2px rgba(15,23,42,0.03)" }}
+    >
       <button onClick={() => setExpanded((v) => !v)} className="w-full text-left">
-        <div className="flex items-center gap-3 py-3 px-2 rounded-xl transition-all hover:bg-[#F1F5F9]">
-          <span className="flex items-center justify-center shrink-0 w-[26px] h-[26px] rounded-lg bg-[#EEF2FF] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#64748B]">
-            {String(index + 1).padStart(2, "0")}
-          </span>
-          <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-            <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A]">{input.name}</span>
-            {input.degree && (
-              <span className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8]">{input.degree}</span>
-            )}
+        <div className="flex items-center gap-3 px-4 py-3.5">
+          <Avatar name={input.name} color={cfg.color} bg={cfg.bg} />
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A] truncate">
+                {input.name}
+              </span>
+              <span
+                className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-md border-[1.5px] font-['IBM_Plex_Mono',monospace] text-[9.5px] font-bold ${cfg.bg} ${cfg.border} ${cfg.text}`}
+              >
+                <TypeIcon className="w-[9px] h-[9px]" />
+                {cfg.label}
+              </span>
+            </div>
+            <p className="font-['IBM_Plex_Mono',monospace] text-[10.5px] text-[#94A3B8] mt-0.5 truncate">
+              {input.degree || input.contactNumber || "—"}
+            </p>
           </div>
-          <span
-            className={`shrink-0 hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg border-[1.5px] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold ${cfg.bg} ${cfg.border} ${cfg.text}`}
-          >
-            <TypeIcon className="w-[10px] h-[10px]" />
-            {cfg.label}
-          </span>
+
           <span
             className={`shrink-0 flex items-center gap-1 px-3 py-1 rounded-[20px] text-white font-['IBM_Plex_Mono',monospace] text-xs font-bold ${commShadow}`}
             style={{ background: commGrad }}
@@ -625,30 +650,30 @@ const ReferrerRow = ({ input, index, onEdit, onCommission, onDelete }) => {
             {isPercent ? <BadgePercent className="w-[11px] h-[11px]" /> : <Banknote className="w-[11px] h-[11px]" />}
             {isPercent ? `${input.commissionValue}%` : `৳${input.commissionValue?.toLocaleString("en-IN")}`}
           </span>
+
           <ChevronDown
-            className={`w-[14px] h-[14px] text-[#94A3B8] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
+            className={`w-[15px] h-[15px] text-[#94A3B8] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
           />
         </div>
       </button>
 
       {expanded && (
-        <div
-          className="mx-2 mb-3 px-4 py-3 rounded-xl border border-[#E2E8F0]"
-          style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
-        >
-          <div className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B] leading-loose mb-3">
-            {input.contactNumber && (
-              <p className="flex items-center gap-1.5">
-                <Phone className="w-3 h-3 text-[#6366F1]" />
-                {input.contactNumber}
-              </p>
-            )}
-            {input.details && <p className="mt-[2px]">{input.details}</p>}
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <ActionChip onClick={onEdit} icon={Pencil} label="Edit" color="#6366F1" />
-            <ActionChip onClick={onCommission} icon={BadgePercent} label="Commission" color="#8B5CF6" />
-            <ActionChip onClick={onDelete} icon={Trash2} label="Delete" color="#EF4444" />
+        <div className="px-4 pb-4 border-t border-[#E2E8F0]">
+          <div className="pt-3.5 space-y-3.5">
+            <div className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B] leading-loose">
+              {input.contactNumber && (
+                <p className="flex items-center gap-1.5">
+                  <Phone className="w-3 h-3 text-[#6366F1]" />
+                  {input.contactNumber}
+                </p>
+              )}
+              {input.details && <p className="mt-[2px]">{input.details}</p>}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <ActionChip onClick={onEdit} icon={Pencil} label="Edit" color="#6366F1" />
+              <ActionChip onClick={onCommission} icon={BadgePercent} label="Commission" color="#8B5CF6" />
+              <ActionChip onClick={onDelete} icon={Trash2} label="Delete" color="#EF4444" />
+            </div>
           </div>
         </div>
       )}
@@ -699,16 +724,17 @@ const FilterDropdown = ({ value, onChange, options, placeholder }) => (
 // ── Skeleton ───────────────────────────────────────────────────────────────────
 
 const Skeleton = () => (
-  <div className="bg-white animate-pulse overflow-hidden border border-[#E2E8F0] rounded-[20px]">
-    <div className="px-6 py-4 flex gap-4 border-b border-[#E2E8F0]">
-      {[120, 70, 90].map((w, i) => (
-        <div key={i} className="h-3 bg-[#E2E8F0] rounded-md" style={{ width: w }} />
-      ))}
-    </div>
+  <div className="space-y-2">
     {[1, 2, 3, 4].map((i) => (
-      <div key={i} className="flex items-center gap-3 px-6 py-3.5 border-b border-[#E2E8F0]">
-        <div className="w-[26px] h-[26px] bg-[#E2E8F0] rounded-lg" />
-        <div className="flex-1 h-[13px] bg-[#E2E8F0] rounded-md" />
+      <div
+        key={i}
+        className="flex items-center gap-3 px-4 py-3.5 bg-white border border-[#E2E8F0] rounded-[14px] animate-pulse"
+      >
+        <div className="w-10 h-10 bg-[#E2E8F0] rounded-[9px] shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-3 w-2/5 bg-[#E2E8F0] rounded-md" />
+          <div className="h-2.5 w-3/5 bg-[#EEF2FF] rounded-md" />
+        </div>
         <div className="w-[65px] h-[26px] bg-[#E2E8F0] rounded-[20px]" />
       </div>
     ))}
@@ -859,10 +885,7 @@ const ManageReferrer = () => {
   const hasFilters = typeFilter !== "all";
 
   return (
-    <section
-      className="min-h-screen px-4 py-6 font-[Noto_Sans_Bengali,sans-serif]"
-      style={{ background: "linear-gradient(to bottom right,#f8fafc,#eff6ff,#eef2ff)" }}
-    >
+    <section className={`min-h-screen px-4 py-6 ${pageGradientBg} font-[Noto_Sans_Bengali,sans-serif]`}>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       {formModal && (
@@ -887,7 +910,7 @@ const ManageReferrer = () => {
       {modal?.type === "delete" && (
         <Popup
           type="warning"
-          message={`"${modal.item.name}" স্থায়ীভাবে ডিলিট হয়ে যাবে। এই কাজ পূর্বাবস্থায় ফেরানো যাবে না।`}
+          message={`"${modal.item.name}" স্থায়ীভাবে ডিলিট হয়ে যাবে। এই কাজ পূর্বাবস্থায় ফেরানো যাবে না।`}
           confirmText="Delete"
           cancelText="Cancel"
           onConfirm={() => handleDelete(modal.item._id)}
@@ -896,27 +919,38 @@ const ManageReferrer = () => {
       )}
 
       <div className="max-w-2xl mx-auto">
-        {/* Page header */}
+        {/* Page header — gradient icon badge, matching ManageStaff/DailyReport */}
         <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[26px] font-bold text-[#0F172A] leading-tight">
-              রেফারার তালিকা
-            </h1>
-            <p className="text-sm text-[#64748B] mt-1">রেফারেল ও কমিশন পরিচালনা।</p>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-11 h-11 flex items-center justify-center shrink-0 rounded-xl shadow-md"
+              style={{
+                background: "linear-gradient(135deg,#6366F1,#4F46E5)",
+                boxShadow: "0 4px 10px #6366F135",
+              }}
+            >
+              <Users className="w-[18px] h-[18px] text-white" />
+            </div>
+            <div>
+              <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[22px] font-bold text-[#0F172A] leading-tight">
+                রেফারার তালিকা
+              </h1>
+              <p className="text-[13px] text-[#64748B] mt-0.5">রেফারেল ও কমিশন পরিচালনা।</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex items-center gap-2">
             <Link
               to="/lab-management"
               className="flex items-center gap-1.5 transition-all font-semibold px-[14px] py-2 border-[1.5px] border-[#E2E8F0] rounded-xl text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9] hover:text-[#0F172A]"
             >
-              <ArrowLeft className="w-[13px] h-[13px]" /> ফিরে
+              <ArrowLeft className="w-[13px] h-[13px]" /> Back
             </Link>
             <button
               onClick={() => openFormModal({ ...EMPTY_FORM, formType: "addReferrer" })}
               className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none shadow-[0_4px_14px_rgba(99,102,241,0.4)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.5)]"
               style={{ background: "linear-gradient(135deg,#6366F1,#4F46E5)" }}
             >
-              <UserPlus className="w-[13px] h-[13px]" /> নতুন রেফারার
+              <UserPlus className="w-[13px] h-[13px]" /> New Referrer
             </button>
           </div>
         </div>
@@ -955,106 +989,68 @@ const ManageReferrer = () => {
           </div>
         )}
 
-        {/* Main card */}
+        {/* Toolbar card */}
+        <div className="px-4 py-3 flex flex-wrap items-center gap-2 mb-4 bg-white border border-[#E2E8F0] rounded-2xl">
+          <div className="relative flex-[1_1_160px]">
+            <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="নাম, নম্বর বা ডিগ্রি…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={`${inputBase} pl-8 ${search ? "pr-8" : "pr-3"} py-2 text-xs`}
+              onFocus={focusInput}
+              onBlur={blurInput}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]"
+              >
+                <X className="w-[13px] h-[13px]" />
+              </button>
+            )}
+          </div>
+          <FilterDropdown value={typeFilter} onChange={setTypeFilter} options={TYPE_OPTIONS} placeholder="সব ধরন" />
+          {hasFilters && (
+            <button
+              onClick={() => setTypeFilter("all")}
+              className="flex items-center gap-1.5 transition-all font-semibold py-[7px] px-3 border-[1.5px] border-[#EF444430] rounded-[10px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] text-[11px] bg-[#EF444406] hover:bg-[#EF444412]"
+            >
+              <RotateCcw className="w-3 h-3" /> রিসেট
+            </button>
+          )}
+        </div>
+
+        {/* Referrer cards */}
         {initialLoading ? (
           <Skeleton />
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8] bg-white border border-[#E2E8F0] rounded-2xl">
+            <AlertCircle className="w-7 h-7 opacity-40" />
+            <p className="font-['IBM_Plex_Mono',monospace] text-xs">
+              {hasFilters || search ? "কোনো রেফারার পাওয়া যায়নি" : "এখনো কোনো রেফারার যোগ করা হয়নি"}
+            </p>
+          </div>
         ) : (
-          <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)]">
-            {/* Card header */}
-            <div
-              className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0]"
-              style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
-            >
-              <div>
-                <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#6366F1] mb-1">
-                  রেফারার লেজার
-                </p>
-                <div className="flex items-center gap-3">
-                  <span className="font-['IBM_Plex_Mono',monospace] text-[13px] font-semibold text-[#64748B]">
-                    মোট {stats.total}জন
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Toolbar */}
-            <div className="px-4 py-3 flex flex-wrap items-center gap-2 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-              <div className="relative flex-[1_1_160px]">
-                <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="নাম, নম্বর বা ডিগ্রি…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className={`${inputBase} pl-8 ${search ? "pr-8" : "pr-3"} py-2 text-xs`}
-                  onFocus={focusInput}
-                  onBlur={blurInput}
-                />
-                {search && (
-                  <button
-                    onClick={() => setSearch("")}
-                    className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]"
-                  >
-                    <X className="w-[13px] h-[13px]" />
-                  </button>
-                )}
-              </div>
-              <FilterDropdown value={typeFilter} onChange={setTypeFilter} options={TYPE_OPTIONS} placeholder="সব ধরন" />
-              {hasFilters && (
-                <button
-                  onClick={() => setTypeFilter("all")}
-                  className="flex items-center gap-1.5 transition-all font-semibold py-[7px] px-3 border-[1.5px] border-[#EF444430] rounded-[10px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] text-[11px] bg-[#EF444406] hover:bg-[#EF444412]"
-                >
-                  <RotateCcw className="w-3 h-3" /> রিসেট
-                </button>
-              )}
-            </div>
-
-            {/* Column labels */}
-            <div className="flex items-center gap-3 px-4 pt-3 pb-1">
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] w-[26px] shrink-0">
-                #
-              </span>
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] flex-1">
-                রেফারার
-              </span>
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] shrink-0">
-                কমিশন
-              </span>
-              <span className="w-[14px] shrink-0" />
-            </div>
-
-            {/* Rows */}
-            <div className="px-4 pb-4">
-              {filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8]">
-                  <AlertCircle className="w-7 h-7 opacity-40" />
-                  <p className="font-['IBM_Plex_Mono',monospace] text-xs">
-                    {hasFilters || search ? "কোনো রেফারার পাওয়া যায়নি" : "এখনো কোনো রেফারার যোগ করা হয়নি"}
-                  </p>
-                </div>
-              ) : (
-                filtered.map((item, index) => (
-                  <ReferrerRow
-                    key={item._id}
-                    input={item}
-                    index={index}
-                    onEdit={() => openFormModal({ ...item, formType: "editReferrer" })}
-                    onCommission={() => setCommissionModal(item)}
-                    onDelete={() => setModal({ type: "delete", item })}
-                  />
-                ))
-              )}
-            </div>
-
-            {/* Footer note */}
-            <div className="px-6 py-3 border-t border-[#E2E8F0] bg-[#F8FAFC]">
-              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-                * সকল রেফারারের কমিশন প্রযোজ্য
-              </p>
-            </div>
+          <div className="space-y-2">
+            {filtered.map((item, index) => (
+              <ReferrerRow
+                key={item._id}
+                input={item}
+                index={index}
+                onEdit={() => openFormModal({ ...item, formType: "editReferrer" })}
+                onCommission={() => setCommissionModal(item)}
+                onDelete={() => setModal({ type: "delete", item })}
+              />
+            ))}
           </div>
         )}
+
+        {/* Footer note */}
+        <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8] mt-4 text-center">
+          * সকল রেফারারের কমিশন প্রযোজ্য
+        </p>
       </div>
     </section>
   );

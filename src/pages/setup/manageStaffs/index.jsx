@@ -3,6 +3,7 @@
  * babel-plugin-react-compiler handles all memoization automatically.
  */
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
   Users,
@@ -19,7 +20,6 @@ import {
   Phone,
   Mail,
   Trash2,
-  AlertTriangle,
   Pencil,
   UserX,
   UserCheck,
@@ -32,36 +32,39 @@ import {
   CreditCard,
   BedDouble,
 } from "lucide-react";
-import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
 import staffService from "../../../api/staff";
 import staticDataAPI from "../../../api/staticData";
 import { useAuthStore } from "../../../store/authStore"; // adjust path if different
 
-// ── Palette ────────────────────────────────────────────────────────────────────
+/* ────────────────────────────────────────────────────────────────────────
+   SLATE — flat design tokens, matching Setup.jsx / Layout.jsx theming.
+   ──────────────────────────────────────────────────────────────────────── */
+const INK = "#0F172A"; // slate-900
+const INK_MUTE = "#64748B"; // slate-500
+const PAPER = "#FFFFFF";
+const GROUND = "#F8FAFC"; // slate-50
+const LINE = "#E2E8F0"; // slate-200
+const TEAL = "#2563EB"; // blue-600 (primary)
+const TEAL_DARK = "#1D4ED8"; // blue-700
+const TEAL_TINT = "#EFF6FF"; // blue-50
+const RUST = "#E11D48"; // rose-600 (danger)
+const RUST_TINT = "#FFF1F2"; // rose-50
+const AMBER = "#D97706"; // amber-600 (warning)
+const AMBER_TINT = "#FFFBEB"; // amber-50
+const VIOLET = "#7C3AED"; // violet-600 (admin accent)
+const VIOLET_TINT = "#F5F3FF"; // violet-50
 
-const C = {
-  ink: "#0F172A",
-  muted: "#94A3B8",
-  sub: "#64748B",
-  border: "#E2E8F0",
-  paper: "#F8FAFC",
-  hover: "#F1F5F9",
-  divider: "#EEF2FF",
-  teal: "#0D9488",
-  indigo: "#6366F1",
-  red: "#EF4444",
-  amber: "#F59E0B",
-  purple: "#8B5CF6",
-  green: "#10B981",
+const dotGround = {
+  backgroundColor: GROUND,
 };
 
-const buildInitialPerms = (list) => Object.fromEntries(list.map((p) => [p.key, false]));
+const pageGradientBg = "bg-[radial-gradient(ellipse_120%_80%_at_50%_-10%,#eef2ff_0%,#f8fafc_45%,#f8fafc_100%)]";
 
-// ── Permission group labels ──────────────────────────────────────────────────
-// Matches the `module` key on each entry in ALLOWED_PERMISSIONS (staticData).
-// (Backend field was renamed from `group` to `module` — these local keys
-// still read as "group" conceptually, they just key off p.module now.)
+const bn = "font-['Noto_Sans_Bengali',sans-serif]";
+const mono = "font-['IBM_Plex_Mono',monospace]";
+
+/* ─── Permission group labels / colors / icons (module-wise) ────────────── */
 
 const GROUP_LABELS = {
   invoice: "ইনভয়েস",
@@ -73,34 +76,19 @@ const GROUP_LABELS = {
   indoorPatient: "ভর্তি রোগী (ইনডোর)",
 };
 
-// Distinct accent color per group — makes the modal's group headers
-// immediately scannable instead of one flat gray label repeated.
-const GROUP_COLORS = {
-  invoice: "#6366F1",
-  expense: "#F59E0B",
-  dailyReport: "#0D9488",
-  testReport: "#8B5CF6",
-  setup: "#64748B",
-  billing: "#10B981",
-  indoorPatient: "#EF4444",
+const GROUP_META = {
+  invoice: { color: VIOLET, tint: VIOLET_TINT, icon: Receipt },
+  expense: { color: AMBER, tint: AMBER_TINT, icon: BanknoteArrowUp },
+  dailyReport: { color: TEAL, tint: TEAL_TINT, icon: FileBarChart },
+  testReport: { color: RUST, tint: RUST_TINT, icon: FlaskConical },
+  setup: { color: INK_MUTE, tint: GROUND, icon: Settings2 },
+  billing: { color: TEAL_DARK, tint: TEAL_TINT, icon: CreditCard },
+  indoorPatient: { color: VIOLET, tint: VIOLET_TINT, icon: BedDouble },
 };
 
-// One glyph per group so headers are scannable by shape, not just color —
-// mirrors GROUP_COLORS by key with a neutral fallback for unknown groups.
-const GROUP_ICONS = {
-  invoice: Receipt,
-  expense: BanknoteArrowUp,
-  dailyReport: FileBarChart,
-  testReport: FlaskConical,
-  setup: Settings2,
-  billing: CreditCard,
-  indoorPatient: BedDouble,
-};
+const groupMeta = (groupKey) => GROUP_META[groupKey] ?? { color: INK_MUTE, tint: GROUND, icon: Shield };
 
-const groupColor = (groupKey) => GROUP_COLORS[groupKey] ?? C.indigo;
-const groupIcon = (groupKey) => GROUP_ICONS[groupKey] ?? Shield;
-
-// ── Status / filter options ───────────────────────────────────────────────────
+/* ─── Status / filter options ─────────────────────────────────────────── */
 
 const STATUS_OPTIONS = [
   { value: "all", label: "সব স্ট্যাটাস" },
@@ -108,13 +96,9 @@ const STATUS_OPTIONS = [
   { value: "inactive", label: "নিষ্ক্রিয়" },
 ];
 
-const EMPTY_FORM = {
-  name: "",
-  email: "",
-  phone: "",
-};
+const EMPTY_FORM = { name: "", email: "", phone: "" };
 
-// ── Error helpers ──────────────────────────────────────────────────────────────
+/* ─── Error helpers ────────────────────────────────────────────────────── */
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
@@ -125,65 +109,447 @@ const getErrorMessage = (err, fallback) => {
 
 const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
 
-// ── Shared input helpers ───────────────────────────────────────────────────────
+const buildInitialPerms = (list) => Object.fromEntries(list.map((p) => [p.key, false]));
 
-const inputBase =
-  "w-full outline-none transition-all rounded-xl border-[1.5px] border-[#E2E8F0] bg-white text-[#0F172A] font-['IBM_Plex_Mono',monospace]";
+/* ─── Portal shell (Sheet) ─────────────────────────────────────────────── */
 
-const focusInput = (e) => {
-  e.target.style.borderColor = "#6366F1";
-  e.target.style.boxShadow = "0 0 0 3px #6366F120";
+const Sheet = ({ isOpen, onClose, children, width = "480px" }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-[#1C2321]/50 backdrop-blur-[2px]" onClick={onClose} />
+      <div
+        className="relative w-full max-h-[92vh] flex flex-col overflow-hidden border"
+        style={{
+          maxWidth: width,
+          background: PAPER,
+          borderColor: LINE,
+          borderRadius: "14px",
+          boxShadow: "0 20px 50px rgba(28,35,33,0.22), 0 2px 8px rgba(28,35,33,0.08)",
+        }}
+      >
+        {children}
+      </div>
+    </div>,
+    document.body,
+  );
 };
-const blurInput = (e) => {
-  e.target.style.borderColor = "#E2E8F0";
-  e.target.style.boxShadow = "";
-};
 
-// ── Form Field ─────────────────────────────────────────────────────────────────
+/* ─── Primitives ───────────────────────────────────────────────────────── */
 
-const FormField = ({ label, required, children, hint }) => (
+const Field = ({ label, required, hint, children }) => (
   <div>
-    <label className="block mb-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748B]">
-      {label}
-      {required && <span className="text-[#EF4444] ml-[3px]">*</span>}
-    </label>
+    {label && (
+      <label
+        className={`block text-[11px] font-semibold uppercase tracking-[0.09em] mb-1.5 ${mono}`}
+        style={{ color: INK_MUTE }}
+      >
+        {label}
+        {required && <span style={{ color: RUST, marginLeft: 3 }}>*</span>}
+      </label>
+    )}
     {children}
-    {hint && <p className="mt-1 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">{hint}</p>}
+    {hint && (
+      <p className={`text-[10px] mt-1 ${mono}`} style={{ color: INK_MUTE }}>
+        {hint}
+      </p>
+    )}
   </div>
 );
 
-// ── Toggle Switch ──────────────────────────────────────────────────────────────
+const inputBase = `w-full px-3 py-2.5 text-sm bg-white outline-none transition-colors placeholder:text-[#B8B2A2] ${bn}`;
+const inputStyle = { border: `1px solid ${LINE}`, borderRadius: "7px", color: INK };
 
-const ToggleSwitch = ({ checked }) => (
-  <span
-    className="relative shrink-0 inline-flex items-center rounded-full transition-colors duration-200 w-[30px] h-[17px]"
-    style={{ background: checked ? C.indigo : "#CBD5E1" }}
+const TextInput = ({ label, required, hint, ...props }) => (
+  <Field label={label} required={required} hint={hint}>
+    <input
+      className={inputBase}
+      style={inputStyle}
+      onFocus={(e) => (e.target.style.borderColor = TEAL)}
+      onBlur={(e) => (e.target.style.borderColor = LINE)}
+      {...props}
+    />
+  </Field>
+);
+
+const MonoInput = ({ label, required, hint, ...props }) => (
+  <Field label={label} required={required} hint={hint}>
+    <input
+      className={`${inputBase} ${mono} tracking-wide`}
+      style={inputStyle}
+      onFocus={(e) => (e.target.style.borderColor = TEAL)}
+      onBlur={(e) => (e.target.style.borderColor = LINE)}
+      {...props}
+    />
+  </Field>
+);
+
+const StampToggle = ({ active, onChange, onLabel = "চালু", offLabel = "বন্ধ" }) => (
+  <button
+    type="button"
+    onClick={() => onChange(!active)}
+    className="flex items-center gap-2 bg-transparent border-none cursor-pointer p-0"
   >
     <span
-      className="absolute rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,0.35)] transition-transform duration-200 w-[13px] h-[13px]"
-      style={{ left: 2, transform: checked ? "translateX(13px)" : "translateX(0)" }}
-    />
+      className="w-[18px] h-[18px] flex items-center justify-center shrink-0 transition-colors"
+      style={{
+        border: `1.5px solid ${active ? TEAL : LINE}`,
+        borderRadius: "2px",
+        background: active ? TEAL : "white",
+      }}
+    >
+      {active && (
+        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+          <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </span>
+    <span className="text-xs font-semibold" style={{ color: active ? TEAL_DARK : INK_MUTE }}>
+      {active ? onLabel : offLabel}
+    </span>
+  </button>
+);
+
+const SwitchToggle = ({ active, onChange, onLabel = "On", offLabel = "Off", onTone = TEAL }) => (
+  <button type="button" onClick={() => onChange(!active)} className="flex items-center gap-2.5 select-none">
+    <span
+      className="relative inline-flex items-center shrink-0 transition-colors duration-200"
+      style={{
+        width: "38px",
+        height: "22px",
+        borderRadius: "999px",
+        background: active ? onTone : "#CBD5E1",
+      }}
+    >
+      <span
+        className="absolute top-[2px] bg-white rounded-full shadow-sm transition-all duration-200"
+        style={{
+          width: "18px",
+          height: "18px",
+          left: active ? "18px" : "2px",
+        }}
+      />
+    </span>
+    <span className={`text-xs font-bold ${mono}`} style={{ color: active ? onTone : INK_MUTE }}>
+      {active ? onLabel : offLabel}
+    </span>
+  </button>
+);
+
+const StatusStamp = ({ active }) => (
+  <span
+    className={`inline-flex items-center gap-1 px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-[0.08em] select-none ${mono}`}
+    style={{
+      color: active ? TEAL_DARK : "#9B9587",
+      border: `1px dashed ${active ? TEAL : "#C7C1B2"}`,
+      borderRadius: "2px",
+      transform: "rotate(-1.5deg)",
+    }}
+  >
+    {active ? "সক্রিয়" : "নিষ্ক্রিয়"}
   </span>
 );
 
-// ── Staff Form Modal ───────────────────────────────────────────────────────────
-// On a failed save the modal stays OPEN (no onClose()) — a permission error
-// or network hiccup shouldn't discard what the user entered. The error
-// surfaces inline via `apiError` in the sticky footer so they can just retry.
-//
-// On EDIT, name/email/phone are immutable (set at registration) and are
-// hidden entirely rather than shown read-only — the edit modal only ever
-// touches permissions here. Active status is handled via the row's own
-// activate/deactivate action, and the bill adjustment limit has its own
-// dedicated modal (see AdjustmentModal below) for CHANGING an existing
-// staff member's limit — neither lives in this form on edit.
-//
-// On CREATE, the adjustment limit CAN be set up front (toggle-then-reveal,
-// same pattern as AdjustmentModal) so admins don't have to immediately jump
-// into a second modal right after registering someone. This mirrors the
-// backend, which now accepts `maxLabAdjustment` on the create route while
-// still exposing permissions, adjustment, and active-status as three
-// separate routes for edits.
+const PermCheck = ({ label, checked, onChange }) => (
+  <button
+    type="button"
+    onClick={() => onChange(!checked)}
+    className="flex items-center gap-2 cursor-pointer select-none text-left bg-transparent border-none p-0"
+  >
+    <span
+      className="w-[15px] h-[15px] flex items-center justify-center transition-colors shrink-0"
+      style={{
+        border: `1.5px solid ${checked ? TEAL : LINE}`,
+        borderRadius: "2px",
+        background: checked ? TEAL : "white",
+      }}
+    >
+      {checked && (
+        <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+          <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </span>
+    <span className={`text-sm font-medium leading-snug ${bn}`} style={{ color: checked ? INK : INK_MUTE }}>
+      {label}
+    </span>
+  </button>
+);
+
+const GhostBtn = ({ children, ...props }) => (
+  <button
+    type="button"
+    className={`px-3.5 py-2 text-xs font-semibold bg-white transition-colors ${mono}`}
+    style={{ color: INK_MUTE, border: `1px solid ${LINE}`, borderRadius: "7px" }}
+    {...props}
+  >
+    {children}
+  </button>
+);
+
+const SolidBtn = ({ children, tone = TEAL, toneDark = TEAL_DARK, loading, ...props }) => (
+  <button
+    type="button"
+    className={`flex items-center gap-2 px-4 py-2 text-xs font-bold text-white transition-all shadow-sm disabled:opacity-60 ${mono}`}
+    style={{
+      background: `linear-gradient(135deg, ${tone}, ${toneDark})`,
+      borderRadius: "7px",
+      boxShadow: `0 2px 8px ${tone}40`,
+    }}
+    onMouseEnter={(e) => !props.disabled && (e.currentTarget.style.filter = "brightness(1.08)")}
+    onMouseLeave={(e) => (e.currentTarget.style.filter = "none")}
+    {...props}
+  >
+    {loading && <div className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />}
+    {children}
+  </button>
+);
+
+const IconBtn = ({ icon: Icon, tone = INK_MUTE, tint = "#F1EFE7", title, ...props }) => (
+  <button
+    title={title}
+    type="button"
+    className="w-7 h-7 flex items-center justify-center transition-colors"
+    style={{ color: INK_MUTE, border: `1px solid ${LINE}`, borderRadius: "7px", background: "white" }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.color = tone;
+      e.currentTarget.style.background = tint;
+      e.currentTarget.style.borderColor = tone;
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.color = INK_MUTE;
+      e.currentTarget.style.background = "white";
+      e.currentTarget.style.borderColor = LINE;
+    }}
+    {...props}
+  >
+    <Icon size={12} />
+  </button>
+);
+
+/* ─── Action button — icon + visible label (used in row cards) ──────────── */
+
+const ActionBtn = ({ icon: Icon, label, tone = INK_MUTE, tint = "#F1EFE7", ...props }) => (
+  <button
+    type="button"
+    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${mono}`}
+    style={{ color: tone, border: `1px solid ${tone}35`, borderRadius: "5px", background: "white" }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.background = tint;
+      e.currentTarget.style.borderColor = tone;
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.background = "white";
+      e.currentTarget.style.borderColor = `${tone}35`;
+    }}
+    {...props}
+  >
+    <Icon size={12} />
+    {label}
+  </button>
+);
+
+/* ─── Avatar initial chip ─────────────────────────────────────────────── */
+
+const Avatar = ({ name, color, tint }) => {
+  const initial = name?.trim()?.[0]?.toUpperCase() ?? "?";
+  return (
+    <div
+      className={`w-10 h-10 flex items-center justify-center shrink-0 text-[14px] font-bold ${mono}`}
+      style={{ background: tint, color, borderRadius: "9px" }}
+    >
+      {initial}
+    </div>
+  );
+};
+
+const FilterSelect = ({ value, onChange, options }) => (
+  <div className="relative">
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`appearance-none outline-none cursor-pointer transition-colors text-xs py-[7px] pl-3 pr-[28px] bg-white ${bn}`}
+      style={{
+        border: `1px solid ${value !== "all" ? TEAL : LINE}`,
+        borderRadius: "3px",
+        color: value !== "all" ? TEAL_DARK : INK_MUTE,
+        background: value !== "all" ? TEAL_TINT : "white",
+        boxShadow: value !== "all" ? "0 1px 2px rgba(37,99,235,0.12)" : "none",
+      }}
+    >
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+    <ChevronDown
+      size={12}
+      className="absolute right-[9px] top-1/2 -translate-y-1/2 pointer-events-none"
+      style={{ color: INK_MUTE }}
+    />
+  </div>
+);
+
+/* ─── Section header — sits above a card stack ───────────────────────── */
+
+const SectionDivider = ({ title, count, color }) => (
+  <div className="flex items-center gap-2 pt-1 pb-2.5 first:pt-0">
+    <span className={`text-[10.5px] font-extrabold uppercase tracking-[0.1em] ${mono}`} style={{ color }}>
+      {title}
+    </span>
+    <span
+      className={`text-[10px] font-bold px-1.5 py-px ${mono}`}
+      style={{ color, background: `${color}14`, border: `1px solid ${color}30`, borderRadius: "3px" }}
+    >
+      {count}
+    </span>
+    <span className="flex-1 border-b" style={{ borderColor: LINE }} />
+  </div>
+);
+
+const StatCard = ({ icon: Icon, label, value, tone = TEAL, tint = TEAL_TINT }) => (
+  <div
+    className="flex items-center gap-3 px-4 py-3.5 transition-shadow"
+    style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: "4px" }}
+    onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 3px 10px rgba(28,35,33,0.06)")}
+    onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
+  >
+    <div
+      className="w-10 h-10 flex items-center justify-center shrink-0"
+      style={{ background: tint, color: tone, borderRadius: "3px" }}
+    >
+      <Icon size={17} />
+    </div>
+    <div>
+      <p className={`text-[26px] font-extrabold leading-none ${mono}`} style={{ color: INK }}>
+        {value}
+      </p>
+      <p className={`text-[9px] font-bold uppercase tracking-[0.06em] mt-2 ${mono}`} style={{ color: INK_MUTE }}>
+        {label}
+      </p>
+    </div>
+  </div>
+);
+
+const Skeleton = () => (
+  <div className="flex flex-col gap-2 p-4">
+    {[1, 2, 3, 4].map((i) => (
+      <div
+        key={i}
+        className="flex items-center gap-3 px-4 py-3 animate-pulse"
+        style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: "8px" }}
+      >
+        <div className="w-9 h-9 shrink-0" style={{ background: "#EEEBE1", borderRadius: "9px" }} />
+        <div className="flex-1 space-y-2">
+          <div className="h-3 w-2/5" style={{ background: "#EEEBE1", borderRadius: "2px" }} />
+          <div className="h-2.5 w-3/5" style={{ background: "#F2F0E8", borderRadius: "2px" }} />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+/* ─── Grouped permissions block — reused by the form modal ──────────────── */
+
+const PermissionGroups = ({ permissionsList, permissions, onTogglePerm, onToggleGroup }) => {
+  const grouped = permissionsList.reduce((acc, p) => {
+    (acc[p.module] ??= []).push(p);
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-3">
+      {Object.entries(grouped).map(([groupKey, perms]) => {
+        const meta = groupMeta(groupKey);
+        const GIcon = meta.icon;
+        const enabledCount = perms.filter((p) => permissions[p.key]).length;
+        const allEnabled = enabledCount === perms.length;
+        const hasSome = enabledCount > 0;
+
+        return (
+          <div key={groupKey} style={{ border: `1px solid ${LINE}`, borderRadius: "2px", background: "white" }}>
+            <div
+              className="flex items-center gap-2.5 px-3.5 py-2.5"
+              style={{ borderBottom: `1px solid ${LINE}`, background: hasSome ? meta.tint : GROUND }}
+            >
+              <div
+                className="w-6 h-6 flex items-center justify-center shrink-0"
+                style={{
+                  background: hasSome ? "white" : "#EEEBE1",
+                  color: hasSome ? meta.color : INK_MUTE,
+                  borderRadius: "2px",
+                }}
+              >
+                <GIcon size={12} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-1.5">
+                  <span
+                    className={`text-[11px] font-extrabold uppercase tracking-[0.05em] ${bn}`}
+                    style={{ color: hasSome ? meta.color : INK_MUTE }}
+                  >
+                    {GROUP_LABELS[groupKey] ?? groupKey}
+                  </span>
+                  <span className={`text-[9.5px] font-bold ${mono}`} style={{ color: INK_MUTE }}>
+                    {enabledCount}/{perms.length}
+                  </span>
+                </div>
+                <div className="mt-1 h-[3px] w-full max-w-[140px]" style={{ background: LINE, borderRadius: "2px" }}>
+                  <div
+                    className="h-full transition-all"
+                    style={{
+                      width: `${(enabledCount / (perms.length || 1)) * 100}%`,
+                      background: meta.color,
+                      borderRadius: "2px",
+                    }}
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onToggleGroup(perms, allEnabled)}
+                className={`shrink-0 text-[9.5px] font-bold px-2 py-[4px] ${mono}`}
+                style={{
+                  color: allEnabled ? RUST : meta.color,
+                  background: allEnabled ? RUST_TINT : "white",
+                  border: `1px solid ${allEnabled ? RUST : meta.color}40`,
+                  borderRadius: "2px",
+                }}
+              >
+                {allEnabled ? "বাদ দিন" : "সব নিন"}
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 px-3.5 py-3">
+              {perms.map(({ key, label }) => (
+                <PermCheck
+                  key={key}
+                  label={label}
+                  checked={!!permissions[key]}
+                  onChange={(v) => onTogglePerm(key, v)}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+/* ─── Staff Form Modal (create / edit permissions) — UNCHANGED ──────────
+   On EDIT: name/email/phone are immutable (set at registration) and hidden
+   entirely — only permissions are editable here. Active status has its own
+   row action; the adjustment limit has its own dedicated modal.
+   On CREATE: the adjustment limit can optionally be set up front. */
 
 const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
   const isEdit = !!initial?._id;
@@ -203,50 +569,24 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
 
   const [saving, setSaving] = useState(false);
   const [apiError, setApiError] = useState("");
-
-  // Billing/lab adjustment limit — creation only. Same toggle-then-reveal
-  // pattern as AdjustmentModal below, but scoped to this form since it's set
-  // once at registration; changing it later still goes through the
-  // dedicated AdjustmentModal/route.
   const [adjustmentEnabled, setAdjustmentEnabled] = useState(false);
   const [adjustmentAmount, setAdjustmentAmount] = useState(0);
-
-  const toggleAdjustment = () => {
-    if (adjustmentEnabled) {
-      setAdjustmentEnabled(false);
-      setAdjustmentAmount(0);
-    } else {
-      setAdjustmentEnabled(true);
-    }
-    if (apiError) setApiError("");
-  };
 
   const set = (field, value) => {
     setForm((f) => ({ ...f, [field]: value }));
     if (apiError) setApiError("");
   };
 
-  const allEnabled = permissionsList.every((p) => form.permissions[p.key]);
-
-  const toggleAll = () => {
-    const next = Object.fromEntries(permissionsList.map((p) => [p.key, !allEnabled]));
-    set("permissions", next);
-  };
-
-  const toggleGroup = (groupKey, groupPerms, groupAllEnabled) => {
+  const togglePerm = (key, val) => set("permissions", { ...form.permissions, [key]: val });
+  const toggleGroup = (groupPerms, groupAllEnabled) =>
     set("permissions", {
       ...form.permissions,
       ...Object.fromEntries(groupPerms.map((p) => [p.key, !groupAllEnabled])),
     });
-  };
 
-  // Group permissions by their `module` key (invoice, expense, dailyReport, …)
-  // so the modal can render them as labeled sections instead of one flat grid.
-  // FIX: backend renamed this field from `group` to `module` — was p.group.
-  const groupedPermissions = permissionsList.reduce((acc, p) => {
-    (acc[p.module] ??= []).push(p);
-    return acc;
-  }, {});
+  const allEnabled = permissionsList.every((p) => form.permissions[p.key]);
+  const toggleAll = () => set("permissions", Object.fromEntries(permissionsList.map((p) => [p.key, !allEnabled])));
+  const enabledTotal = permissionsList.filter((p) => form.permissions[p.key]).length;
 
   const handleSubmit = async () => {
     if (!isEdit) {
@@ -260,18 +600,8 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
       setSaving(true);
       setApiError("");
       if (isEdit) {
-        // name/email/phone are intentionally NOT sent on edit — the backend
-        // rejects them anyway, and the form doesn't even collect them here.
-        // Dedicated permissions-only route — activate/deactivate and the
-        // adjustment limit each live on their own routes now.
         await staffService.updatePermissions({ permissions: form.permissions, _id: initial._id });
       } else {
-        // FIXED: previously spread `...form` and added a stray `type: "addStaff"`
-        // field. createStaffSchema on the backend is additionalProperties:false
-        // and doesn't declare `type` at all, so that field would break every
-        // new staff registration (hard-rejected or silently stripped depending
-        // on server AJV config — either way it's wrong to send). Build the
-        // payload from only the fields the backend actually accepts.
         const { name, email, phone, permissions } = form;
         await staffService.addStaff({
           name,
@@ -289,349 +619,194 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
     }
   };
 
-  const gradFrom = isEdit ? "#8B5CF6" : "#0D9488";
-  const gradTo = isEdit ? "#7C3AED" : "#0F766E";
-  const accentText = isEdit ? "text-[#8B5CF6]" : "text-[#0D9488]";
-  const accentBorder = isEdit ? "border-[#8B5CF620]" : "border-[#0D948820]";
+  const tone = isEdit ? VIOLET : TEAL;
+  const toneDark = isEdit ? "#6D28D9" : TEAL_DARK;
 
   return (
-    <Modal isOpen size="md" onClose={onClose}>
-      <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
-        {/* Header — fixed, never scrolls */}
-        <div
-          className={`shrink-0 px-6 py-5 flex items-center justify-between border-b ${accentBorder}`}
-          style={{ background: `linear-gradient(135deg,${gradFrom}15 0%,${gradTo}08 100%)` }}
-        >
-          <div className="flex items-center gap-3.5">
-            <div
-              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px]"
-              style={{
-                background: `linear-gradient(135deg,${gradFrom},${gradTo})`,
-                boxShadow: `0 8px 20px ${gradFrom}40`,
-              }}
-            >
-              {isEdit ? (
-                <Pencil className="w-[18px] h-[18px] text-white" />
-              ) : (
-                <UserPlus className="w-[18px] h-[18px] text-white" />
-              )}
-            </div>
-            <div>
-              <p
-                className={`font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] ${accentText}`}
-              >
-                {isEdit ? "অনুমতি সম্পাদনা" : "নতুন নিবন্ধন"}
-              </p>
-              <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">
-                {isEdit ? initial.name : "কর্মী নিবন্ধন"}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="flex items-center justify-center w-8 h-8 rounded-[10px] text-[#94A3B8] border-[1.5px] border-[#E2E8F0] transition-all hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+    <Sheet isOpen width="680px">
+      <div
+        className="flex items-center justify-between px-5 py-4 border-b"
+        style={{ borderColor: LINE, background: PAPER }}
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className="w-9 h-9 flex items-center justify-center shrink-0"
+            style={{ background: tone, borderRadius: "9px" }}
           >
-            <X className="w-[15px] h-[15px]" />
-          </button>
+            {isEdit ? <Pencil size={15} className="text-white" /> : <UserPlus size={15} className="text-white" />}
+          </div>
+          <div>
+            <p className={`text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] ${mono}`} style={{ color: tone }}>
+              {isEdit ? "অনুমতি সম্পাদনা" : "কর্মী নিবন্ধন"}
+            </p>
+            <p className={`text-base font-bold leading-none ${bn}`} style={{ color: INK }}>
+              {isEdit ? initial.name : "নতুন স্টাফ যোগ করুন"}
+            </p>
+          </div>
         </div>
+        <IconBtn icon={X} onClick={onClose} title="Close" />
+      </div>
 
-        {/* Body — the ONLY scrollable region, fills remaining space */}
-        <div className="px-6 py-5 space-y-4 bg-[#F8FAFC] flex-1 min-h-0 overflow-y-auto">
-          {/* Name / Email / Phone — registration only. These are fixed at
-              signup and can't be changed afterwards, so the edit modal
-              never shows them at all. The backend enforces this too, so
-              even a direct API call can't change them post-registration. */}
-          {!isEdit && (
-            <>
-              <FormField label="পূর্ণ নাম" required>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => set("name", e.target.value)}
-                  placeholder="কর্মীর নাম"
-                  className={`${inputBase} px-3 py-2.5 text-sm`}
-                  onFocus={focusInput}
-                  onBlur={blurInput}
-                />
-              </FormField>
-
-              <div className="grid grid-cols-2 gap-3">
-                <FormField label="ইমেইল">
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => set("email", e.target.value)}
-                    placeholder="email@example.com"
-                    className={`${inputBase} px-3 py-2.5 text-sm`}
-                    onFocus={focusInput}
-                    onBlur={blurInput}
-                  />
-                </FormField>
-                <FormField label="ফোন নম্বর" required>
-                  <input
-                    type="tel"
-                    value={form.phone}
-                    onChange={(e) => set("phone", e.target.value)}
-                    placeholder="01XXXXXXXXX"
-                    maxLength={15}
-                    className={`${inputBase} px-3 py-2.5 text-sm`}
-                    onFocus={focusInput}
-                    onBlur={blurInput}
-                  />
-                </FormField>
-              </div>
-
-              {/* Billing/lab adjustment limit — optional, creation only.
-                  Toggle-then-reveal, same UX as the standalone
-                  AdjustmentModal used for editing this later. */}
-              <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden bg-white">
-                <button
-                  type="button"
-                  onClick={toggleAdjustment}
-                  className="w-full flex items-center justify-between px-4 py-3"
-                >
-                  <div className="flex items-center gap-2">
-                    <Wallet className="w-3 h-3 text-[#6366F1]" />
-                    <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
-                      বিল অ্যাডজাস্টমেন্ট
-                    </span>
-                  </div>
-                  <ToggleSwitch checked={adjustmentEnabled} />
-                </button>
-                {adjustmentEnabled && (
-                  <div className="px-4 pb-3.5">
-                    <input
-                      type="number"
-                      min="0"
-                      value={adjustmentAmount === 0 ? "" : adjustmentAmount}
-                      onChange={(e) => {
-                        setAdjustmentAmount(e.target.value === "" ? "" : Number(e.target.value));
-                        if (apiError) setApiError("");
-                      }}
-                      placeholder="সর্বোচ্চ পরিমাণ (৳)"
-                      className={`${inputBase} px-3 py-2.5 text-sm`}
-                      onFocus={focusInput}
-                      onBlur={blurInput}
-                      autoFocus
-                    />
-                    <p className="mt-1 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-                      এই কর্মী সর্বোচ্চ এই পরিমাণ পর্যন্ত বিল অ্যাডজাস্টমেন্ট করতে পারবেন।
-                    </p>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {/* Immutable-fields notice on edit, so it's clear this isn't an
-              oversight — name/email/phone simply can't be changed here. */}
-          {isEdit && !isAdmin && (
-            <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl border-[1.5px] border-[#E2E8F025] bg-[#94A3B808]">
-              <AlertCircle className="w-[13px] h-[13px] text-[#94A3B8] shrink-0 mt-[1px]" />
-              <p className="font-['IBM_Plex_Mono',monospace] text-[10.5px] leading-[1.5] text-[#64748B]">
-                নাম, ইমেইল ও ফোন নম্বর নিবন্ধনের পর পরিবর্তনযোগ্য নয়। স্ট্যাটাস ও অ্যাডজাস্টমেন্ট লিমিট তালিকার অ্যাকশন
-                বাটন থেকে পরিবর্তন করুন।
-              </p>
+      <div className="flex-1 overflow-y-auto p-5 space-y-4" style={dotGround}>
+        {!isEdit && (
+          <div
+            className="p-4 space-y-4"
+            style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: "10px" }}
+          >
+            <TextInput
+              label="পূর্ণ নাম"
+              required
+              value={form.name}
+              onChange={(e) => set("name", e.target.value)}
+              placeholder="কর্মীর নাম"
+            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <TextInput
+                label="ইমেইল"
+                type="email"
+                value={form.email}
+                onChange={(e) => set("email", e.target.value)}
+                placeholder="email@example.com"
+              />
+              <TextInput
+                label="ফোন নম্বর"
+                required
+                value={form.phone}
+                onChange={(e) => set("phone", e.target.value)}
+                placeholder="01XXXXXXXXX"
+                maxLength={15}
+              />
             </div>
-          )}
 
-          {/* Permissions — grouped by category with color-coded, eye-catching
-              headers. Not shown for admins, who always have full, fixed access. */}
-          {!isAdmin && (
-            <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden bg-white">
-              <div className="px-4 pt-3 pb-2.5">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-3 h-3 text-[#6366F1]" />
-                    <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
-                      অনুমতিসমূহ
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={toggleAll}
-                    className={`font-['IBM_Plex_Mono',monospace] text-[10px] font-bold px-2 py-[3px] rounded-md transition-all
-                    ${allEnabled ? "text-[#EF4444] bg-[#EF444410]" : "text-[#6366F1] bg-[#6366F110]"}`}
-                  >
-                    {allEnabled ? "সব বাদ দিন" : "সব নির্বাচন করুন"}
-                  </button>
-                </div>
-                {/* Progress bar — visualizes enabled/total at a glance */}
+            <div style={{ border: `1px solid ${LINE}`, borderRadius: "9px", background: "white" }}>
+              <div className="flex items-center justify-between px-4 py-3.5">
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 h-[5px] rounded-full bg-[#E2E8F0] overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-300"
-                      style={{
-                        width: `${(permissionsList.filter((p) => form.permissions[p.key]).length / (permissionsList.length || 1)) * 100}%`,
-                        background: `linear-gradient(90deg,${C.indigo},#818CF8)`,
-                      }}
-                    />
-                  </div>
-                  <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-semibold text-[#94A3B8] shrink-0">
-                    {permissionsList.filter((p) => form.permissions[p.key]).length}/{permissionsList.length}
+                  <Wallet size={13} style={{ color: TEAL }} />
+                  <span
+                    className={`text-[11px] font-bold uppercase tracking-[0.08em] ${mono}`}
+                    style={{ color: INK_MUTE }}
+                  >
+                    বিল অ্যাডজাস্টমেন্ট
                   </span>
                 </div>
+                <SwitchToggle
+                  active={adjustmentEnabled}
+                  onChange={(v) => {
+                    setAdjustmentEnabled(v);
+                    if (!v) setAdjustmentAmount(0);
+                    if (apiError) setApiError("");
+                  }}
+                />
               </div>
-
-              <div className="px-2.5 pb-2.5 space-y-3">
-                {Object.entries(groupedPermissions).map(([groupKey, groupPerms]) => {
-                  const groupAllEnabled = groupPerms.every((p) => form.permissions[p.key]);
-                  const groupEnabledCount = groupPerms.filter((p) => form.permissions[p.key]).length;
-                  const groupHasSome = groupEnabledCount > 0;
-                  const gc = groupColor(groupKey);
-                  const GIcon = groupIcon(groupKey);
-                  return (
-                    <div key={groupKey}>
-                      {/* Group header — icon chip + label/count on the left,
-                          a compact per-group progress bar underneath, and the
-                          group toggle-all pinned to the right. Reads as one
-                          cohesive card rather than a single-line pill strip. */}
-                      <div
-                        className="relative overflow-hidden rounded-xl mb-1.5 border bg-white transition-all"
-                        style={{
-                          borderColor: groupHasSome ? `${gc}35` : "#E2E8F0",
-                          boxShadow: groupHasSome ? `0 1px 6px ${gc}12` : "none",
-                        }}
-                      >
-                        {/* Accent bar */}
-                        <div
-                          className="absolute left-0 top-0 bottom-0 w-[3px]"
-                          style={{ background: groupHasSome ? gc : "#CBD5E1" }}
-                        />
-                        <div className="flex items-center gap-2.5 pl-3.5 pr-2.5 py-2">
-                          <div
-                            className="flex items-center justify-center shrink-0 w-6 h-6 rounded-[8px]"
-                            style={{
-                              background: groupHasSome ? `${gc}18` : "#E2E8F0",
-                              color: groupHasSome ? gc : "#94A3B8",
-                            }}
-                          >
-                            <GIcon className="w-3 h-3" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline gap-1.5">
-                              <span
-                                className="font-['IBM_Plex_Mono',monospace] text-[11px] font-extrabold uppercase tracking-[0.06em]"
-                                style={{ color: groupHasSome ? gc : "#64748B" }}
-                              >
-                                {GROUP_LABELS[groupKey] ?? groupKey}
-                              </span>
-                              <span
-                                className="font-['IBM_Plex_Mono',monospace] text-[9.5px] font-bold"
-                                style={{ color: groupHasSome ? `${gc}B0` : "#94A3B8" }}
-                              >
-                                {groupEnabledCount}/{groupPerms.length}
-                              </span>
-                            </div>
-                            {/* Mini progress bar — same idea as the top-level
-                                one, scoped to this group */}
-                            <div className="mt-1 h-[3px] w-full max-w-[140px] rounded-full bg-[#E2E8F0] overflow-hidden">
-                              <div
-                                className="h-full rounded-full transition-all duration-300"
-                                style={{
-                                  width: `${(groupEnabledCount / (groupPerms.length || 1)) * 100}%`,
-                                  background: gc,
-                                }}
-                              />
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => toggleGroup(groupKey, groupPerms, groupAllEnabled)}
-                            className="shrink-0 font-['IBM_Plex_Mono',monospace] text-[9.5px] font-bold px-2 py-[4px] rounded-[7px] transition-all"
-                            style={{
-                              color: groupAllEnabled ? "#EF4444" : gc,
-                              background: groupAllEnabled ? "#EF444415" : `${gc}15`,
-                            }}
-                          >
-                            {groupAllEnabled ? "বাদ দিন" : "সব নিন"}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                        {groupPerms.map(({ key, label }) => {
-                          const checked = form.permissions[key];
-                          return (
-                            <button
-                              key={key}
-                              type="button"
-                              onClick={() => set("permissions", { ...form.permissions, [key]: !checked })}
-                              className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border transition-all text-left"
-                              style={{
-                                background: checked ? `${C.indigo}0A` : "#F8FAFC",
-                                borderColor: checked ? `${C.indigo}40` : "#E2E8F0",
-                              }}
-                            >
-                              <span
-                                className="font-['IBM_Plex_Mono',monospace] text-[11.5px] leading-[1.35] font-medium break-words"
-                                style={{ color: checked ? "#0F172A" : C.sub }}
-                              >
-                                {label}
-                              </span>
-                              <ToggleSwitch checked={checked} />
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer — fixed, never scrolls. apiError banner sits directly
-            above the action buttons so it's the last thing seen before
-            retrying. */}
-        <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
-          {apiError && (
-            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
-              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
-              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
-            </div>
-          )}
-          <div className="px-6 py-4 flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={saving}
-              className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
-              style={{
-                background: saving ? C.muted : `linear-gradient(135deg,${gradFrom},${gradTo})`,
-                cursor: saving ? "not-allowed" : "pointer",
-              }}
-            >
-              {saving ? (
-                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-              ) : isEdit ? (
-                <Pencil className="w-[13px] h-[13px]" />
-              ) : (
-                <UserPlus className="w-[13px] h-[13px]" />
+              {adjustmentEnabled && (
+                <div className="px-4 pb-3.5 border-t pt-3.5" style={{ borderColor: LINE }}>
+                  <MonoInput
+                    type="number"
+                    min="0"
+                    value={adjustmentAmount === 0 ? "" : adjustmentAmount}
+                    onChange={(e) => {
+                      setAdjustmentAmount(e.target.value === "" ? "" : Number(e.target.value));
+                      if (apiError) setApiError("");
+                    }}
+                    placeholder="সর্বোচ্চ পরিমাণ (৳)"
+                    autoFocus
+                  />
+                  <p className={`mt-1 text-[10px] ${bn}`} style={{ color: INK_MUTE }}>
+                    এই কর্মী সর্বোচ্চ এই পরিমাণ পর্যন্ত বিল অ্যাডজাস্টমেন্ট করতে পারবেন।
+                  </p>
+                </div>
               )}
-              {isEdit ? "Save" : "Add Staff"}
-            </button>
+            </div>
           </div>
+        )}
+
+        {isEdit && !isAdmin && (
+          <div
+            className="flex items-start gap-2.5 px-3.5 py-2.5"
+            style={{ border: `1px solid ${LINE}`, borderRadius: "10px", background: GROUND }}
+          >
+            <AlertCircle size={13} style={{ color: INK_MUTE, marginTop: 1 }} />
+            <p className={`text-[10.5px] leading-[1.5] ${bn}`} style={{ color: INK_MUTE }}>
+              নাম, ইমেইল ও ফোন নম্বর নিবন্ধনের পর পরিবর্তনযোগ্য নয়। স্ট্যাটাস ও অ্যাডজাস্টমেন্ট লিমিট তালিকার অ্যাকশন
+              বাটন থেকে পরিবর্তন করুন।
+            </p>
+          </div>
+        )}
+
+        {!isAdmin && (
+          <div className="p-4" style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: "10px" }}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Shield size={12} style={{ color: TEAL }} />
+                <span
+                  className={`text-[11px] font-bold uppercase tracking-[0.08em] ${mono}`}
+                  style={{ color: INK_MUTE }}
+                >
+                  অনুমতিসমূহ
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={toggleAll}
+                className={`text-[10px] font-bold px-2 py-[3px] ${mono}`}
+                style={{
+                  color: allEnabled ? RUST : TEAL,
+                  background: allEnabled ? RUST_TINT : TEAL_TINT,
+                  borderRadius: "2px",
+                }}
+              >
+                {allEnabled ? "সব বাদ দিন" : "সব নির্বাচন করুন"}
+              </button>
+            </div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="flex-1 h-[5px]" style={{ background: LINE, borderRadius: "2px" }}>
+                <div
+                  className="h-full transition-all"
+                  style={{
+                    width: `${(enabledTotal / (permissionsList.length || 1)) * 100}%`,
+                    background: TEAL,
+                    borderRadius: "2px",
+                  }}
+                />
+              </div>
+              <span className={`text-[10px] font-semibold shrink-0 ${mono}`} style={{ color: INK_MUTE }}>
+                {enabledTotal}/{permissionsList.length}
+              </span>
+            </div>
+            <PermissionGroups
+              permissionsList={permissionsList}
+              permissions={form.permissions}
+              onTogglePerm={togglePerm}
+              onToggleGroup={toggleGroup}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="shrink-0 bg-white border-t" style={{ borderColor: LINE }}>
+        {apiError && (
+          <div
+            className="mx-5 mt-4 flex items-start gap-2.5 px-4 py-3"
+            style={{ background: RUST_TINT, border: `1px solid ${RUST}40`, borderRadius: "8px" }}
+          >
+            <AlertCircle size={14} style={{ color: RUST, marginTop: 1 }} />
+            <span className={`text-xs ${mono}`} style={{ color: RUST }}>
+              {apiError}
+            </span>
+          </div>
+        )}
+        <div className="px-5 py-4 flex gap-2 justify-end">
+          <GhostBtn onClick={onClose}>Cancel</GhostBtn>
+          <SolidBtn tone={tone} toneDark={toneDark} onClick={handleSubmit} disabled={saving} loading={saving}>
+            {isEdit ? "Save Changes" : "Add Staff"}
+          </SolidBtn>
         </div>
       </div>
-    </Modal>
+    </Sheet>
   );
 };
 
-// ── Adjustment Limit Modal ──────────────────────────────────────────────────
-// Standalone modal, separate from StaffFormModal, dedicated to CHANGING the
-// max lab/bill adjustment limit for an EXISTING staff member. Reuses the
-// same toggle-then-reveal pattern (0 = disabled per backend contract) and
-// PUTs only `maxLabAdjustment` to its own dedicated route — this never
-// touches permissions or isActive, which each have their own routes now.
-// (The limit can also be set up front at creation time, in StaffFormModal.)
+/* ─── Adjustment Limit Modal — UNCHANGED ──────────────────────────────── */
 
 const AdjustmentModal = ({ member, onClose, onSaved }) => {
   const [enabled, setEnabled] = useState((member.maxLabAdjustment ?? 0) > 0);
@@ -639,27 +814,12 @@ const AdjustmentModal = ({ member, onClose, onSaved }) => {
   const [saving, setSaving] = useState(false);
   const [apiError, setApiError] = useState("");
 
-  const toggle = () => {
-    if (enabled) {
-      setEnabled(false);
-      setAmount(0);
-    } else {
-      setEnabled(true);
-    }
-    if (apiError) setApiError("");
-  };
-
   const handleSubmit = async () => {
-    if (enabled && (!amount || Number(amount) <= 0)) {
-      return setApiError("অ্যাডজাস্টমেন্ট লিমিট প্রয়োজন।");
-    }
+    if (enabled && (!amount || Number(amount) <= 0)) return setApiError("অ্যাডজাস্টমেন্ট লিমিট প্রয়োজন।");
     try {
       setSaving(true);
       setApiError("");
-      await staffService.updateAdjustment({
-        maxLabAdjustment: enabled ? Number(amount) : 0,
-        _id: member._id,
-      });
+      await staffService.updateAdjustment({ maxLabAdjustment: enabled ? Number(amount) : 0, _id: member._id });
       onSaved();
     } catch (err) {
       setApiError(getErrorMessage(err, "সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
@@ -669,259 +829,240 @@ const AdjustmentModal = ({ member, onClose, onSaved }) => {
   };
 
   return (
-    <Modal isOpen size="sm" onClose={onClose}>
-      <div className="flex flex-col overflow-hidden">
-        {/* Header */}
-        <div
-          className="shrink-0 px-6 py-5 flex items-center justify-between border-b border-[#6366F120]"
-          style={{ background: "linear-gradient(135deg,#6366F115 0%,#4F46E508 100%)" }}
-        >
-          <div className="flex items-center gap-3.5">
-            <div
-              className="flex items-center justify-center shrink-0 w-11 h-11 rounded-[14px]"
-              style={{ background: "linear-gradient(135deg,#6366F1,#4F46E5)", boxShadow: "0 8px 20px #6366F140" }}
-            >
-              <Wallet className="w-[18px] h-[18px] text-white" />
-            </div>
-            <div>
-              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] text-[#6366F1]">
-                অ্যাডজাস্টমেন্ট লিমিট
-              </p>
-              <p className="font-['IBM_Plex_Sans',sans-serif] text-base font-bold text-[#0F172A]">{member.name}</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="flex items-center justify-center w-8 h-8 rounded-[10px] text-[#94A3B8] border-[1.5px] border-[#E2E8F0] transition-all hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+    <Sheet isOpen width="420px">
+      <div
+        className="flex items-center justify-between px-5 py-4 border-b"
+        style={{ borderColor: LINE, background: PAPER }}
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className="w-9 h-9 flex items-center justify-center shrink-0"
+            style={{ background: AMBER, borderRadius: "9px" }}
           >
-            <X className="w-[15px] h-[15px]" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="px-6 py-5 space-y-4 bg-[#F8FAFC]">
-          <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden bg-white">
-            <button type="button" onClick={toggle} className="w-full flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-2">
-                <Wallet className="w-3 h-3 text-[#6366F1]" />
-                <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.08em] text-[#64748B]">
-                  বিল অ্যাডজাস্টমেন্ট
-                </span>
-              </div>
-              <ToggleSwitch checked={enabled} />
-            </button>
-            {enabled && (
-              <div className="px-4 pb-3.5">
-                <input
-                  type="number"
-                  min="0"
-                  value={amount === 0 ? "" : amount}
-                  onChange={(e) => {
-                    setAmount(e.target.value === "" ? "" : Number(e.target.value));
-                    if (apiError) setApiError("");
-                  }}
-                  placeholder="সর্বোচ্চ পরিমাণ (৳)"
-                  className={`${inputBase} px-3 py-2.5 text-sm`}
-                  onFocus={focusInput}
-                  onBlur={blurInput}
-                  autoFocus
-                />
-                <p className="mt-1 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-                  এই কর্মী সর্বোচ্চ এই পরিমাণ পর্যন্ত বিল অ্যাডজাস্টমেন্ট করতে পারবেন।
-                </p>
-              </div>
-            )}
+            <Wallet size={15} className="text-white" />
+          </div>
+          <div>
+            <p className={`text-[10px] font-bold uppercase tracking-[0.1em] mb-[2px] ${mono}`} style={{ color: AMBER }}>
+              অ্যাডজাস্টমেন্ট লিমিট
+            </p>
+            <p className={`text-base font-bold leading-none ${bn}`} style={{ color: INK }}>
+              {member.name}
+            </p>
           </div>
         </div>
+        <IconBtn icon={X} onClick={onClose} title="Close" />
+      </div>
 
-        {/* Footer */}
-        <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
-          {apiError && (
-            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
-              <AlertTriangle className="w-[14px] h-[14px] text-[#EF4444] shrink-0 mt-[1px]" />
-              <span className="text-xs font-['IBM_Plex_Mono',monospace] text-[#EF4444]">{apiError}</span>
+      <div className="p-5" style={dotGround}>
+        <div style={{ border: `1px solid ${LINE}`, borderRadius: "9px", background: "white" }}>
+          <div className="flex items-center justify-between px-4 py-3.5">
+            <div className="flex items-center gap-2">
+              <Wallet size={13} style={{ color: AMBER }} />
+              <span className={`text-[11px] font-bold uppercase tracking-[0.08em] ${mono}`} style={{ color: INK_MUTE }}>
+                বিল অ্যাডজাস্টমেন্ট
+              </span>
+            </div>
+            <SwitchToggle
+              active={enabled}
+              onTone={AMBER}
+              onChange={(v) => {
+                setEnabled(v);
+                if (!v) setAmount(0);
+                if (apiError) setApiError("");
+              }}
+            />
+          </div>
+          {enabled && (
+            <div className="px-4 pb-3.5 border-t pt-3.5" style={{ borderColor: LINE }}>
+              <MonoInput
+                type="number"
+                min="0"
+                value={amount === 0 ? "" : amount}
+                onChange={(e) => {
+                  setAmount(e.target.value === "" ? "" : Number(e.target.value));
+                  if (apiError) setApiError("");
+                }}
+                placeholder="সর্বোচ্চ পরিমাণ (৳)"
+                autoFocus
+              />
+              <p className={`mt-1 text-[10px] ${bn}`} style={{ color: INK_MUTE }}>
+                এই কর্মী সর্বোচ্চ এই পরিমাণ পর্যন্ত বিল অ্যাডজাস্টমেন্ট করতে পারবেন।
+              </p>
             </div>
           )}
-          <div className="px-6 py-4 flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="flex-1 py-3 font-semibold transition-all rounded-xl border-[1.5px] border-[#E2E8F0] text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs hover:bg-[#F1F5F9]"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={saving}
-              className="flex-1 py-3 flex items-center justify-center gap-2 font-semibold transition-all rounded-xl border-none text-white font-['IBM_Plex_Mono',monospace] text-xs"
-              style={{
-                background: saving ? C.muted : "linear-gradient(135deg,#6366F1,#4F46E5)",
-                cursor: saving ? "not-allowed" : "pointer",
-              }}
-            >
-              {saving ? (
-                <span className="animate-spin inline-block w-[14px] h-[14px] rounded-full border-2 border-white/40 border-t-white" />
-              ) : (
-                <Wallet className="w-[13px] h-[13px]" />
-              )}
-              Save
-            </button>
-          </div>
         </div>
       </div>
-    </Modal>
+
+      <div className="shrink-0 bg-white border-t" style={{ borderColor: LINE }}>
+        {apiError && (
+          <div
+            className="mx-5 mt-4 flex items-start gap-2.5 px-4 py-3"
+            style={{ background: RUST_TINT, border: `1px solid ${RUST}40`, borderRadius: "8px" }}
+          >
+            <AlertCircle size={14} style={{ color: RUST, marginTop: 1 }} />
+            <span className={`text-xs ${mono}`} style={{ color: RUST }}>
+              {apiError}
+            </span>
+          </div>
+        )}
+        <div className="px-5 py-4 flex gap-2 justify-end">
+          <GhostBtn onClick={onClose}>Cancel</GhostBtn>
+          <SolidBtn tone={AMBER} toneDark="#B45309" onClick={handleSubmit} disabled={saving} loading={saving}>
+            Save
+          </SolidBtn>
+        </div>
+      </div>
+    </Sheet>
   );
 };
 
-// ── Action Chip ────────────────────────────────────────────────────────────────
+/* ─── Staff Row — modern card design ─────────────────────────────────────
+   Rounded card, avatar-initial chip, hover elevation, and labeled action
+   buttons (icon + text) instead of icon-only controls. ─────────────────── */
 
-const ActionChip = ({ onClick, icon: Icon, label, color }) => (
-  <button
-    onClick={onClick}
-    className="inline-flex items-center gap-1.5 transition-all font-semibold px-3 py-[5px] rounded-lg font-['IBM_Plex_Mono',monospace] text-[11px]"
-    style={{ border: `1.5px solid ${color}25`, color, background: `${color}08` }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.background = `${color}18`;
-      e.currentTarget.style.borderColor = `${color}50`;
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.background = `${color}08`;
-      e.currentTarget.style.borderColor = `${color}25`;
-    }}
-  >
-    <Icon className="w-[11px] h-[11px]" />
-    {label}
-  </button>
-);
+const ROLE_META = {
+  admin: { label: "অ্যাডমিন", color: VIOLET, tint: VIOLET_TINT },
+  staff: { label: "স্টাফ", color: TEAL, tint: TEAL_TINT },
+};
 
-// ── Staff Row ──────────────────────────────────────────────────────────────────
-
-const StaffRow = ({ member, index, permissionsList, onEdit, onAdjust, onDelete, onDeactivate, onActivate }) => {
+const StaffRow = ({ member, permissionsList, onEdit, onAdjust, onDelete, onDeactivate, onActivate }) => {
   const [expanded, setExpanded] = useState(false);
   const activePerms = permissionsList.filter((p) => member.permissions[p.key]);
   const hasFullAccess = activePerms.length === permissionsList.length;
-
-  const roleLabel = member.role === "admin" ? "অ্যাডমিন" : member.role === "staff" ? "স্টাফ" : "অন্যান্য";
-
-  const roleColor =
-    member.role === "admin"
-      ? { bg: "bg-[#8B5CF615]", border: "border-[#8B5CF630]", text: "text-[#8B5CF6]" }
-      : member.role === "staff"
-        ? { bg: "bg-[#6366F115]", border: "border-[#6366F130]", text: "text-[#6366F1]" }
-        : { bg: "bg-[#94A3B815]", border: "border-[#94A3B830]", text: "text-[#64748B]" };
+  const roleMeta = ROLE_META[member.role] ?? { label: "অন্যান্য", color: INK_MUTE, tint: GROUND };
 
   return (
-    <div className={`transition-all border-b border-[#E2E8F0] ${member.isActive ? "opacity-100" : "opacity-55"}`}>
-      <button onClick={() => setExpanded((v) => !v)} className="w-full text-left">
-        <div className="flex items-center gap-3 py-3 px-2 rounded-xl transition-all hover:bg-[#F1F5F9]">
-          <span className="flex items-center justify-center shrink-0 w-[26px] h-[26px] rounded-lg bg-[#EEF2FF] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#64748B]">
-            {String(index + 1).padStart(2, "0")}
-          </span>
-          <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-            <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A]">
+    <div
+      className="transition-shadow"
+      style={{
+        background: "white",
+        border: `1px solid ${LINE}`,
+        borderRadius: "10px",
+        opacity: member.isActive ? 1 : 0.65,
+        boxShadow: expanded ? "0 4px 14px rgba(28,35,33,0.08)" : "0 1px 2px rgba(28,35,33,0.03)",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+      >
+        <Avatar name={member.name} color={roleMeta.color} tint={roleMeta.tint} />
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-sm font-semibold truncate ${bn}`} style={{ color: INK }}>
               {member.name}
             </span>
             <span
-              className={`font-['IBM_Plex_Mono',monospace] text-[10px] font-bold px-1.5 py-px rounded-[6px] border-[1.5px] ${roleColor.bg} ${roleColor.border} ${roleColor.text}`}
+              className={`text-[9.5px] font-bold px-1.5 py-px shrink-0 ${mono}`}
+              style={{ color: roleMeta.color, background: roleMeta.tint, borderRadius: "3px" }}
             >
-              {roleLabel}
+              {roleMeta.label}
             </span>
-            {!member.isActive && (
-              <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#EF4444] bg-[#EF444410] border border-[#EF444425] rounded-[6px] px-1.5 py-px">
-                নিষ্ক্রিয়
-              </span>
-            )}
+            {!member.isActive && <StatusStamp active={false} />}
           </div>
-          {member.role !== "admin" && hasFullAccess && (
-            <span className="shrink-0 hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg border-[1.5px] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold bg-[#6366F115] border-[#6366F130] text-[#6366F1]">
-              <Shield className="w-[10px] h-[10px]" /> সম্পূর্ণ
-            </span>
-          )}
-          {member.role !== "admin" && !hasFullAccess && (
-            <span className="shrink-0 font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-              {activePerms.length}/{permissionsList.length}
-            </span>
-          )}
-          <ChevronDown
-            className={`w-[14px] h-[14px] text-[#94A3B8] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
-          />
+          <p className={`text-[10.5px] mt-0.5 truncate ${mono}`} style={{ color: INK_MUTE }}>
+            {member.phone || member.email || "—"}
+          </p>
         </div>
+
+        {member.role !== "admin" && (
+          <span
+            className={`shrink-0 hidden sm:inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold ${mono}`}
+            style={{
+              color: hasFullAccess ? TEAL_DARK : INK_MUTE,
+              background: hasFullAccess ? TEAL_TINT : GROUND,
+              borderRadius: "5px",
+            }}
+          >
+            {hasFullAccess && <Shield size={10} />}
+            {hasFullAccess ? "সম্পূর্ণ অ্যাক্সেস" : `${activePerms.length}/${permissionsList.length}`}
+          </span>
+        )}
+
+        <ChevronDown
+          size={15}
+          style={{ color: INK_MUTE, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+        />
       </button>
 
       {expanded && (
-        <div
-          className="mx-2 mb-3 px-4 py-3 rounded-xl border border-[#E2E8F0]"
-          style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
-        >
-          {/* Contact */}
-          <div className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B] leading-loose mb-3">
-            {member.email && (
-              <p className="flex items-center gap-1.5">
-                <Mail className="w-3 h-3 text-[#6366F1]" /> {member.email}
-              </p>
-            )}
-            {member.phone && (
-              <p className="flex items-center gap-1.5">
-                <Phone className="w-3 h-3 text-[#6366F1]" /> {member.phone}
-              </p>
-            )}
-            {member.role !== "admin" && member.maxLabAdjustment > 0 && (
-              <p className="flex items-center gap-1.5">
-                <Wallet className="w-3 h-3 text-[#6366F1]" /> সর্বোচ্চ অ্যাডজাস্টমেন্ট ৳{member.maxLabAdjustment}
-              </p>
-            )}
-          </div>
-
-          {/* Permissions — flat, side-by-side badges (not grouped). Not
-              shown for admins who always have full, fixed access. Grouping
-              is reserved for the edit modal only. */}
-          {member.role !== "admin" && (
-            <div className="mb-3">
-              <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] mb-1.5">
-                অনুমতিসমূহ ({activePerms.length}/{permissionsList.length})
-              </p>
-              {activePerms.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {activePerms.map(({ key, label }) => (
-                    <span
-                      key={key}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-['IBM_Plex_Mono',monospace] text-[10px] font-semibold border"
-                      style={{ color: C.indigo, background: `${C.indigo}12`, borderColor: `${C.indigo}30` }}
-                    >
-                      {label}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] italic">কোনো অনুমতি নেই</p>
+        <div className="px-4 pb-4 border-t" style={{ borderColor: LINE }}>
+          <div className="pt-3.5 space-y-3.5">
+            <div className={`text-xs leading-loose space-y-0.5 ${mono}`} style={{ color: INK_MUTE }}>
+              {member.email && (
+                <p className="flex items-center gap-1.5">
+                  <Mail size={11} style={{ color: TEAL }} /> {member.email}
+                </p>
+              )}
+              {member.phone && (
+                <p className="flex items-center gap-1.5">
+                  <Phone size={11} style={{ color: TEAL }} /> {member.phone}
+                </p>
+              )}
+              {member.role !== "admin" && member.maxLabAdjustment > 0 && (
+                <p className="flex items-center gap-1.5">
+                  <Wallet size={11} style={{ color: TEAL }} /> সর্বোচ্চ অ্যাডজাস্টমেন্ট ৳{member.maxLabAdjustment}
+                </p>
               )}
             </div>
-          )}
 
-          {/* Actions */}
-          <div className="flex items-center gap-2 flex-wrap">
             {member.role !== "admin" && (
-              <ActionChip onClick={onEdit} icon={Pencil} label="Permissions" color={C.indigo} />
-            )}
-            {member.role !== "admin" && (
-              <ActionChip onClick={onAdjust} icon={Wallet} label="Adjustment Limit" color={C.purple} />
-            )}
-            {member.role === "admin" && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-[5px] font-['IBM_Plex_Mono',monospace] text-[11px] font-semibold text-[#94A3B8]">
-                <Shield className="w-[11px] h-[11px]" /> অ্যাডমিন অ্যাকাউন্ট সুরক্ষিত
-              </span>
-            )}
-            {member.role !== "admin" && (
-              <>
-                {member.isActive ? (
-                  <ActionChip onClick={onDeactivate} icon={UserX} label="Deactivate" color={C.amber} />
+              <div>
+                <p
+                  className={`text-[9px] font-bold uppercase tracking-[0.08em] mb-1.5 ${mono}`}
+                  style={{ color: INK_MUTE }}
+                >
+                  অনুমতিসমূহ ({activePerms.length}/{permissionsList.length})
+                </p>
+                {activePerms.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {activePerms.map(({ key, label }) => (
+                      <span
+                        key={key}
+                        className={`inline-flex items-center px-2 py-0.5 text-[10px] font-semibold ${bn}`}
+                        style={{
+                          color: TEAL_DARK,
+                          background: TEAL_TINT,
+                          border: `1px solid ${TEAL}30`,
+                          borderRadius: "4px",
+                        }}
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
                 ) : (
-                  <ActionChip onClick={onActivate} icon={UserCheck} label="Activate" color={C.green} />
+                  <p className={`text-[11px] italic ${bn}`} style={{ color: INK_MUTE }}>
+                    কোনো অনুমতি নেই
+                  </p>
                 )}
-                <ActionChip onClick={onDelete} icon={Trash2} label="Delete" color={C.red} />
-              </>
+              </div>
             )}
+
+            <div className="flex items-center gap-2 flex-wrap pt-1">
+              {member.role !== "admin" && (
+                <>
+                  <ActionBtn icon={Pencil} label="Permissions" tone={TEAL} tint={TEAL_TINT} onClick={onEdit} />
+                  <ActionBtn icon={Wallet} label="Adjustment Limit" tone={AMBER} tint={AMBER_TINT} onClick={onAdjust} />
+                  {member.isActive ? (
+                    <ActionBtn icon={UserX} label="Deactivate" tone={AMBER} tint={AMBER_TINT} onClick={onDeactivate} />
+                  ) : (
+                    <ActionBtn icon={UserCheck} label="Activate" tone={TEAL} tint={TEAL_TINT} onClick={onActivate} />
+                  )}
+                  <ActionBtn icon={Trash2} label="Delete" tone={RUST} tint={RUST_TINT} onClick={onDelete} />
+                </>
+              )}
+              {member.role === "admin" && (
+                <span
+                  className={`inline-flex items-center gap-1.5 text-[11px] font-semibold ${bn}`}
+                  style={{ color: INK_MUTE }}
+                >
+                  <Shield size={11} /> অ্যাডমিন অ্যাকাউন্ট সুরক্ষিত
+                </span>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -929,85 +1070,7 @@ const StaffRow = ({ member, index, permissionsList, onEdit, onAdjust, onDelete, 
   );
 };
 
-// ── Section Divider ────────────────────────────────────────────────────────────
-
-const SectionDivider = ({ title, count, color }) => (
-  <div className="flex items-center gap-2 pt-3 pb-1 first:pt-0">
-    <span
-      className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em]"
-      style={{ color }}
-    >
-      {title}
-    </span>
-    <span
-      className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold px-1.5 py-px rounded-[5px]"
-      style={{ color, background: `${color}12`, border: `1px solid ${color}25` }}
-    >
-      {count}
-    </span>
-    <div className="flex-1 h-px" style={{ background: `${color}20` }} />
-  </div>
-);
-
-// ── Filter Dropdown ────────────────────────────────────────────────────────────
-
-const FilterDropdown = ({ value, onChange, options }) => (
-  <div className="relative">
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={`appearance-none outline-none cursor-pointer transition-all font-['IBM_Plex_Mono',monospace] text-xs rounded-[10px] py-[7px] pl-3 pr-[30px] border-[1.5px]
-        ${value !== "all" ? "border-[#6366F160] bg-[#6366F108] text-[#0F172A] shadow-[0_2px_8px_#6366F115]" : "border-[#E2E8F0] bg-white text-[#64748B]"}`}
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
-    <ChevronDown className="w-3 h-3 text-[#94A3B8] absolute right-[9px] top-1/2 -translate-y-1/2 pointer-events-none" />
-  </div>
-);
-
-// ── Stat Card ──────────────────────────────────────────────────────────────────
-
-const StatCard = ({ label, value, color, grad, icon: Icon }) => (
-  <div className="bg-white relative overflow-hidden border border-[#E2E8F0] rounded-2xl p-[14px_16px] shadow-[0_2px_8px_rgba(15,23,42,0.05)]">
-    <div className="absolute top-0 right-0 w-16 h-16 opacity-5 rounded-[0_16px_0_100%]" style={{ background: grad }} />
-    <div className="flex items-center gap-2 mb-2">
-      <div className="flex items-center justify-center w-[26px] h-[26px] rounded-lg" style={{ background: grad }}>
-        <Icon className="w-[13px] h-[13px] text-white" />
-      </div>
-      <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.06em] text-[#94A3B8]">
-        {label}
-      </p>
-    </div>
-    <p className="font-['IBM_Plex_Mono',monospace] text-[26px] font-extrabold leading-none" style={{ color }}>
-      {value}
-    </p>
-  </div>
-);
-
-// ── Skeleton ───────────────────────────────────────────────────────────────────
-
-const Skeleton = () => (
-  <div className="bg-white animate-pulse overflow-hidden border border-[#E2E8F0] rounded-[20px]">
-    <div className="px-6 py-4 flex gap-4 border-b border-[#E2E8F0]">
-      {[120, 70, 90].map((w, i) => (
-        <div key={i} className="h-3 bg-[#E2E8F0] rounded-md" style={{ width: w }} />
-      ))}
-    </div>
-    {[1, 2, 3, 4].map((i) => (
-      <div key={i} className="flex items-center gap-3 px-6 py-3.5 border-b border-[#E2E8F0]">
-        <div className="w-[26px] h-[26px] bg-[#E2E8F0] rounded-lg" />
-        <div className="flex-1 h-[13px] bg-[#E2E8F0] rounded-md" />
-        <div className="w-[50px] h-[22px] bg-[#E2E8F0] rounded-lg" />
-      </div>
-    ))}
-  </div>
-);
-
-// ── Main Page ──────────────────────────────────────────────────────────────────
+/* ─── Main Page ────────────────────────────────────────────────────────── */
 
 const ManageStaff = () => {
   const labType = useAuthStore((s) => s.lab?.type); // "hospital" | "diagnosticCenter"
@@ -1018,10 +1081,6 @@ const ManageStaff = () => {
   const [popup, setPopup] = useState(null);
   const [formModal, setFormModal] = useState(null); // null | {} | member object
   const [adjustModal, setAdjustModal] = useState(null); // null | member object
-  // Delete / activate / deactivate confirmations use the shared
-  // <Popup type="warning"> directly (see render section below), not a
-  // bespoke modal — same pattern as Products.jsx / ManageReferrer.jsx /
-  // ManageTests.jsx. `modal` just carries which action + which member.
   const [modal, setModal] = useState(null); // { type: "delete" | "deactivate" | "activate", member }
   const [search, setSearch] = useState("");
   const [permFilter, setPermFilter] = useState("all");
@@ -1054,7 +1113,6 @@ const ManageStaff = () => {
     }
   };
 
-  // Derived permission filter options — always in sync with the server list
   const permFilterOptions = [
     { value: "all", label: "সব অনুমতি" },
     ...permissionsList.map((p) => ({ value: p.key, label: p.label })),
@@ -1094,18 +1152,13 @@ const ManageStaff = () => {
     setPopup({ type: "success", message: "অ্যাডজাস্টমেন্ট লিমিট আপডেট হয়েছে।" });
   };
 
-  // No in-flight spinner on the confirm popup itself — it closes as soon as
-  // onConfirm fires, so a failure just surfaces as a follow-up error toast.
-  // Mirrors handleDelete in Products.jsx / ManageReferrer.jsx / ManageTests.jsx.
   const handleDelete = async (member) => {
     try {
       await staffService.deleteStaff(member._id);
       setStaff((prev) => prev.filter((m) => m._id !== member._id));
       setPopup({ type: "success", message: "কর্মী মুছে ফেলা হয়েছে।" });
     } catch (err) {
-      if (getErrorStatus(err) === 404) {
-        setStaff((prev) => prev.filter((m) => m._id !== member._id));
-      }
+      if (getErrorStatus(err) === 404) setStaff((prev) => prev.filter((m) => m._id !== member._id));
       setPopup({ type: "error", message: getErrorMessage(err, "কর্মী মুছতে ব্যর্থ।") });
     }
   };
@@ -1133,10 +1186,7 @@ const ManageStaff = () => {
   });
 
   return (
-    <section
-      className="min-h-screen px-4 py-6 font-[Noto_Sans_Bengali,sans-serif]"
-      style={{ background: "linear-gradient(to bottom right,#f8fafc,#eff6ff,#eef2ff)" }}
-    >
+    <section className={`min-h-screen px-4 sm:px-6 py-6 lg:py-8 ${pageGradientBg} ${bn}`}>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       {formModal !== null && (
@@ -1156,30 +1206,28 @@ const ManageStaff = () => {
         <Popup
           type="warning"
           message={`"${modal.member.name}"-এর সমস্ত তথ্য স্থায়ীভাবে মুছে যাবে। এই কাজ পূর্বাবস্থায় ফেরানো যাবে না।`}
-          confirmText="হ্যাঁ, মুছুন"
-          cancelText="রাখুন"
+          confirmText="Yes, Delete"
+          cancelText="Keep"
           onConfirm={() => handleDelete(modal.member)}
           onClose={() => setModal(null)}
         />
       )}
-
       {modal?.type === "deactivate" && (
         <Popup
           type="warning"
           message={`"${modal.member.name}"-কে নিষ্ক্রিয় করলে তিনি সিস্টেমে প্রবেশ করতে পারবেন না।`}
-          confirmText="হ্যাঁ, নিষ্ক্রিয় করুন"
-          cancelText="বাতিল"
+          confirmText="Yes, Deactivate"
+          cancelText="Cancel"
           onConfirm={() => handleToggle(modal.member, false)}
           onClose={() => setModal(null)}
         />
       )}
-
       {modal?.type === "activate" && (
         <Popup
           type="warning"
           message={`"${modal.member.name}"-কে সক্রিয় করলে তিনি পুনরায় সিস্টেমে প্রবেশ করতে পারবেন।`}
-          confirmText="হ্যাঁ, সক্রিয় করুন"
-          cancelText="বাতিল"
+          confirmText="Yes, Activate"
+          cancelText="Cancel"
           onConfirm={() => handleToggle(modal.member, true)}
           onClose={() => setModal(null)}
         />
@@ -1187,190 +1235,158 @@ const ManageStaff = () => {
 
       <div className="max-w-2xl mx-auto">
         {/* Page header */}
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[26px] font-bold text-[#0F172A] leading-tight">
-              স্টাফ অ্যাকাউন্ট
-            </h1>
-            <p className="text-sm text-[#64748B] mt-1">অ্যাকাউন্ট ও অনুমতি পরিচালনা।</p>
+        <div className="flex items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-11 h-11 flex items-center justify-center shrink-0 rounded-xl shadow-md"
+              style={{
+                background: `linear-gradient(135deg, ${TEAL}, ${TEAL_DARK})`,
+                boxShadow: `0 4px 10px ${TEAL}35`,
+              }}
+            >
+              <Users size={18} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-[22px] font-bold leading-tight" style={{ color: INK }}>
+                স্টাফ অ্যাকাউন্ট
+              </h1>
+              <p className="text-[13px] mt-0.5" style={{ color: INK_MUTE }}>
+                অ্যাকাউন্ট ও অনুমতি পরিচালনা
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 pt-1">
-            <Link
-              to="/lab-management"
-              className="flex items-center gap-1.5 transition-all font-semibold px-[14px] py-2 border-[1.5px] border-[#E2E8F0] rounded-xl text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9] hover:text-[#0F172A]"
-            >
-              <ArrowLeft className="w-[13px] h-[13px]" /> ফিরে
+          <div className="flex items-center gap-2">
+            <Link to="/lab-management">
+              <GhostBtn>
+                <span className="flex items-center gap-1.5">
+                  <ArrowLeft size={13} /> ফিরে
+                </span>
+              </GhostBtn>
             </Link>
-            <button
-              onClick={() => setFormModal({})}
-              className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none shadow-[0_4px_14px_rgba(99,102,241,0.4)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.5)]"
-              style={{ background: "linear-gradient(135deg,#6366F1,#4F46E5)" }}
-            >
-              <UserPlus className="w-[13px] h-[13px]" /> নতুন স্টাফ
-            </button>
+            <SolidBtn onClick={() => setFormModal({})}>
+              <UserPlus size={13} /> নতুন স্টাফ
+            </SolidBtn>
           </div>
         </div>
 
         {/* Stats */}
         {!initialLoading && (
-          <div className="grid grid-cols-4 gap-3 mb-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            <StatCard icon={Users} label="মোট কর্মী" value={stats.total} tone={TEAL} tint={TEAL_TINT} />
+            <StatCard icon={ShieldCheck} label="সক্রিয়" value={stats.active} tone={TEAL_DARK} tint={TEAL_TINT} />
+            <StatCard icon={ShieldOff} label="নিষ্ক্রিয়" value={stats.inactive} tone={RUST} tint={RUST_TINT} />
             <StatCard
-              label="মোট কর্মী"
-              value={stats.total}
-              color={C.indigo}
-              grad="linear-gradient(135deg,#6366F1,#4F46E5)"
-              icon={Users}
-            />
-            <StatCard
-              label="সক্রিয়"
-              value={stats.active}
-              color={C.green}
-              grad="linear-gradient(135deg,#10B981,#059669)"
-              icon={ShieldCheck}
-            />
-            <StatCard
-              label="নিষ্ক্রিয়"
-              value={stats.inactive}
-              color={C.red}
-              grad="linear-gradient(135deg,#EF4444,#DC2626)"
-              icon={ShieldOff}
-            />
-            <StatCard
+              icon={Shield}
               label="সম্পূর্ণ অ্যাক্সেস"
               value={stats.fullAccess}
-              color={C.purple}
-              grad="linear-gradient(135deg,#8B5CF6,#7C3AED)"
-              icon={Shield}
+              tone={VIOLET}
+              tint={VIOLET_TINT}
             />
           </div>
         )}
 
-        {/* Main card */}
-        {initialLoading ? (
-          <Skeleton />
-        ) : (
-          <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)]">
-            {/* Card header */}
-            <div
-              className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0]"
-              style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
+        {/* Toolbar card */}
+        <div
+          className="px-4 py-3 flex flex-wrap items-center gap-2 mb-4"
+          style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: "8px" }}
+        >
+          <div className="relative flex-[1_1_160px]">
+            <Search
+              size={13}
+              className="absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: INK_MUTE }}
+            />
+            <input
+              type="text"
+              placeholder="নাম, ইমেইল বা ফোন…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={`${inputBase} pl-8 ${search ? "pr-8" : "pr-3"} py-2 text-xs`}
+              style={{ ...inputStyle, borderRadius: "3px" }}
+              onFocus={(e) => (e.target.style.borderColor = TEAL)}
+              onBlur={(e) => (e.target.style.borderColor = LINE)}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-[10px] top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer"
+                style={{ color: INK_MUTE }}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+          <FilterSelect value={permFilter} onChange={setPermFilter} options={permFilterOptions} />
+          <FilterSelect value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} />
+          {hasFilters && (
+            <GhostBtn
+              onClick={() => {
+                setPermFilter("all");
+                setStatusFilter("all");
+                setSearch("");
+              }}
             >
-              <div>
-                <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#6366F1] mb-1">
-                  কর্মী লেজার
-                </p>
-                <div className="flex items-center gap-3">
-                  <span className="font-['IBM_Plex_Mono',monospace] text-[13px] font-semibold text-[#64748B]">
-                    মোট {stats.total}জন
-                  </span>
-                  {stats.active > 0 && (
-                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#10B981] bg-[#10B98110] rounded-[6px] border border-[#10B98125]">
-                      সক্রিয় {stats.active}জন
-                    </span>
-                  )}
+              <span className="flex items-center gap-1.5" style={{ color: RUST }}>
+                <RotateCcw size={12} /> রিসেট
+              </span>
+            </GhostBtn>
+          )}
+        </div>
+
+        {/* Staff cards */}
+        {initialLoading ? (
+          <div style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: "8px" }}>
+            <Skeleton />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div
+            className="flex flex-col items-center justify-center py-10 gap-2"
+            style={{ color: INK_MUTE, background: "white", border: `1px solid ${LINE}`, borderRadius: "8px" }}
+          >
+            <AlertCircle size={26} className="opacity-40" />
+            <p className={`text-xs ${mono}`}>
+              {hasFilters ? "কোনো কর্মী পাওয়া যায়নি" : "এখনো কোনো কর্মী যোগ করা হয়নি"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {admins.length > 0 && (
+              <>
+                <SectionDivider title="অ্যাডমিন" count={admins.length} color={VIOLET} />
+                <div className="space-y-2 mb-4">
+                  {admins.map((m) => (
+                    <StaffRow key={m._id} {...rowProps(m)} />
+                  ))}
                 </div>
-              </div>
-            </div>
-
-            {/* Toolbar */}
-            <div className="px-4 py-3 flex flex-wrap items-center gap-2 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-              <div className="relative flex-[1_1_160px]">
-                <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="নাম, ইমেইল বা ফোন…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className={`${inputBase} pl-8 ${search ? "pr-8" : "pr-3"} py-2 text-xs`}
-                  onFocus={focusInput}
-                  onBlur={blurInput}
-                />
-                {search && (
-                  <button
-                    onClick={() => setSearch("")}
-                    className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]"
-                  >
-                    <X className="w-[13px] h-[13px]" />
-                  </button>
-                )}
-              </div>
-              <FilterDropdown value={permFilter} onChange={setPermFilter} options={permFilterOptions} />
-              <FilterDropdown value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} />
-              {hasFilters && (
-                <button
-                  onClick={() => {
-                    setPermFilter("all");
-                    setStatusFilter("all");
-                    setSearch("");
-                  }}
-                  className="flex items-center gap-1.5 transition-all font-semibold py-[7px] px-3 border-[1.5px] border-[#EF444430] rounded-[10px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] text-[11px] bg-[#EF444406] hover:bg-[#EF444412]"
-                >
-                  <RotateCcw className="w-3 h-3" /> রিসেট
-                </button>
-              )}
-            </div>
-
-            {/* Column labels */}
-            <div className="flex items-center gap-3 px-4 pt-3 pb-1">
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] w-[26px] shrink-0">
-                #
-              </span>
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] flex-1">
-                কর্মী
-              </span>
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] shrink-0">
-                অনুমতি
-              </span>
-              <span className="w-[14px] shrink-0" />
-            </div>
-
-            {/* Rows */}
-            <div className="px-4 pb-4">
-              {filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8]">
-                  <AlertCircle className="w-7 h-7 opacity-40" />
-                  <p className="font-['IBM_Plex_Mono',monospace] text-xs">
-                    {hasFilters ? "কোনো কর্মী পাওয়া যায়নি" : "এখনো কোনো কর্মী যোগ করা হয়নি"}
-                  </p>
+              </>
+            )}
+            {staffMembers.length > 0 && (
+              <>
+                <SectionDivider title="স্টাফ" count={staffMembers.length} color={TEAL} />
+                <div className="space-y-2 mb-4">
+                  {staffMembers.map((m) => (
+                    <StaffRow key={m._id} {...rowProps(m)} />
+                  ))}
                 </div>
-              ) : (
-                <>
-                  {admins.length > 0 && (
-                    <>
-                      <SectionDivider title="অ্যাডমিন" count={admins.length} color={C.purple} />
-                      {admins.map((m, i) => (
-                        <StaffRow key={m._id} index={i} {...rowProps(m)} />
-                      ))}
-                    </>
-                  )}
-                  {staffMembers.length > 0 && (
-                    <>
-                      <SectionDivider title="স্টাফ" count={staffMembers.length} color={C.indigo} />
-                      {staffMembers.map((m, i) => (
-                        <StaffRow key={m._id} index={i} {...rowProps(m)} />
-                      ))}
-                    </>
-                  )}
-                  {others.length > 0 && (
-                    <>
-                      <SectionDivider title="অন্যান্য" count={others.length} color={C.sub} />
-                      {others.map((m, i) => (
-                        <StaffRow key={m._id} index={i} {...rowProps(m)} />
-                      ))}
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-3 border-t border-[#E2E8F0] bg-[#F8FAFC]">
-              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-                * শুধুমাত্র সক্রিয় কর্মীরা সিস্টেমে প্রবেশ করতে পারবেন
-              </p>
-            </div>
+              </>
+            )}
+            {others.length > 0 && (
+              <>
+                <SectionDivider title="অন্যান্য" count={others.length} color={INK_MUTE} />
+                <div className="space-y-2">
+                  {others.map((m) => (
+                    <StaffRow key={m._id} {...rowProps(m)} />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
+
+        {/* Footer note */}
+        <p className={`text-[10px] mt-4 text-center ${mono}`} style={{ color: INK_MUTE }}>
+          * শুধুমাত্র সক্রিয় কর্মীরা সিস্টেমে প্রবেশ করতে পারবেন
+        </p>
       </div>
     </section>
   );

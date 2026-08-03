@@ -8,9 +8,9 @@
  * only touches name/departments/bed config, mirroring how referrer
  * commission has its own dedicated route/modal.
  *
- * Styled to match the Referrer ledger/paper aesthetic:
+ * Styled to match the Referrer/Doctor/Staff card-list aesthetic:
  * IBM Plex Mono/Sans, shared Modal + Popup pattern, ActionChip rows,
- * StatCard grid, numbered expandable ledger rows.
+ * StatCard grid, avatar-chip expandable cards, standalone toolbar card.
  */
 
 // React Compiler handles memoisation — no useCallback/useMemo
@@ -45,6 +45,9 @@ const fmt = (n) =>
   new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", minimumFractionDigits: 0 }).format(n || 0);
 
 const deptLabel = (val, departments) => departments.find((d) => d.value === val)?.label ?? val;
+
+// Page background — matches Setup.jsx / ManageReferrer.jsx / ManageStaff.jsx / ManageDoctors.jsx
+const pageGradientBg = "bg-[radial-gradient(ellipse_120%_80%_at_50%_-10%,#eef2ff_0%,#f8fafc_45%,#f8fafc_100%)]";
 
 // ── Error helpers ──────────────────────────────────────────────────────────────
 
@@ -83,7 +86,7 @@ const FormField = ({ label, required, children, hint }) => (
   </div>
 );
 
-// ── Reserve Note Modal ─────────────────────────────────────────────────────────
+// ── Reserve Note Modal — UNCHANGED sizing ───────────────────────────────────
 // On a failed reserve, the modal stays OPEN (no onClose()) — a permission
 // error or network hiccup shouldn't discard the note the user typed. The
 // error surfaces inline via `apiError` in the sticky footer so they can
@@ -203,7 +206,7 @@ const ReserveNoteModal = ({ title, bedNumber, onClose, onConfirm }) => {
   );
 };
 
-// ── Price Edit Modal ───────────────────────────────────────────────────────────
+// ── Price Edit Modal — UNCHANGED sizing ─────────────────────────────────────
 // Separate from SpaceFormModal, mirroring how referrer commission is edited
 // through its own route/modal instead of the general edit form. Stays open
 // on failure (no onClose()) so the typed amount isn't lost — same pattern
@@ -329,7 +332,7 @@ const PriceEditModal = ({ space, onClose, onConfirm }) => {
   );
 };
 
-// ── Department Multi-Select Dropdown ───────────────────────────────────────────
+// ── Department Multi-Select Dropdown — UNCHANGED ────────────────────────────
 
 const DeptMultiSelect = ({ value, onChange, error, departments }) => {
   const [open, setOpen] = useState(false);
@@ -468,7 +471,7 @@ const DeptMultiSelect = ({ value, onChange, error, departments }) => {
   );
 };
 
-// ── Space Form Modal ────────────────────────────────────────────────────────────
+// ── Space Form Modal — UNCHANGED sizing ─────────────────────────────────────
 // On a failed save the modal stays OPEN (no close) and the error surfaces
 // inline via `apiError` in the sticky footer, directly above the action
 // buttons — same pattern as ItemModal/StockModal in Products.jsx,
@@ -805,6 +808,17 @@ const ActionChip = ({ onClick, icon: Icon, label, color }) => (
   </button>
 );
 
+// ── Avatar initial chip — mirrors Avatar in ManageReferrer / ManageDoctors ─────
+
+const Avatar = ({ name }) => {
+  const initial = name?.trim()?.[0]?.toUpperCase() ?? "?";
+  return (
+    <div className="w-10 h-10 flex items-center justify-center shrink-0 text-[14px] font-bold rounded-[9px] font-['IBM_Plex_Mono',monospace] bg-[#3B82F615] text-[#3B82F6]">
+      {initial}
+    </div>
+  );
+};
+
 // ── Dept Badges ────────────────────────────────────────────────────────────────
 
 const DeptBadges = ({ departments: deptValues = [], allDepartments = [], maxVisible = 2 }) => {
@@ -835,7 +849,7 @@ const DeptBadges = ({ departments: deptValues = [], allDepartments = [], maxVisi
   );
 };
 
-// ── Bed Grid ───────────────────────────────────────────────────────────────────
+// ── Bed Grid — UNCHANGED ─────────────────────────────────────────────────────
 // `onError` surfaces a failed release to the parent (shared Popup) instead
 // of silently swallowing it — every other mutation in this file reports
 // failures the same way, this one previously didn't.
@@ -929,14 +943,13 @@ const BedGrid = ({ conf, spaceId, onUpdate, onReserveClick, onError }) => {
   );
 };
 
-// ── Space Row ──────────────────────────────────────────────────────────────────
+// ── Space Row — card style, mirrors ReferrerRow / DoctorRow ────────────────────
 // `busy` prop removed — it was never set by the parent (dead loading state
 // that always evaluated false). `onBedError` threads bed-release failures
 // up to the shared Popup.
 
 const SpaceRow = ({
   space,
-  index,
   allDepartments,
   onEdit,
   onEditPrice,
@@ -955,15 +968,23 @@ const SpaceRow = ({
   const availableCount = totalBeds - bookedCount - reservedCount;
 
   return (
-    <div className="border-b border-[#E2E8F0]">
+    <div
+      className="bg-white border border-[#E2E8F0] rounded-[14px] transition-shadow"
+      style={{ boxShadow: expanded ? "0 4px 14px rgba(15,23,42,0.08)" : "0 1px 2px rgba(15,23,42,0.03)" }}
+    >
       <button onClick={() => setExpanded((v) => !v)} className="w-full text-left">
-        <div className="flex items-center gap-3 py-3 px-2 rounded-xl transition-all hover:bg-[#F1F5F9]">
-          <span className="flex items-center justify-center shrink-0 w-[26px] h-[26px] rounded-lg bg-[#EEF2FF] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#64748B]">
-            {String(index + 1).padStart(2, "0")}
-          </span>
-          <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-            <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A]">{space.name}</span>
-            <DeptBadges departments={depts} allDepartments={allDepartments} maxVisible={2} />
+        <div className="flex items-center gap-3 px-4 py-3.5">
+          <Avatar name={space.name} />
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A] truncate">
+                {space.name}
+              </span>
+            </div>
+            <div className="mt-0.5">
+              <DeptBadges departments={depts} allDepartments={allDepartments} maxVisible={2} />
+            </div>
           </div>
 
           {space.multiBed ? (
@@ -987,56 +1008,61 @@ const SpaceRow = ({
             <Banknote className="w-[11px] h-[11px]" />
             {fmt(space.chargePerDay)}
           </span>
+
           <ChevronDown
-            className={`w-[14px] h-[14px] text-[#94A3B8] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
+            className={`w-[15px] h-[15px] text-[#94A3B8] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
           />
         </div>
       </button>
 
       {expanded && (
-        <div
-          className="mx-2 mb-3 px-4 py-3 rounded-xl border border-[#E2E8F0]"
-          style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
-        >
-          <div className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B] leading-loose mb-3 space-y-1">
-            <p className="flex items-center gap-1.5">
-              <Building2 className="w-3 h-3 text-[#6366F1]" />
-              {depts.map((d) => deptLabel(d, allDepartments)).join(", ")}
-            </p>
-            {!space.multiBed && space.reserved && space.reservedNote && (
-              <p className="flex items-start gap-1.5 text-[#D97706]">
-                <BookMarked className="w-3 h-3 mt-[2px] shrink-0" />
-                {space.reservedNote}
+        <div className="px-4 pb-4 border-t border-[#E2E8F0]">
+          <div className="pt-3.5 space-y-3.5">
+            <div className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B] leading-loose">
+              <p className="flex items-center gap-1.5">
+                <Building2 className="w-3 h-3 text-[#6366F1]" />
+                {depts.map((d) => deptLabel(d, allDepartments)).join(", ")}
               </p>
+              {!space.multiBed && space.reserved && space.reservedNote && (
+                <p className="flex items-start gap-1.5 text-[#D97706] mt-[2px]">
+                  <BookMarked className="w-3 h-3 mt-[2px] shrink-0" />
+                  {space.reservedNote}
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <ActionChip onClick={() => onEdit(space)} icon={Pencil} label="Edit" color="#6366F1" />
+              <ActionChip onClick={() => onEditPrice(space)} icon={Banknote} label="Change Price" color="#3B82F6" />
+              {!space.multiBed &&
+                (space.reserved ? (
+                  <ActionChip onClick={() => onReleaseSingle(space)} icon={BookX} label="মুক্ত করুন" color="#F59E0B" />
+                ) : (
+                  <ActionChip
+                    onClick={() => onReserveSingle(space)}
+                    icon={BookMarked}
+                    label="সংরক্ষণ"
+                    color="#F59E0B"
+                  />
+                ))}
+              <ActionChip onClick={() => onDelete(space)} icon={Trash2} label="Delete" color="#EF4444" />
+            </div>
+
+            {space.multiBed && space.multiBedConf && (
+              <div className="pt-3 border-t border-[#E2E8F0]">
+                <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] mb-2">
+                  শয্যা লেআউট
+                </p>
+                <BedGrid
+                  conf={space.multiBedConf}
+                  spaceId={space._id}
+                  onUpdate={onUpdate}
+                  onReserveClick={(bedNumber) => onReserveBed(space, bedNumber)}
+                  onError={onBedError}
+                />
+              </div>
             )}
           </div>
-
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <ActionChip onClick={() => onEdit(space)} icon={Pencil} label="Edit" color="#6366F1" />
-            <ActionChip onClick={() => onEditPrice(space)} icon={Banknote} label="Change Price" color="#3B82F6" />
-            {!space.multiBed &&
-              (space.reserved ? (
-                <ActionChip onClick={() => onReleaseSingle(space)} icon={BookX} label="মুক্ত করুন" color="#F59E0B" />
-              ) : (
-                <ActionChip onClick={() => onReserveSingle(space)} icon={BookMarked} label="সংরক্ষণ" color="#F59E0B" />
-              ))}
-            <ActionChip onClick={() => onDelete(space)} icon={Trash2} label="Delete" color="#EF4444" />
-          </div>
-
-          {space.multiBed && space.multiBedConf && (
-            <div className="mt-3 pt-3 border-t border-[#E2E8F0]">
-              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] mb-2">
-                শয্যা লেআউট
-              </p>
-              <BedGrid
-                conf={space.multiBedConf}
-                spaceId={space._id}
-                onUpdate={onUpdate}
-                onReserveClick={(bedNumber) => onReserveBed(space, bedNumber)}
-                onError={onBedError}
-              />
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -1083,19 +1109,20 @@ const FilterDropdown = ({ value, onChange, options, placeholder }) => (
   </div>
 );
 
-// ── Skeleton ───────────────────────────────────────────────────────────────────
+// ── Skeleton — mirrors ManageReferrer.jsx / ManageDoctors.jsx card skeleton ────
 
 const Skeleton = () => (
-  <div className="bg-white animate-pulse overflow-hidden border border-[#E2E8F0] rounded-[20px]">
-    <div className="px-6 py-4 flex gap-4 border-b border-[#E2E8F0]">
-      {[120, 70, 90].map((w, i) => (
-        <div key={i} className="h-3 bg-[#E2E8F0] rounded-md" style={{ width: w }} />
-      ))}
-    </div>
+  <div className="space-y-2">
     {[1, 2, 3, 4].map((i) => (
-      <div key={i} className="flex items-center gap-3 px-6 py-3.5 border-b border-[#E2E8F0]">
-        <div className="w-[26px] h-[26px] bg-[#E2E8F0] rounded-lg" />
-        <div className="flex-1 h-[13px] bg-[#E2E8F0] rounded-md" />
+      <div
+        key={i}
+        className="flex items-center gap-3 px-4 py-3.5 bg-white border border-[#E2E8F0] rounded-[14px] animate-pulse"
+      >
+        <div className="w-10 h-10 bg-[#E2E8F0] rounded-[9px] shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-3 w-2/5 bg-[#E2E8F0] rounded-md" />
+          <div className="h-2.5 w-3/5 bg-[#EEF2FF] rounded-md" />
+        </div>
         <div className="w-[65px] h-[26px] bg-[#E2E8F0] rounded-[20px]" />
       </div>
     ))}
@@ -1278,10 +1305,7 @@ const ManageSpaces = () => {
   };
 
   return (
-    <section
-      className="min-h-screen px-4 py-6 font-['IBM_Plex_Sans',sans-serif]"
-      style={{ background: "linear-gradient(to bottom right,#f8fafc,#eff6ff,#eef2ff)" }}
-    >
+    <section className={`min-h-screen px-4 py-6 ${pageGradientBg} font-['IBM_Plex_Sans',sans-serif]`}>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       {formModal && (
@@ -1337,15 +1361,26 @@ const ManageSpaces = () => {
       )}
 
       <div className="max-w-2xl mx-auto">
-        {/* Page header */}
+        {/* Page header — gradient icon badge, matching ManageReferrer/ManageDoctors/ManageStaff */}
         <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[26px] font-bold text-[#0F172A] leading-tight">
-              Manage Spaces
-            </h1>
-            <p className="text-sm text-[#64748B] mt-1">Wards, cabins, and indoor patient spaces.</p>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-11 h-11 flex items-center justify-center shrink-0 rounded-xl shadow-md"
+              style={{
+                background: "linear-gradient(135deg,#3B82F6,#2563EB)",
+                boxShadow: "0 4px 10px #3B82F635",
+              }}
+            >
+              <BedDouble className="w-[18px] h-[18px] text-white" />
+            </div>
+            <div>
+              <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[22px] font-bold text-[#0F172A] leading-tight">
+                Manage Spaces
+              </h1>
+              <p className="text-[13px] text-[#64748B] mt-0.5">Wards, cabins, and indoor patient spaces.</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex items-center gap-2">
             <button
               onClick={openAdd}
               className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none shadow-[0_4px_14px_rgba(99,102,241,0.4)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.5)]"
@@ -1390,122 +1425,78 @@ const ManageSpaces = () => {
           </div>
         )}
 
-        {/* Main card */}
+        {/* Toolbar card */}
+        <div className="px-4 py-3 flex flex-wrap items-center gap-2 mb-4 bg-white border border-[#E2E8F0] rounded-2xl">
+          <div className="relative flex-[1_1_160px]">
+            <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search space name…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={`${inputBase} pl-8 ${search ? "pr-8" : "pr-3"} py-2 text-xs`}
+              onFocus={focusInput}
+              onBlur={blurInput}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]"
+              >
+                <X className="w-[13px] h-[13px]" />
+              </button>
+            )}
+          </div>
+          <FilterDropdown
+            value={deptFilter}
+            onChange={setDeptFilter}
+            options={departments}
+            placeholder="All Departments"
+          />
+          {hasFilters && (
+            <button
+              onClick={() => setDeptFilter("all")}
+              className="flex items-center gap-1.5 transition-all font-semibold py-[7px] px-3 border-[1.5px] border-[#EF444430] rounded-[10px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] text-[11px] bg-[#EF444406] hover:bg-[#EF444412]"
+            >
+              <RotateCcw className="w-3 h-3" /> Reset
+            </button>
+          )}
+        </div>
+
+        {/* Space cards */}
         {initialLoading ? (
           <Skeleton />
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8] bg-white border border-[#E2E8F0] rounded-2xl">
+            <AlertCircle className="w-7 h-7 opacity-40" />
+            <p className="font-['IBM_Plex_Mono',monospace] text-xs">
+              {hasFilters || search ? "No spaces found" : "No spaces added yet"}
+            </p>
+          </div>
         ) : (
-          <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)]">
-            {/* Card header */}
-            <div
-              className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0]"
-              style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
-            >
-              <div>
-                <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#6366F1] mb-1">
-                  SPACE LEDGER
-                </p>
-                <div className="flex items-center gap-3">
-                  <span className="font-['IBM_Plex_Mono',monospace] text-[13px] font-semibold text-[#64748B]">
-                    {stats.total} spaces
-                  </span>
-                  {stats.available > 0 && (
-                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#10B981] bg-[#10B98110] rounded-[6px] border border-[#10B98125]">
-                      {stats.available} beds free
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Toolbar */}
-            <div className="px-4 py-3 flex flex-wrap items-center gap-2 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-              <div className="relative flex-[1_1_160px]">
-                <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search space name…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className={`${inputBase} pl-8 ${search ? "pr-8" : "pr-3"} py-2 text-xs`}
-                  onFocus={focusInput}
-                  onBlur={blurInput}
-                />
-                {search && (
-                  <button
-                    onClick={() => setSearch("")}
-                    className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]"
-                  >
-                    <X className="w-[13px] h-[13px]" />
-                  </button>
-                )}
-              </div>
-              <FilterDropdown
-                value={deptFilter}
-                onChange={setDeptFilter}
-                options={departments}
-                placeholder="All Departments"
+          <div className="space-y-2">
+            {filtered.map((space) => (
+              <SpaceRow
+                key={space._id}
+                space={space}
+                allDepartments={departments}
+                onEdit={openEdit}
+                onEditPrice={(s) => setPriceModal({ space: s })}
+                onDelete={(s) => setConfirmTarget({ type: "delete", space: s })}
+                onReserveSingle={(s) => setReserveModal({ space: s })}
+                onReleaseSingle={(s) => setConfirmTarget({ type: "release", space: s })}
+                onReserveBed={(s, bedNumber) => setReserveModal({ space: s, bedNumber })}
+                onUpdate={(updater) => handleSpaceUpdate(space, updater)}
+                onBedError={handleBedError}
               />
-              {hasFilters && (
-                <button
-                  onClick={() => setDeptFilter("all")}
-                  className="flex items-center gap-1.5 transition-all font-semibold py-[7px] px-3 border-[1.5px] border-[#EF444430] rounded-[10px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] text-[11px] bg-[#EF444406] hover:bg-[#EF444412]"
-                >
-                  <RotateCcw className="w-3 h-3" /> Reset
-                </button>
-              )}
-            </div>
-
-            {/* Column labels */}
-            <div className="flex items-center gap-3 px-4 pt-3 pb-1">
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] w-[26px] shrink-0">
-                #
-              </span>
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] flex-1">
-                SPACE
-              </span>
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] shrink-0">
-                CHARGE
-              </span>
-              <span className="w-[14px] shrink-0" />
-            </div>
-
-            {/* Rows */}
-            <div className="px-4 pb-4">
-              {filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8]">
-                  <AlertCircle className="w-7 h-7 opacity-40" />
-                  <p className="font-['IBM_Plex_Mono',monospace] text-xs">
-                    {hasFilters || search ? "No spaces found" : "No spaces added yet"}
-                  </p>
-                </div>
-              ) : (
-                filtered.map((space, index) => (
-                  <SpaceRow
-                    key={space._id}
-                    space={space}
-                    index={index}
-                    allDepartments={departments}
-                    onEdit={openEdit}
-                    onEditPrice={(s) => setPriceModal({ space: s })}
-                    onDelete={(s) => setConfirmTarget({ type: "delete", space: s })}
-                    onReserveSingle={(s) => setReserveModal({ space: s })}
-                    onReleaseSingle={(s) => setConfirmTarget({ type: "release", space: s })}
-                    onReserveBed={(s, bedNumber) => setReserveModal({ space: s, bedNumber })}
-                    onUpdate={(updater) => handleSpaceUpdate(space, updater)}
-                    onBedError={handleBedError}
-                  />
-                ))
-              )}
-            </div>
-
-            {/* Footer note */}
-            <div className="px-6 py-3 border-t border-[#E2E8F0] bg-[#F8FAFC]">
-              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-                * Booked beds are managed automatically via the invoice flow
-              </p>
-            </div>
+            ))}
           </div>
         )}
+
+        {/* Footer note */}
+        <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8] mt-4 text-center">
+          * Booked beds are managed automatically via the invoice flow
+        </p>
       </div>
     </section>
   );

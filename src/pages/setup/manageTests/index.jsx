@@ -50,6 +50,9 @@ const C = {
   blue: "#3B82F6",
 };
 
+// Page background — matches ManageDoctors.jsx / Setup.jsx / ManageReferrer.jsx / ManageStaff.jsx
+const pageGradientBg = "bg-[radial-gradient(ellipse_120%_80%_at_50%_-10%,#eef2ff_0%,#f8fafc_45%,#f8fafc_100%)]";
+
 const UNCATEGORIZED_ID = "uncategorized";
 const STATUS_OPTIONS = [
   { value: "all", label: "সব" },
@@ -894,93 +897,87 @@ const ActionChip = ({ onClick, icon: Icon, label, color }) => (
   </button>
 );
 
-// ── Test Row ───────────────────────────────────────────────────────────────────
+// ── Avatar initial chip — mirrors Avatar in ManageDoctors / ManageReferrer ──────
 
-const TestRow = ({ test, index, onConfigureFormat, onConfigurePrice, onConfigureCommission, onDelete }) => {
+const Avatar = ({ name }) => {
+  const initial = name?.trim()?.[0]?.toUpperCase() ?? "?";
+  return (
+    <div className="w-10 h-10 flex items-center justify-center shrink-0 text-[14px] font-bold rounded-[9px] font-['IBM_Plex_Mono',monospace] bg-[#0D948815] text-[#0D9488]">
+      {initial}
+    </div>
+  );
+};
+
+// ── Test Card — card style, mirrors DoctorRow in ManageDoctors.jsx ─────────────
+
+const TestCard = ({ test, onConfigureFormat, onConfigurePrice, onConfigureCommission, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
+  const statusGrad = test.isOnline
+    ? "linear-gradient(135deg,#10B981,#059669)"
+    : "linear-gradient(135deg,#F59E0B,#D97706)";
+  const statusShadow = test.isOnline ? "shadow-[0_3px_8px_#10B98130]" : "shadow-[0_3px_8px_#F59E0B30]";
 
   return (
-    <div className="transition-all border-b border-[#E2E8F0]">
+    <div
+      className="bg-white border border-[#E2E8F0] rounded-[14px] transition-shadow"
+      style={{ boxShadow: expanded ? "0 4px 14px rgba(15,23,42,0.08)" : "0 1px 2px rgba(15,23,42,0.03)" }}
+    >
       <button onClick={() => setExpanded((v) => !v)} className="w-full text-left">
-        <div className="flex items-center gap-3 py-3 px-2 rounded-xl transition-all hover:bg-[#F1F5F9]">
-          <span className="flex items-center justify-center shrink-0 w-[26px] h-[26px] rounded-lg bg-[#EEF2FF] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#64748B]">
-            {String(index + 1).padStart(2, "0")}
-          </span>
+        <div className="flex items-center gap-3 px-4 py-3.5">
+          <Avatar name={test.name} />
+
           <div className="flex-1 min-w-0">
-            <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A]">{test.name}</span>
+            <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A] truncate block">
+              {test.name}
+            </span>
+            <p className="font-['IBM_Plex_Mono',monospace] text-[10.5px] text-[#94A3B8] mt-0.5 truncate">
+              {test.categoryName}
+            </p>
           </div>
-          {/* Price */}
+
           {test.price > 0 && (
             <span className="shrink-0 font-['IBM_Plex_Mono',monospace] text-xs font-bold text-[#0D9488]">
               ৳{test.price.toLocaleString("en-IN")}
             </span>
           )}
-          {/* Online badge */}
+
           <span
-            className={`shrink-0 hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg border-[1.5px] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold
-              ${
-                test.isOnline
-                  ? "bg-[#10B98115] border-[#10B98130] text-[#10B981]"
-                  : "bg-[#F59E0B15] border-[#F59E0B30] text-[#F59E0B]"
-              }`}
+            className={`shrink-0 flex items-center gap-1 px-3 py-1 rounded-[20px] text-white font-['IBM_Plex_Mono',monospace] text-[10px] font-bold ${statusShadow}`}
+            style={{ background: statusGrad }}
           >
-            {test.isOnline ? (
-              <>
-                <Wifi className="w-[10px] h-[10px]" /> অনলাইন
-              </>
-            ) : (
-              <>
-                <WifiOff className="w-[10px] h-[10px]" /> অফলাইন
-              </>
-            )}
+            {test.isOnline ? <Wifi className="w-[10px] h-[10px]" /> : <WifiOff className="w-[10px] h-[10px]" />}
+            {test.isOnline ? "অনলাইন" : "অফলাইন"}
           </span>
+
           <ChevronDown
-            className={`w-[14px] h-[14px] text-[#94A3B8] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
+            className={`w-[15px] h-[15px] text-[#94A3B8] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
           />
         </div>
       </button>
 
       {expanded && (
-        <div
-          className="mx-2 mb-3 px-4 py-3 rounded-xl border border-[#E2E8F0]"
-          style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
-        >
-          <div className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B] leading-loose mb-3 flex flex-wrap gap-x-4 gap-y-1">
-            <span>
-              মূল্য:{" "}
-              <span className="font-bold text-[#0D9488]">
-                {test.price > 0 ? `৳${test.price.toLocaleString("en-IN")}` : "নির্ধারিত নয়"}
+        <div className="px-4 pb-4 border-t border-[#E2E8F0]">
+          <div className="pt-3.5 space-y-3.5">
+            <div className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B] leading-loose flex flex-wrap gap-x-4 gap-y-1">
+              <span>
+                মূল্য:{" "}
+                <span className="font-bold text-[#0D9488]">
+                  {test.price > 0 ? `৳${test.price.toLocaleString("en-IN")}` : "নির্ধারিত নয়"}
+                </span>
               </span>
-            </span>
-            <span>
-              কমিশন:{" "}
-              <span className="font-bold text-[#8B5CF6]">
-                {test.commission > 0 ? `৳${test.commission.toLocaleString("en-IN")}` : "নির্ধারিত নয়"}
+              <span>
+                কমিশন:{" "}
+                <span className="font-bold text-[#8B5CF6]">
+                  {test.commission > 0 ? `৳${test.commission.toLocaleString("en-IN")}` : "নির্ধারিত নয়"}
+                </span>
               </span>
-            </span>
-            <span>
-              বিভাগ: <span className="font-bold text-[#0F172A]">{test.categoryName}</span>
-            </span>
-            <span className="flex items-center gap-1">
-              স্ট্যাটাস:{" "}
-              {test.isOnline ? (
-                <>
-                  <Wifi className="w-3 h-3 text-[#10B981]" />
-                  <span className="font-bold text-[#10B981]">অনলাইন</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="w-3 h-3 text-[#F59E0B]" />
-                  <span className="font-bold text-[#F59E0B]">অফলাইন</span>
-                </>
-              )}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <ActionChip onClick={onConfigureFormat} icon={FileText} label="Format" color={C.teal} />
-            <ActionChip onClick={onConfigurePrice} icon={Banknote} label="Change Price" color={C.blue} />
-            <ActionChip onClick={onConfigureCommission} icon={Percent} label="Change Commission" color={C.purple} />
-            <ActionChip onClick={onDelete} icon={Trash2} label="Delete" color={C.red} />
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <ActionChip onClick={onConfigureFormat} icon={FileText} label="Format" color={C.teal} />
+              <ActionChip onClick={onConfigurePrice} icon={Banknote} label="Change Price" color={C.blue} />
+              <ActionChip onClick={onConfigureCommission} icon={Percent} label="Change Commission" color={C.purple} />
+              <ActionChip onClick={onDelete} icon={Trash2} label="Delete" color={C.red} />
+            </div>
           </div>
         </div>
       )}
@@ -994,7 +991,10 @@ const StatCard = ({ label, value, color, grad, icon: Icon }) => (
   <div className="bg-white relative overflow-hidden border border-[#E2E8F0] rounded-2xl p-[14px_16px] shadow-[0_2px_8px_rgba(15,23,42,0.05)]">
     <div className="absolute top-0 right-0 w-16 h-16 opacity-5 rounded-[0_16px_0_100%]" style={{ background: grad }} />
     <div className="flex items-center gap-2 mb-2">
-      <div className="flex items-center justify-center w-[26px] h-[26px] rounded-lg" style={{ background: grad }}>
+      <div
+        className="flex items-center justify-center w-[26px] h-[26px] rounded-lg"
+        style={{ background: grad, boxShadow: `0 3px 8px ${color}30` }}
+      >
         <Icon className="w-[13px] h-[13px] text-white" />
       </div>
       <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.06em] text-[#94A3B8]">
@@ -1007,20 +1007,21 @@ const StatCard = ({ label, value, color, grad, icon: Icon }) => (
   </div>
 );
 
-// ── Skeleton ───────────────────────────────────────────────────────────────────
+// ── Skeleton — mirrors ManageDoctors.jsx card-list skeleton ────────────────────
 
 const Skeleton = () => (
-  <div className="bg-white animate-pulse overflow-hidden border border-[#E2E8F0] rounded-[20px]">
-    <div className="px-6 py-4 flex gap-4 border-b border-[#E2E8F0]">
-      {[120, 70, 90].map((w, i) => (
-        <div key={i} className="h-3 bg-[#E2E8F0] rounded-md" style={{ width: w }} />
-      ))}
-    </div>
+  <div className="space-y-2">
     {[1, 2, 3, 4].map((i) => (
-      <div key={i} className="flex items-center gap-3 px-6 py-3.5 border-b border-[#E2E8F0]">
-        <div className="w-[26px] h-[26px] bg-[#E2E8F0] rounded-lg" />
-        <div className="flex-1 h-[13px] bg-[#E2E8F0] rounded-md" />
-        <div className="w-[60px] h-[22px] bg-[#E2E8F0] rounded-lg" />
+      <div
+        key={i}
+        className="flex items-center gap-3 px-4 py-3.5 bg-white border border-[#E2E8F0] rounded-[14px] animate-pulse"
+      >
+        <div className="w-10 h-10 bg-[#E2E8F0] rounded-[9px] shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-3 w-2/5 bg-[#E2E8F0] rounded-md" />
+          <div className="h-2.5 w-3/5 bg-[#EEF2FF] rounded-md" />
+        </div>
+        <div className="w-[65px] h-[26px] bg-[#E2E8F0] rounded-[20px]" />
       </div>
     ))}
   </div>
@@ -1029,7 +1030,7 @@ const Skeleton = () => (
 // ── Section Divider ────────────────────────────────────────────────────────────
 
 const SectionDivider = ({ title, count }) => (
-  <div className="flex items-center gap-2 pt-3 pb-1 first:pt-0">
+  <div className="flex items-center gap-2 pt-1 pb-1">
     <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#0D9488]">
       {title}
     </span>
@@ -1077,8 +1078,8 @@ const ManageTests = () => {
   const [commissionTest, setCommissionTest] = useState(null);
   // Delete confirmation uses the shared <Popup type="warning"> directly
   // (see render section below), not a bespoke modal — same pattern as
-  // Products.jsx / ManageReferrer.jsx. `deleteTarget` just holds which
-  // test the confirm popup refers to.
+  // ManageDoctors.jsx / Products.jsx / ManageReferrer.jsx. `deleteTarget`
+  // just holds which test the confirm popup refers to.
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -1153,7 +1154,7 @@ const ManageTests = () => {
 
   // No in-flight spinner on the confirm popup itself — it closes as soon as
   // onConfirm fires, so a failure just surfaces as a follow-up error toast.
-  // Mirrors handleDelete in Products.jsx / ManageReferrer.jsx.
+  // Mirrors handleDelete in ManageDoctors.jsx / Products.jsx / ManageReferrer.jsx.
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
@@ -1215,10 +1216,7 @@ const ManageTests = () => {
   const hasFilters = search !== "" || statusFilter !== "all";
 
   return (
-    <section
-      className="min-h-screen px-4 py-6 font-[Noto_Sans_Bengali,sans-serif]"
-      style={{ background: "linear-gradient(to bottom right,#f8fafc,#f0fdf4,#ecfdf5)" }}
-    >
+    <section className={`min-h-screen px-4 py-6 ${pageGradientBg} font-[Noto_Sans_Bengali,sans-serif]`}>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       {addModal && <AddTestModal existingTests={tests} onClose={() => setAddModal(false)} onSaved={handleAdded} />}
@@ -1250,15 +1248,26 @@ const ManageTests = () => {
       )}
 
       <div className="max-w-2xl mx-auto">
-        {/* Page header */}
+        {/* Page header — gradient icon badge, matching ManageDoctors/ManageReferrer/ManageStaff */}
         <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[26px] font-bold text-[#0F172A] leading-tight">
-              টেস্ট ব্যবস্থাপনা
-            </h1>
-            <p className="text-sm text-[#64748B] mt-1">মূল্য, কমিশন, ফরম্যাট ও অনলাইন স্ট্যাটাস পরিচালনা।</p>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-11 h-11 flex items-center justify-center shrink-0 rounded-xl shadow-md"
+              style={{
+                background: "linear-gradient(135deg,#0D9488,#0F766E)",
+                boxShadow: "0 4px 10px #0D948835",
+              }}
+            >
+              <FlaskConical className="w-[18px] h-[18px] text-white" />
+            </div>
+            <div>
+              <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[22px] font-bold text-[#0F172A] leading-tight">
+                টেস্ট ব্যবস্থাপনা
+              </h1>
+              <p className="text-[13px] text-[#64748B] mt-0.5">মূল্য, কমিশন, ফরম্যাট ও অনলাইন স্ট্যাটাস পরিচালনা।</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex items-center gap-2">
             <Link
               to="/lab-management"
               className="flex items-center gap-1.5 transition-all font-semibold px-[14px] py-2 border-[1.5px] border-[#E2E8F0] rounded-xl text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9] hover:text-[#0F172A]"
@@ -1309,128 +1318,93 @@ const ManageTests = () => {
           </div>
         )}
 
-        {/* Main card */}
+        {/* Toolbar card — standalone, mirrors ManageDoctors.jsx */}
+        <div className="px-4 py-3 flex flex-wrap items-center gap-2 mb-4 bg-white border border-[#E2E8F0] rounded-2xl">
+          <div className="relative flex-[1_1_160px]">
+            <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="টেস্টের নাম খুঁজুন…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={`${inputBase} pl-8 ${search ? "pr-8" : "pr-3"} py-2 text-xs`}
+              onFocus={focusInput}
+              onBlur={blurInput}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]"
+              >
+                <X className="w-[13px] h-[13px]" />
+              </button>
+            )}
+          </div>
+          <FilterDropdown value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} />
+          {hasFilters && (
+            <button
+              onClick={() => {
+                setSearch("");
+                setStatusFilter("all");
+              }}
+              className="flex items-center gap-1.5 transition-all font-semibold py-[7px] px-3 border-[1.5px] border-[#EF444430] rounded-[10px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] text-[11px] bg-[#EF444406] hover:bg-[#EF444412]"
+            >
+              <RotateCcw className="w-3 h-3" /> রিসেট
+            </button>
+          )}
+        </div>
+
+        {/* Test cards */}
         {initialLoading ? (
           <Skeleton />
-        ) : (
-          <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)]">
-            {/* Card header */}
-            <div
-              className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0]"
-              style={{ background: "linear-gradient(135deg,#F8FAFC,#F0FDF4)" }}
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8] bg-white border border-[#E2E8F0] rounded-2xl">
+            <AlertCircle className="w-7 h-7 opacity-40" />
+            <p className="font-['IBM_Plex_Mono',monospace] text-xs text-[#EF4444]">{error}</p>
+            <button
+              onClick={() => {
+                setInitialLoading(true);
+                setError("");
+                loadAll();
+              }}
+              className="font-['IBM_Plex_Mono',monospace] text-xs text-[#0D9488] underline"
             >
-              <div>
-                <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#0D9488] mb-1">
-                  টেস্ট লেজার
-                </p>
-                <div className="flex items-center gap-3">
-                  <span className="font-['IBM_Plex_Mono',monospace] text-[13px] font-semibold text-[#64748B]">
-                    মোট {stats.total}টি
-                  </span>
-                  {stats.online > 0 && (
-                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#10B981] bg-[#10B98110] rounded-[6px] border border-[#10B98125]">
-                      অনলাইন {stats.online}টি
-                    </span>
-                  )}
+              আবার চেষ্টা করুন
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8] bg-white border border-[#E2E8F0] rounded-2xl">
+            <AlertCircle className="w-7 h-7 opacity-40" />
+            <p className="font-['IBM_Plex_Mono',monospace] text-xs">
+              {hasFilters ? "কোনো টেস্ট পাওয়া যায়নি" : "এখনো কোনো টেস্ট যোগ করা হয়নি"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {groups.map((group) => (
+              <div key={group.categoryId}>
+                <SectionDivider title={group.categoryName} count={group.tests.length} />
+                <div className="space-y-2">
+                  {group.tests.map((test) => (
+                    <TestCard
+                      key={test._id}
+                      test={test}
+                      onConfigureFormat={() => setFormatTest(test)}
+                      onConfigurePrice={() => setPriceTest(test)}
+                      onConfigureCommission={() => setCommissionTest(test)}
+                      onDelete={() => setDeleteTarget(test)}
+                    />
+                  ))}
                 </div>
               </div>
-            </div>
-
-            {/* Toolbar */}
-            <div className="px-4 py-3 flex flex-wrap items-center gap-2 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-              <div className="relative flex-[1_1_160px]">
-                <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="টেস্টের নাম খুঁজুন…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className={`${inputBase} pl-8 ${search ? "pr-8" : "pr-3"} py-2 text-xs`}
-                  onFocus={focusInput}
-                  onBlur={blurInput}
-                />
-                {search && (
-                  <button
-                    onClick={() => setSearch("")}
-                    className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]"
-                  >
-                    <X className="w-[13px] h-[13px]" />
-                  </button>
-                )}
-              </div>
-              <FilterDropdown value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} />
-              {hasFilters && (
-                <button
-                  onClick={() => {
-                    setSearch("");
-                    setStatusFilter("all");
-                  }}
-                  className="flex items-center gap-1.5 transition-all font-semibold py-[7px] px-3 border-[1.5px] border-[#EF444430] rounded-[10px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] text-[11px] bg-[#EF444406] hover:bg-[#EF444412]"
-                >
-                  <RotateCcw className="w-3 h-3" /> রিসেট
-                </button>
-              )}
-            </div>
-
-            {/* Column labels */}
-            <div className="flex items-center gap-3 px-4 pt-3 pb-1">
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] w-[26px] shrink-0">
-                #
-              </span>
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] flex-1">
-                টেস্ট
-              </span>
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] shrink-0">
-                স্ট্যাটাস
-              </span>
-              <span className="w-[14px] shrink-0" />
-            </div>
-
-            {/* Rows */}
-            <div className="px-4 pb-4">
-              {error ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8]">
-                  <AlertCircle className="w-7 h-7 opacity-40" />
-                  <p className="font-['IBM_Plex_Mono',monospace] text-xs text-[#EF4444]">{error}</p>
-                  <button
-                    onClick={() => {
-                      setInitialLoading(true);
-                      setError("");
-                      loadAll();
-                    }}
-                    className="font-['IBM_Plex_Mono',monospace] text-xs text-[#0D9488] underline"
-                  >
-                    আবার চেষ্টা করুন
-                  </button>
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8]">
-                  <AlertCircle className="w-7 h-7 opacity-40" />
-                  <p className="font-['IBM_Plex_Mono',monospace] text-xs">
-                    {hasFilters ? "কোনো টেস্ট পাওয়া যায়নি" : "এখনো কোনো টেস্ট যোগ করা হয়নি"}
-                  </p>
-                </div>
-              ) : (
-                groups.map((group) => (
-                  <div key={group.categoryId}>
-                    <SectionDivider title={group.categoryName} count={group.tests.length} />
-                    {group.tests.map((test, index) => (
-                      <TestRow
-                        key={test._id}
-                        test={test}
-                        index={index}
-                        onConfigureFormat={() => setFormatTest(test)}
-                        onConfigurePrice={() => setPriceTest(test)}
-                        onConfigureCommission={() => setCommissionTest(test)}
-                        onDelete={() => setDeleteTarget(test)}
-                      />
-                    ))}
-                  </div>
-                ))
-              )}
-            </div>
+            ))}
           </div>
         )}
+
+        {/* Footer note */}
+        <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8] mt-4 text-center">
+          * শুধুমাত্র সক্রিয় টেস্টের তথ্য অন্তর্ভুক্ত
+        </p>
       </div>
     </section>
   );

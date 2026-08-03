@@ -21,6 +21,7 @@ import {
   Check,
   AlertCircle,
   RotateCcw,
+  Stethoscope,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Modal from "../../../components/modal";
@@ -47,6 +48,9 @@ const C = {
   purple: "#8B5CF6",
   green: "#10B981",
 };
+
+// Page background — matches Setup.jsx / ManageReferrer.jsx / ManageStaff.jsx
+const pageGradientBg = "bg-[radial-gradient(ellipse_120%_80%_at_50%_-10%,#eef2ff_0%,#f8fafc_45%,#f8fafc_100%)]";
 
 // ── Error helpers ──────────────────────────────────────────────────────────────
 
@@ -733,7 +737,7 @@ const CommissionModal = ({ doctor, onClose, onSaved }) => {
   );
 };
 
-// ── Action Chip ────────────────────────────────────────────────────────────────
+// ── Action Chip (icon + English label, mirrors ActionChip in ManageReferrer) ───
 
 const ActionChip = ({ onClick, icon: Icon, label, color }) => (
   <button
@@ -758,29 +762,53 @@ const ActionChip = ({ onClick, icon: Icon, label, color }) => (
   </button>
 );
 
-// ── Doctor Row ─────────────────────────────────────────────────────────────────
+// ── Avatar initial chip — mirrors Avatar in ManageReferrer / ManageStaff ────────
 
-const DoctorRow = ({ doctor, index, deptLabelMap, desigLabelMap, onEdit, onCommission, onDelete }) => {
+const Avatar = ({ name }) => {
+  const initial = name?.trim()?.[0]?.toUpperCase() ?? "?";
+  return (
+    <div className="w-10 h-10 flex items-center justify-center shrink-0 text-[14px] font-bold rounded-[9px] font-['IBM_Plex_Mono',monospace] bg-[#0D948815] text-[#0D9488]">
+      {initial}
+    </div>
+  );
+};
+
+// ── Doctor Row — card style, mirrors ReferrerRow / StaffRow ────────────────────
+
+const DoctorRow = ({ doctor, deptLabelMap, desigLabelMap, onEdit, onCommission, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
   const isPercent = doctor.commissionType === "percentage";
   const commGrad = isPercent ? "linear-gradient(135deg,#F59E0B,#D97706)" : "linear-gradient(135deg,#0D9488,#0F766E)";
   const commShadow = isPercent ? "shadow-[0_3px_8px_#F59E0B30]" : "shadow-[0_3px_8px_#0D948830]";
 
   return (
-    <div className="transition-all border-b border-[#E2E8F0]">
+    <div
+      className="bg-white border border-[#E2E8F0] rounded-[14px] transition-shadow"
+      style={{ boxShadow: expanded ? "0 4px 14px rgba(15,23,42,0.08)" : "0 1px 2px rgba(15,23,42,0.03)" }}
+    >
       <button onClick={() => setExpanded((v) => !v)} className="w-full text-left">
-        <div className="flex items-center gap-3 py-3 px-2 rounded-xl transition-all hover:bg-[#F1F5F9]">
-          <span className="flex items-center justify-center shrink-0 w-[26px] h-[26px] rounded-lg bg-[#EEF2FF] font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#64748B]">
-            {String(index + 1).padStart(2, "0")}
-          </span>
+        <div className="flex items-center gap-3 px-4 py-3.5">
+          <Avatar name={doctor.name} />
+
           <div className="flex-1 min-w-0">
-            <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A]">
-              {doctor.name}
-            </span>
-            {doctor.degree && (
-              <span className="ml-2 font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8]">{doctor.degree}</span>
-            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A] truncate">
+                {doctor.name}
+              </span>
+              {doctor.degree && (
+                <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-md border-[1.5px] font-['IBM_Plex_Mono',monospace] text-[9.5px] font-bold bg-[#0D948815] border-[#0D948830] text-[#0D9488]">
+                  <Stethoscope className="w-[9px] h-[9px]" />
+                  {doctor.degree}
+                </span>
+              )}
+            </div>
+            <p className="font-['IBM_Plex_Mono',monospace] text-[10.5px] text-[#94A3B8] mt-0.5 truncate">
+              {(doctor.designation && (desigLabelMap[doctor.designation] ?? doctor.designation)) ||
+                doctor.contactNumber ||
+                "—"}
+            </p>
           </div>
+
           <span
             className={`shrink-0 flex items-center gap-1 px-3 py-1 rounded-[20px] text-white font-['IBM_Plex_Mono',monospace] text-xs font-bold ${commShadow}`}
             style={{ background: commGrad }}
@@ -788,38 +816,35 @@ const DoctorRow = ({ doctor, index, deptLabelMap, desigLabelMap, onEdit, onCommi
             {isPercent ? <BadgePercent className="w-[11px] h-[11px]" /> : <Banknote className="w-[11px] h-[11px]" />}
             {fmt(doctor.commissionValue, doctor.commissionType)}
           </span>
+
           <ChevronDown
-            className={`w-[14px] h-[14px] text-[#94A3B8] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
+            className={`w-[15px] h-[15px] text-[#94A3B8] transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
           />
         </div>
       </button>
 
       {expanded && (
-        <div
-          className="mx-2 mb-3 px-4 py-3 rounded-xl border border-[#E2E8F0]"
-          style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
-        >
-          <div className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B] leading-loose mb-3">
-            {doctor.designation && (
-              <p className="text-[#0F172A] font-semibold">{desigLabelMap[doctor.designation] ?? doctor.designation}</p>
-            )}
-            {doctor.contactNumber && (
-              <p className="flex items-center gap-1.5">
-                <Phone className="w-3 h-3 text-[#6366F1]" />
-                {doctor.contactNumber}
-              </p>
-            )}
-            {doctor.departments?.length > 0 && (
-              <p className="flex items-center gap-1.5 flex-wrap">
-                <Layers className="w-3 h-3 text-[#6366F1] shrink-0" />
-                {doctor.departments.map((d) => deptLabelMap[d] ?? d).join(" · ")}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <ActionChip onClick={onEdit} icon={Pencil} label="Edit" color={C.indigo} />
-            <ActionChip onClick={onCommission} icon={BadgePercent} label="Commission" color={C.purple} />
-            <ActionChip onClick={onDelete} icon={Trash2} label="Delete" color={C.red} />
+        <div className="px-4 pb-4 border-t border-[#E2E8F0]">
+          <div className="pt-3.5 space-y-3.5">
+            <div className="font-['IBM_Plex_Mono',monospace] text-xs text-[#64748B] leading-loose">
+              {doctor.contactNumber && (
+                <p className="flex items-center gap-1.5">
+                  <Phone className="w-3 h-3 text-[#6366F1]" />
+                  {doctor.contactNumber}
+                </p>
+              )}
+              {doctor.departments?.length > 0 && (
+                <p className="flex items-center gap-1.5 flex-wrap mt-[2px]">
+                  <Layers className="w-3 h-3 text-[#6366F1] shrink-0" />
+                  {doctor.departments.map((d) => deptLabelMap[d] ?? d).join(" · ")}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <ActionChip onClick={onEdit} icon={Pencil} label="Edit" color={C.indigo} />
+              <ActionChip onClick={onCommission} icon={BadgePercent} label="Commission" color={C.purple} />
+              <ActionChip onClick={onDelete} icon={Trash2} label="Delete" color={C.red} />
+            </div>
           </div>
         </div>
       )}
@@ -904,19 +929,20 @@ const FilterDropdown = ({ value, onChange, options, placeholder }) => (
   </div>
 );
 
-// ── Skeleton ───────────────────────────────────────────────────────────────────
+// ── Skeleton — mirrors ManageReferrer.jsx card-list skeleton ───────────────────
 
 const Skeleton = () => (
-  <div className="bg-white animate-pulse overflow-hidden border border-[#E2E8F0] rounded-[20px]">
-    <div className="px-6 py-4 flex gap-4 border-b border-[#E2E8F0]">
-      {[120, 70, 90].map((w, i) => (
-        <div key={i} className="h-3 bg-[#E2E8F0] rounded-md" style={{ width: w }} />
-      ))}
-    </div>
-    {[1, 2, 3, 4, 5].map((i) => (
-      <div key={i} className="flex items-center gap-3 px-6 py-3.5 border-b border-[#E2E8F0]">
-        <div className="w-[26px] h-[26px] bg-[#E2E8F0] rounded-lg" />
-        <div className="flex-1 h-[13px] bg-[#E2E8F0] rounded-md" />
+  <div className="space-y-2">
+    {[1, 2, 3, 4].map((i) => (
+      <div
+        key={i}
+        className="flex items-center gap-3 px-4 py-3.5 bg-white border border-[#E2E8F0] rounded-[14px] animate-pulse"
+      >
+        <div className="w-10 h-10 bg-[#E2E8F0] rounded-[9px] shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-3 w-2/5 bg-[#E2E8F0] rounded-md" />
+          <div className="h-2.5 w-3/5 bg-[#EEF2FF] rounded-md" />
+        </div>
         <div className="w-[65px] h-[26px] bg-[#E2E8F0] rounded-[20px]" />
       </div>
     ))}
@@ -1061,10 +1087,7 @@ const ManageDoctors = () => {
   const deptOptions = departments.map((d) => ({ value: d.value, label: d.label }));
 
   return (
-    <section
-      className="min-h-screen px-4 py-6 font-[Noto_Sans_Bengali,sans-serif]"
-      style={{ background: "linear-gradient(to bottom right,#f8fafc,#eff6ff,#eef2ff)" }}
-    >
+    <section className={`min-h-screen px-4 py-6 ${pageGradientBg} font-[Noto_Sans_Bengali,sans-serif]`}>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
 
       {formModal !== null && (
@@ -1097,15 +1120,26 @@ const ManageDoctors = () => {
       )}
 
       <div className="max-w-2xl mx-auto">
-        {/* Page header */}
+        {/* Page header — gradient icon badge, matching ManageReferrer/ManageStaff */}
         <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[26px] font-bold text-[#0F172A] leading-tight">
-              ডাক্তার তালিকা
-            </h1>
-            <p className="text-sm text-[#64748B] mt-1">কমিশন ও রেফারেল ডাক্তার পরিচালনা।</p>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-11 h-11 flex items-center justify-center shrink-0 rounded-xl shadow-md"
+              style={{
+                background: "linear-gradient(135deg,#0D9488,#0F766E)",
+                boxShadow: "0 4px 10px #0D948835",
+              }}
+            >
+              <Stethoscope className="w-[18px] h-[18px] text-white" />
+            </div>
+            <div>
+              <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[22px] font-bold text-[#0F172A] leading-tight">
+                ডাক্তার তালিকা
+              </h1>
+              <p className="text-[13px] text-[#64748B] mt-0.5">কমিশন ও রেফারেল ডাক্তার পরিচালনা।</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex items-center gap-2">
             <Link
               to="/lab-management"
               className="flex items-center gap-1.5 transition-all font-semibold px-[14px] py-2 border-[1.5px] border-[#E2E8F0] rounded-xl text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9] hover:text-[#0F172A]"
@@ -1122,7 +1156,7 @@ const ManageDoctors = () => {
           </div>
         </div>
 
-        {/* Stats strip */}
+        {/* Stats */}
         {!initialLoading && (
           <div className="grid grid-cols-4 gap-3 mb-5">
             <StatCard
@@ -1156,139 +1190,80 @@ const ManageDoctors = () => {
           </div>
         )}
 
-        {/* Ledger card */}
+        {/* Toolbar card */}
+        <div className="px-4 py-3 flex flex-wrap items-center gap-2 mb-4 bg-white border border-[#E2E8F0] rounded-2xl">
+          <div className="relative flex-[1_1_160px]">
+            <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="নাম, ডিগ্রি বা নম্বর…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={`${inputBase} pl-8 ${search ? "pr-8" : "pr-3"} py-2 text-xs`}
+              onFocus={focusInput}
+              onBlur={blurInput}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]"
+              >
+                <X className="w-[13px] h-[13px]" />
+              </button>
+            )}
+          </div>
+          <FilterDropdown value={deptFilter} onChange={setDeptFilter} options={deptOptions} placeholder="সব বিভাগ" />
+          <FilterDropdown value={commFilter} onChange={setCommFilter} options={COMM_OPTIONS} placeholder="সব কমিশন" />
+          {hasFilters && (
+            <button
+              onClick={() => {
+                setDeptFilter("all");
+                setCommFilter("all");
+              }}
+              className="flex items-center gap-1.5 transition-all font-semibold py-[7px] px-3 border-[1.5px] border-[#EF444430] rounded-[10px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] text-[11px] bg-[#EF444406] hover:bg-[#EF444412]"
+            >
+              <RotateCcw className="w-3 h-3" /> রিসেট
+            </button>
+          )}
+        </div>
+
+        {/* Doctor cards */}
         {initialLoading ? (
           <Skeleton />
+        ) : visibleDoctors.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8] bg-white border border-[#E2E8F0] rounded-2xl">
+            <AlertCircle className="w-7 h-7 opacity-40" />
+            <p className="font-['IBM_Plex_Mono',monospace] text-xs">
+              {hasFilters || search ? "কোনো ডাক্তার পাওয়া যায়নি" : "এখনো কোনো ডাক্তার নিবন্ধিত হয়নি"}
+            </p>
+          </div>
         ) : (
-          <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)]">
-            {/* Header */}
-            <div
-              className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0]"
-              style={{ background: "linear-gradient(135deg,#F8FAFC,#EEF2FF)" }}
-            >
-              <div>
-                <p className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold uppercase tracking-[0.1em] text-[#6366F1] mb-1">
-                  ডাক্তার লেজার
-                </p>
-                <div className="flex items-center gap-3">
-                  <span className="font-['IBM_Plex_Mono',monospace] text-[13px] font-semibold text-[#64748B]">
-                    মোট {pagination.total}জন
-                  </span>
-                  {stats.percentage > 0 && (
-                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#F59E0B] bg-[#F59E0B10] rounded-[6px] border border-[#F59E0B25]">
-                      % {stats.percentage}জন
-                    </span>
-                  )}
-                  {stats.fixed > 0 && (
-                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#0D9488] bg-[#0D948810] rounded-[6px] border border-[#0D948825]">
-                      ৳ {stats.fixed}জন
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Toolbar */}
-            <div className="px-4 py-3 flex flex-wrap items-center gap-2 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-              <div className="relative flex-[1_1_160px]">
-                <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="নাম, ডিগ্রি বা নম্বর…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className={`${inputBase} pl-8 ${search ? "pr-8" : "pr-3"} py-2 text-xs`}
-                  onFocus={focusInput}
-                  onBlur={blurInput}
-                />
-                {search && (
-                  <button
-                    onClick={() => setSearch("")}
-                    className="absolute right-[10px] top-1/2 -translate-y-1/2 text-[#94A3B8]"
-                  >
-                    <X className="w-[13px] h-[13px]" />
-                  </button>
-                )}
-              </div>
-              <FilterDropdown
-                value={deptFilter}
-                onChange={setDeptFilter}
-                options={deptOptions}
-                placeholder="সব বিভাগ"
+          <div className="space-y-2">
+            {visibleDoctors.map((doctor) => (
+              <DoctorRow
+                key={doctor._id}
+                doctor={doctor}
+                deptLabelMap={deptLabelMap}
+                desigLabelMap={desigLabelMap}
+                onEdit={() => setFormModal(doctor)}
+                onCommission={() => setCommissionModal(doctor)}
+                onDelete={() => setDeleteTarget(doctor)}
               />
-              <FilterDropdown
-                value={commFilter}
-                onChange={setCommFilter}
-                options={COMM_OPTIONS}
-                placeholder="সব কমিশন"
-              />
-              {hasFilters && (
-                <button
-                  onClick={() => {
-                    setDeptFilter("all");
-                    setCommFilter("all");
-                  }}
-                  className="flex items-center gap-1.5 transition-all font-semibold py-[7px] px-3 border-[1.5px] border-[#EF444430] rounded-[10px] text-[#EF4444] font-['IBM_Plex_Mono',monospace] text-[11px] bg-[#EF444406] hover:bg-[#EF444412]"
-                >
-                  <RotateCcw className="w-3 h-3" /> রিসেট
-                </button>
-              )}
-            </div>
-
-            {/* Column labels */}
-            <div className="flex items-center gap-3 px-4 pt-3 pb-1">
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] w-[26px] shrink-0">
-                #
-              </span>
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] flex-1">
-                ডাক্তার
-              </span>
-              <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] shrink-0">
-                কমিশন
-              </span>
-              <span className="w-[14px] shrink-0" />
-            </div>
-
-            {/* Doctor rows */}
-            <div className="px-4 pb-4">
-              {visibleDoctors.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#94A3B8]">
-                  <AlertCircle className="w-7 h-7 opacity-40" />
-                  <p className="font-['IBM_Plex_Mono',monospace] text-xs">
-                    {hasFilters || search ? "কোনো ডাক্তার পাওয়া যায়নি" : "এখনো কোনো ডাক্তার নিবন্ধিত হয়নি"}
-                  </p>
-                </div>
-              ) : (
-                visibleDoctors.map((doctor, index) => (
-                  <DoctorRow
-                    key={doctor._id}
-                    doctor={doctor}
-                    index={index}
-                    deptLabelMap={deptLabelMap}
-                    desigLabelMap={desigLabelMap}
-                    onEdit={() => setFormModal(doctor)}
-                    onCommission={() => setCommissionModal(doctor)}
-                    onDelete={() => setDeleteTarget(doctor)}
-                  />
-                ))
-              )}
-            </div>
-
-            {/* Pagination */}
-            {pagination.totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-[#E2E8F0]">
-                <Pagination page={pagination.page} totalPages={pagination.totalPages} onPage={handlePage} />
-              </div>
-            )}
-
-            {/* Footer note */}
-            <div className="px-6 py-3 border-t border-[#E2E8F0] bg-[#F8FAFC]">
-              <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-                * শুধুমাত্র সক্রিয় ডাক্তারের তথ্য অন্তর্ভুক্ত
-              </p>
-            </div>
+            ))}
           </div>
         )}
+
+        {/* Pagination */}
+        {!initialLoading && pagination.totalPages > 1 && (
+          <div className="mt-4 px-4 py-3 bg-white border border-[#E2E8F0] rounded-2xl">
+            <Pagination page={pagination.page} totalPages={pagination.totalPages} onPage={handlePage} />
+          </div>
+        )}
+
+        {/* Footer note */}
+        <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8] mt-4 text-center">
+          * শুধুমাত্র সক্রিয় ডাক্তারের তথ্য অন্তর্ভুক্ত
+        </p>
       </div>
     </section>
   );
