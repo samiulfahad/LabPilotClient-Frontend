@@ -27,8 +27,7 @@ import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
 import LoadingScreen from "../../../components/loadingPage";
 import PrintId from "../../../components/PrintId";
-import { InvoiceDetailsModal } from "../invoiceList/index"; // ← extract from InvoiceList if needed
-import { EditPatientModal } from "../invoiceList/index"; // ← extract from InvoiceList if needed
+import { InvoiceDetailsModal, EditPatientModal } from "../invoiceList/index"; // ← extract from InvoiceList if needed
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

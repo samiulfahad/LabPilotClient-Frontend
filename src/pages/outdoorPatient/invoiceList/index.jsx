@@ -5,7 +5,6 @@
 import { useEffect, useState } from "react";
 import {
   FileText,
-  Activity,
   CheckCircle2,
   ArrowLeft,
   Plus,
@@ -384,6 +383,16 @@ const InvoiceRow = ({
   const hasReports = hasReportSchemas(invoice);
   const patient = invoice.patient;
 
+  const toggleExpanded = () => setExpanded((v) => !v);
+  // Row toggle needs Enter/Space support now that it's a <div role="button">
+  // instead of a native <button> (see FIX note below).
+  const handleToggleKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleExpanded();
+    }
+  };
+
   const handleConfirmDelivery = async () => {
     setConfirming(false);
     try {
@@ -448,8 +457,20 @@ const InvoiceRow = ({
 
       {/* Ledger row */}
       <div>
-        {/* Main row */}
-        <button onClick={() => setExpanded((v) => !v)} className="w-full text-left">
+        {/* Main row.
+            FIX: this was a native <button> wrapping the row, but CopyIdButton
+            (rendered inside, next to the invoice ID) is also a <button> —
+            <button> can't nest inside <button> in HTML, which React flags as
+            a hydration error. Swapped to a div with role="button"/tabIndex/
+            onKeyDown so it's still keyboard-accessible and behaves the same,
+            without the illegal nesting. */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={toggleExpanded}
+          onKeyDown={handleToggleKeyDown}
+          className="w-full text-left cursor-pointer"
+        >
           <div className="flex items-baseline gap-3 py-2 group hover:bg-[#F0EFE9] px-1 rounded-sm transition-colors">
             <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] tabular-nums w-5 shrink-0">
               {String(index + 1).padStart(2, "0")}
@@ -489,7 +510,7 @@ const InvoiceRow = ({
               />
             </div>
           </div>
-        </button>
+        </div>
 
         {/* Sub-row: date + actions, visible on expand */}
         {expanded && (
@@ -507,11 +528,7 @@ const InvoiceRow = ({
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 <ManifestChip onClick={() => setViewingDetails(true)} icon={Eye} label="Details" />
-                <ManifestLinkChip
-                  to={`/outdoor/invoice/print/${invoice.invoiceId}`}
-                  icon={FileText}
-                  label="Invoice"
-                />
+                <ManifestLinkChip to={`/outdoor/invoice/print/${invoice.invoiceId}`} icon={FileText} label="Invoice" />
                 {hasReports && (
                   <ManifestLinkChip
                     to="/report"

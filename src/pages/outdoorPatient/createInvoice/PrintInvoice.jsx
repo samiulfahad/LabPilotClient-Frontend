@@ -61,6 +61,7 @@ const normaliseInvoice = (raw) => ({
     afterLabAdjustmentAndReferrerDiscount: Number(raw.amount?.afterLabAdjustmentAndReferrerDiscount) || 0,
     final: Number(raw.amount?.final) || 0,
     paid: Number(raw.amount?.paid) || 0,
+    invoiceFee: Number(raw.amount?.invoiceFee) || 0,
   },
   reportLink: raw.reportLink || raw.link || "https://labpilotpro.com",
 });
@@ -70,6 +71,7 @@ const getPricingFlags = ({ amount, referrer }) => {
   const due = Math.max(0, amount.final - amount.paid);
   return {
     showReferrerDiscount: amount.referrerDiscount > 0,
+    showInvoiceFee: amount.invoiceFee > 0,
     showLabAdjustment: amount.labAdjustment > 0,
     showSubtotal: amount.referrerDiscount > 0 || amount.labAdjustment > 0,
     showReferredBy: Boolean(referrer?.name) && referrer?.type !== "agent",
@@ -164,6 +166,8 @@ const pdf$ = StyleSheet.create({
   pricingLabel: { fontSize: 8, color: "#6b7280" },
   pricingValue: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#111827" },
   pricingNeg: { fontSize: 8, color: "#dc2626" },
+  // FIX: was referenced (pdf$.pricingFee) but never defined — invoice fee row rendered unstyled.
+  pricingFee: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#2563eb" },
   pricingPaid: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#16a34a" },
   pricingDue: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#dc2626" },
   divider: { borderTop: "1.5 solid #d1d5db", marginVertical: 5 },
@@ -307,6 +311,13 @@ const InvoicePDF = ({ invoice, qrCodeUrl, date, time, labInfo }) => {
                 />
               )}
               <View style={pdf$.divider} />
+              {flags.showInvoiceFee && (
+                <PDFPricingRow
+                  label="Online Report Fee"
+                  value={`+ ${fmt(amount.invoiceFee)}`}
+                  valueStyle={pdf$.pricingFee}
+                />
+              )}
               <View style={pdf$.totalRow}>
                 <Text style={pdf$.totalLabel}>Total Amount</Text>
                 <Text style={pdf$.totalValue}>{fmt(amount.final)}</Text>
@@ -456,7 +467,7 @@ const InvoiceCard = ({ invoice, qrCodeUrl, date, time, labInfo }) => {
                         <>
                           {p.name}{" "}
                           <span className="text-gray-400 font-normal text-xs">
-                            ({qty} × {fmt(unitPrice)})
+                            ({qty} × {fmt(unitPrice)})
                           </span>
                         </>
                       ) : (
@@ -489,6 +500,14 @@ const InvoiceCard = ({ invoice, qrCodeUrl, date, time, labInfo }) => {
             )}
             {flags.showLabAdjustment && (
               <PricingRow label="Lab Adjustment" value={`- ${fmt(amount.labAdjustment)}`} valueClass="text-red-600" />
+            )}
+            {/* FIX: invoice fee row was missing on the screen version entirely */}
+            {flags.showInvoiceFee && (
+              <PricingRow
+                label="Online Report Fee"
+                value={`+ ${fmt(amount.invoiceFee)}`}
+                valueClass="font-medium text-blue-600"
+              />
             )}
             <div className="flex justify-between pt-2 border-t-2 border-gray-200">
               <span className="text-base font-semibold text-gray-900">Total Amount</span>

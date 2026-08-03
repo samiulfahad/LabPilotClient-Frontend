@@ -59,7 +59,9 @@ const C = {
 const buildInitialPerms = (list) => Object.fromEntries(list.map((p) => [p.key, false]));
 
 // ── Permission group labels ──────────────────────────────────────────────────
-// Matches the `group` key on each entry in ALLOWED_PERMISSIONS (staticData).
+// Matches the `module` key on each entry in ALLOWED_PERMISSIONS (staticData).
+// (Backend field was renamed from `group` to `module` — these local keys
+// still read as "group" conceptually, they just key off p.module now.)
 
 const GROUP_LABELS = {
   invoice: "ইনভয়েস",
@@ -238,10 +240,11 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
     });
   };
 
-  // Group permissions by their `group` key (invoice, expense, dailyReport, …)
+  // Group permissions by their `module` key (invoice, expense, dailyReport, …)
   // so the modal can render them as labeled sections instead of one flat grid.
+  // FIX: backend renamed this field from `group` to `module` — was p.group.
   const groupedPermissions = permissionsList.reduce((acc, p) => {
-    (acc[p.group] ??= []).push(p);
+    (acc[p.module] ??= []).push(p);
     return acc;
   }, {});
 
