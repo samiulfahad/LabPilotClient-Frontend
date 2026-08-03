@@ -272,7 +272,23 @@ const DoctorFormModal = ({ initial, onClose, onSaved, departments, designations 
     try {
       setSaving(true);
       setApiError("");
-      await doctorService.create({ ...form, commissionValue: val });
+      // Explicitly picked fields rather than spreading `form` directly — the
+      // backend's createDoctorSchema is additionalProperties:false, so this
+      // stays safe even if `form`'s local state shape changes later. Mirrors
+      // the fix applied to the equivalent create flows in ManageStaff.jsx /
+      // ManageReferrer.jsx, where spreading local component state (which
+      // carried extra UI-only fields) broke create requests against the
+      // same kind of strict schema.
+      const { name, degree, contactNumber, designation, departments, commissionType } = form;
+      await doctorService.create({
+        name,
+        degree,
+        contactNumber,
+        designation,
+        departments,
+        commissionType,
+        commissionValue: val,
+      });
       onSaved(false);
     } catch (err) {
       setApiError(getErrorMessage(err, "সমস্যা হয়েছে। আবার চেষ্টা করুন।"));

@@ -811,7 +811,21 @@ const ManageReferrer = () => {
         const { name, contactNumber, degree, details, type, _id } = formModal;
         await referrerService.editReferrer({ name, contactNumber, degree, details, type, _id });
       } else {
-        await referrerService.addReferrer(formModal);
+        // FIXED: previously sent the raw formModal object, which still carries
+        // formType ("addReferrer") set when the modal was opened. The create
+        // schema is additionalProperties:false and doesn't declare formType,
+        // so that stray field would break the request. Pick only the fields
+        // the backend actually accepts, same discipline as the edit branch.
+        const { name, contactNumber, degree, details, type, commissionType, commissionValue } = formModal;
+        await referrerService.addReferrer({
+          name,
+          contactNumber,
+          degree,
+          details,
+          type,
+          commissionType,
+          commissionValue,
+        });
       }
       await loadReferrers();
       setPopup({ type: "success", message: isEdit ? "রেফারার আপডেট হয়েছে।" : "রেফারার নিবন্ধিত হয়েছে।" });

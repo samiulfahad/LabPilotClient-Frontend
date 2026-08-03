@@ -56,7 +56,7 @@ const INITIAL_FORM = {
   labAdjustmentAmount: 0,
   paidAmount: "", // kept as string in state so the field can be cleared/edited freely
   paymentMode: "cash",
-  onlineFeeEnabled: true, // only relevant when the lab has a feePerInvoice configured
+  onlineFeeEnabled: true, // only relevant when the lab has a feePerInvoice configured AND the cart has an online test
   onlineFeePaidBy: "lab", // this page only talks to the lab fee-payment backend
 };
 
@@ -106,7 +106,9 @@ const calcReferrerCommission = (referredBy, initial, referrerDiscountAmt) => {
 //
 // The online invoice fee (if the lab has one configured) is ADDED on top of
 // the total charged to the patient — it inflates `final`, and the patient's
-// due amount reflects it.
+// due amount reflects it. The fee only ever applies when the cart contains
+// at least one "online" test (a test with schemaId set) — with no online
+// tests, the fee never applies, mandatory or not.
 const computeAmount = (form, feeConfig = {}) => {
   const { feePerInvoice = 0, forceInvoiceFee = false } = feeConfig;
 
@@ -122,9 +124,11 @@ const computeAmount = (form, feeConfig = {}) => {
 
   const referrerCommission = calcReferrerCommission(form.referredBy, initial, referrerDiscount);
 
-  // Fee applies if the lab has one configured, AND either it's forced on,
-  // or the user has the toggle switched on.
-  const feeApplied = feePerInvoice > 0 && (forceInvoiceFee || form.onlineFeeEnabled);
+  // Fee applies only if the cart has at least one online test (schemaId
+  // set) AND the lab has a fee configured, AND either it's forced on, or
+  // the user has the toggle switched on.
+  const hasOnlineTest = form.selectedTests.some((t) => !!t.schemaId);
+  const feeApplied = hasOnlineTest && feePerInvoice > 0 && (forceInvoiceFee || form.onlineFeeEnabled);
   const invoiceFee = feeApplied ? feePerInvoice : 0;
 
   const beforeFee = Math.max(0, afterReferrerDiscount - labAdjustment);
@@ -143,6 +147,7 @@ const computeAmount = (form, feeConfig = {}) => {
     afterReferrerDiscount,
     invoiceFee,
     feeApplied,
+    hasOnlineTest,
   };
 };
 
@@ -1029,11 +1034,12 @@ const InvoiceForm = ({
             </div>
           )}
 
-          {/* Online Invoice Fee — shown only when the lab has one configured.
+          {/* Online Invoice Fee — shown only when the lab has one configured
+              AND the cart contains at least one online test (schemaId set).
               If forceInvoiceFee is on, it's mandatory (no toggle, always
-              applied). Otherwise the staff can switch it off. Always added
-              on top of the patient's total. */}
-          {feePerInvoice > 0 && (
+              applied) — but still hidden entirely with no online test in
+              the cart. Always added on top of the patient's total. */}
+          {feePerInvoice > 0 && amount.hasOnlineTest && (
             <div className="space-y-2">
               {forceInvoiceFee ? (
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
@@ -1257,11 +1263,12 @@ const CreateInvoice = () => {
                 : pendingReferrerNameRef.current.trim() || null,
           type: referredBy?.type ?? null,
         },
-        tests: selectedTests.map(({ testId, name, price, schemaId }) => ({
+        tests: selectedTests.map(({ testId, name, price, schemaId, commission }) => ({
           testId,
           name,
           price,
           schemaId: schemaId || null,
+          commission: commission || 0,
         })),
         products: selectedProducts.map(({ _id, name, price, quantity, type }) => ({
           productId: _id,
@@ -1281,9 +1288,9 @@ const CreateInvoice = () => {
           invoiceFee: amount.invoiceFee,
         },
         paymentMode,
-        // Only true when a fee was actually configured on the lab AND
-        // ended up applied to this invoice (forced or toggled on). The
-        // fee is added to the patient's total when applied.
+        // Only true when the invoice has an online test AND a fee was
+        // actually configured on the lab AND ended up applied (forced or
+        // toggled on). The fee is added to the patient's total when applied.
         isOnlineFeePaid: amount.feeApplied,
         onlineFeePaidBy: formData.onlineFeePaidBy,
       };

@@ -263,10 +263,19 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
         // adjustment limit each live on their own routes now.
         await staffService.updatePermissions({ permissions: form.permissions, _id: initial._id });
       } else {
+        // FIXED: previously spread `...form` and added a stray `type: "addStaff"`
+        // field. createStaffSchema on the backend is additionalProperties:false
+        // and doesn't declare `type` at all, so that field would break every
+        // new staff registration (hard-rejected or silently stripped depending
+        // on server AJV config — either way it's wrong to send). Build the
+        // payload from only the fields the backend actually accepts.
+        const { name, email, phone, permissions } = form;
         await staffService.addStaff({
-          ...form,
+          name,
+          email,
+          phone,
+          permissions,
           maxLabAdjustment: adjustmentEnabled ? Number(adjustmentAmount) : 0,
-          type: "addStaff",
         });
       }
       onSaved(isEdit);
