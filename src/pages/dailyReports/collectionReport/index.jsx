@@ -10,10 +10,10 @@ import {
   ChevronDown,
   ChevronUp,
   Wallet,
-  Banknote,
   Clock,
   UserCheck,
   BedDouble,
+  Banknote,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
@@ -97,7 +97,6 @@ const TEAL = "#0F6E5C";
 const INK = "#1C1F1E";
 const SEAL_BLUE = "#1E4FA0";
 const SEAL_RED = "#C0312B";
-const CASH_AMBER = "#B4770E";
 
 // Mirrors PAYMENT_MODES in invoiceRoutes.js / indoorPatients.routes.js
 const MODE_LABELS = {
@@ -111,7 +110,7 @@ const MODE_LABELS = {
 
 const EMPTY_DATA = {
   staff: [],
-  totals: { totalCollected: 0, opdCollected: 0, ipdCollected: 0, physicalCollected: 0, byMode: {} },
+  totals: { totalCollected: 0, opdCollected: 0, ipdCollected: 0, byMode: {} },
 };
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -180,6 +179,17 @@ const ModePill = ({ label, value }) => (
   >
     <Wallet className="w-2.5 h-2.5" />
     {label} ৳{fmt(value)}
+  </span>
+);
+
+// Badge showing a staff member's cash-only collection, sits to the left of
+// their total collection figure in the ledger row.
+const CashBadge = ({ value }) => (
+  <span
+    className="inline-flex items-center gap-1 px-2 py-1 rounded-sm font-['IBM_Plex_Mono'] text-xs font-semibold whitespace-nowrap"
+    style={{ backgroundColor: `${TEAL}0D`, color: TEAL }}
+  >
+    <Banknote className="w-3 h-3" />৳{fmt(value)}
   </span>
 );
 
@@ -255,7 +265,7 @@ const RoundSeal = ({ dateLabel }) => {
 
 // ─── Staff ledger entry ────────────────────────────────────────────────────────
 
-const STAFF_GRID_COLS = "grid-cols-[24px_1fr_120px_140px]";
+const STAFF_GRID_COLS = "grid-cols-[24px_1fr_auto_140px]";
 
 const MetricCell = ({ icon: Icon, value, unit, accent, active, onClick }) => (
   <button
@@ -279,20 +289,9 @@ const MetricCell = ({ icon: Icon, value, unit, accent, active, onClick }) => (
   </button>
 );
 
-// Static (non-interactive) figure showing what a staff member needs to
-// physically hand over at end-of-day: cash + others. Kept separate from the
-// toggle-able total so it reads at a glance without opening the row.
-const CashStat = ({ value }) => (
-  <div className="flex items-center justify-end gap-1.5 py-1.5 pr-1 font-noto" title="নগদ ও অন্যান্য মাধ্যমে কালেকশন">
-    <Banknote className="w-3 h-3 shrink-0" style={{ color: CASH_AMBER }} />
-    <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: CASH_AMBER }}>
-      ৳{fmt(value)}
-    </span>
-  </div>
-);
-
 const StaffEntry = ({ member: m, rank, isHospital }) => {
   const [open, setOpen] = useState(false);
+  const hasCashSplit = m.cashCollected > 0 || m.digitalCollected > 0;
 
   return (
     <div className="py-2 first:pt-0">
@@ -304,7 +303,7 @@ const StaffEntry = ({ member: m, rank, isHospital }) => {
           <span className="text-sm text-[#1C1F1E] font-medium truncate font-noto">{m.name}</span>
           <UserCheck className="w-3 h-3 text-[#A8ACA3] shrink-0" />
         </div>
-        <CashStat value={m.physicalCollected} />
+        {hasCashSplit && <CashBadge value={m.cashCollected} />}
         <MetricCell
           icon={Wallet}
           value={`৳${fmt(m.totalCollected)}`}
@@ -328,7 +327,19 @@ const StaffEntry = ({ member: m, rank, isHospital }) => {
               এই সময়সীমায় কোনো কালেকশন নেই
             </p>
           ) : (
-            m.collections.map((c, i) => <CollectionRow key={`${c.source}-${c.invoiceId}-${i}`} col={c} idx={i} />)
+            <>
+              {m.hasMore && (
+                <div className="flex items-center gap-1.5 px-2 py-1.5 mb-2 rounded-sm bg-[#C0312B]/[0.06]">
+                  <AlertCircle className="w-3 h-3 shrink-0" style={{ color: SEAL_RED }} />
+                  <p className="font-['IBM_Plex_Mono'] text-[10px] font-noto" style={{ color: SEAL_RED }}>
+                    {m.transactionCount} টি লেনদেনের মধ্যে ২০০টি দেখানো হচ্ছে — সম্পূর্ণ তালিকার জন্য সময়সীমা ছোট করুন
+                  </p>
+                </div>
+              )}
+              {m.collections.map((c, i) => (
+                <CollectionRow key={`${c.source}-${c.invoiceId}-${i}`} col={c} idx={i} />
+              ))}
+            </>
           )}
         </div>
       )}
@@ -466,11 +477,6 @@ const CollectionReport = () => {
                         <HeaderStat label="IPD" value={`৳${fmt(d.totals.ipdCollected)}`} accent={SEAL_BLUE} />
                       </>
                     )}
-                    <HeaderStat
-                      label="নগদ ও অন্যান্য"
-                      value={`৳${fmt(d.totals.physicalCollected)}`}
-                      accent={CASH_AMBER}
-                    />
                   </div>
                 )}
 

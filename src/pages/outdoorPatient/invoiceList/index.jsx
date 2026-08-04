@@ -32,12 +32,13 @@ import {
   CreditCard,
   Loader2,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Popup from "../../../components/popup";
 import Modal from "../../../components/modal";
 import LoadingScreen from "../../../components/loadingPage";
 import invoiceService from "../../../api/invoice";
 import TimeFrame from "../../../components/timeFrame";
+import { useAuthStore } from "../../../store/authStore";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -591,6 +592,14 @@ const ManifestLinkChip = ({ to, state, icon: Icon, label, accent }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const InvoiceList = () => {
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin";
+  // Page-level gate: matches the `invoiceList` permission key on the backend
+  // (see ALLOWED_PERMISSIONS / staticData.js). Admins bypass, same as every
+  // other permission/module check in this app.
+  const hasAccess = isAdmin || !!user?.permissions?.invoiceList;
+
   const [invoices, setInvoices] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -622,11 +631,25 @@ const InvoiceList = () => {
   };
 
   useEffect(() => {
+    if (!hasAccess) return;
     const now = new Date();
     const initial = { start: new Date(now).setHours(0, 0, 0, 0), end: new Date(now).setHours(23, 59, 59, 999) };
     setTimeRange(initial);
     loadInvoices(null, true, initial);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasAccess]);
+
+  // Denied — same treatment as the route-level module gates in App.jsx: show
+  // the Popup in place, redirect to "/" only once it's closed.
+  if (!hasAccess) {
+    return (
+      <Popup
+        type="denied"
+        message="ইনভয়েস লিস্ট দেখার অনুমতি আপনার নেই।"
+        onClose={() => navigate("/")}
+      />
+    );
+  }
 
   const handleFetchData = (start, end) => {
     const range = { start, end };

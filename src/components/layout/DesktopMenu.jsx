@@ -9,11 +9,12 @@ import Modal from "../modal";
 const DesktopMenu = () => {
   const logout = useAuthStore((s) => s.logout);
   const lab = useAuthStore((s) => s.lab);
+  const user = useAuthStore((s) => s.user);
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const visibleMenu = getMenuForLabType(lab?.type);
+  const visibleMenu = getMenuForLabType(lab?.type, user);
 
   const handleLogoutConfirm = async () => {
     setShowConfirm(false);

@@ -9,6 +9,7 @@ import Modal from "../modal";
 const MobileMenu = () => {
   const logout = useAuthStore((s) => s.logout);
   const lab = useAuthStore((s) => s.lab);
+  const user = useAuthStore((s) => s.user);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [lastScroll, setLastScroll] = useState(0);
@@ -16,7 +17,7 @@ const MobileMenu = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const visibleMenu = getMenuForLabType(lab?.type);
+  const visibleMenu = getMenuForLabType(lab?.type, user);
 
   useEffect(() => {
     const handleScroll = () => {
