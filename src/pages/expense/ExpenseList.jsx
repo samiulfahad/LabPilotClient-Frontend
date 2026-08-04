@@ -3,7 +3,7 @@
  * babel-plugin-react-compiler handles all memoization automatically.
  */
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Wallet, ArrowLeft, AlertCircle, Pencil, ChevronDown, X, Printer, PlusCircle } from "lucide-react";
 import Popup from "../../components/popup";
 import Modal from "../../components/modal";
@@ -22,9 +22,18 @@ import {
 } from "./expenseHelpers";
 
 const ExpenseList = () => {
-  const currentUserId = useAuthStore((s) => s.user?.id);
-  const role = useAuthStore((s) => s.user?.role);
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const currentUserId = user?.id;
+  const role = user?.role;
   const isAdmin = role === "admin";
+
+  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
+  const hasAccess = isAdmin || user?.permissions?.expenseList === true;
+  if (!hasAccess) {
+    return <Popup type="denied" message="খরচের তালিকা দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+  // ════════════════════════════════════════════════
 
   const [expenses, setExpenses] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);

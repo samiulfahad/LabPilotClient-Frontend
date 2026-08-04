@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import indoorPatientService from "../../api/indoorPatient";
 import invoiceService from "../../api/invoice";
+import Popup from "../../components/popup";
+import { useAuthStore } from "../../store/authStore";
 import { Btn, ErrorMsg, PageHeader, Sk, fmt, totalExpenses, totalPayments } from "./indoorPatientHelpers";
 
 // ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx / ReportDownload.jsx) ──
@@ -656,6 +658,16 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
 
 const AddItemsToPatient = () => {
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin";
+
+  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
+  const hasAccess = isAdmin || user?.permissions?.addExpenseToPatient === true;
+  if (!hasAccess) {
+    return <Popup type="denied" message="রোগীর টেস্ট/পণ্য যোগ করার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+  // ════════════════════════════════════════════════
+
   const [searchParams] = useSearchParams();
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [preloading, setPreloading] = useState(false);

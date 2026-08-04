@@ -7,16 +7,15 @@ import indoorPatientService from "../../api/indoorPatient";
 import { useAuthStore } from "../../store/authStore";
 import { Printer, Lock, Wallet } from "lucide-react";
 
-// ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx / ReportDownload.jsx / PatientDetails.jsx) ──
+// ─── Error helpers ────────────────────────────────────────────────────────────
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
-
 const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
 
-// ─── Payment modes (mirrors invoiceRoutes.js / SearchInvoice.jsx) ─────────────
+// ─── Payment modes ────────────────────────────────────────────────────────────
 
 const PAYMENT_MODES = [
   { value: "cash", label: "Cash" },
@@ -173,8 +172,6 @@ const CAT_LABEL = {
 };
 
 // ─── Collect Payment Modal ─────────────────────────────────────────────────────
-// Mirrors CollectDueModal in SearchInvoice.jsx — amount clamped to (0, due],
-// with a payment mode pill selector.
 
 function CollectPaymentModal({ open, onClose, onSuccess, patient, patientId, due }) {
   const [amount, setAmount] = useState(due);
@@ -244,7 +241,6 @@ function CollectPaymentModal({ open, onClose, onSuccess, patient, patientId, due
 
         <ErrorMsg msg={error} />
 
-        {/* Amount */}
         <Field label="Amount to Collect">
           <div className="relative">
             <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -272,7 +268,6 @@ function CollectPaymentModal({ open, onClose, onSuccess, patient, patientId, due
           </div>
         </Field>
 
-        {/* Payment mode */}
         <div>
           <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 mb-2">Payment Mode</p>
           <div className="flex flex-wrap gap-1.5">
@@ -461,7 +456,6 @@ function AddDiscountModal({ open, onClose, onSuccess, patient, patientId }) {
     const max = getMaxForCategory();
     if (max !== null && amt > max) return setError(`Max discount is ${fmt.currency(max)}`);
 
-    // Guard: patientId must be a real ID string
     if (!patientId || patientId === "undefined") {
       return setError("Patient ID is missing — please refresh the page.");
     }
@@ -486,7 +480,6 @@ function AddDiscountModal({ open, onClose, onSuccess, patient, patientId }) {
       <div className="space-y-5">
         <ErrorMsg msg={error} />
 
-        {/* Category */}
         <div>
           <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 mb-2">Apply Discount To</p>
           <div className="grid grid-cols-3 gap-1.5">
@@ -512,7 +505,6 @@ function AddDiscountModal({ open, onClose, onSuccess, patient, patientId }) {
           </div>
         </div>
 
-        {/* Provider */}
         <div>
           <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 mb-2">Provided By</p>
           <div className="grid grid-cols-3 gap-1.5">
@@ -533,7 +525,6 @@ function AddDiscountModal({ open, onClose, onSuccess, patient, patientId }) {
           </div>
         </div>
 
-        {/* Amount + Note */}
         <div className="grid grid-cols-2 gap-3">
           <Field label={maxForCategory != null ? `Amount (max ${fmt.currency(maxForCategory)})` : "Amount (BDT)"}>
             <Input
@@ -658,7 +649,8 @@ export default function BillingSummary({
   const role = useAuthStore((s) => s.user?.role);
   const permissions = useAuthStore((s) => s.user?.permissions);
   const isAdmin = role === "admin";
-  const canApplyDiscount = isAdmin || !!permissions?.applyDiscountToPatient;
+  // ✅ Use the correct permission key: 'discount' (not 'applyDiscountToPatient')
+  const canApplyDiscount = isAdmin || !!permissions?.discount;
 
   const isAdmitted = patient.status === "admitted";
   const isPackage = patient.dealType === "package";
@@ -716,7 +708,6 @@ export default function BillingSummary({
             discount: bedDiscount,
             accent: "text-[#0F6E5C]",
             dot: "bg-[#0F6E5C]",
-            // "details" link is LEFT of the leader line — rendered via detailBtn
             detailBtn: (
               <button
                 type="button"
@@ -765,9 +756,6 @@ export default function BillingSummary({
 
   return (
     <>
-      {/* Scoped print rule: when printing via the summary-only button, hide every
-          sibling inside #billing-printable except this card, and reveal the
-          summary-only letterhead. */}
       <style>{`
         @media print {
           body.print-billing-summary-only #billing-printable > *:not(#billing-summary-print-root) {
@@ -783,9 +771,7 @@ export default function BillingSummary({
         id="billing-summary-print-root"
         className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm"
       >
-        {/* Summary-only print letterhead — hidden on screen and in the full-page
-            print (which already has its own letterhead in PatientDetails.jsx);
-            forced visible only via the .summary-print-letterhead rule above. */}
+        {/* Summary-only print letterhead */}
         <div className="summary-print-letterhead hidden text-center pt-6 px-6 pb-4 mb-1 border-b-2 border-slate-800">
           <h3 className="text-xl font-bold text-slate-900 tracking-wide uppercase">{lab?.name ?? "LabPilot Pro"}</h3>
           {lab?.contact?.address && <p className="text-[11px] text-slate-500 mt-1.5">{lab.contact.address}</p>}
@@ -801,9 +787,8 @@ export default function BillingSummary({
           </div>
         </div>
 
-        {/* ── Header ────────────────────────────────────────────────────────── */}
+        {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="flex items-center gap-3 px-5 py-3.5 bg-[#FAF9F5] border-b border-slate-200">
-          {/* Left: title + print btn + discount badge */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <span className="text-base shrink-0">💰</span>
             <span className="text-[13px] font-bold text-slate-700 tracking-wide">Billing Summary</span>
@@ -826,7 +811,7 @@ export default function BillingSummary({
             )}
           </div>
 
-          {/* Right: Add Expenses + Collect + Add Discount buttons together */}
+          {/* Right: action buttons */}
           {isAdmitted && (
             <div className="no-print flex items-center gap-2 shrink-0 flex-wrap justify-end">
               <button
@@ -866,6 +851,7 @@ export default function BillingSummary({
                   ➕ Extra
                 </button>
               )}
+              {/* Discount button – now fully enabled with correct permission */}
               <button
                 type="button"
                 onClick={canApplyDiscount ? () => setAddDiscountOpen(true) : undefined}
@@ -897,13 +883,11 @@ export default function BillingSummary({
         </div>
 
         <div className="px-5 py-4">
-          {/* ── Ledger rows ──────────────────────────────────────────────────── */}
+          {/* ── Ledger rows ──────────────────────────────────────────────── */}
           <div className="divide-y divide-dotted divide-slate-200">
             {categoryRows.map(({ label, value, discount, accent, dot, detailBtn, subLabel }) => (
               <div key={label} className="flex items-center gap-2 py-2.5">
-                {/* dot */}
                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
-                {/* label + optional subLabel + optional detailBtn (LEFT side) */}
                 <div className="flex items-baseline gap-1.5 shrink-0">
                   <span className="text-[13px] font-medium text-slate-600 whitespace-nowrap">{label}</span>
                   {subLabel && (
@@ -911,13 +895,10 @@ export default function BillingSummary({
                   )}
                   {detailBtn}
                 </div>
-                {/* dotted leader */}
                 <div className="flex-1 border-b border-dotted border-slate-200 mx-1 min-w-[12px]" />
-                {/* discount inline */}
                 {discount > 0 && (
                   <span className="font-mono text-[11px] text-rose-500 shrink-0">− {fmt.currency(discount)}</span>
                 )}
-                {/* value */}
                 <span className={`font-mono text-[13px] font-bold ${accent} shrink-0 tabular-nums`}>
                   {fmt.currency(value)}
                 </span>
@@ -925,7 +906,6 @@ export default function BillingSummary({
             ))}
           </div>
 
-          {/* Grand-total discount row */}
           {grandTotalDiscount > 0 && (
             <div className="flex items-center gap-2 py-2.5 border-t border-dotted border-slate-200">
               <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-rose-300" />
@@ -937,7 +917,6 @@ export default function BillingSummary({
             </div>
           )}
 
-          {/* ── Applied discounts inline list ─────────────────────────────── */}
           {appliedDiscounts.length > 0 && (
             <div className="mt-3 pt-3 border-t border-slate-100 space-y-1">
               {appliedDiscounts.map((d, i) => {
@@ -968,7 +947,7 @@ export default function BillingSummary({
             </div>
           )}
 
-          {/* ── Totals ────────────────────────────────────────────────────── */}
+          {/* ── Totals ──────────────────────────────────────────────────── */}
           <div className="mt-4 pt-4 border-t border-slate-200 space-y-1.5">
             <div className="flex items-center justify-between text-[13px]">
               <span className="text-slate-400">{hasDiscounts ? "Gross Bill" : "Total Bill"}</span>
@@ -1010,7 +989,6 @@ export default function BillingSummary({
             </div>
           </div>
 
-          {/* Package extra-paid note */}
           {isPackage && extraPaid > 0 && (
             <div className="flex items-center gap-2 mt-3 px-3 py-2 rounded-[3px] bg-amber-50 border border-amber-200 text-xs text-amber-700">
               <span>ℹ️</span>

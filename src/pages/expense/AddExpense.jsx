@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { Wallet, ArrowLeft, ChevronRight, Receipt, CheckCircle2, ListOrdered, PlusCircle } from "lucide-react";
 import expenseService from "../../api/expense";
 import { fmt, EXPENSE_TYPES, typeConfig } from "./expenseHelpers";
+import Popup from "../../components/popup";
+import { useAuthStore } from "../../store/authStore";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -151,6 +153,16 @@ const SuccessModal = ({ justAdded, onAddAnother, onViewAll }) => {
 
 const AddExpense = () => {
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin";
+
+  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
+  const hasAccess = isAdmin || user?.permissions?.addExpense === true;
+  if (!hasAccess) {
+    return <Popup type="denied" message="নতুন খরচ যোগ করার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+  // ════════════════════════════════════════════════
+
   const [form, setForm] = useState(DEFAULTS);
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);

@@ -595,10 +595,13 @@ const InvoiceList = () => {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "admin";
-  // Page-level gate: matches the `invoiceList` permission key on the backend
-  // (see ALLOWED_PERMISSIONS / staticData.js). Admins bypass, same as every
-  // other permission/module check in this app.
+
+  // ═══════ Frontend permission check ═══════
   const hasAccess = isAdmin || !!user?.permissions?.invoiceList;
+  if (!hasAccess) {
+    return <Popup type="denied" message="ইনভয়েস লিস্ট দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+  // ══════════════════════════════════════════
 
   const [invoices, setInvoices] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -631,25 +634,12 @@ const InvoiceList = () => {
   };
 
   useEffect(() => {
-    if (!hasAccess) return;
     const now = new Date();
     const initial = { start: new Date(now).setHours(0, 0, 0, 0), end: new Date(now).setHours(23, 59, 59, 999) };
     setTimeRange(initial);
     loadInvoices(null, true, initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasAccess]);
-
-  // Denied — same treatment as the route-level module gates in App.jsx: show
-  // the Popup in place, redirect to "/" only once it's closed.
-  if (!hasAccess) {
-    return (
-      <Popup
-        type="denied"
-        message="ইনভয়েস লিস্ট দেখার অনুমতি আপনার নেই।"
-        onClose={() => navigate("/")}
-      />
-    );
-  }
+  }, []);
 
   const handleFetchData = (start, end) => {
     const range = { start, end };

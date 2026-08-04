@@ -3,6 +3,7 @@
  * babel-plugin-react-compiler handles all memoization automatically.
  */
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import Modal from "../../../components/modal";
 import {
   Plus,
@@ -27,6 +28,7 @@ import {
 } from "lucide-react";
 import Popup from "../../../components/popup";
 import productService from "../../../api/products";
+import { useAuthStore } from "../../../store/authStore";
 
 // ── Palette ────────────────────────────────────────────────────────────────────
 
@@ -1317,6 +1319,15 @@ const STOCK_OPTIONS = [
 ];
 
 export default function Products() {
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin";
+
+  // ─── Frontend permission check ──────────────────────────────────────────────
+  if (!isAdmin && !user?.permissions?.manageProducts) {
+    return <Popup type="denied" message="পণ্য ব্যবস্থাপনা দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+
   const [activeType, setActiveType] = useState("medicine");
   const [items, setItems] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: LIMIT, totalPages: 0 });
@@ -1380,12 +1391,6 @@ export default function Products() {
     setModal(null);
   };
 
-  // Delete errors are shown exclusively via the shared <Popup type="error">
-  // so the user only ever sees one error message. The confirm step itself
-  // is also the shared <Popup type="warning">, which closes as soon as
-  // onConfirm fires, so there's no in-flight spinner here — a failure just
-  // surfaces as a follow-up error toast. (Delete has no form data to lose,
-  // so this one is fine to auto-close, unlike the other modals above.)
   const handleDelete = async () => {
     try {
       await productService.deleteProduct(modal.item._id);
@@ -1407,7 +1412,6 @@ export default function Products() {
   const typeDef = ITEM_TYPES[activeType];
   const TypeIcon = typeDef.icon;
 
-  // Client-side stock filter
   const filteredItems = items.filter((item) => {
     if (stockFilter === "all" || !typeDef.hasStock) return true;
     const s = item.stock ?? 0;
@@ -1419,7 +1423,6 @@ export default function Products() {
 
   const hasFilters = search !== "" || stockFilter !== "all";
 
-  // Stats
   const stats = {
     total: pagination.total,
     medicine: totalsByType.medicine,
@@ -1450,7 +1453,7 @@ export default function Products() {
       {modal?.type === "stock" && <StockModal item={modal.item} onClose={() => setModal(null)} onSave={handleSave} />}
 
       <div className="max-w-2xl mx-auto">
-        {/* Page header — gradient icon badge, matching ManageDoctors/ManageTests/ManageReferrer/ManageStaff */}
+        {/* Page header */}
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-3">
             <div
@@ -1516,7 +1519,7 @@ export default function Products() {
           </div>
         )}
 
-        {/* Type tab card — segmented control, own card like the toolbar below */}
+        {/* Type tab card */}
         <div className="px-4 py-3 mb-4 bg-white border border-[#E2E8F0] rounded-2xl">
           <div className="flex items-center gap-2 flex-wrap">
             {Object.values(ITEM_TYPES).map((t) => {
@@ -1565,7 +1568,7 @@ export default function Products() {
           </div>
         </div>
 
-        {/* Toolbar card — standalone, mirrors ManageDoctors.jsx / ManageTests.jsx */}
+        {/* Toolbar card */}
         <div className="px-4 py-3 flex flex-wrap items-center gap-2 mb-4 bg-white border border-[#E2E8F0] rounded-2xl">
           <div className="relative flex-[1_1_160px]">
             <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />

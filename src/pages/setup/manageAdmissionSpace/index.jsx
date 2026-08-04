@@ -16,6 +16,7 @@
 // React Compiler handles memoisation — no useCallback/useMemo
 
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom"; // ← added
 import {
   BedDouble,
   Plus,
@@ -40,6 +41,7 @@ import {
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
 import spaceService from "../../../api/admissionSpace";
+import { useAuthStore } from "../../../store/authStore"; // ← added
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", minimumFractionDigits: 0 }).format(n || 0);
@@ -1132,6 +1134,22 @@ const Skeleton = () => (
 // ── Main Page ────────────────────────────────────────────────────────────────────
 
 const ManageSpaces = () => {
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin";
+
+  // ═══════════ Frontend permission check ═══════════
+  const hasAccess = isAdmin || user?.permissions?.manageAdmissionSpace === true;
+  if (!hasAccess) {
+    return (
+      <Popup
+        type="denied"
+        message="ইনডোর রোগীর ভর্তির স্থান ব্যবস্থাপনা দেখার অনুমতি আপনার নেই।"
+        onClose={() => navigate("/")}
+      />
+    );
+  }
+
   const [spaces, setSpaces] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);

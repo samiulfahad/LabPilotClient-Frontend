@@ -155,10 +155,10 @@ function App() {
 
         {/* Pathological Report — module: testReport */}
         <Route element={<RequireModules modules={["testReport"]} />}>
+        </Route>
           <Route path="/report" element={<Report />} />
           <Route path="/report-upload" element={<ReportUpload />} />
           <Route path="/report-download" element={<ReportDownload />} />
-        </Route>
 
         {/* Set up — module: setup (manage-staffs is admin-only, ungated here
             since staffRoutes.js on the backend already restricts it to

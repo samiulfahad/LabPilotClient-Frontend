@@ -15,7 +15,7 @@ import {
   BedDouble,
   Banknote,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
 import collectionReportAPI from "../../../api/dailyReports/collectionReport";
 import Popup from "../../../components/popup";
@@ -350,10 +350,21 @@ const StaffEntry = ({ member: m, rank, isHospital }) => {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const CollectionReport = () => {
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const lab = useAuthStore((state) => state.lab);
   const isStaff = user?.role === "staff";
   const isHospital = user?.type === "hospital";
+
+  // ─── PERMISSION CHECK (before any hooks) ──────────────────────────────────
+  const isAdmin = user?.role === "admin";
+  const hasAccess = isAdmin || !!user?.permissions?.collectionReport === true;
+
+  if (!hasAccess) {
+    return <Popup type="denied" message="কালেকশন রিপোর্ট দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+
+  // ─── Only now declare state and side effects ──────────────────────────────
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);

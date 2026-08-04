@@ -23,17 +23,17 @@ import {
   totalPayments,
 } from "./indoorPatientHelpers";
 import { Printer, Pencil } from "lucide-react";
+import Popup from "../../components/popup";
 
-// ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx / ReportDownload.jsx) ──
+// ─── Error helpers ──────────────────────────────────────────────────────────
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
-
 const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
 
-// ─── Payment modes (mirrors invoiceRoutes.js / SearchInvoice.jsx) ─────────────
+// ─── Payment modes ─────────────────────────────────────────────────────────
 
 const PAYMENT_MODES = [
   { value: "cash", label: "Cash" },
@@ -44,7 +44,7 @@ const PAYMENT_MODES = [
   { value: "others", label: "Others" },
 ];
 
-// ─── Collect Payment Modal ────────────────────────────────────────────────────
+// ─── Collect Payment Modal ─────────────────────────────────────────────────
 
 const CollectPaymentModal = ({ open, patientId, onClose, onSuccess, isExtra = false, defaultAmount = "" }) => {
   const [amount, setAmount] = useState(defaultAmount);
@@ -152,10 +152,7 @@ const CollectPaymentModal = ({ open, patientId, onClose, onSuccess, isExtra = fa
   );
 };
 
-// ─── Edit Payment Mode Modal — creator only ───────────────────────────────────
-// Access to this modal is gated by the caller (only rendered/openable for the
-// staff member whose id matches payment.collectedBy.id); the backend enforces
-// the same rule independently on PATCH /payment/:paymentId/mode.
+// ─── Edit Payment Mode Modal ───────────────────────────────────────────────
 
 const EditPaymentModeModal = ({ open, patientId, paymentId, currentMode, onClose, onSuccess }) => {
   const [paymentMode, setPaymentMode] = useState(currentMode ?? "cash");
@@ -226,14 +223,14 @@ const EditPaymentModeModal = ({ open, patientId, paymentId, currentMode, onClose
   );
 };
 
-// ─── Tabs ─────────────────────────────────────────────────────────────────────
+// ─── Tabs ──────────────────────────────────────────────────────────────────
 
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "billing", label: "Billing" },
 ];
 
-// ─── Patient Detail Page ──────────────────────────────────────────────────────
+// ─── Patient Detail Page ───────────────────────────────────────────────────
 
 const PatientDetails = () => {
   const { id: patientId } = useParams();
@@ -243,10 +240,19 @@ const PatientDetails = () => {
   const permissions = useAuthStore((s) => s.user?.permissions);
   const currentUserId = useAuthStore((s) => s.user?.id);
   const isAdmin = role === "admin";
+
+  // ─── Permission checks ─────────────────────────────────────────────────
   const canRelease = isAdmin || !!permissions?.releasePatient;
   const canDelete = isAdmin || !!permissions?.deletePatient;
   const canAddExpense = isAdmin || !!permissions?.addExpenseToPatient;
+  const canEditPatient = isAdmin || !!permissions?.editPatient;
+  const canViewBilling = isAdmin || !!permissions?.patientBilling;
+  const canApplyDiscount = isAdmin || !!permissions?.discount; // key renamed to "discount"
 
+  // Billing tab visible if user has either patientBilling or discount permission
+  const canAccessBillingTab = isAdmin || !!permissions?.patientBilling || !!permissions?.discount;
+
+  // ─── Component state ───────────────────────────────────────────────────
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
@@ -262,16 +268,26 @@ const PatientDetails = () => {
   const [deleteNote, setDeleteNote] = useState("");
   const [showCollectPayment, setShowCollectPayment] = useState(false);
   const [showExtraPayment, setShowExtraPayment] = useState(false);
-  const [editModeTarget, setEditModeTarget] = useState(null); // { paymentId, mode } | null
+  const [editModeTarget, setEditModeTarget] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [billingDeniedPopup, setBillingDeniedPopup] = useState(false);
 
   const [txForm, setTxForm] = useState({ spaceId: "", bedNumber: null, note: "" });
   const [docForm, setDocForm] = useState({ doctorId: "", note: "" });
   const [editForm, setEditForm] = useState({});
   const [clinicalForm, setClinicalForm] = useState({ description: "", medicalHistory: "" });
 
+  // ── Deny billing tab if permission missing ──────────────────────────────
+  useEffect(() => {
+    if (activeTab === "billing" && !canAccessBillingTab) {
+      setBillingDeniedPopup(true);
+      setActiveTab("overview");
+    }
+  }, [activeTab, canAccessBillingTab]);
+
+  // ── Fetch patient data ─────────────────────────────────────────────────
   const fetchPatient = async () => {
     setLoading(true);
     try {
@@ -427,8 +443,6 @@ const PatientDetails = () => {
 
   const handlePrint = () => window.print();
 
-  // ── Scoped section-only print handlers ────────────────────────────────────
-
   const handlePrintExpenseLog = () => {
     document.body.classList.add("print-expense-log-only");
     window.print();
@@ -448,8 +462,7 @@ const PatientDetails = () => {
     return () => window.removeEventListener("afterprint", reset);
   }, []);
 
-  // ── Loading ────────────────────────────────────────────────────────────────
-
+  // ── Loading / Not Found ─────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
@@ -495,7 +508,6 @@ const PatientDetails = () => {
   const transferableSpaces = spaces.filter((s) => s._id !== patient.space?.spaceId);
   const transferableDoctors = doctors.filter((d) => d._id !== patient.supervisorDoctor?.doctorId);
 
-  // Shared print-only letterhead block, reused for expense log & payment history
   const SectionLetterhead = ({ className }) => (
     <div className={`hidden text-center pt-6 px-6 pb-4 mb-3 border-b-2 border-slate-800 ${className}`}>
       <h3 className="text-xl font-bold text-slate-900 tracking-wide uppercase">{lab?.name ?? "LabPilot Pro"}</h3>
@@ -539,6 +551,15 @@ const PatientDetails = () => {
         }
       `}</style>
 
+      {/* Billing denied popup */}
+      {billingDeniedPopup && (
+        <Popup
+          type="denied"
+          message="আপনার বিলিং তথ্য দেখার অনুমতি নেই।"
+          onClose={() => setBillingDeniedPopup(false)}
+        />
+      )}
+
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="no-print">
@@ -561,9 +582,9 @@ const PatientDetails = () => {
           <ErrorMsg msg={actionError} />
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — hide billing tab if no permission */}
         <div className="flex gap-1 bg-white border border-slate-200 p-1 rounded-[8px] mb-5 shadow-sm overflow-x-auto no-print">
-          {TABS.map((t) => (
+          {TABS.filter((tab) => tab.id !== "billing" || canAccessBillingTab).map((t) => (
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
@@ -584,17 +605,13 @@ const PatientDetails = () => {
               icon="👤"
               action={
                 <div className="flex items-center gap-1.5">
-                  <Btn variant="ghost" size="sm" onClick={() => setEditInfo(!editInfo)}>
-                    {editInfo ? "Cancel" : "Edit"}
-                  </Btn>
-                  {isAdmitted && (
-                    <Btn
-                      variant="danger"
-                      size="sm"
-                      disabled={!canRelease}
-                      title={!canRelease ? "No Permission" : undefined}
-                      onClick={canRelease ? () => setReleaseConfirm(true) : undefined}
-                    >
+                  {canEditPatient && (
+                    <Btn variant="ghost" size="sm" onClick={() => setEditInfo(!editInfo)}>
+                      {editInfo ? "Cancel" : "Edit"}
+                    </Btn>
+                  )}
+                  {isAdmitted && canRelease && (
+                    <Btn variant="danger" size="sm" onClick={() => setReleaseConfirm(true)}>
                       Discharge
                     </Btn>
                   )}
@@ -692,7 +709,8 @@ const PatientDetails = () => {
                 title="Ward / Bed"
                 icon="🛏️"
                 action={
-                  isAdmitted && (
+                  isAdmitted &&
+                  canEditPatient && (
                     <Btn variant="ghost" size="sm" onClick={() => setTransferWard(!transferWard)}>
                       {transferWard ? "Cancel" : "Transfer"}
                     </Btn>
@@ -757,7 +775,8 @@ const PatientDetails = () => {
                 title="Supervisor Doctor"
                 icon="👨‍⚕️"
                 action={
-                  isAdmitted && (
+                  isAdmitted &&
+                  canEditPatient && (
                     <Btn variant="ghost" size="sm" onClick={() => setChangeDoc(!changeDoc)}>
                       {changeDoc ? "Cancel" : "Change"}
                     </Btn>
@@ -812,9 +831,11 @@ const PatientDetails = () => {
               title="Clinical Notes"
               icon="🩺"
               action={
-                <Btn variant="ghost" size="sm" onClick={() => setEditClinical(!editClinical)}>
-                  {editClinical ? "Cancel" : "Edit"}
-                </Btn>
+                canEditPatient && (
+                  <Btn variant="ghost" size="sm" onClick={() => setEditClinical(!editClinical)}>
+                    {editClinical ? "Cancel" : "Edit"}
+                  </Btn>
+                )
               }
             >
               {!editClinical ? (
@@ -942,30 +963,25 @@ const PatientDetails = () => {
               )}
             </SectionCard>
 
-            {/* Danger Zone — soft delete, separated from normal actions to avoid mis-clicks */}
-            <SectionCard title="Danger Zone" icon="⚠️">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm text-slate-500">
-                  Permanently remove this record from all lists and reports. This is different from Discharge — use it
-                  only to correct an admission created by mistake.
-                </p>
-                <Btn
-                  variant="danger"
-                  size="sm"
-                  className="shrink-0"
-                  disabled={!canDelete}
-                  title={!canDelete ? "No Permission" : undefined}
-                  onClick={canDelete ? () => setDeleteConfirm(true) : undefined}
-                >
-                  Delete Patient
-                </Btn>
-              </div>
-            </SectionCard>
+            {/* Danger Zone — completely hidden if user lacks delete permission */}
+            {canDelete && (
+              <SectionCard title="Danger Zone" icon="⚠️">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm text-slate-500">
+                    Permanently remove this record from all lists and reports. This is different from Discharge — use it
+                    only to correct an admission created by mistake.
+                  </p>
+                  <Btn variant="danger" size="sm" className="shrink-0" onClick={() => setDeleteConfirm(true)}>
+                    Delete Patient
+                  </Btn>
+                </div>
+              </SectionCard>
+            )}
           </div>
         )}
 
         {/* ── Billing ── */}
-        {activeTab === "billing" && (
+        {activeTab === "billing" && canAccessBillingTab && (
           <div>
             {/* Print action bar — screen only */}
             <div className="flex items-center justify-end mb-3 no-print">
@@ -997,6 +1013,7 @@ const PatientDetails = () => {
                 canAddExpenses={canAddExpense}
                 patientId={patientId}
                 onRefresh={fetchPatient}
+                canApplyDiscount={canApplyDiscount}
               />
 
               {/* Discount line — print + screen, only if a discount is actually present */}
@@ -1199,91 +1216,95 @@ const PatientDetails = () => {
           onSuccess={fetchPatient}
         />
 
-        <Modal
-          open={releaseConfirm}
-          onClose={() => setReleaseConfirm(false)}
-          title="Confirm Discharge"
-          width="max-w-md"
-        >
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-base font-bold text-slate-800 mb-1">Discharge {patient.patient.name}?</h3>
-              <p className="text-sm text-slate-500">
-                This will release the patient and free up{" "}
-                <span className="font-semibold text-slate-700">{patient.space.spaceName}</span>
-                {patient.space.bedNumber != null && <> · Bed {patient.space.bedNumber}</>}. This action cannot be
-                undone.
-              </p>
-            </div>
-            {due > 0 && (
-              <div className="px-3 py-2.5 rounded-[3px] bg-amber-50 border-l-2 border-amber-400 text-[13px] text-amber-700">
-                <span className="font-mono font-semibold">{fmt.currency(due)}</span> is still outstanding.
+        {canRelease && (
+          <Modal
+            open={releaseConfirm}
+            onClose={() => setReleaseConfirm(false)}
+            title="Confirm Discharge"
+            width="max-w-md"
+          >
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-800 mb-1">Discharge {patient.patient.name}?</h3>
+                <p className="text-sm text-slate-500">
+                  This will release the patient and free up{" "}
+                  <span className="font-semibold text-slate-700">{patient.space.spaceName}</span>
+                  {patient.space.bedNumber != null && <> · Bed {patient.space.bedNumber}</>}. This action cannot be
+                  undone.
+                </p>
               </div>
-            )}
-            <ErrorMsg msg={actionError} />
-            <div className="flex gap-3 pt-1">
-              <Btn variant="secondary" size="lg" className="flex-1" onClick={() => setReleaseConfirm(false)}>
-                Cancel
-              </Btn>
-              <Btn variant="danger" size="lg" className="flex-1" loading={actionLoading} onClick={handleRelease}>
-                Confirm Discharge
-              </Btn>
+              {due > 0 && (
+                <div className="px-3 py-2.5 rounded-[3px] bg-amber-50 border-l-2 border-amber-400 text-[13px] text-amber-700">
+                  <span className="font-mono font-semibold">{fmt.currency(due)}</span> is still outstanding.
+                </div>
+              )}
+              <ErrorMsg msg={actionError} />
+              <div className="flex gap-3 pt-1">
+                <Btn variant="secondary" size="lg" className="flex-1" onClick={() => setReleaseConfirm(false)}>
+                  Cancel
+                </Btn>
+                <Btn variant="danger" size="lg" className="flex-1" loading={actionLoading} onClick={handleRelease}>
+                  Confirm Discharge
+                </Btn>
+              </div>
             </div>
-          </div>
-        </Modal>
+          </Modal>
+        )}
 
-        <Modal
-          open={deleteConfirm}
-          onClose={() => {
-            setDeleteConfirm(false);
-            setDeleteNote("");
-            setDeleteError("");
-          }}
-          title="Delete Patient Record"
-          width="max-w-md"
-        >
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-base font-bold text-slate-800 mb-1">Delete {patient.patient.name}'s record?</h3>
-              <p className="text-sm text-slate-500">
-                This removes the admission from every list, report, and cash memo figure
-                {isAdmitted && (
-                  <>
-                    {" "}
-                    and frees up <span className="font-semibold text-slate-700">{patient.space.spaceName}</span>
-                    {patient.space.bedNumber != null && <> · Bed {patient.space.bedNumber}</>}
-                  </>
-                )}
-                . This action cannot be undone from the app.
-              </p>
+        {canDelete && (
+          <Modal
+            open={deleteConfirm}
+            onClose={() => {
+              setDeleteConfirm(false);
+              setDeleteNote("");
+              setDeleteError("");
+            }}
+            title="Delete Patient Record"
+            width="max-w-md"
+          >
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-800 mb-1">Delete {patient.patient.name}'s record?</h3>
+                <p className="text-sm text-slate-500">
+                  This removes the admission from every list, report, and cash memo figure
+                  {isAdmitted && (
+                    <>
+                      {" "}
+                      and frees up <span className="font-semibold text-slate-700">{patient.space.spaceName}</span>
+                      {patient.space.bedNumber != null && <> · Bed {patient.space.bedNumber}</>}
+                    </>
+                  )}
+                  . This action cannot be undone from the app.
+                </p>
+              </div>
+              <Field label="Reason (optional)">
+                <Input
+                  placeholder="e.g. duplicate admission, entered by mistake…"
+                  value={deleteNote}
+                  onChange={(e) => setDeleteNote(e.target.value)}
+                />
+              </Field>
+              <ErrorMsg msg={deleteError} />
+              <div className="flex gap-3 pt-1">
+                <Btn
+                  variant="secondary"
+                  size="lg"
+                  className="flex-1"
+                  onClick={() => {
+                    setDeleteConfirm(false);
+                    setDeleteNote("");
+                    setDeleteError("");
+                  }}
+                >
+                  Cancel
+                </Btn>
+                <Btn variant="danger" size="lg" className="flex-1" loading={actionLoading} onClick={handleDelete}>
+                  Confirm Delete
+                </Btn>
+              </div>
             </div>
-            <Field label="Reason (optional)">
-              <Input
-                placeholder="e.g. duplicate admission, entered by mistake…"
-                value={deleteNote}
-                onChange={(e) => setDeleteNote(e.target.value)}
-              />
-            </Field>
-            <ErrorMsg msg={deleteError} />
-            <div className="flex gap-3 pt-1">
-              <Btn
-                variant="secondary"
-                size="lg"
-                className="flex-1"
-                onClick={() => {
-                  setDeleteConfirm(false);
-                  setDeleteNote("");
-                  setDeleteError("");
-                }}
-              >
-                Cancel
-              </Btn>
-              <Btn variant="danger" size="lg" className="flex-1" loading={actionLoading} onClick={handleDelete}>
-                Confirm Delete
-              </Btn>
-            </div>
-          </div>
-        </Modal>
+          </Modal>
+        )}
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
  * babel-plugin-react-compiler handles all memoization automatically.
  */
 import { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Users,
   ArrowLeft,
@@ -27,9 +27,9 @@ import {
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
 import referrerService from "../../../api/referrer";
+import { useAuthStore } from "../../../store/authStore";
 
 // ── Type config ────────────────────────────────────────────────────────────────
-
 const TYPE_CONFIG = {
   doctor: {
     label: "ডাক্তার",
@@ -61,15 +61,9 @@ const TYPE_CONFIG = {
 };
 
 // ── Page background — matches Setup.jsx / DailyReport.jsx / ManageStaff.jsx ────
-
 const pageGradientBg = "bg-[radial-gradient(ellipse_120%_80%_at_50%_-10%,#eef2ff_0%,#f8fafc_45%,#f8fafc_100%)]";
 
 // ── Initial form data ──────────────────────────────────────────────────────────
-// On CREATE, commission is required up front (the backend needs it to insert
-// the referrer) — collected right here. On EDIT, commission is hidden from
-// this form: it has its own dedicated CommissionModal (below), same split as
-// ManageStaff.
-
 const EMPTY_FORM = {
   name: "",
   contactNumber: "",
@@ -81,7 +75,6 @@ const EMPTY_FORM = {
 };
 
 // ── Error helpers ──────────────────────────────────────────────────────────────
-
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
 const getErrorMessage = (err, fallback) => {
@@ -90,7 +83,6 @@ const getErrorMessage = (err, fallback) => {
 };
 
 // ── Shared input helpers ───────────────────────────────────────────────────────
-
 const inputBase =
   "w-full outline-none transition-all rounded-xl border-[1.5px] border-[#E2E8F0] bg-white text-[#0F172A] font-['IBM_Plex_Mono',monospace]";
 const focusInput = (e) => {
@@ -103,7 +95,6 @@ const blurInput = (e) => {
 };
 
 // ── FormField ──────────────────────────────────────────────────────────────────
-
 const FormField = ({ label, required, children }) => (
   <div>
     <label className="block mb-1.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-semibold uppercase tracking-[0.06em] text-[#64748B]">
@@ -115,12 +106,6 @@ const FormField = ({ label, required, children }) => (
 );
 
 // ── Referrer Form Modal (create / edit basic info) ──────────────────────────────
-// Handles name/contact/degree/details/type only. Commission lives in its own
-// CommissionModal, mirroring StaffFormModal / AdjustmentModal in ManageStaff.
-//
-// On a failed save the modal stays OPEN (no onClose()) so nothing typed is
-// lost; the error surfaces inline via `apiError` in the sticky footer.
-
 const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving, apiError }) => {
   const isEdit = formData.formType === "editReferrer";
   const gradFrom = isEdit ? "#8B5CF6" : "#0D9488";
@@ -252,8 +237,7 @@ const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving, apiE
             />
           </FormField>
 
-          {/* Commission — create only. On edit, commission has its own
-              dedicated CommissionModal (see below). */}
+          {/* Commission — create only. On edit, commission has its own dedicated CommissionModal */}
           {!isEdit && (
             <div className="border-[1.5px] border-[#E2E8F0] rounded-2xl overflow-hidden">
               <div className="px-4 py-3 flex items-center gap-2 bg-white border-b border-[#E2E8F0]">
@@ -333,9 +317,7 @@ const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving, apiE
           )}
         </div>
 
-        {/* Footer — fixed, never scrolls. apiError banner sits directly
-            above the action buttons so it's the last thing seen before
-            retrying, right where the eye lands after Save fails. */}
+        {/* Footer — fixed, never scrolls */}
         <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
           {apiError && (
             <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
@@ -378,10 +360,6 @@ const ReferrerFormModal = ({ formData, onChange, onSubmit, onClose, saving, apiE
 };
 
 // ── Commission Modal ─────────────────────────────────────────────────────────
-// Standalone modal, separate from ReferrerFormModal, dedicated to setting one
-// referrer's commission type/value. Mirrors AdjustmentModal in ManageStaff —
-// PUTs only commissionType/commissionValue to its own dedicated route.
-
 const CommissionModal = ({ referrer, onClose, onSaved }) => {
   const [commissionType, setCommissionType] = useState(referrer.commissionType ?? "percentage");
   const [commissionValue, setCommissionValue] = useState(referrer.commissionValue ?? 0);
@@ -568,8 +546,7 @@ const CommissionModal = ({ referrer, onClose, onSaved }) => {
   );
 };
 
-// ── Action Chip (icon + English label, mirrors ActionBtn in ManageStaff) ───────
-
+// ── Action Chip ───────────────────────────────────────────────────────────────
 const ActionChip = ({ onClick, icon: Icon, label, color }) => (
   <button
     onClick={onClick}
@@ -593,8 +570,7 @@ const ActionChip = ({ onClick, icon: Icon, label, color }) => (
   </button>
 );
 
-// ── Avatar initial chip — mirrors Avatar in ManageStaff ─────────────────────────
-
+// ── Avatar initial chip ─────────────────────────────────────────────────────────
 const Avatar = ({ name, color, bg }) => {
   const initial = name?.trim()?.[0]?.toUpperCase() ?? "?";
   return (
@@ -608,7 +584,6 @@ const Avatar = ({ name, color, bg }) => {
 };
 
 // ── Referrer Row — card style, mirrors StaffRow in ManageStaff ─────────────────
-
 const ReferrerRow = ({ input, index, onEdit, onCommission, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
   const cfg = TYPE_CONFIG[input.type] ?? TYPE_CONFIG.doctor;
@@ -682,7 +657,6 @@ const ReferrerRow = ({ input, index, onEdit, onCommission, onDelete }) => {
 };
 
 // ── Stat Card ──────────────────────────────────────────────────────────────────
-
 const StatCard = ({ label, value, color, grad, icon: Icon }) => (
   <div className="bg-white relative overflow-hidden border border-[#E2E8F0] rounded-2xl p-[14px_16px] shadow-[0_2px_8px_rgba(15,23,42,0.05)]">
     <div className="absolute top-0 right-0 w-16 h-16 opacity-5 rounded-[0_16px_0_100%]" style={{ background: grad }} />
@@ -701,7 +675,6 @@ const StatCard = ({ label, value, color, grad, icon: Icon }) => (
 );
 
 // ── Filter Dropdown ────────────────────────────────────────────────────────────
-
 const FilterDropdown = ({ value, onChange, options, placeholder }) => (
   <div className="relative">
     <select
@@ -722,7 +695,6 @@ const FilterDropdown = ({ value, onChange, options, placeholder }) => (
 );
 
 // ── Skeleton ───────────────────────────────────────────────────────────────────
-
 const Skeleton = () => (
   <div className="space-y-2">
     {[1, 2, 3, 4].map((i) => (
@@ -742,7 +714,6 @@ const Skeleton = () => (
 );
 
 // ── Filter options ─────────────────────────────────────────────────────────────
-
 const TYPE_OPTIONS = [
   { value: "doctor", label: "ডাক্তার" },
   { value: "agent", label: "এজেন্ট" },
@@ -750,18 +721,25 @@ const TYPE_OPTIONS = [
 ];
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
-
 const ManageReferrer = () => {
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin";
+
+  // ═══════ Front-end permission check ═══════
+  const hasAccess = isAdmin || user?.permissions?.manageReferrers === true;
+  if (!hasAccess) {
+    return <Popup type="denied" message="রেফারার ম্যানেজমেন্ট দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+
   const [referrers, setReferrers] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [popup, setPopup] = useState(null);
   const [formModal, setFormModal] = useState(null);
   const [formApiError, setFormApiError] = useState("");
-  const [commissionModal, setCommissionModal] = useState(null); // null | referrer object
-  // modal only carries the destructive confirmation (delete), rendered via
-  // the shared <Popup type="warning"> component — no bespoke confirm dialog.
-  const [modal, setModal] = useState(null); // { type: "delete", item }
+  const [commissionModal, setCommissionModal] = useState(null);
+  const [modal, setModal] = useState(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
 
@@ -818,10 +796,6 @@ const ManageReferrer = () => {
     setFormApiError("");
   };
 
-  // Both client-side validation and API failures surface inline via
-  // `formApiError` inside ReferrerFormModal. The modal stays open on failure
-  // so nothing the user typed gets lost — they just fix and retry. Only
-  // success closes it.
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formModal.name?.trim()) return setFormApiError("নাম প্রয়োজন।");
@@ -831,17 +805,9 @@ const ManageReferrer = () => {
       setFormApiError("");
       const isEdit = formModal.formType === "editReferrer";
       if (isEdit) {
-        // Edit route now only accepts basic-info fields (additionalProperties:
-        // false on the backend) — commission extras are stripped by
-        // referrerService.editReferrer before the request goes out.
         const { name, contactNumber, degree, details, type, _id } = formModal;
         await referrerService.editReferrer({ name, contactNumber, degree, details, type, _id });
       } else {
-        // FIXED: previously sent the raw formModal object, which still carries
-        // formType ("addReferrer") set when the modal was opened. The create
-        // schema is additionalProperties:false and doesn't declare formType,
-        // so that stray field would break the request. Pick only the fields
-        // the backend actually accepts, same discipline as the edit branch.
         const { name, contactNumber, degree, details, type, commissionType, commissionValue } = formModal;
         await referrerService.addReferrer({
           name,
@@ -869,9 +835,6 @@ const ManageReferrer = () => {
     setPopup({ type: "success", message: "কমিশন আপডেট হয়েছে।" });
   };
 
-  // No in-flight spinner here — the warning Popup closes itself as soon as
-  // onConfirm fires, so a failure just surfaces as a follow-up error toast.
-  // Mirrors handleDelete in Products.jsx.
   const handleDelete = async (_id) => {
     try {
       await referrerService.deleteReferrer(_id);
@@ -919,7 +882,7 @@ const ManageReferrer = () => {
       )}
 
       <div className="max-w-2xl mx-auto">
-        {/* Page header — gradient icon badge, matching ManageStaff/DailyReport */}
+        {/* Page header */}
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-3">
             <div

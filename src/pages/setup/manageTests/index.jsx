@@ -3,7 +3,7 @@
  * babel-plugin-react-compiler handles all memoization automatically.
  */
 import { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -30,9 +30,9 @@ import {
 import Modal from "../../../components/modal";
 import testService from "../../../api/test";
 import Popup from "../../../components/popup";
+import { useAuthStore } from "../../../store/authStore";
 
 // ── Palette ────────────────────────────────────────────────────────────────────
-
 const C = {
   ink: "#0F172A",
   muted: "#94A3B8",
@@ -50,7 +50,7 @@ const C = {
   blue: "#3B82F6",
 };
 
-// Page background — matches ManageDoctors.jsx / Setup.jsx / ManageReferrer.jsx / ManageStaff.jsx
+// Page background
 const pageGradientBg = "bg-[radial-gradient(ellipse_120%_80%_at_50%_-10%,#eef2ff_0%,#f8fafc_45%,#f8fafc_100%)]";
 
 const UNCATEGORIZED_ID = "uncategorized";
@@ -61,21 +61,16 @@ const STATUS_OPTIONS = [
 ];
 
 // ── Error helpers ──────────────────────────────────────────────────────────────
-
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
-
 const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
-
 const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
 
 // ── Shared input helpers ───────────────────────────────────────────────────────
-
 const inputBase =
   "w-full outline-none transition-all rounded-xl border-[1.5px] border-[#E2E8F0] bg-white text-[#0F172A] font-['IBM_Plex_Mono',monospace]";
-
 const focusInput = (e) => {
   e.target.style.borderColor = "#0D9488";
   e.target.style.boxShadow = "0 0 0 3px #0D948820";
@@ -85,14 +80,9 @@ const blurInput = (e) => {
   e.target.style.boxShadow = "";
 };
 
-// ── Format Modal ────────────────────────────────────────────────────────────────
-// Schema/report-format picker only — price and commission each live in their
-// own modal now, same split as space chargePerDay and referrer commission
-// each getting a dedicated route/modal. Internalizes its own save call; on a
-// failed save the modal stays OPEN (no onClose()) and the error surfaces
-// inline via `apiError` in the sticky footer, so a permission error or
-// network hiccup doesn't discard the schema selection.
-
+// ══════════════════════════════════════════════════════════════════════════════
+// Format Modal
+// ══════════════════════════════════════════════════════════════════════════════
 const FormatModal = ({ test, onClose, onSave }) => {
   const [schemas, setSchemas] = useState([]);
   const [selectedSchemaId, setSelectedSchemaId] = useState(test.schemaId ?? null);
@@ -139,7 +129,7 @@ const FormatModal = ({ test, onClose, onSave }) => {
   return (
     <Modal isOpen size="md" onClose={onClose}>
       <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
-        {/* Header — fixed, never scrolls */}
+        {/* Header */}
         <div
           className="shrink-0 px-6 py-5 flex items-center justify-between border-b border-[#0D948820]"
           style={{ background: "linear-gradient(135deg,#0D948815 0%,#0F766E08 100%)" }}
@@ -168,7 +158,7 @@ const FormatModal = ({ test, onClose, onSave }) => {
           </button>
         </div>
 
-        {/* Body — the ONLY scrollable region, fills remaining space */}
+        {/* Body */}
         <div className="px-6 py-5 bg-[#F8FAFC] space-y-4 flex-1 min-h-0 overflow-y-auto">
           <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
             <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-1">
@@ -271,9 +261,7 @@ const FormatModal = ({ test, onClose, onSave }) => {
           </div>
         </div>
 
-        {/* Footer — fixed, never scrolls. apiError banner sits directly
-            above the action buttons so it's the last thing seen before
-            retrying. */}
+        {/* Footer */}
         <div className="shrink-0 border-t border-[#E2E8F0] bg-white">
           {apiError && (
             <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
@@ -316,11 +304,9 @@ const FormatModal = ({ test, onClose, onSave }) => {
   );
 };
 
-// ── Amount Modal (shared shell for Price / Commission) ─────────────────────────
-// One generic modal driven by a `field` config so price and commission stay
-// visually identical without duplicating the shell. Stays open on failure so
-// the typed amount isn't lost.
-
+// ══════════════════════════════════════════════════════════════════════════════
+// Amount Modal (used for both price and commission)
+// ══════════════════════════════════════════════════════════════════════════════
 const AMOUNT_FIELD_CONFIG = {
   price: {
     label: "মূল্য পরিবর্তন",
@@ -353,8 +339,6 @@ const AmountModal = ({ field, test, onClose, onSave }) => {
 
   const numeric = parseFloat(value);
   const isEmpty = value === "" || isNaN(numeric) || numeric < 0;
-  // Cross-field guard: commission can never exceed price, checked against
-  // whichever value isn't being edited right now.
   const counterpart = field === "price" ? (test.commission ?? 0) : (test.price ?? 0);
   const exceedsCounterpart = !isEmpty && (field === "price" ? numeric < counterpart : numeric > counterpart);
   const invalid = isEmpty || exceedsCounterpart;
@@ -381,7 +365,7 @@ const AmountModal = ({ field, test, onClose, onSave }) => {
   return (
     <Modal isOpen size="sm" onClose={onClose}>
       <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
-        {/* Header — fixed, never scrolls */}
+        {/* Header */}
         <div
           className="shrink-0 px-6 py-5 flex items-center justify-between border-b"
           style={{ background: cfg.headerBg, borderColor: cfg.headerBorder }}
@@ -416,7 +400,7 @@ const AmountModal = ({ field, test, onClose, onSave }) => {
           </button>
         </div>
 
-        {/* Body — the ONLY scrollable region, fills remaining space */}
+        {/* Body */}
         <div className="px-6 py-5 bg-[#F8FAFC] flex-1 min-h-0 overflow-y-auto">
           <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
             <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-2">
@@ -454,9 +438,7 @@ const AmountModal = ({ field, test, onClose, onSave }) => {
           </div>
         </div>
 
-        {/* Footer — fixed, never scrolls. apiError banner sits directly
-            above the action buttons so it's the last thing seen before
-            retrying. */}
+        {/* Footer */}
         <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
           {apiError && (
             <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
@@ -492,11 +474,9 @@ const AmountModal = ({ field, test, onClose, onSave }) => {
   );
 };
 
-// ── Add Test Modal ─────────────────────────────────────────────────────────────
-// Same rule: on a failed save the modal stays open, apiError shows inline in
-// the sticky footer, so selections aren't lost on a permission error or
-// network hiccup.
-
+// ══════════════════════════════════════════════════════════════════════════════
+// Add Test Modal
+// ══════════════════════════════════════════════════════════════════════════════
 const AddTestModal = ({ existingTests, onClose, onSaved }) => {
   const [availableTests, setAvailableTests] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -616,7 +596,7 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
   return (
     <Modal isOpen size="lg" onClose={onClose}>
       <div className="flex flex-col max-h-[calc(100svh-96px)] overflow-hidden">
-        {/* Header — fixed, never scrolls */}
+        {/* Header */}
         <div
           className="shrink-0 px-6 py-5 flex items-center justify-between border-b border-[#0D948820]"
           style={{ background: "linear-gradient(135deg,#0D948815 0%,#0F766E08 100%)" }}
@@ -645,7 +625,7 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
           </button>
         </div>
 
-        {/* Search — fixed, never scrolls */}
+        {/* Search */}
         <div className="shrink-0 px-5 pt-4 pb-3 bg-[#F8FAFC] border-b border-[#E2E8F0]">
           <div className="relative">
             <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -669,7 +649,7 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
           </div>
         </div>
 
-        {/* Body — the ONLY scrollable region, fills remaining space */}
+        {/* Body */}
         <div className="flex-1 min-h-0 overflow-y-auto">
           {initialLoading ? (
             <div className="p-6 space-y-3">
@@ -828,9 +808,7 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
           )}
         </div>
 
-        {/* Footer — fixed, never scrolls. apiError banner sits directly
-            above the action buttons so it's the last thing seen before
-            retrying. */}
+        {/* Footer */}
         <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
           {apiError && (
             <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
@@ -876,8 +854,9 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
   );
 };
 
-// ── Action Chip ────────────────────────────────────────────────────────────────
-
+// ══════════════════════════════════════════════════════════════════════════════
+// Small reusable components
+// ══════════════════════════════════════════════════════════════════════════════
 const ActionChip = ({ onClick, icon: Icon, label, color }) => (
   <button
     onClick={onClick}
@@ -897,8 +876,6 @@ const ActionChip = ({ onClick, icon: Icon, label, color }) => (
   </button>
 );
 
-// ── Avatar initial chip — mirrors Avatar in ManageDoctors / ManageReferrer ──────
-
 const Avatar = ({ name }) => {
   const initial = name?.trim()?.[0]?.toUpperCase() ?? "?";
   return (
@@ -907,8 +884,6 @@ const Avatar = ({ name }) => {
     </div>
   );
 };
-
-// ── Test Card — card style, mirrors DoctorRow in ManageDoctors.jsx ─────────────
 
 const TestCard = ({ test, onConfigureFormat, onConfigurePrice, onConfigureCommission, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
@@ -985,8 +960,6 @@ const TestCard = ({ test, onConfigureFormat, onConfigurePrice, onConfigureCommis
   );
 };
 
-// ── Stat Card ──────────────────────────────────────────────────────────────────
-
 const StatCard = ({ label, value, color, grad, icon: Icon }) => (
   <div className="bg-white relative overflow-hidden border border-[#E2E8F0] rounded-2xl p-[14px_16px] shadow-[0_2px_8px_rgba(15,23,42,0.05)]">
     <div className="absolute top-0 right-0 w-16 h-16 opacity-5 rounded-[0_16px_0_100%]" style={{ background: grad }} />
@@ -1007,8 +980,6 @@ const StatCard = ({ label, value, color, grad, icon: Icon }) => (
   </div>
 );
 
-// ── Skeleton — mirrors ManageDoctors.jsx card-list skeleton ────────────────────
-
 const Skeleton = () => (
   <div className="space-y-2">
     {[1, 2, 3, 4].map((i) => (
@@ -1027,8 +998,6 @@ const Skeleton = () => (
   </div>
 );
 
-// ── Section Divider ────────────────────────────────────────────────────────────
-
 const SectionDivider = ({ title, count }) => (
   <div className="flex items-center gap-2 pt-1 pb-1">
     <span className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#0D9488]">
@@ -1043,8 +1012,6 @@ const SectionDivider = ({ title, count }) => (
     <div className="flex-1 h-px bg-[#0D948820]" />
   </div>
 );
-
-// ── Filter Dropdown ────────────────────────────────────────────────────────────
 
 const FilterDropdown = ({ value, onChange, options }) => (
   <div className="relative">
@@ -1064,9 +1031,20 @@ const FilterDropdown = ({ value, onChange, options }) => (
   </div>
 );
 
-// ── Main Page ──────────────────────────────────────────────────────────────────
-
+// ══════════════════════════════════════════════════════════════════════════════
+// Main Page — ManageTests
+// ══════════════════════════════════════════════════════════════════════════════
 const ManageTests = () => {
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin";
+
+  // ─── Frontend permission check ─────────────────────────────────────────
+  const hasAccess = isAdmin || user?.permissions?.manageTests === true;
+  if (!hasAccess) {
+    return <Popup type="denied" message="টেস্ট ব্যবস্থাপনা দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+
   const [tests, setTests] = useState([]);
   const [categories, setCategories] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -1076,10 +1054,6 @@ const ManageTests = () => {
   const [formatTest, setFormatTest] = useState(null);
   const [priceTest, setPriceTest] = useState(null);
   const [commissionTest, setCommissionTest] = useState(null);
-  // Delete confirmation uses the shared <Popup type="warning"> directly
-  // (see render section below), not a bespoke modal — same pattern as
-  // ManageDoctors.jsx / Products.jsx / ManageReferrer.jsx. `deleteTarget`
-  // just holds which test the confirm popup refers to.
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -1152,9 +1126,6 @@ const ManageTests = () => {
     });
   }, [filtered]);
 
-  // No in-flight spinner on the confirm popup itself — it closes as soon as
-  // onConfirm fires, so a failure just surfaces as a follow-up error toast.
-  // Mirrors handleDelete in ManageDoctors.jsx / Products.jsx / ManageReferrer.jsx.
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
@@ -1248,7 +1219,7 @@ const ManageTests = () => {
       )}
 
       <div className="max-w-2xl mx-auto">
-        {/* Page header — gradient icon badge, matching ManageDoctors/ManageReferrer/ManageStaff */}
+        {/* Page header */}
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-3">
             <div
@@ -1318,7 +1289,7 @@ const ManageTests = () => {
           </div>
         )}
 
-        {/* Toolbar card — standalone, mirrors ManageDoctors.jsx */}
+        {/* Toolbar */}
         <div className="px-4 py-3 flex flex-wrap items-center gap-2 mb-4 bg-white border border-[#E2E8F0] rounded-2xl">
           <div className="relative flex-[1_1_160px]">
             <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />

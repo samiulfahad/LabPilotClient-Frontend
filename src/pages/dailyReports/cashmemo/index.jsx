@@ -18,7 +18,7 @@ import {
   ChevronDown,
   Receipt as ReceiptIcon,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
 import cashmemoService from "../../../api/dailyReports/cashmemo";
 import Popup from "../../../components/popup";
@@ -232,11 +232,6 @@ const SummarySection = ({ title, icon: Icon, accent, rows, badge }) => (
 );
 
 // ─── Referrer commission toggle (%-based vs test-wise) ────────────────────────
-// Shared by OutdoorReceipt and SummaryReceipt — both work off the same
-// invoice-level fields: amount.referrerCommission (%-based) and
-// amount.referrerCommissionTestWise (sum of each test's own commission).
-// IndoorReceipt doesn't use this — IPD admissions carry no referrer
-// commission percentage, only per-item commission, so it's a plain figure there.
 
 const CommissionToggle = ({ view, onChange, accent = "#B5772A" }) => (
   <div className="flex items-center gap-1 shrink-0 no-print">
@@ -539,10 +534,6 @@ const CategoryBreakdown = ({ breakdown }) => {
 };
 
 // ─── Payment-mode breakdown (compact inline "Cash 10000 | bKash 5000 | Others 3000" line) ───────
-// Reads paymentModeBreakdown from /cashmemo/summary (outdoor) or
-// /cashmemo/ipd-summary (indoor) — a fixed-shape object with one key per
-// PAYMENT_MODES value. Modes with 0 collected in the range are filtered out
-// entirely rather than shown, per the requirement to hide zero rows.
 
 const PAYMENT_MODE_LABELS = {
   cash: "Cash",
@@ -589,9 +580,6 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
 
   const [commissionView, setCommissionView] = useState("percentage");
   const commissionValue = commissionView === "percentage" ? d.referrerCommission : d.referrerCommissionTestWise;
-  // নিট আয় recomputed locally from the gross counter amount minus whichever
-  // commission figure is currently selected, instead of the fixed d.totalNet
-  // from the backend (which never reflected the toggle).
   const netAmount = grossCounterAmount - (commissionValue ?? 0);
 
   const [deletedOpen, setDeletedOpen] = useState(false);
@@ -954,9 +942,6 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
 
         <CategoryBreakdown breakdown={d.categoryBreakdown} />
 
-        {/* Referrer commission — IPD has no stored commission %, only each
-            test's own commission amount, so this is a single test-wise figure
-            (no toggle, unlike Outdoor/Summary). */}
         <div className="border border-[#E3D9C6] rounded-sm overflow-hidden mb-3">
           <div
             className="flex items-center justify-between px-4 py-3 bg-[#FBF7EF] border-l-4"
@@ -1151,8 +1136,6 @@ const SummaryReceipt = ({
 
         <PaymentModeBreakdown breakdown={o.paymentModeBreakdown} />
 
-        {/* Outdoor referrer commission — toggle between %-based and test-wise,
-            mirrors the block in OutdoorReceipt. */}
         <div className="border border-[#E3D9C6] rounded-sm overflow-hidden mb-4">
           <div
             className="flex items-center justify-between px-4 py-3 border-l-4"
@@ -1199,9 +1182,17 @@ const TabBtn = ({ active, onClick, children, accent = "#0F6E5C" }) => (
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const CashMemo = () => {
+  const navigate = useNavigate();
   const lab = useAuthStore((s) => s.lab);
   const user = useAuthStore((s) => s.user);
   const isHospital = user?.type === "hospital";
+
+  // ─── PERMISSION CHECK (before any hooks) ──────────────────────────────────
+  const isAdmin = user?.role === "admin";
+  const hasAccess = isAdmin || user?.permissions?.cashmemo
+  if (!hasAccess) {
+    return <Popup type="denied" message="ক্যাশমেমু দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
 
   const [activeTab, setActiveTab] = useState("outdoor");
 
@@ -1216,6 +1207,10 @@ const CashMemo = () => {
 
   const [popup, setPopup] = useState(null);
   const [timeRange, setTimeRange] = useState(null);
+
+  // When true, closing the popup redirects home instead of just dismissing —
+  // mirrors DailyReport's "no permission" lock treatment for 403s.
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   const loadedForRangeRef = useRef({ outdoor: false, indoor: false, summary: false });
 
@@ -1255,13 +1250,20 @@ const CashMemo = () => {
     }
   };
 
+  // ── Updated fetch functions with 403 → "denied" popup ─────────────────────
+
   const fetchOutdoor = async (range) => {
     try {
       setOutdoorLoading(true);
       const res = await cashmemoService.getSummary({ startDate: range.start, endDate: range.end });
       setOutdoorSummary(res.data);
     } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "বহির্বিভাগের ডেটা লোড করা সম্ভব হয়নি।") });
+      const isPermissionDenied = err?.response?.status === 403;
+      if (isPermissionDenied) setPermissionDenied(true);
+      setPopup({
+        type: isPermissionDenied ? "denied" : "error",
+        message: getErrorMessage(err, "বহির্বিভাগের ডেটা লোড করা সম্ভব হয়নি।"),
+      });
     } finally {
       setOutdoorLoading(false);
     }
@@ -1273,7 +1275,12 @@ const CashMemo = () => {
       const res = await cashmemoService.getIpdSummary({ startDate: range.start, endDate: range.end });
       setIndoorSummary(res.data);
     } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "অন্তঃবিভাগের ডেটা লোড করা সম্ভব হয়নি।") });
+      const isPermissionDenied = err?.response?.status === 403;
+      if (isPermissionDenied) setPermissionDenied(true);
+      setPopup({
+        type: isPermissionDenied ? "denied" : "error",
+        message: getErrorMessage(err, "অন্তঃবিভাগের ডেটা লোড করা সম্ভব হয়নি।"),
+      });
     } finally {
       setIndoorLoading(false);
     }
@@ -1285,7 +1292,12 @@ const CashMemo = () => {
       const res = await cashmemoService.getExpenseSummary({ startDate: range.start, endDate: range.end });
       setExpenseSummary(res.data);
     } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "খরচের ডেটা লোড করা সম্ভব হয়নি।") });
+      const isPermissionDenied = err?.response?.status === 403;
+      if (isPermissionDenied) setPermissionDenied(true);
+      setPopup({
+        type: isPermissionDenied ? "denied" : "error",
+        message: getErrorMessage(err, "খরচের ডেটা লোড করা সম্ভব হয়নি।"),
+      });
     } finally {
       setExpenseLoading(false);
     }
@@ -1334,7 +1346,16 @@ const CashMemo = () => {
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
-      {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {popup && (
+        <Popup
+          type={popup.type}
+          message={popup.message}
+          onClose={() => {
+            setPopup(null);
+            if (permissionDenied) navigate("/lab-management");
+          }}
+        />
+      )}
 
       <style>{`
         @page {

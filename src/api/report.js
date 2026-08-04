@@ -6,6 +6,7 @@ const reportService = {
   updateReport: (data) => api.put("/report/update", data),
   updateDates: (data) => api.put("/report/dates", data),
   getReport: (invoiceId, testId) => api.get(`/report/${invoiceId}/${testId}`),
+  getTestSchema: (schemaId) => api.get("/report/testSchema/" + schemaId), // ← moved from testService
 
   // ── Indoor ───────────────────────────────────────────────────────────────────
   addIndoorReport: (data) => api.post("/indoor-report/add", data),

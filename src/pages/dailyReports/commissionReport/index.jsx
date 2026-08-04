@@ -14,7 +14,7 @@ import {
   FlaskConical,
   LayoutList,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
 import commissionReportAPI from "../../../api/dailyReports/commissionReport";
 import Popup from "../../../components/popup";
@@ -766,14 +766,25 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const CommissionReport = () => {
+  const navigate = useNavigate();
   const lab = useAuthStore((s) => s.lab);
   const user = useAuthStore((s) => s.user);
   const isHospital = user?.type === "hospital";
+
+  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
+  const isAdmin = user?.role === "admin";
+  const hasAccess = isAdmin || user?.permissions?.commissionReport === true; // ← ব্যাকএন্ড অনুযায়ী পারমিশন কী
+  if (!hasAccess) {
+    return <Popup type="denied" message="কমিশন রিপোর্ট দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+  // ════════════════════════════════════════════════
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
   const [timeRange, setTimeRange] = useState(null);
   const [view, setView] = useState("testwise");
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   useEffect(() => {
     const range = todayRange();
@@ -787,7 +798,12 @@ const CommissionReport = () => {
       const res = await commissionReportAPI.getSummary({ startDate: range.start, endDate: range.end });
       setData(res.data);
     } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "কমিশনের তথ্য লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।") });
+      const isPermissionDenied = err?.response?.status === 403;
+      if (isPermissionDenied) setPermissionDenied(true);
+      setPopup({
+        type: isPermissionDenied ? "denied" : "error",
+        message: getErrorMessage(err, "কমিশনের তথ্য লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।"),
+      });
     } finally {
       setLoading(false);
     }
@@ -805,7 +821,16 @@ const CommissionReport = () => {
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
-      {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {popup && (
+        <Popup
+          type={popup.type}
+          message={popup.message}
+          onClose={() => {
+            setPopup(null);
+            if (permissionDenied) navigate("/lab-management");
+          }}
+        />
+      )}
 
       <style>{`
         @media print {

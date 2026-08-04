@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Printer, AlertCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
 import salesReportAPI from "../../../api/dailyReports/salesReport";
 import Popup from "../../../components/popup";
@@ -224,14 +224,25 @@ const LedgerSection = ({ title, items, isHospital, idKey, emptyLabel, bordered =
 );
 
 const SalesReport = () => {
+  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const lab = useAuthStore((s) => s.lab);
   const isHospital = user?.type === "hospital";
+
+  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
+  const isAdmin = user?.role === "admin";
+  // ব্যাকএন্ডে সেলস রিপোর্টের জন্য যে permission চাবি ব্যবহার করা হয়
+  const hasAccess = isAdmin || user?.permissions?.salesReport === true;
+  if (!hasAccess) {
+    return <Popup type="denied" message="সেলস রিপোর্ট দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+  // ════════════════════════════════════════════════
 
   const [salesData, setSalesData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
   const [timeRange, setTimeRange] = useState(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   useEffect(() => {
     const range = todayRange();
@@ -245,7 +256,12 @@ const SalesReport = () => {
       const res = await salesReportAPI.getSummary({ startDate: range.start, endDate: range.end });
       setSalesData(res.data);
     } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "রিপোর্ট লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।") });
+      const isPermissionDenied = err?.response?.status === 403;
+      if (isPermissionDenied) setPermissionDenied(true);
+      setPopup({
+        type: isPermissionDenied ? "denied" : "error",
+        message: getErrorMessage(err, "রিপোর্ট লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।"),
+      });
     } finally {
       setLoading(false);
     }
@@ -283,7 +299,16 @@ const SalesReport = () => {
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
-      {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {popup && (
+        <Popup
+          type={popup.type}
+          message={popup.message}
+          onClose={() => {
+            setPopup(null);
+            if (permissionDenied) navigate("/lab-management");
+          }}
+        />
+      )}
 
       <style>{`
         @media print {

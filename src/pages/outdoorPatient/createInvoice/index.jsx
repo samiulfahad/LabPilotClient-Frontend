@@ -1158,7 +1158,15 @@ const CreateInvoice = () => {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user); // { role, maxLabAdjustment, ... } — adjust selector to match your store
   const lab = useAuthStore((s) => s.lab); // { billing: { feePerInvoice, forceInvoiceFee }, ... }
+
+  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
   const isAdmin = user?.role === "admin";
+  const hasAccess = isAdmin || user?.permissions?.createInvoice === true;
+  if (!hasAccess) {
+    return <Popup type="denied" message="ইনভয়েস তৈরি করার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+  // ════════════════════════════════════════════════
+
   const maxLabAdjustment = user?.maxLabAdjustment ?? 0;
   const canAdjustLab = isAdmin || maxLabAdjustment > 0;
 

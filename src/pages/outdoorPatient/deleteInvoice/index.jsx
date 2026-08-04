@@ -19,11 +19,12 @@ import {
   History,
   ArrowLeft,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // added useNavigate
 import Popup from "../../../components/popup";
 import LoadingScreen from "../../../components/loadingPage";
 import invoiceService from "../../../api/invoice";
 import TimeFrame from "../../../components/timeFrame";
+import { useAuthStore } from "../../../store/authStore"; // added for permission check
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -459,6 +460,17 @@ const TABS = [
 ];
 
 const DeleteInvoices = () => {
+  const navigate = useNavigate(); // added
+  const user = useAuthStore((s) => s.user); // added
+
+  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
+  const isAdmin = user?.role === "admin";
+  const hasAccess = isAdmin || user?.permissions?.deleteInvoice === true;
+  if (!hasAccess) {
+    return <Popup type="denied" message="ইনভয়েস ডিলিট করার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+  // ════════════════════════════════════════════════
+
   const [activeTab, setActiveTab] = useState("delete");
   const [loadingMessage, setLoadingMessage] = useState(null);
   const [popup, setPopup] = useState(null);

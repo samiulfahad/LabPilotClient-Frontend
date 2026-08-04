@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Users,
   ArrowLeft,
@@ -35,37 +35,32 @@ import {
 import Popup from "../../../components/popup";
 import staffService from "../../../api/staff";
 import staticDataAPI from "../../../api/staticData";
-import { useAuthStore } from "../../../store/authStore"; // adjust path if different
+import { useAuthStore } from "../../../store/authStore";
 
 /* ────────────────────────────────────────────────────────────────────────
    SLATE — flat design tokens, matching Setup.jsx / Layout.jsx theming.
    ──────────────────────────────────────────────────────────────────────── */
-const INK = "#0F172A"; // slate-900
-const INK_MUTE = "#64748B"; // slate-500
+const INK = "#0F172A";
+const INK_MUTE = "#64748B";
 const PAPER = "#FFFFFF";
-const GROUND = "#F8FAFC"; // slate-50
-const LINE = "#E2E8F0"; // slate-200
-const TEAL = "#2563EB"; // blue-600 (primary)
-const TEAL_DARK = "#1D4ED8"; // blue-700
-const TEAL_TINT = "#EFF6FF"; // blue-50
-const RUST = "#E11D48"; // rose-600 (danger)
-const RUST_TINT = "#FFF1F2"; // rose-50
-const AMBER = "#D97706"; // amber-600 (warning)
-const AMBER_TINT = "#FFFBEB"; // amber-50
-const VIOLET = "#7C3AED"; // violet-600 (admin accent)
-const VIOLET_TINT = "#F5F3FF"; // violet-50
+const GROUND = "#F8FAFC";
+const LINE = "#E2E8F0";
+const TEAL = "#2563EB"; // primary blue
+const TEAL_DARK = "#1D4ED8";
+const TEAL_TINT = "#EFF6FF";
+const RUST = "#E11D48";
+const RUST_TINT = "#FFF1F2";
+const AMBER = "#D97706";
+const AMBER_TINT = "#FFFBEB";
+const VIOLET = "#7C3AED";
+const VIOLET_TINT = "#F5F3FF";
 
-const dotGround = {
-  backgroundColor: GROUND,
-};
-
+const dotGround = { backgroundColor: GROUND };
 const pageGradientBg = "bg-[radial-gradient(ellipse_120%_80%_at_50%_-10%,#eef2ff_0%,#f8fafc_45%,#f8fafc_100%)]";
-
 const bn = "font-['Noto_Sans_Bengali',sans-serif]";
 const mono = "font-['IBM_Plex_Mono',monospace]";
 
 /* ─── Permission group labels / colors / icons (module-wise) ────────────── */
-
 const GROUP_LABELS = {
   invoice: "ইনভয়েস",
   expense: "খরচ/ব্যয়",
@@ -76,20 +71,20 @@ const GROUP_LABELS = {
   indoorPatient: "ভর্তি রোগী (ইনডোর)",
 };
 
+// All groups now use the same primary blue – no more per-module color.
 const GROUP_META = {
-  invoice: { color: VIOLET, tint: VIOLET_TINT, icon: Receipt },
-  expense: { color: AMBER, tint: AMBER_TINT, icon: BanknoteArrowUp },
+  invoice: { color: TEAL, tint: TEAL_TINT, icon: Receipt },
+  expense: { color: TEAL, tint: TEAL_TINT, icon: BanknoteArrowUp },
   dailyReport: { color: TEAL, tint: TEAL_TINT, icon: FileBarChart },
-  testReport: { color: RUST, tint: RUST_TINT, icon: FlaskConical },
-  setup: { color: INK_MUTE, tint: GROUND, icon: Settings2 },
-  billing: { color: TEAL_DARK, tint: TEAL_TINT, icon: CreditCard },
-  indoorPatient: { color: VIOLET, tint: VIOLET_TINT, icon: BedDouble },
+  testReport: { color: TEAL, tint: TEAL_TINT, icon: FlaskConical },
+  setup: { color: TEAL, tint: TEAL_TINT, icon: Settings2 },
+  billing: { color: TEAL, tint: TEAL_TINT, icon: CreditCard },
+  indoorPatient: { color: TEAL, tint: TEAL_TINT, icon: BedDouble },
 };
 
-const groupMeta = (groupKey) => GROUP_META[groupKey] ?? { color: INK_MUTE, tint: GROUND, icon: Shield };
+const groupMeta = (groupKey) => GROUP_META[groupKey] ?? { color: TEAL, tint: TEAL_TINT, icon: Shield };
 
 /* ─── Status / filter options ─────────────────────────────────────────── */
-
 const STATUS_OPTIONS = [
   { value: "all", label: "সব স্ট্যাটাস" },
   { value: "active", label: "সক্রিয়" },
@@ -99,20 +94,15 @@ const STATUS_OPTIONS = [
 const EMPTY_FORM = { name: "", email: "", phone: "" };
 
 /* ─── Error helpers ────────────────────────────────────────────────────── */
-
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
-
 const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
-
 const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
-
 const buildInitialPerms = (list) => Object.fromEntries(list.map((p) => [p.key, false]));
 
 /* ─── Portal shell (Sheet) ─────────────────────────────────────────────── */
-
 const Sheet = ({ isOpen, onClose, children, width = "480px" }) => {
   useEffect(() => {
     if (!isOpen) return;
@@ -144,7 +134,6 @@ const Sheet = ({ isOpen, onClose, children, width = "480px" }) => {
 };
 
 /* ─── Primitives ───────────────────────────────────────────────────────── */
-
 const Field = ({ label, required, hint, children }) => (
   <div>
     {label && (
@@ -190,32 +179,6 @@ const MonoInput = ({ label, required, hint, ...props }) => (
       {...props}
     />
   </Field>
-);
-
-const StampToggle = ({ active, onChange, onLabel = "চালু", offLabel = "বন্ধ" }) => (
-  <button
-    type="button"
-    onClick={() => onChange(!active)}
-    className="flex items-center gap-2 bg-transparent border-none cursor-pointer p-0"
-  >
-    <span
-      className="w-[18px] h-[18px] flex items-center justify-center shrink-0 transition-colors"
-      style={{
-        border: `1.5px solid ${active ? TEAL : LINE}`,
-        borderRadius: "2px",
-        background: active ? TEAL : "white",
-      }}
-    >
-      {active && (
-        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-          <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      )}
-    </span>
-    <span className="text-xs font-semibold" style={{ color: active ? TEAL_DARK : INK_MUTE }}>
-      {active ? onLabel : offLabel}
-    </span>
-  </button>
 );
 
 const SwitchToggle = ({ active, onChange, onLabel = "On", offLabel = "Off", onTone = TEAL }) => (
@@ -335,8 +298,6 @@ const IconBtn = ({ icon: Icon, tone = INK_MUTE, tint = "#F1EFE7", title, ...prop
   </button>
 );
 
-/* ─── Action button — icon + visible label (used in row cards) ──────────── */
-
 const ActionBtn = ({ icon: Icon, label, tone = INK_MUTE, tint = "#F1EFE7", ...props }) => (
   <button
     type="button"
@@ -356,8 +317,6 @@ const ActionBtn = ({ icon: Icon, label, tone = INK_MUTE, tint = "#F1EFE7", ...pr
     {label}
   </button>
 );
-
-/* ─── Avatar initial chip ─────────────────────────────────────────────── */
 
 const Avatar = ({ name, color, tint }) => {
   const initial = name?.trim()?.[0]?.toUpperCase() ?? "?";
@@ -398,8 +357,6 @@ const FilterSelect = ({ value, onChange, options }) => (
     />
   </div>
 );
-
-/* ─── Section header — sits above a card stack ───────────────────────── */
 
 const SectionDivider = ({ title, count, color }) => (
   <div className="flex items-center gap-2 pt-1 pb-2.5 first:pt-0">
@@ -458,8 +415,7 @@ const Skeleton = () => (
   </div>
 );
 
-/* ─── Grouped permissions block — reused by the form modal ──────────────── */
-
+/* ─── Grouped permissions block ────────────────────────────────────────── */
 const PermissionGroups = ({ permissionsList, permissions, onTogglePerm, onToggleGroup }) => {
   const grouped = permissionsList.reduce((acc, p) => {
     (acc[p.module] ??= []).push(p);
@@ -475,17 +431,21 @@ const PermissionGroups = ({ permissionsList, permissions, onTogglePerm, onToggle
         const allEnabled = enabledCount === perms.length;
         const hasSome = enabledCount > 0;
 
+        // All groups now use the same primary blue for consistency
+        const uniformColor = TEAL;
+        const uniformTint = TEAL_TINT;
+
         return (
           <div key={groupKey} style={{ border: `1px solid ${LINE}`, borderRadius: "2px", background: "white" }}>
             <div
               className="flex items-center gap-2.5 px-3.5 py-2.5"
-              style={{ borderBottom: `1px solid ${LINE}`, background: hasSome ? meta.tint : GROUND }}
+              style={{ borderBottom: `1px solid ${LINE}`, background: hasSome ? uniformTint : GROUND }}
             >
               <div
                 className="w-6 h-6 flex items-center justify-center shrink-0"
                 style={{
                   background: hasSome ? "white" : "#EEEBE1",
-                  color: hasSome ? meta.color : INK_MUTE,
+                  color: hasSome ? uniformColor : INK_MUTE,
                   borderRadius: "2px",
                 }}
               >
@@ -493,9 +453,16 @@ const PermissionGroups = ({ permissionsList, permissions, onTogglePerm, onToggle
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-1.5">
+                  {/* Module name – no background, no border, blends with header */}
                   <span
-                    className={`text-[11px] font-extrabold uppercase tracking-[0.05em] ${bn}`}
-                    style={{ color: hasSome ? meta.color : INK_MUTE }}
+                    className={`text-[12px] font-extrabold uppercase tracking-[0.06em] px-2.5 py-1 ${bn}`}
+                    style={{
+                      color: uniformColor,
+                      background: "transparent",
+                      border: "none",
+                      borderRadius: "0px",
+                      boxShadow: "none",
+                    }}
                   >
                     {GROUP_LABELS[groupKey] ?? groupKey}
                   </span>
@@ -503,25 +470,15 @@ const PermissionGroups = ({ permissionsList, permissions, onTogglePerm, onToggle
                     {enabledCount}/{perms.length}
                   </span>
                 </div>
-                <div className="mt-1 h-[3px] w-full max-w-[140px]" style={{ background: LINE, borderRadius: "2px" }}>
-                  <div
-                    className="h-full transition-all"
-                    style={{
-                      width: `${(enabledCount / (perms.length || 1)) * 100}%`,
-                      background: meta.color,
-                      borderRadius: "2px",
-                    }}
-                  />
-                </div>
               </div>
               <button
                 type="button"
                 onClick={() => onToggleGroup(perms, allEnabled)}
                 className={`shrink-0 text-[9.5px] font-bold px-2 py-[4px] ${mono}`}
                 style={{
-                  color: allEnabled ? RUST : meta.color,
+                  color: allEnabled ? RUST : uniformColor,
                   background: allEnabled ? RUST_TINT : "white",
-                  border: `1px solid ${allEnabled ? RUST : meta.color}40`,
+                  border: `1px solid ${allEnabled ? RUST : uniformColor}40`,
                   borderRadius: "2px",
                 }}
               >
@@ -545,12 +502,7 @@ const PermissionGroups = ({ permissionsList, permissions, onTogglePerm, onToggle
   );
 };
 
-/* ─── Staff Form Modal (create / edit permissions) — UNCHANGED ──────────
-   On EDIT: name/email/phone are immutable (set at registration) and hidden
-   entirely — only permissions are editable here. Active status has its own
-   row action; the adjustment limit has its own dedicated modal.
-   On CREATE: the adjustment limit can optionally be set up front. */
-
+/* ─── Staff Form Modal (create / edit permissions) — now 880px wide ──── */
 const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
   const isEdit = !!initial?._id;
   const isAdmin = initial?.role === "admin";
@@ -623,7 +575,7 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
   const toneDark = isEdit ? "#6D28D9" : TEAL_DARK;
 
   return (
-    <Sheet isOpen width="680px">
+    <Sheet isOpen width="880px">
       <div
         className="flex items-center justify-between px-5 py-4 border-b"
         style={{ borderColor: LINE, background: PAPER }}
@@ -806,8 +758,7 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
   );
 };
 
-/* ─── Adjustment Limit Modal — UNCHANGED ──────────────────────────────── */
-
+/* ─── Adjustment Limit Modal ────────────────────────────────────────────── */
 const AdjustmentModal = ({ member, onClose, onSaved }) => {
   const [enabled, setEnabled] = useState((member.maxLabAdjustment ?? 0) > 0);
   const [amount, setAmount] = useState(member.maxLabAdjustment ?? 0);
@@ -916,10 +867,7 @@ const AdjustmentModal = ({ member, onClose, onSaved }) => {
   );
 };
 
-/* ─── Staff Row — modern card design ─────────────────────────────────────
-   Rounded card, avatar-initial chip, hover elevation, and labeled action
-   buttons (icon + text) instead of icon-only controls. ─────────────────── */
-
+/* ─── Staff Row — modern card design ───────────────────────────────────── */
 const ROLE_META = {
   admin: { label: "অ্যাডমিন", color: VIOLET, tint: VIOLET_TINT },
   staff: { label: "স্টাফ", color: TEAL, tint: TEAL_TINT },
@@ -948,7 +896,6 @@ const StaffRow = ({ member, permissionsList, onEdit, onAdjust, onDelete, onDeact
         className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
       >
         <Avatar name={member.name} color={roleMeta.color} tint={roleMeta.tint} />
-
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-sm font-semibold truncate ${bn}`} style={{ color: INK }}>
@@ -966,7 +913,6 @@ const StaffRow = ({ member, permissionsList, onEdit, onAdjust, onDelete, onDeact
             {member.phone || member.email || "—"}
           </p>
         </div>
-
         {member.role !== "admin" && (
           <span
             className={`shrink-0 hidden sm:inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold ${mono}`}
@@ -980,7 +926,6 @@ const StaffRow = ({ member, permissionsList, onEdit, onAdjust, onDelete, onDeact
             {hasFullAccess ? "সম্পূর্ণ অ্যাক্সেস" : `${activePerms.length}/${permissionsList.length}`}
           </span>
         )}
-
         <ChevronDown
           size={15}
           style={{ color: INK_MUTE, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
@@ -1007,7 +952,6 @@ const StaffRow = ({ member, permissionsList, onEdit, onAdjust, onDelete, onDeact
                 </p>
               )}
             </div>
-
             {member.role !== "admin" && (
               <div>
                 <p
@@ -1040,7 +984,6 @@ const StaffRow = ({ member, permissionsList, onEdit, onAdjust, onDelete, onDeact
                 )}
               </div>
             )}
-
             <div className="flex items-center gap-2 flex-wrap pt-1">
               {member.role !== "admin" && (
                 <>
@@ -1071,17 +1014,31 @@ const StaffRow = ({ member, permissionsList, onEdit, onAdjust, onDelete, onDeact
 };
 
 /* ─── Main Page ────────────────────────────────────────────────────────── */
-
 const ManageStaff = () => {
-  const labType = useAuthStore((s) => s.lab?.type); // "hospital" | "diagnosticCenter"
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = user?.role === "admin";
+  const labType = user?.type;
+
+  // ─── Frontend permission check (manageStaffs) ─────────────────────────
+  const hasAccess = isAdmin || user?.permissions?.manageStaffs === true;
+  if (!hasAccess) {
+    return (
+      <Popup
+        type="denied"
+        message="স্টাফ অ্যাকাউন্ট ম্যানেজমেন্ট দেখার অনুমতি আপনার নেই।"
+        onClose={() => navigate("/")}
+      />
+    );
+  }
 
   const [staff, setStaff] = useState([]);
   const [permissionsList, setPermissionsList] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [popup, setPopup] = useState(null);
-  const [formModal, setFormModal] = useState(null); // null | {} | member object
-  const [adjustModal, setAdjustModal] = useState(null); // null | member object
-  const [modal, setModal] = useState(null); // { type: "delete" | "deactivate" | "activate", member }
+  const [formModal, setFormModal] = useState(null);
+  const [adjustModal, setAdjustModal] = useState(null);
+  const [modal, setModal] = useState(null);
   const [search, setSearch] = useState("");
   const [permFilter, setPermFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -1234,7 +1191,6 @@ const ManageStaff = () => {
       )}
 
       <div className="max-w-2xl mx-auto">
-        {/* Page header */}
         <div className="flex items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-3">
             <div
@@ -1269,7 +1225,6 @@ const ManageStaff = () => {
           </div>
         </div>
 
-        {/* Stats */}
         {!initialLoading && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             <StatCard icon={Users} label="মোট কর্মী" value={stats.total} tone={TEAL} tint={TEAL_TINT} />
@@ -1285,7 +1240,6 @@ const ManageStaff = () => {
           </div>
         )}
 
-        {/* Toolbar card */}
         <div
           className="px-4 py-3 flex flex-wrap items-center gap-2 mb-4"
           style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: "8px" }}
@@ -1333,7 +1287,6 @@ const ManageStaff = () => {
           )}
         </div>
 
-        {/* Staff cards */}
         {initialLoading ? (
           <div style={{ background: "white", border: `1px solid ${LINE}`, borderRadius: "8px" }}>
             <Skeleton />
@@ -1383,7 +1336,6 @@ const ManageStaff = () => {
           </div>
         )}
 
-        {/* Footer note */}
         <p className={`text-[10px] mt-4 text-center ${mono}`} style={{ color: INK_MUTE }}>
           * শুধুমাত্র সক্রিয় কর্মীরা সিস্টেমে প্রবেশ করতে পারবেন
         </p>

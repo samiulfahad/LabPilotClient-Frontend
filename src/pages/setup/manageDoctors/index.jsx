@@ -3,6 +3,7 @@
  * babel-plugin-react-compiler handles all memoization automatically.
  */
 import { useState, useEffect, useRef, useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   UserPlus,
   Search,
@@ -23,11 +24,11 @@ import {
   RotateCcw,
   Stethoscope,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import Modal from "../../../components/modal";
 import doctorService from "../../../api/doctor";
 import staticDataAPI from "../../../api/staticData";
 import Popup from "../../../components/popup";
+import { useAuthStore } from "../../../store/authStore";
 
 // ── Palette ────────────────────────────────────────────────────────────────────
 
@@ -979,6 +980,16 @@ const COMM_OPTIONS = [
 ];
 
 const ManageDoctors = () => {
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin";
+
+  // ═══════════ Frontend permission check ═══════════
+  const hasAccess = isAdmin || user?.permissions?.manageDoctors === true;
+  if (!hasAccess) {
+    return <Popup type="denied" message="ডাক্তার ম্যানেজমেন্ট দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+
   const [doctors, setDoctors] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [designations, setDesignations] = useState([]);

@@ -7,11 +7,11 @@ import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import { X, FileText, Pencil } from "lucide-react";
 import SchemaRenderer from "./SchemaRenderer";
-import testService from "../../api/test";
 import reportService from "../../api/report";
 import Popup from "../../components/popup";
+import { useAuthStore } from "../../store/authStore"; // ← added
 
-// ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx) ──
+// ─── Error helpers ──────────────────────────────────────────────────────────
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
@@ -72,6 +72,14 @@ function SkeletonLoader() {
 function ReportUploadInner() {
   const location = useLocation();
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user); // ← added
+  const isAdmin = user?.role === "admin"; // ← added
+
+  // ═══════════ Frontend permission check ═══════════
+  const hasAccess = isAdmin || user?.permissions?.testReportUpload === true;
+  if (!hasAccess) {
+    return <Popup type="denied" message="টেস্ট রিপোর্ট আপলোড করার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
 
   const {
     invoiceId,
@@ -142,7 +150,7 @@ function ReportUploadInner() {
         if (isEdit && data.report && Object.keys(data.report).length > 0) {
           setExistingReport(data.report);
         }
-        const schemaRes = await testService.getSchemaBySchemaId(data.schemaId);
+        const schemaRes = await reportService.getTestSchema(data.schemaId);
         setSchema(schemaRes.data);
       } else {
         const { data } = await reportService.getReport(invoiceId, testId);
@@ -151,7 +159,7 @@ function ReportUploadInner() {
         if (isEdit && data.report && Object.keys(data.report).length > 0) {
           setExistingReport(data.report);
         }
-        const schemaRes = await testService.getSchemaBySchemaId(data.schemaId);
+        const schemaRes = await reportService.getTestSchema(data.schemaId);
         setSchema(schemaRes.data);
       }
     } catch (e) {

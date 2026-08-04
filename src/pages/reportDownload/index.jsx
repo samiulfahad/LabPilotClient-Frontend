@@ -63,9 +63,24 @@ function buildLabInfo(storeLab) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function ReportDownload() {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user); // ← get user for permission check
+  const isAdmin = user?.role === "admin";
 
+  // ═══════════ Frontend permission check (testReportDownload) ═══════════
+  const hasAccess = isAdmin || user?.permissions?.testReportDownload === true;
+  if (!hasAccess) {
+    return (
+      <Popup
+        type="denied"
+        message="টেস্ট রিপোর্ট ডাউনলোড / প্রিন্ট করার অনুমতি আপনার নেই।"
+        onClose={() => navigate("/")}
+      />
+    );
+  }
+  // ═════════════════════════════════════════════════════════════════════
+
+  const [searchParams] = useSearchParams();
   const storeLab = useAuthStore((s) => s.lab);
   const labInfo = buildLabInfo(storeLab);
 

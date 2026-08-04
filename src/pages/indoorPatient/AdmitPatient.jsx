@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import indoorPatientService from "../../api/indoorPatient";
 import { BLOOD_GROUPS, Btn, BedSelector, ErrorMsg, Select, Sk, Textarea } from "./indoorPatientHelpers";
+import Popup from "../../components/popup";
+import { useAuthStore } from "../../store/authStore";
 import {
   User,
   Calendar,
@@ -111,6 +113,16 @@ const FormSkeleton = () => (
 
 const AdmitPatient = () => {
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin";
+
+  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
+  const hasAccess = isAdmin || user?.permissions?.admitPatient === true;
+  if (!hasAccess) {
+    return <Popup type="denied" message="রোগী ভর্তি করার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+  // ════════════════════════════════════════════════
+
   const [form, setForm] = useState(DEFAULTS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

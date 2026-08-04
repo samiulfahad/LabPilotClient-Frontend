@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import indoorPatientService from "../../api/indoorPatient";
 import { Btn, EmptyState, Input, PageHeader, Sk } from "./indoorPatientHelpers";
+import Popup from "../../components/popup";
+import { useAuthStore } from "../../store/authStore";
 
 // ─── Clipboard helper ──────────────────────────────────────────────────────────
 // Uses the async Clipboard API where available and falls back to the legacy
@@ -148,6 +150,16 @@ const FILTERS = [
 
 const PatientList = () => {
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin";
+
+  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
+  const hasAccess = isAdmin || user?.permissions?.patientList === true;
+  if (!hasAccess) {
+    return <Popup type="denied" message="রোগীর তালিকা দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+  // ════════════════════════════════════════════════
+
   const [patients, setPatients] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);

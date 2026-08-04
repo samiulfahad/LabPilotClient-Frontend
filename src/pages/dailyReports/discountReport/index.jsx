@@ -14,7 +14,7 @@ import {
   UserCheck,
   BedDouble,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // added useNavigate
 import TimeFrame from "../../../components/timeFrame";
 import discountReportAPI from "../../../api/dailyReports/discountReport";
 import Popup from "../../../components/popup";
@@ -345,15 +345,27 @@ const StaffEntry = ({ member: m, rank, isHospital }) => {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const DiscountReport = () => {
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const lab = useAuthStore((state) => state.lab);
-  const isStaff = user?.role === "staff";
   const isHospital = user?.type === "hospital";
+
+  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
+  const isAdmin = user?.role === "admin";
+  // ব্যাকএন্ডে ডিসকাউন্ট রিপোর্টের জন্য যে permission চাবি ব্যবহার করা হয়
+  const hasAccess = isAdmin || user?.permissions?.discountReport === true;
+  if (!hasAccess) {
+    return <Popup type="denied" message="ডিসকাউন্ট রিপোর্ট দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+  // ════════════════════════════════════════════════
+
+  const isStaff = user?.role === "staff";
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
   const [timeRange, setTimeRange] = useState(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   useEffect(() => {
     const range = todayRange();
@@ -367,8 +379,10 @@ const DiscountReport = () => {
       const res = await discountReportAPI.getSummary({ startDate: range.start, endDate: range.end });
       setData(res.data);
     } catch (err) {
+      const isPermissionDenied = err?.response?.status === 403;
+      if (isPermissionDenied) setPermissionDenied(true);
       setPopup({
-        type: "error",
+        type: isPermissionDenied ? "denied" : "error",
         message: getErrorMessage(err, "ডিসকাউন্টের তথ্য লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।"),
       });
     } finally {
@@ -387,7 +401,16 @@ const DiscountReport = () => {
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
-      {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {popup && (
+        <Popup
+          type={popup.type}
+          message={popup.message}
+          onClose={() => {
+            setPopup(null);
+            if (permissionDenied) navigate("/lab-management");
+          }}
+        />
+      )}
 
       <style>{`
         @media print {

@@ -4,11 +4,12 @@
  */
 import { useEffect, useState } from "react";
 import { Trash2, ChevronDown, PackageSearch, User, History, ArrowLeft, SlidersHorizontal } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Popup from "../../components/popup";
 import LoadingScreen from "../../components/loadingPage";
 import expenseService from "../../api/expense";
 import TimeFrame from "../../components/timeFrame";
+import { useAuthStore } from "../../store/authStore";
 import { fmt, formatDateTime, EXPENSE_TYPES, typeConfig } from "./expenseHelpers";
 
 // ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / etc.) ──────────
@@ -445,6 +446,17 @@ const TABS = [
 ];
 
 const DeleteExpense = () => {
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin";
+
+  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
+  const hasAccess = isAdmin || user?.permissions?.deleteExpense === true;
+  if (!hasAccess) {
+    return <Popup type="denied" message="খরচ ডিলিট করার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
+  }
+  // ════════════════════════════════════════════════
+
   const [activeTab, setActiveTab] = useState("delete");
   const [loadingMessage, setLoadingMessage] = useState(null);
   const [popup, setPopup] = useState(null);
