@@ -91,6 +91,9 @@ const getErrorMessage = (err, fallback) => {
   return err?.response?.data?.error ?? fallback;
 };
 
+// Axios‑native network error detection
+const isNetworkError = (error) => error?.isAxiosError === true && !error.response;
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TEAL = "#0F6E5C";
@@ -157,7 +160,6 @@ const HeaderStat = ({ label, value, accent }) => (
   </div>
 );
 
-// Small pill showing a source's (OPD/IPD) share of a collection total.
 const SourcePill = ({ label, value, isIpd }) => (
   <span
     className="inline-flex items-center gap-1 px-2 py-1 rounded-sm font-['IBM_Plex_Mono'] text-xs font-noto"
@@ -171,7 +173,6 @@ const SourcePill = ({ label, value, isIpd }) => (
   </span>
 );
 
-// Small pill showing a payment method's share of the grand total.
 const ModePill = ({ label, value }) => (
   <span
     className="inline-flex items-center gap-1 px-2 py-1 rounded-sm font-['IBM_Plex_Mono'] text-xs font-noto"
@@ -182,8 +183,6 @@ const ModePill = ({ label, value }) => (
   </span>
 );
 
-// Badge showing a staff member's cash-only collection, sits to the left of
-// their total collection figure in the ledger row.
 const CashBadge = ({ value }) => (
   <span
     className="inline-flex items-center gap-1 px-2 py-1 rounded-sm font-['IBM_Plex_Mono'] text-xs font-semibold whitespace-nowrap"
@@ -369,6 +368,7 @@ const CollectionReport = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← separate offline state
   const [timeRange, setTimeRange] = useState(null);
 
   useEffect(() => {
@@ -383,6 +383,10 @@ const CollectionReport = () => {
       const res = await collectionService.getSummary({ startDate: range.start, endDate: range.end });
       setData(res.data);
     } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true); // ← show default offline popup
+        return;
+      }
       setPopup({
         type: "error",
         message: getErrorMessage(err, "লেনদেনের তথ্য লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।"),
@@ -405,6 +409,7 @@ const CollectionReport = () => {
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <style>{`
         @media print {

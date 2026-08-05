@@ -11,7 +11,7 @@ import { useAuthStore } from "../../store/authStore";
 
 const DEFAULTS = { type: "", description: "", amount: "" };
 
-// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / etc.) ──────────
+// ── Error helpers ─────────────────────────────────────────────────────────────
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
@@ -19,6 +19,9 @@ const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
+
+// ── Network error helper ────────────────────────────────────────────────────
+const isNetworkError = (error) => error?.isAxiosError === true && !error.response;
 
 // ─── UI primitives (LabPilot design language, matching AdmitPatient) ──────────
 
@@ -168,6 +171,7 @@ const AddExpense = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [justAdded, setJustAdded] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const isValid = form.type && Number(form.amount) > 0;
@@ -188,7 +192,11 @@ const AddExpense = () => {
       setForm(DEFAULTS);
     } catch (err) {
       setConfirming(false);
-      setError(getErrorMessage(err, "খরচ যোগ করতে ব্যর্থ হয়েছে"));
+      if (isNetworkError(err)) {
+        setOfflinePopup(true); // ← show default offline popup
+      } else {
+        setError(getErrorMessage(err, "খরচ যোগ করতে ব্যর্থ হয়েছে"));
+      }
     } finally {
       setLoading(false);
     }
@@ -196,6 +204,8 @@ const AddExpense = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-5 px-4 sm:px-6 lg:px-8 font-noto">
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
+
       {confirming && cfg && (
         <ConfirmModal
           cfg={cfg}

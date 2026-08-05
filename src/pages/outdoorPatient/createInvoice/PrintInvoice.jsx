@@ -80,6 +80,9 @@ const getPricingFlags = ({ amount, referrer }) => {
   };
 };
 
+// ── Axios‑native network error detection (same as all other pages) ──────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
+
 // ─── PDF styles ───────────────────────────────────────────────────────────────
 
 const pdf$ = StyleSheet.create({
@@ -574,6 +577,7 @@ const PrintInvoice = () => {
   const [downloading, setDownloading] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // new
 
   const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
@@ -600,8 +604,12 @@ const PrintInvoice = () => {
             color: { dark: "#2563eb", light: "#ffffff" },
           }),
         );
-      } catch {
-        setPopup({ type: "error", message: "Failed to load invoice data" });
+      } catch (err) {
+        if (isNetworkError(err)) {
+          setOfflinePopup(true);
+        } else {
+          setPopup({ type: "error", message: "Failed to load invoice data" });
+        }
         setTimeout(() => navigate("/outdoor/invoice/new"), 2000);
       } finally {
         setLoading(false);
@@ -714,6 +722,7 @@ const PrintInvoice = () => {
   return (
     <>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       {/* Action bar */}
       <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">

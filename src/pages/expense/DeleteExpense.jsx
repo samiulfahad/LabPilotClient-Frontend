@@ -12,7 +12,7 @@ import TimeFrame from "../../components/timeFrame";
 import { useAuthStore } from "../../store/authStore";
 import { fmt, formatDateTime, EXPENSE_TYPES, typeConfig } from "./expenseHelpers";
 
-// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / etc.) ──────────
+// ── Error helpers ─────────────────────────────────────────────────────────────
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
@@ -21,9 +21,12 @@ const getErrorMessage = (err, fallback) => {
   return err?.response?.data?.error ?? fallback;
 };
 
-// ─── Delete Expense Panel (filter-driven, no ID search) ────────────────────────
+// ── Network error helper ────────────────────────────────────────────────────
+const isNetworkError = (error) => error?.isAxiosError === true && !error.response;
 
-const DeleteExpensePanel = ({ onDeleted, onLoadingChange, onError }) => {
+// ─── Delete Expense Panel ────────────────────────────────────────────────────
+
+const DeleteExpensePanel = ({ onDeleted, onLoadingChange, onError, onNetworkError }) => {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -57,7 +60,11 @@ const DeleteExpensePanel = ({ onDeleted, onLoadingChange, onError }) => {
       setNextCursor(data.nextCursor);
       setHasMore(data.hasMore);
     } catch (err) {
-      onError(getErrorMessage(err, "Could not load expenses."));
+      if (isNetworkError(err)) {
+        onNetworkError?.();
+      } else {
+        onError(getErrorMessage(err, "Could not load expenses."));
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -95,7 +102,11 @@ const DeleteExpensePanel = ({ onDeleted, onLoadingChange, onError }) => {
       setExpenses((prev) => prev.filter((e) => e._id !== expense._id));
       onDeleted(expense);
     } catch (err) {
-      onError(getErrorMessage(err, "Failed to delete expense. Please try again."));
+      if (isNetworkError(err)) {
+        onNetworkError?.();
+      } else {
+        onError(getErrorMessage(err, "Failed to delete expense. Please try again."));
+      }
     } finally {
       onLoadingChange(null);
     }
@@ -334,7 +345,7 @@ const SkeletonRow = () => (
 
 // ─── Deleted Expenses List (history tab) ────────────────────────────────────────
 
-const DeletedExpensesList = ({ refreshTrigger, onLoadingChange, onError }) => {
+const DeletedExpensesList = ({ refreshTrigger, onLoadingChange, onError, onNetworkError }) => {
   const [expenses, setExpenses] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -354,7 +365,11 @@ const DeletedExpensesList = ({ refreshTrigger, onLoadingChange, onError }) => {
       setNextCursor(data.nextCursor);
       setHasMore(data.hasMore);
     } catch (err) {
-      onError(getErrorMessage(err, "Could not load deleted expenses."));
+      if (isNetworkError(err)) {
+        onNetworkError?.();
+      } else {
+        onError(getErrorMessage(err, "Could not load deleted expenses."));
+      }
     } finally {
       setInitialLoading(false);
       setLoadingMore(false);
@@ -460,6 +475,7 @@ const DeleteExpense = () => {
   const [activeTab, setActiveTab] = useState("delete");
   const [loadingMessage, setLoadingMessage] = useState(null);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleDeleted = (expense) => {
@@ -471,10 +487,17 @@ const DeleteExpense = () => {
     setActiveTab("history");
   };
 
+  const handleError = (message) => {
+    setPopup({ type: "error", message });
+  };
+
+  const handleNetworkError = () => setOfflinePopup(true);
+
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
       {loadingMessage && <LoadingScreen message={loadingMessage} />}
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
@@ -517,14 +540,16 @@ const DeleteExpense = () => {
           <DeleteExpensePanel
             onDeleted={handleDeleted}
             onLoadingChange={setLoadingMessage}
-            onError={(msg) => setPopup({ type: "error", message: msg })}
+            onError={handleError}
+            onNetworkError={handleNetworkError}
           />
         )}
         {activeTab === "history" && (
           <DeletedExpensesList
             refreshTrigger={refreshTrigger}
             onLoadingChange={setLoadingMessage}
-            onError={(msg) => setPopup({ type: "error", message: msg })}
+            onError={handleError}
+            onNetworkError={handleNetworkError}
           />
         )}
       </div>

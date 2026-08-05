@@ -6,7 +6,7 @@ import Popup from "../../components/popup";
 import { useAuthStore } from "../../store/authStore";
 import { Btn, ErrorMsg, PageHeader, Sk, fmt, totalExpenses, totalPayments } from "./indoorPatientHelpers";
 
-// ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx / ReportDownload.jsx) ──
+// ─── Error helpers ───────────────────────────────────────────────────────────
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
@@ -15,7 +15,10 @@ const getErrorMessage = (err, fallback) => {
   return err?.response?.data?.error ?? fallback;
 };
 
-// ─── Payment modes (mirrors invoiceRoutes.js / BillingSummary.jsx) ────────────
+// ── Network error helper ────────────────────────────────────────────────────
+const isNetworkError = (error) => error?.isAxiosError === true && !error.response;
+
+// ─── Payment modes ───────────────────────────────────────────────────────────
 
 const PAYMENT_MODES = [
   { value: "cash", label: "ক্যাশ" },
@@ -28,7 +31,7 @@ const PAYMENT_MODES = [
 
 // ─── Patient Search ───────────────────────────────────────────────────────────
 
-const PatientSearch = ({ onSelect }) => {
+const PatientSearch = ({ onSelect, onError, onNetworkError }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -50,6 +53,10 @@ const PatientSearch = ({ onSelect }) => {
       setResults(res.data.patients ?? []);
       setSearched(true);
     } catch (err) {
+      if (isNetworkError(err)) {
+        onNetworkError?.();
+        return;
+      }
       setResults([]);
       setError(getErrorMessage(err, "রোগী খুঁজতে ব্যর্থ হয়েছে"));
     } finally {
@@ -203,7 +210,7 @@ const TypeBadge = ({ type }) => {
   );
 };
 
-// ─── Catalog row (with out‑of‑stock badge beside name) ──────────────────────
+// ─── Catalog row ──────────────────────────────────────────────────────────────
 
 const CatalogRow = ({ type, name, price, added, disabled, onAdd }) => (
   <button
@@ -242,7 +249,7 @@ const CatalogRow = ({ type, name, price, added, disabled, onAdd }) => (
 
 // ─── Add Items Form ───────────────────────────────────────────────────────────
 
-const AddItemsForm = ({ patient, onBack, onDone }) => {
+const AddItemsForm = ({ patient, onBack, onDone, onError, onNetworkError }) => {
   const [catalog, setCatalog] = useState({ tests: [], products: [] });
   const [catLoading, setCatLoading] = useState(true);
   const [catError, setCatError] = useState("");
@@ -257,11 +264,18 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
   const isPackage = patient.dealType === "package";
 
   useEffect(() => {
-    indoorPatientService.getDataForAddItem
+    indoorPatientService
+      .getDataForAddItem()
       .then((res) => setCatalog({ tests: res.data.tests ?? [], products: res.data.products ?? [] }))
-      .catch((err) => setCatError(getErrorMessage(err, "তালিকা লোড করতে ব্যর্থ হয়েছে")))
+      .catch((err) => {
+        if (isNetworkError(err)) {
+          onNetworkError?.();
+        } else {
+          setCatError(getErrorMessage(err, "তালিকা লোড করতে ব্যর্থ হয়েছে"));
+        }
+      })
       .finally(() => setCatLoading(false));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const q = itemQuery.trim().toLowerCase();
   const filteredTests = q ? catalog.tests.filter((t) => t.name.toLowerCase().includes(q)) : [];
@@ -349,7 +363,11 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
       setPaidInput("");
       setPaymentMode("cash");
     } catch (err) {
-      setError(getErrorMessage(err, "আইটেম যোগ করতে ব্যর্থ হয়েছে"));
+      if (isNetworkError(err)) {
+        onNetworkError?.();
+      } else {
+        setError(getErrorMessage(err, "আইটেম যোগ করতে ব্যর্থ হয়েছে"));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -670,6 +688,8 @@ const AddItemsToPatient = () => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [preloading, setPreloading] = useState(false);
   const [preloadError, setPreloadError] = useState("");
+  const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
 
   useEffect(() => {
     const patientId = searchParams.get("patientId");
@@ -678,9 +698,18 @@ const AddItemsToPatient = () => {
     indoorPatientService
       .getPatient(patientId)
       .then((res) => setSelectedPatient(res.data))
-      .catch((err) => setPreloadError(getErrorMessage(err, "রোগীর তথ্য লোড করতে ব্যর্থ হয়েছে")))
+      .catch((err) => {
+        if (isNetworkError(err)) {
+          setOfflinePopup(true);
+        } else {
+          setPreloadError(getErrorMessage(err, "রোগীর তথ্য লোড করতে ব্যর্থ হয়েছে"));
+        }
+      })
       .finally(() => setPreloading(false));
   }, []);
+
+  const handleError = (message) => setPopup({ type: "error", message });
+  const handleNetworkError = () => setOfflinePopup(true);
 
   const originPatientId = searchParams.get("patientId");
   const handleDone = () => (originPatientId ? navigate(`/ipd/patient/${originPatientId}`) : navigate("/ipd"));
@@ -691,6 +720,9 @@ const AddItemsToPatient = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
+      {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
+
       <div className="max-w-2xl mx-auto">
         <PageHeader
           title="টেস্ট / পণ্য যোগ করুন"
@@ -713,9 +745,15 @@ const AddItemsToPatient = () => {
             <ErrorMsg msg={preloadError} />
           </div>
         ) : !selectedPatient ? (
-          <PatientSearch onSelect={setSelectedPatient} />
+          <PatientSearch onSelect={setSelectedPatient} onError={handleError} onNetworkError={handleNetworkError} />
         ) : (
-          <AddItemsForm patient={selectedPatient} onBack={handleBack} onDone={handleDone} />
+          <AddItemsForm
+            patient={selectedPatient}
+            onBack={handleBack}
+            onDone={handleDone}
+            onError={handleError}
+            onNetworkError={handleNetworkError}
+          />
         )}
       </div>
     </div>

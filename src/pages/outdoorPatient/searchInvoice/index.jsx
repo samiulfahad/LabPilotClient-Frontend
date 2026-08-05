@@ -57,6 +57,9 @@ const isFullyPaid = (inv) => getDue(inv) === 0;
 const isDelivered = (inv) => inv.delivery?.status === true;
 const hasReportSchemas = (inv) => (inv.tests ?? []).some((t) => t.schemaId);
 
+// ── Axios‑native network error detection (same as all other pages) ──────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
+
 // ── Detect what the user is typing ────────────────────────────────────────────
 const detectQueryType = (q) => {
   if (!q) return null;
@@ -104,17 +107,14 @@ const LinkChip = ({ to, state, icon: Icon, label, className }) => (
 );
 
 // ─── Collect Due modal ─────────────────────────────────────────────────────────
-// Lets staff collect a partial or full payment against the due amount, with a
-// payment mode selection. The amount is always clamped to (0, due].
 
-const CollectDueModal = ({ invoice, isOpen, onClose, onConfirm }) => {
+const CollectDueModal = ({ invoice, isOpen, onClose, onConfirm, onNetworkError }) => {
   const due = getDue(invoice);
   const [amount, setAmount] = useState(due);
   const [paymentMode, setPaymentMode] = useState("cash");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // Reset fields whenever the modal is opened for (possibly) a different invoice
   useEffect(() => {
     if (isOpen) {
       setAmount(due);
@@ -146,8 +146,13 @@ const CollectDueModal = ({ invoice, isOpen, onClose, onConfirm }) => {
       setSubmitting(true);
       setError("");
       await onConfirm({ amount: toFixed2(numericAmount), paymentMode });
-    } catch {
-      setError("Failed to collect due amount. Please try again.");
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+        onNetworkError?.();
+      } else {
+        setError("Failed to collect due amount. Please try again.");
+      }
       setSubmitting(false);
     }
   };
@@ -274,6 +279,7 @@ const ResultCard = ({
   onLoadingChange,
   onError,
   onSuccess,
+  onNetworkError, // new
 }) => {
   const { date, time } = formatDateTime(invoice.createdAt);
   const [viewingDetails, setViewingDetails] = useState(false);
@@ -293,8 +299,12 @@ const ResultCard = ({
       onLoadingChange("Marking as delivered...");
       await invoiceService.markDelivered(invoice.invoiceId);
       onDelivered(invoice.invoiceId);
-    } catch {
-      onError("Failed to mark as delivered. Please try again.");
+    } catch (err) {
+      if (isNetworkError(err)) {
+        onNetworkError?.();
+      } else {
+        onError("Failed to mark as delivered. Please try again.");
+      }
     } finally {
       onLoadingChange(null);
     }
@@ -329,6 +339,7 @@ const ResultCard = ({
         isOpen={collectingDue}
         onClose={() => setCollectingDue(false)}
         onConfirm={handleCollectDue}
+        onNetworkError={onNetworkError} // pass down
       />
 
       <InvoiceDetailsModal
@@ -450,6 +461,7 @@ const SearchInvoice = () => {
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState(null);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false);
   const debounceRef = useRef(null);
 
   const queryType = detectQueryType(query.trim());
@@ -466,8 +478,12 @@ const SearchInvoice = () => {
       const { data } = await invoiceService.searchInvoices(q.trim());
       setResults(data.results);
       setSearched(true);
-    } catch {
-      setPopup({ type: "error", message: "Search failed. Please try again." });
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: "Search failed. Please try again." });
+      }
     } finally {
       setLoading(false);
     }
@@ -492,9 +508,6 @@ const SearchInvoice = () => {
       prev.map((inv) => (inv.invoiceId === id ? { ...inv, delivery: { ...inv.delivery, status: true } } : inv)),
     );
 
-  // Adds the collected amount to `paid`, capped at `final` — mirrors the
-  // backend's own clamping so the UI never shows an impossible state even
-  // before the network response comes back.
   const handleCollected = (id, collectedAmount) =>
     setResults((prev) =>
       prev.map((inv) =>
@@ -517,6 +530,7 @@ const SearchInvoice = () => {
     <section className="min-h-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
       {loadingMessage && <LoadingScreen message={loadingMessage} />}
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <div className="max-w-2xl mx-auto">
         {/* ── Header ────────────────────────────────────────────────────── */}
@@ -637,6 +651,7 @@ const SearchInvoice = () => {
                 onLoadingChange={(msg) => setLoadingMessage(msg)}
                 onError={(msg) => setPopup({ type: "error", message: msg })}
                 onSuccess={(msg) => setPopup({ type: "success", message: msg })}
+                onNetworkError={() => setOfflinePopup(true)}
               />
             ))}
           </div>

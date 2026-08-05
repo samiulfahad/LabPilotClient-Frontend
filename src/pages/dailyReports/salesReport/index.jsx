@@ -63,7 +63,7 @@ const recordStamp = (start, end) => {
   return generatedStamp(end);
 };
 
-// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / CollectionReport.jsx / CommissionReport.jsx) ──
+// ── Error helpers ─────────────────────────────────────────────────────────────
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
@@ -71,6 +71,9 @@ const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
+
+// ── Network error helper ───────────────────────────────────────────────────
+const isNetworkError = (error) => error?.isAxiosError === true && !error.response;
 
 // ─── Merge outdoor + indoor counts by id (falls back to name) ─────────────────
 const mergeCounts = (outdoor = [], indoor = [], idKey) => {
@@ -231,7 +234,6 @@ const SalesReport = () => {
 
   // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
   const isAdmin = user?.role === "admin";
-  // ব্যাকএন্ডে সেলস রিপোর্টের জন্য যে permission চাবি ব্যবহার করা হয়
   const hasAccess = isAdmin || user?.permissions?.salesReport === true;
   if (!hasAccess) {
     return <Popup type="denied" message="সেলস রিপোর্ট দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
@@ -241,6 +243,7 @@ const SalesReport = () => {
   const [salesData, setSalesData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
   const [timeRange, setTimeRange] = useState(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
 
@@ -256,6 +259,10 @@ const SalesReport = () => {
       const res = await salesService.getSummary({ startDate: range.start, endDate: range.end });
       setSalesData(res.data);
     } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true); // ← show default offline popup
+        return;
+      }
       const isPermissionDenied = err?.response?.status === 403;
       if (isPermissionDenied) setPermissionDenied(true);
       setPopup({
@@ -309,6 +316,7 @@ const SalesReport = () => {
           }}
         />
       )}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <style>{`
         @media print {

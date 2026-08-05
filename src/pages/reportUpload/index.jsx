@@ -9,7 +9,7 @@ import { X, FileText, Pencil } from "lucide-react";
 import SchemaRenderer from "./SchemaRenderer";
 import reportService from "../../api/report";
 import Popup from "../../components/popup";
-import { useAuthStore } from "../../store/authStore"; // ← added
+import { useAuthStore } from "../../store/authStore";
 
 // ─── Error helpers ──────────────────────────────────────────────────────────
 
@@ -19,6 +19,9 @@ const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.message ?? err?.response?.data?.error ?? fallback;
 };
+
+// ── Axios‑native network error detection (same as all other pages) ──────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
@@ -72,8 +75,8 @@ function SkeletonLoader() {
 function ReportUploadInner() {
   const location = useLocation();
   const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user); // ← added
-  const isAdmin = user?.role === "admin"; // ← added
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin";
 
   // ═══════════ Frontend permission check ═══════════
   const hasAccess = isAdmin || user?.permissions?.testReportUpload === true;
@@ -88,7 +91,7 @@ function ReportUploadInner() {
     testName: stateTestName,
     isEdit = false,
     type = "outdoor",
-    addedAt = null, // ← disambiguates duplicate test entries for indoor
+    addedAt = null,
   } = location.state ?? {};
 
   const isIndoor = type === "indoor";
@@ -101,7 +104,8 @@ function ReportUploadInner() {
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [popup, setPopup] = useState(null);
+  const [popup, setPopup] = useState(null); // for non-network errors
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
   const [closing, setClosing] = useState(false);
 
   const goBack = () => {
@@ -142,7 +146,6 @@ function ReportUploadInner() {
 
     try {
       if (isIndoor) {
-        // Pass addedAt so backend returns the exact entry when duplicates exist
         const { data } = await reportService.getIndoorReport(patientId, testId, addedAt);
         setAdmissionId(data.admissionId);
         setResolvedName(data.testName ?? stateTestName ?? "Report");
@@ -164,7 +167,11 @@ function ReportUploadInner() {
       }
     } catch (e) {
       setLoadFailed(true);
-      setPopup({ type: "error", message: getErrorMessage(e, "Failed to load report data."), onClose: handleClose });
+      if (isNetworkError(e)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(e, "Failed to load report data."), onClose: handleClose });
+      }
     } finally {
       setLoading(false);
     }
@@ -178,14 +185,17 @@ function ReportUploadInner() {
     try {
       setSubmitting(true);
       if (isIndoor) {
-        // addedAt not needed for add — backend finds first incomplete entry
         await reportService.addIndoorReport({ report: payload, patientId, testId });
       } else {
         await reportService.addReport({ report: payload, invoiceId, testId });
       }
       setPopup({ type: "success", message: "Report submitted successfully.", onClose: goBack });
     } catch (e) {
-      setPopup({ type: "error", message: getErrorMessage(e, "Could not submit report.") });
+      if (isNetworkError(e)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(e, "Could not submit report.") });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -195,14 +205,17 @@ function ReportUploadInner() {
     try {
       setSubmitting(true);
       if (isIndoor) {
-        // addedAt required — identifies the exact entry among duplicates
         await reportService.updateIndoorReport({ report: payload, patientId, testId, addedAt });
       } else {
         await reportService.updateReport({ report: payload, invoiceId, testId });
       }
       setPopup({ type: "success", message: "Report updated successfully.", onClose: goBack });
     } catch (e) {
-      setPopup({ type: "error", message: getErrorMessage(e, "Could not update report.") });
+      if (isNetworkError(e)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(e, "Could not update report.") });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -238,6 +251,7 @@ function ReportUploadInner() {
           }}
         />
       )}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <div
         className={`fixed inset-0 z-[9999] bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col ${

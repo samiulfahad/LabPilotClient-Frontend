@@ -22,7 +22,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 
-// ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx / ReportDownload.jsx) ──
+// ─── Error helpers ───────────────────────────────────────────────────────────
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
@@ -30,6 +30,9 @@ const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
+
+// ── Network error helper ──────────────────────────────────────────────────
+const isNetworkError = (error) => error?.isAxiosError === true && !error.response;
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -126,6 +129,8 @@ const AdmitPatient = () => {
   const [form, setForm] = useState(DEFAULTS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [popup, setPopup] = useState(null); // for non-network errors
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
   const [reqData, setReqData] = useState({ spaces: [], doctors: [], referrers: [] });
   const [reqLoading, setReqLoading] = useState(true);
   const [reqError, setReqError] = useState("");
@@ -137,7 +142,13 @@ const AdmitPatient = () => {
     indoorPatientService
       .getRequiredData()
       .then((res) => setReqData(res.data))
-      .catch((err) => setReqError(getErrorMessage(err, "প্রয়োজনীয় তথ্য লোড করতে ব্যর্থ হয়েছে")))
+      .catch((err) => {
+        if (isNetworkError(err)) {
+          setOfflinePopup(true);
+        } else {
+          setReqError(getErrorMessage(err, "প্রয়োজনীয় তথ্য লোড করতে ব্যর্থ হয়েছে"));
+        }
+      })
       .finally(() => setReqLoading(false));
   }, []);
 
@@ -217,7 +228,11 @@ const AdmitPatient = () => {
       await indoorPatientService.admit(payload);
       navigate("/ipd/admitted");
     } catch (err) {
-      setError(getErrorMessage(err, "রোগী ভর্তি করতে ব্যর্থ হয়েছে"));
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setError(getErrorMessage(err, "রোগী ভর্তি করতে ব্যর্থ হয়েছে"));
+      }
     } finally {
       setLoading(false);
     }
@@ -225,6 +240,9 @@ const AdmitPatient = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-6 px-4 sm:px-6 lg:px-8 font-noto">
+      {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
+
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-6 flex items-center gap-3">

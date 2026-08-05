@@ -16,6 +16,9 @@ const getErrorMessage = (err, fallback) => {
   return err?.response?.data?.error ?? fallback;
 };
 
+// ── Axios‑native network error detection (same as all other pages) ──────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
+
 // ─── Portal hook ──────────────────────────────────────────────────────────────
 function useBodyPortal() {
   const [el, setEl] = useState(null);
@@ -64,10 +67,10 @@ function buildLabInfo(storeLab) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function ReportDownload() {
   const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user); // ← get user for permission check
+  const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "admin";
 
-  // ═══════════ Frontend permission check (testReportDownload) ═══════════
+  // ═══════════ Frontend permission check ═══════════
   const hasAccess = isAdmin || user?.permissions?.testReportDownload === true;
   if (!hasAccess) {
     return (
@@ -94,7 +97,6 @@ export default function ReportDownload() {
   const testName = searchParams.get("testName") ?? "Report";
   const printType = searchParams.get("printType") ?? "PLAIN";
   const isPad = printType === "PAD";
-  // addedAt disambiguates duplicate test entries for indoor patients
   const addedAt = searchParams.get("addedAt");
 
   const [report, setReport] = useState(null);
@@ -102,6 +104,7 @@ export default function ReportDownload() {
   const [displayId, setDisplayId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false);
   const [closing, setClosing] = useState(false);
 
   const portalEl = useBodyPortal();
@@ -132,7 +135,13 @@ export default function ReportDownload() {
           reportDate: formatDate(data.report?.reportDate),
         });
       })
-      .catch((err) => setPopup({ type: "error", message: getErrorMessage(err, "Failed to load report.") }))
+      .catch((err) => {
+        if (isNetworkError(err)) {
+          setOfflinePopup(true);
+        } else {
+          setPopup({ type: "error", message: getErrorMessage(err, "Failed to load report.") });
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -183,10 +192,20 @@ export default function ReportDownload() {
         />
       )}
 
+      {offlinePopup && (
+        <Popup
+          type="offline"
+          onClose={() => {
+            setOfflinePopup(false);
+            handleClose();
+          }}
+        />
+      )}
+
       <div
         className={`absolute inset-0 bg-[#f7f8fa] flex flex-col overflow-hidden ${closing ? "animate-[ur-slide-out_0.25s_cubic-bezier(0.32,0,0.67,0)_forwards]" : "animate-[ur-slide-in_0.3s_cubic-bezier(0.32,0.72,0,1)_forwards]"}`}
       >
-        {/* ── Header — matches ReportUpload's light gradient bar ── */}
+        {/* ── Header ── */}
         <div className="flex items-center gap-3 py-4 px-5 bg-gradient-to-br from-slate-100 via-blue-100 to-indigo-100 border-b border-slate-200 shrink-0 shadow-sm">
           <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border bg-emerald-100 border-emerald-200">
             <Eye className="w-4 h-4 text-emerald-600" />

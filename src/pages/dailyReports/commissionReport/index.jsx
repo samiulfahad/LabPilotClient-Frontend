@@ -82,10 +82,6 @@ const recordStamp = (start, end) => {
 };
 
 // ─── Aggregate outdoor tests for one referrer's invoices ──────────────────────
-// invoices[].tests = [{ name, commission }] — commission is the rate that
-// applied AT THE TIME of that invoice, so grouping by (name, commission)
-// naturally surfaces a mid-window rate change.
-// → Map<name, { name, total, commissionTotal, rates: Map<rate, {rate,count,subtotal,firstSeenAt,lastSeenAt}> }>
 const aggregateOutdoorTests = (invoices) => {
   const map = new Map();
   for (const inv of invoices ?? []) {
@@ -236,6 +232,9 @@ const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
+
+// ── Network error helper (mirrors CollectionReport) ───────────────────────
+const isNetworkError = (error) => error?.isAxiosError === true && !error.response;
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
@@ -773,7 +772,7 @@ const CommissionReport = () => {
 
   // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
   const isAdmin = user?.role === "admin";
-  const hasAccess = isAdmin || user?.permissions?.commissionReport === true; // ← ব্যাকএন্ড অনুযায়ী পারমিশন কী
+  const hasAccess = isAdmin || user?.permissions?.commissionReport === true;
   if (!hasAccess) {
     return <Popup type="denied" message="কমিশন রিপোর্ট দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
   }
@@ -782,6 +781,7 @@ const CommissionReport = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
   const [timeRange, setTimeRange] = useState(null);
   const [view, setView] = useState("testwise");
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -798,6 +798,10 @@ const CommissionReport = () => {
       const res = await commissionService.getSummary({ startDate: range.start, endDate: range.end });
       setData(res.data);
     } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true); // ← show default offline popup
+        return;
+      }
       const isPermissionDenied = err?.response?.status === 403;
       if (isPermissionDenied) setPermissionDenied(true);
       setPopup({
@@ -831,6 +835,7 @@ const CommissionReport = () => {
           }}
         />
       )}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <style>{`
         @media print {

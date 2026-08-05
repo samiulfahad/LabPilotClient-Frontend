@@ -21,6 +21,18 @@ import {
   groupByCategory,
 } from "./expenseHelpers";
 
+// ── Error helpers ──────────────────────────────────────────────────────────
+
+const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
+
+const getErrorMessage = (err, fallback) => {
+  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  return err?.response?.data?.error ?? fallback;
+};
+
+// ── Network error helper ───────────────────────────────────────────────────
+const isNetworkError = (error) => error?.isAxiosError === true && !error.response;
+
 const ExpenseList = () => {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -42,6 +54,7 @@ const ExpenseList = () => {
   const [nextCursor, setNextCursor] = useState(null);
   const [loadingMessage, setLoadingMessage] = useState(null);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
   const [typeFilter, setTypeFilter] = useState("all");
   const [timeRange, setTimeRange] = useState(null);
   const [editingExpense, setEditingExpense] = useState(null);
@@ -58,8 +71,12 @@ const ExpenseList = () => {
       setExpenses((prev) => (replace ? data.expenses : [...prev, ...data.expenses]));
       setNextCursor(data.nextCursor);
       setHasMore(data.hasMore);
-    } catch {
-      setPopup({ type: "error", message: "খরচের তালিকা লোড করা যায়নি" });
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true); // show default offline popup
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "খরচের তালিকা লোড করা যায়নি") });
+      }
     } finally {
       setInitialLoading(false);
       setLoadingMore(false);
@@ -89,6 +106,10 @@ const ExpenseList = () => {
     setExpenses((prev) => prev.map((e) => (e._id === expenseId ? { ...e, description, updated } : e)));
   };
 
+  const handleError = (message) => {
+    setPopup({ type: "error", message });
+  };
+
   const total = expenses.length;
   const totalAmount = expenses.reduce((s, e) => s + (e.amount ?? 0), 0);
   const heading = headingLabel(timeRange);
@@ -108,6 +129,7 @@ const ExpenseList = () => {
 
       {loadingMessage && <LoadingScreen message={loadingMessage} />}
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <EditExpenseModal
         expense={editingExpense}
@@ -115,7 +137,8 @@ const ExpenseList = () => {
         onClose={() => setEditingExpense(null)}
         onSaved={handleEdited}
         onLoadingChange={setLoadingMessage}
-        onError={(msg) => setPopup({ type: "error", message: msg })}
+        onError={handleError}
+        onNetworkError={() => setOfflinePopup(true)}
       />
 
       <div className="max-w-2xl mx-auto">
@@ -260,7 +283,7 @@ const ExpenseList = () => {
   );
 };
 
-// ─── Category group: header (icon, label, count, subtotal) + numbered rows ────
+// ─── Category group ──────────────────────────────────────────────────────────
 
 const CategoryGroup = ({ group, canEditExpense, onEdit }) => {
   const { config, expenses, total } = group;
@@ -372,7 +395,7 @@ const ExpenseRow = ({ expense, index, canEdit, onEdit }) => {
   );
 };
 
-const EditExpenseModal = ({ expense, isOpen, onClose, onSaved, onLoadingChange, onError }) => {
+const EditExpenseModal = ({ expense, isOpen, onClose, onSaved, onLoadingChange, onError, onNetworkError }) => {
   const [description, setDescription] = useState("");
 
   useEffect(() => {
@@ -389,8 +412,12 @@ const EditExpenseModal = ({ expense, isOpen, onClose, onSaved, onLoadingChange, 
       const trimmed = description.trim();
       const { data } = await expenseService.editExpense(expense._id, { description: trimmed });
       onSaved(expense._id, trimmed, data.updated);
-    } catch {
-      onError("বিবরণ আপডেট করা যায়নি। আবার চেষ্টা করুন।");
+    } catch (err) {
+      if (isNetworkError(err)) {
+        onNetworkError?.();
+      } else {
+        onError(getErrorMessage(err, "বিবরণ আপডেট করা যায়নি। আবার চেষ্টা করুন।"));
+      }
     } finally {
       onLoadingChange(null);
     }

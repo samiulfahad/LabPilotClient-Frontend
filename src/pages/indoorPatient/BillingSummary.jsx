@@ -6,6 +6,7 @@ import { Badge, Btn, ErrorMsg, Field, Input, Modal, fmt } from "./indoorPatientH
 import indoorPatientService from "../../api/indoorPatient";
 import { useAuthStore } from "../../store/authStore";
 import { Printer, Lock, Wallet } from "lucide-react";
+import Popup from "../../components/popup";
 
 // ─── Error helpers ────────────────────────────────────────────────────────────
 
@@ -14,6 +15,9 @@ const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
+
+// ── Axios‑native network error detection ───────────────────────────────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
 
 // ─── Payment modes ────────────────────────────────────────────────────────────
 
@@ -173,7 +177,7 @@ const CAT_LABEL = {
 
 // ─── Collect Payment Modal ─────────────────────────────────────────────────────
 
-function CollectPaymentModal({ open, onClose, onSuccess, patient, patientId, due }) {
+function CollectPaymentModal({ open, onClose, onSuccess, patient, patientId, due, onNetworkError }) {
   const [amount, setAmount] = useState(due);
   const [paymentMode, setPaymentMode] = useState("cash");
   const [note, setNote] = useState("");
@@ -225,7 +229,12 @@ function CollectPaymentModal({ open, onClose, onSuccess, patient, patientId, due
       onSuccess();
       onClose();
     } catch (err) {
-      setError(getErrorMessage(err, "Failed to collect payment"));
+      if (isNetworkError(err)) {
+        setError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+        onNetworkError?.();
+      } else {
+        setError(getErrorMessage(err, "Failed to collect payment"));
+      }
     } finally {
       setLoading(false);
     }
@@ -407,7 +416,7 @@ function BedChargeDetailsModal({ open, onClose, patient }) {
 
 // ─── Add Discount Modal ───────────────────────────────────────────────────────
 
-function AddDiscountModal({ open, onClose, onSuccess, patient, patientId }) {
+function AddDiscountModal({ open, onClose, onSuccess, patient, patientId, onNetworkError }) {
   const isRegular = patient.dealType === "regular";
   const categories = isRegular ? DISCOUNT_CATEGORIES_REGULAR : DISCOUNT_CATEGORIES_PACKAGE;
 
@@ -467,7 +476,12 @@ function AddDiscountModal({ open, onClose, onSuccess, patient, patientId }) {
       onSuccess();
       onClose();
     } catch (err) {
-      setError(getErrorMessage(err, "Failed to apply discount"));
+      if (isNetworkError(err)) {
+        setError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+        onNetworkError?.();
+      } else {
+        setError(getErrorMessage(err, "Failed to apply discount"));
+      }
     } finally {
       setLoading(false);
     }
@@ -645,11 +659,11 @@ export default function BillingSummary({
   const [addDiscountOpen, setAddDiscountOpen] = useState(false);
   const [discountHistoryOpen, setDiscountHistoryOpen] = useState(false);
   const [collectOpen, setCollectOpen] = useState(false);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
 
   const role = useAuthStore((s) => s.user?.role);
   const permissions = useAuthStore((s) => s.user?.permissions);
   const isAdmin = role === "admin";
-  // ✅ Use the correct permission key: 'discount' (not 'applyDiscountToPatient')
   const canApplyDiscount = isAdmin || !!permissions?.discount;
 
   const isAdmitted = patient.status === "admitted";
@@ -687,6 +701,8 @@ export default function BillingSummary({
     window.addEventListener("afterprint", reset);
     return () => window.removeEventListener("afterprint", reset);
   }, []);
+
+  const handleNetworkError = () => setOfflinePopup(true);
 
   // ── Category ledger rows ──────────────────────────────────────────────────
 
@@ -756,6 +772,8 @@ export default function BillingSummary({
 
   return (
     <>
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
+
       <style>{`
         @media print {
           body.print-billing-summary-only #billing-printable > *:not(#billing-summary-print-root) {
@@ -851,7 +869,7 @@ export default function BillingSummary({
                   ➕ Extra
                 </button>
               )}
-              {/* Discount button – now fully enabled with correct permission */}
+              {/* Discount button */}
               <button
                 type="button"
                 onClick={canApplyDiscount ? () => setAddDiscountOpen(true) : undefined}
@@ -1005,6 +1023,7 @@ export default function BillingSummary({
         onSuccess={() => onRefresh?.()}
         patient={patient}
         patientId={patientId}
+        onNetworkError={handleNetworkError}
       />
       <CollectPaymentModal
         open={collectOpen}
@@ -1013,6 +1032,7 @@ export default function BillingSummary({
         patient={patient}
         patientId={patientId}
         due={due}
+        onNetworkError={handleNetworkError}
       />
       <DiscountHistoryModal
         open={discountHistoryOpen}

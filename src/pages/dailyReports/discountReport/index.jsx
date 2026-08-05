@@ -14,7 +14,7 @@ import {
   UserCheck,
   BedDouble,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom"; // added useNavigate
+import { Link, useNavigate } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
 import discountService from "../../../api/dailyReports/discountReport";
 import Popup from "../../../components/popup";
@@ -105,7 +105,7 @@ const mergeEntries = (invoices = [], patients = []) => {
   return [...opd, ...ipd].sort((a, b) => a.at - b.at);
 };
 
-// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx) ─────────────────
+// ── Error helpers ─────────────────────────────────────────────────────────────
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
@@ -113,6 +113,9 @@ const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
+
+// ── Network error helper ───────────────────────────────────────────────────
+const isNetworkError = (error) => error?.isAxiosError === true && !error.response;
 
 // ── Category label map (IPD discount categories) ──────────────────────────────
 
@@ -352,7 +355,6 @@ const DiscountReport = () => {
 
   // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
   const isAdmin = user?.role === "admin";
-  // ব্যাকএন্ডে ডিসকাউন্ট রিপোর্টের জন্য যে permission চাবি ব্যবহার করা হয়
   const hasAccess = isAdmin || user?.permissions?.discountReport === true;
   if (!hasAccess) {
     return <Popup type="denied" message="ডিসকাউন্ট রিপোর্ট দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
@@ -364,6 +366,7 @@ const DiscountReport = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
   const [timeRange, setTimeRange] = useState(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
 
@@ -379,6 +382,10 @@ const DiscountReport = () => {
       const res = await discountService.getSummary({ startDate: range.start, endDate: range.end });
       setData(res.data);
     } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true); // ← show default offline popup
+        return;
+      }
       const isPermissionDenied = err?.response?.status === 403;
       if (isPermissionDenied) setPermissionDenied(true);
       setPopup({
@@ -411,6 +418,7 @@ const DiscountReport = () => {
           }}
         />
       )}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <style>{`
         @media print {

@@ -68,6 +68,9 @@ const getErrorMessage = (err, fallback) => {
 };
 const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
 
+// ── Axios‑native network error detection (same as all other pages) ──────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
+
 // ── Shared input helpers ───────────────────────────────────────────────────────
 const inputBase =
   "w-full outline-none transition-all rounded-xl border-[1.5px] border-[#E2E8F0] bg-white text-[#0F172A] font-['IBM_Plex_Mono',monospace]";
@@ -83,7 +86,7 @@ const blurInput = (e) => {
 // ══════════════════════════════════════════════════════════════════════════════
 // Format Modal
 // ══════════════════════════════════════════════════════════════════════════════
-const FormatModal = ({ test, onClose, onSave }) => {
+const FormatModal = ({ test, onClose, onSave, onNetworkError }) => {
   const [schemas, setSchemas] = useState([]);
   const [selectedSchemaId, setSelectedSchemaId] = useState(test.schemaId ?? null);
   const [loadingSchemas, setLoadingSchemas] = useState(false);
@@ -100,7 +103,12 @@ const FormatModal = ({ test, onClose, onSave }) => {
         const res = await testService.getSchemasByTestId(test.testId);
         setSchemas(res.data ?? []);
       } catch (err) {
-        setSchemaError(getErrorMessage(err, "Could not load formats"));
+        if (isNetworkError(err)) {
+          setSchemaError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+          onNetworkError?.();
+        } else {
+          setSchemaError(getErrorMessage(err, "Could not load formats"));
+        }
         setSchemas([]);
       } finally {
         setLoadingSchemas(false);
@@ -116,11 +124,15 @@ const FormatModal = ({ test, onClose, onSave }) => {
       await testService.updateSchema(test._id, selectedSchemaId);
       onSave({ ...test, schemaId: selectedSchemaId });
     } catch (err) {
-      if (getErrorStatus(err) === 404) {
+      if (isNetworkError(err)) {
+        setApiError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+        onNetworkError?.();
+      } else if (getErrorStatus(err) === 404) {
         onSave({ ...test, __notFound: true });
         return;
+      } else {
+        setApiError(getErrorMessage(err, "ফরম্যাট সংরক্ষণ ব্যর্থ।"));
       }
-      setApiError(getErrorMessage(err, "ফরম্যাট সংরক্ষণ ব্যর্থ।"));
     } finally {
       setSaving(false);
     }
@@ -330,7 +342,7 @@ const AMOUNT_FIELD_CONFIG = {
   },
 };
 
-const AmountModal = ({ field, test, onClose, onSave }) => {
+const AmountModal = ({ field, test, onClose, onSave, onNetworkError }) => {
   const cfg = AMOUNT_FIELD_CONFIG[field];
   const Icon = cfg.icon;
   const [value, setValue] = useState(String(test[field] ?? ""));
@@ -352,11 +364,15 @@ const AmountModal = ({ field, test, onClose, onSave }) => {
       await cfg.save(test._id, parsed);
       onSave({ ...test, [field]: parsed });
     } catch (err) {
-      if (getErrorStatus(err) === 404) {
+      if (isNetworkError(err)) {
+        setApiError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+        onNetworkError?.();
+      } else if (getErrorStatus(err) === 404) {
         onSave({ ...test, __notFound: true });
         return;
+      } else {
+        setApiError(getErrorMessage(err, cfg.errorLabel));
       }
-      setApiError(getErrorMessage(err, cfg.errorLabel));
     } finally {
       setSaving(false);
     }
@@ -477,7 +493,7 @@ const AmountModal = ({ field, test, onClose, onSave }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 // Add Test Modal
 // ══════════════════════════════════════════════════════════════════════════════
-const AddTestModal = ({ existingTests, onClose, onSaved }) => {
+const AddTestModal = ({ existingTests, onClose, onSaved, onNetworkError }) => {
   const [availableTests, setAvailableTests] = useState([]);
   const [categories, setCategories] = useState([]);
   const [registeredTests, setRegisteredTests] = useState([]);
@@ -507,7 +523,12 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
         expanded["uncategorized"] = true;
         setExpandedCategories(expanded);
       } catch (err) {
-        setLoadError(getErrorMessage(err, "টেস্ট লোড করতে ব্যর্থ।"));
+        if (isNetworkError(err)) {
+          setLoadError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+          onNetworkError?.();
+        } else {
+          setLoadError(getErrorMessage(err, "টেস্ট লোড করতে ব্যর্থ।"));
+        }
       } finally {
         setInitialLoading(false);
       }
@@ -585,7 +606,12 @@ const AddTestModal = ({ existingTests, onClose, onSaved }) => {
       await Promise.all(toSave.map((t) => testService.addTest(t)));
       onSaved(toSave);
     } catch (err) {
-      setApiError(getErrorMessage(err, "টেস্ট যোগ করতে ব্যর্থ।"));
+      if (isNetworkError(err)) {
+        setApiError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+        onNetworkError?.();
+      } else {
+        setApiError(getErrorMessage(err, "টেস্ট যোগ করতে ব্যর্থ।"));
+      }
     } finally {
       setSaving(false);
     }
@@ -1050,6 +1076,7 @@ const ManageTests = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState("");
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
   const [addModal, setAddModal] = useState(false);
   const [formatTest, setFormatTest] = useState(null);
   const [priceTest, setPriceTest] = useState(null);
@@ -1064,11 +1091,15 @@ const ManageTests = () => {
       setTests(Array.isArray(testsRes?.data) ? testsRes.data : []);
       setCategories(Array.isArray(catsRes?.data) ? catsRes.data : []);
     } catch (err) {
-      const message = getErrorMessage(err, "টেস্ট লোড করতে ব্যর্থ।");
-      setError(message);
-      setTests([]);
-      setCategories([]);
-      if (err?.response?.status === 403) setPopup({ type: "error", message });
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        const message = getErrorMessage(err, "টেস্ট লোড করতে ব্যর্থ।");
+        setError(message);
+        setTests([]);
+        setCategories([]);
+        if (err?.response?.status === 403) setPopup({ type: "error", message });
+      }
     } finally {
       setInitialLoading(false);
     }
@@ -1133,14 +1164,20 @@ const ManageTests = () => {
       setTests((prev) => prev.filter((t) => t._id !== deleteTarget._id));
       setPopup({ type: "success", message: "টেস্ট মুছে ফেলা হয়েছে।" });
     } catch (err) {
-      if (getErrorStatus(err) === 404) {
-        setTests((prev) => prev.filter((t) => t._id !== deleteTarget._id));
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        if (getErrorStatus(err) === 404) {
+          setTests((prev) => prev.filter((t) => t._id !== deleteTarget._id));
+        }
+        setPopup({ type: "error", message: getErrorMessage(err, "টেস্ট মুছতে ব্যর্থ।") });
       }
-      setPopup({ type: "error", message: getErrorMessage(err, "টেস্ট মুছতে ব্যর্থ।") });
     } finally {
       setDeleteTarget(null);
     }
   };
+
+  const handleNetworkError = () => setOfflinePopup(true);
 
   const handleFormatSave = (updatedTest) => {
     if (updatedTest.__notFound) {
@@ -1189,13 +1226,34 @@ const ManageTests = () => {
   return (
     <section className={`min-h-screen px-4 py-6 ${pageGradientBg} font-[Noto_Sans_Bengali,sans-serif]`}>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
-      {addModal && <AddTestModal existingTests={tests} onClose={() => setAddModal(false)} onSaved={handleAdded} />}
+      {addModal && (
+        <AddTestModal
+          existingTests={tests}
+          onClose={() => setAddModal(false)}
+          onSaved={handleAdded}
+          onNetworkError={handleNetworkError}
+        />
+      )}
 
-      {formatTest && <FormatModal test={formatTest} onClose={() => setFormatTest(null)} onSave={handleFormatSave} />}
+      {formatTest && (
+        <FormatModal
+          test={formatTest}
+          onClose={() => setFormatTest(null)}
+          onSave={handleFormatSave}
+          onNetworkError={handleNetworkError}
+        />
+      )}
 
       {priceTest && (
-        <AmountModal field="price" test={priceTest} onClose={() => setPriceTest(null)} onSave={handlePriceSave} />
+        <AmountModal
+          field="price"
+          test={priceTest}
+          onClose={() => setPriceTest(null)}
+          onSave={handlePriceSave}
+          onNetworkError={handleNetworkError}
+        />
       )}
 
       {commissionTest && (
@@ -1204,6 +1262,7 @@ const ManageTests = () => {
           test={commissionTest}
           onClose={() => setCommissionTest(null)}
           onSave={handleCommissionSave}
+          onNetworkError={handleNetworkError}
         />
       )}
 

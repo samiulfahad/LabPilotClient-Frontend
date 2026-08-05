@@ -54,10 +54,10 @@ const INITIAL_FORM = {
   referrerDiscount: 0,
   hasLabAdjustment: false,
   labAdjustmentAmount: 0,
-  paidAmount: "", // kept as string in state so the field can be cleared/edited freely
+  paidAmount: "",
   paymentMode: "cash",
-  onlineFeeEnabled: true, // only relevant when the lab has a feePerInvoice configured AND the cart has an online test
-  onlineFeePaidBy: "lab", // this page only talks to the lab fee-payment backend
+  onlineFeeEnabled: true,
+  onlineFeePaidBy: "lab",
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ const toFixed2 = (n) => parseFloat(n.toFixed(2));
 
 const paymentModeLabel = (value) => PAYMENT_MODES.find((m) => m.value === value)?.label ?? value;
 
-// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / SalesReport.jsx) ──
+// ── Error helpers ────────────────────────────────────────────────────────────
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
@@ -77,6 +77,9 @@ const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
+
+// ── Axios‑native network error detection (same as all other pages) ──────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
 
 const formatReferrerName = (referrer) => {
   if (!referrer || typeof referrer !== "object") return referrer ?? "";
@@ -101,14 +104,6 @@ const calcReferrerCommission = (referredBy, initial, referrerDiscountAmt) => {
   return Math.max(0, toFixed2(gross - referrerDiscountAmt));
 };
 
-// Lab adjustment is bounded by the invoice total AFTER referrer discount is
-// applied — this bound holds for every role, including admins.
-//
-// The online invoice fee (if the lab has one configured) is ADDED on top of
-// the total charged to the patient — it inflates `final`, and the patient's
-// due amount reflects it. The fee only ever applies when the cart contains
-// at least one "online" test (a test with schemaId set) — with no online
-// tests, the fee never applies, mandatory or not.
 const computeAmount = (form, feeConfig = {}) => {
   const { feePerInvoice = 0, forceInvoiceFee = false } = feeConfig;
 
@@ -124,9 +119,6 @@ const computeAmount = (form, feeConfig = {}) => {
 
   const referrerCommission = calcReferrerCommission(form.referredBy, initial, referrerDiscount);
 
-  // Fee applies only if the cart has at least one online test (schemaId
-  // set) AND the lab has a fee configured, AND either it's forced on, or
-  // the user has the toggle switched on.
   const hasOnlineTest = form.selectedTests.some((t) => !!t.schemaId);
   const feeApplied = hasOnlineTest && feePerInvoice > 0 && (forceInvoiceFee || form.onlineFeeEnabled);
   const invoiceFee = feeApplied ? feePerInvoice : 0;
@@ -215,7 +207,6 @@ const ProductTypeBadge = ({ type }) => (
 );
 
 // ─── Toggle switch ─────────────────────────────────────────────────────────
-// Replaces the old checkbox-based CheckboxToggle with a proper switch control.
 
 const ToggleSwitch = ({ checked, onChange, icon: Icon, label }) => (
   <button
@@ -346,7 +337,7 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
           </SummaryBlock>
         )}
 
-        {/* Products — only shown when at least one is selected */}
+        {/* Products */}
         {selectedProducts.length > 0 && (
           <SummaryBlock
             icon={Package}
@@ -1156,16 +1147,15 @@ const FormSkeleton = () => (
 
 const CreateInvoice = () => {
   const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user); // { role, maxLabAdjustment, ... } — adjust selector to match your store
-  const lab = useAuthStore((s) => s.lab); // { billing: { feePerInvoice, forceInvoiceFee }, ... }
+  const user = useAuthStore((s) => s.user);
+  const lab = useAuthStore((s) => s.lab);
 
-  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
+  // Permission check
   const isAdmin = user?.role === "admin";
   const hasAccess = isAdmin || user?.permissions?.createInvoice === true;
   if (!hasAccess) {
     return <Popup type="denied" message="ইনভয়েস তৈরি করার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
   }
-  // ════════════════════════════════════════════════
 
   const maxLabAdjustment = user?.maxLabAdjustment ?? 0;
   const canAdjustLab = isAdmin || maxLabAdjustment > 0;
@@ -1179,12 +1169,14 @@ const CreateInvoice = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [formData, setFormData] = useState(INITIAL_FORM);
   const pendingReferrerNameRef = useRef("");
 
   const amount = computeAmount(formData, { feePerInvoice, forceInvoiceFee });
 
+  // Fetch initial data with network error detection
   useEffect(() => {
     invoiceService
       .getRequiredData()
@@ -1193,7 +1185,13 @@ const CreateInvoice = () => {
         setAvailableTests(res.data.tests || []);
         setAvailableProducts(res.data.products || []);
       })
-      .catch((err) => setPopup({ type: "error", message: getErrorMessage(err, "Could not load required data") }))
+      .catch((err) => {
+        if (isNetworkError(err)) {
+          setOfflinePopup(true);
+        } else {
+          setPopup({ type: "error", message: getErrorMessage(err, "Could not load required data") });
+        }
+      })
       .finally(() => setInitialLoading(false));
   }, []);
 
@@ -1296,9 +1294,6 @@ const CreateInvoice = () => {
           invoiceFee: amount.invoiceFee,
         },
         paymentMode,
-        // Only true when the invoice has an online test AND a fee was
-        // actually configured on the lab AND ended up applied (forced or
-        // toggled on). The fee is added to the patient's total when applied.
         isOnlineFeePaid: amount.feeApplied,
         onlineFeePaidBy: formData.onlineFeePaidBy,
       };
@@ -1320,7 +1315,11 @@ const CreateInvoice = () => {
       setFormData(INITIAL_FORM);
       setShowSummary(false);
     } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "Could not create invoice") });
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "Could not create invoice") });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -1330,6 +1329,7 @@ const CreateInvoice = () => {
     <>
       {submitting && <LoadingScreen message="Creating invoice" />}
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-6 px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto">

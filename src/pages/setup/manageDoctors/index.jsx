@@ -64,6 +64,9 @@ const getErrorMessage = (err, fallback) => {
 
 const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
 
+// ── Axios‑native network error detection (same as all other pages) ──────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const fmt = (n, type) =>
@@ -999,13 +1002,9 @@ const ManageDoctors = () => {
   const [deptFilter, setDeptFilter] = useState("all");
   const [commFilter, setCommFilter] = useState("all");
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
   const [formModal, setFormModal] = useState(null);
   const [commissionModal, setCommissionModal] = useState(null); // null | doctor object
-  // Delete confirmation goes through the shared <Popup type="warning">
-  // component (see render section below) instead of a bespoke modal —
-  // same one-consistent-confirm-flow pattern used in ManageReferrer.jsx /
-  // Products.jsx / ManageTests.jsx / ManageStaff.jsx. `deleteTarget` holds
-  // the doctor pending deletion.
   const [deleteTarget, setDeleteTarget] = useState(null);
   const debounceRef = useRef(null);
 
@@ -1018,7 +1017,13 @@ const ManageDoctors = () => {
         setDepartments(dR.data.departments ?? []);
         setDesignations(dsR.data.designations ?? []);
       })
-      .catch((err) => setPopup({ type: "error", message: getErrorMessage(err, "বিভাগ লোড করতে ব্যর্থ।") }));
+      .catch((err) => {
+        if (isNetworkError(err)) {
+          setOfflinePopup(true);
+        } else {
+          setPopup({ type: "error", message: getErrorMessage(err, "বিভাগ লোড করতে ব্যর্থ।") });
+        }
+      });
   }, []);
 
   const fetchDoctors = async ({ search: s = "", department: d = "", page = 1 } = {}) => {
@@ -1028,7 +1033,11 @@ const ManageDoctors = () => {
       setDoctors(data);
       setPagination({ page: cur, totalPages, total });
     } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "ডাক্তার লোড করতে ব্যর্থ।") });
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "ডাক্তার লোড করতে ব্যর্থ।") });
+      }
     } finally {
       setInitialLoading(false);
     }
@@ -1061,9 +1070,6 @@ const ManageDoctors = () => {
     setPopup({ type: "success", message: "কমিশন আপডেট হয়েছে।" });
   };
 
-  // No in-flight spinner here — the warning Popup closes itself as soon as
-  // onConfirm fires, so a failure just surfaces as a follow-up error toast.
-  // Mirrors handleDelete in Products.jsx / ManageReferrer.jsx / ManageTests.jsx.
   const handleDelete = async (doctor) => {
     try {
       await doctorService.delete(doctor._id);
@@ -1071,11 +1077,15 @@ const ManageDoctors = () => {
       fetchDoctors({ search, department: deptFilter !== "all" ? deptFilter : "", page });
       setPopup({ type: "success", message: "ডাক্তার মুছে ফেলা হয়েছে।" });
     } catch (err) {
-      if (getErrorStatus(err) === 404) {
-        const page = doctors.length === 1 && pagination.page > 1 ? pagination.page - 1 : pagination.page;
-        fetchDoctors({ search, department: deptFilter !== "all" ? deptFilter : "", page });
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        if (getErrorStatus(err) === 404) {
+          const page = doctors.length === 1 && pagination.page > 1 ? pagination.page - 1 : pagination.page;
+          fetchDoctors({ search, department: deptFilter !== "all" ? deptFilter : "", page });
+        }
+        setPopup({ type: "error", message: getErrorMessage(err, "ডাক্তার মুছতে ব্যর্থ।") });
       }
-      setPopup({ type: "error", message: getErrorMessage(err, "ডাক্তার মুছতে ব্যর্থ।") });
     }
   };
 
@@ -1100,6 +1110,7 @@ const ManageDoctors = () => {
   return (
     <section className={`min-h-screen px-4 py-6 ${pageGradientBg} font-[Noto_Sans_Bengali,sans-serif]`}>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       {formModal !== null && (
         <DoctorFormModal

@@ -19,12 +19,12 @@ import {
   History,
   ArrowLeft,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom"; // added useNavigate
+import { Link, useNavigate } from "react-router-dom";
 import Popup from "../../../components/popup";
 import LoadingScreen from "../../../components/loadingPage";
 import invoiceService from "../../../api/invoice";
 import TimeFrame from "../../../components/timeFrame";
-import { useAuthStore } from "../../../store/authStore"; // added for permission check
+import { useAuthStore } from "../../../store/authStore";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -49,7 +49,7 @@ const formatDateTime = (ts) => {
 
 const getDue = (inv) => Math.max(0, (inv?.amount?.final ?? 0) - (inv?.amount?.paid ?? 0));
 
-// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / SalesReport.jsx / CreateInvoice.jsx / InvoiceList.jsx) ──
+// ── Error helpers ─────────────────────────────────────────────────────────────
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
@@ -58,9 +58,12 @@ const getErrorMessage = (err, fallback) => {
   return err?.response?.data?.error ?? fallback;
 };
 
+// ── Axios‑native network error detection (same as all other pages) ──────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
+
 // ─── Delete Invoice Panel ─────────────────────────────────────────────────────
 
-const DeleteInvoicePanel = ({ onDeleted, onLoadingChange, onError }) => {
+const DeleteInvoicePanel = ({ onDeleted, onLoadingChange, onError, onNetworkError }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [invoice, setInvoice] = useState(null);
   const [searching, setSearching] = useState(false);
@@ -73,11 +76,15 @@ const DeleteInvoicePanel = ({ onDeleted, onLoadingChange, onError }) => {
       setNotFound(false);
       setInvoice(null);
       const { data } = await invoiceService.getInvoiceByInvoiceId(String(id).trim());
-      // ✅ fixed: was data.isDeleted — new structure uses deletion.status
       data.deletion?.status ? setNotFound(true) : setInvoice(data);
     } catch (err) {
-      if (err?.response?.status === 404) setNotFound(true);
-      else onError(getErrorMessage(err, "Failed to load invoice."));
+      if (isNetworkError(err)) {
+        onNetworkError();
+      } else if (err?.response?.status === 404) {
+        setNotFound(true);
+      } else {
+        onError(getErrorMessage(err, "Failed to load invoice."));
+      }
     } finally {
       setSearching(false);
     }
@@ -103,11 +110,15 @@ const DeleteInvoicePanel = ({ onDeleted, onLoadingChange, onError }) => {
       setInvoice(null);
       setSearchQuery("");
     } catch (err) {
-      onError(
-        err?.response?.status === 400
-          ? "Invoice is already deleted."
-          : getErrorMessage(err, "Failed to delete invoice. Please try again."),
-      );
+      if (isNetworkError(err)) {
+        onNetworkError();
+      } else {
+        onError(
+          err?.response?.status === 400
+            ? "Invoice is already deleted."
+            : getErrorMessage(err, "Failed to delete invoice. Please try again."),
+        );
+      }
     } finally {
       onLoadingChange(null);
     }
@@ -266,7 +277,6 @@ const DeleteInvoicePanel = ({ onDeleted, onLoadingChange, onError }) => {
 
 const DeletedInvoiceRow = ({ invoice, index }) => {
   const createdDt = formatDateTime(invoice.createdAt);
-  // ✅ fixed: was invoice.deletedAt — new structure uses deletion.at
   const deletedDt = formatDateTime(invoice.deletion?.at);
   const deletedBy = invoice.deletion?.by?.name ?? null;
   const final = invoice.amount?.final ?? 0;
@@ -348,7 +358,7 @@ const SkeletonRow = () => (
 
 // ─── Deleted Invoices List ────────────────────────────────────────────────────
 
-const DeletedInvoicesList = ({ refreshTrigger, onLoadingChange, onError }) => {
+const DeletedInvoicesList = ({ refreshTrigger, onLoadingChange, onError, onNetworkError }) => {
   const [invoices, setInvoices] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -368,7 +378,11 @@ const DeletedInvoicesList = ({ refreshTrigger, onLoadingChange, onError }) => {
       setNextCursor(data.nextCursor);
       setHasMore(data.hasMore);
     } catch (err) {
-      onError(getErrorMessage(err, "Could not load deleted invoices."));
+      if (isNetworkError(err)) {
+        onNetworkError();
+      } else {
+        onError(getErrorMessage(err, "Could not load deleted invoices."));
+      }
     } finally {
       setInitialLoading(false);
       setLoadingMore(false);
@@ -460,32 +474,31 @@ const TABS = [
 ];
 
 const DeleteInvoices = () => {
-  const navigate = useNavigate(); // added
-  const user = useAuthStore((s) => s.user); // added
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
 
-  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
   const isAdmin = user?.role === "admin";
   const hasAccess = isAdmin || user?.permissions?.deleteInvoice === true;
   if (!hasAccess) {
     return <Popup type="denied" message="ইনভয়েস ডিলিট করার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
   }
-  // ════════════════════════════════════════════════
 
   const [activeTab, setActiveTab] = useState("delete");
   const [loadingMessage, setLoadingMessage] = useState(null);
   const [popup, setPopup] = useState(null);
+  const [networkError, setNetworkError] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleDeleted = (invoiceId) => {
     setPopup({ type: "success", message: `Invoice #${invoiceId} has been deleted.` });
     setRefreshTrigger((n) => n + 1);
-    // ✅ no longer switches to the history tab — stays on Delete Invoice
   };
 
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
       {loadingMessage && <LoadingScreen message={loadingMessage} />}
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {networkError && <Popup type="offline" onClose={() => setNetworkError(false)} />}
 
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
@@ -529,6 +542,7 @@ const DeleteInvoices = () => {
             onDeleted={handleDeleted}
             onLoadingChange={setLoadingMessage}
             onError={(msg) => setPopup({ type: "error", message: msg })}
+            onNetworkError={() => setNetworkError(true)}
           />
         )}
         {activeTab === "history" && (
@@ -536,6 +550,7 @@ const DeleteInvoices = () => {
             refreshTrigger={refreshTrigger}
             onLoadingChange={setLoadingMessage}
             onError={(msg) => setPopup({ type: "error", message: msg })}
+            onNetworkError={() => setNetworkError(true)}
           />
         )}
       </div>

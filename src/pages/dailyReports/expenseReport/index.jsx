@@ -64,7 +64,7 @@ const recordStamp = (start, end) => {
   return generatedStamp(end);
 };
 
-// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / CollectionReport.jsx / CommissionReport.jsx) ──
+// ── Error helpers ─────────────────────────────────────────────────────────────
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
@@ -72,6 +72,9 @@ const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
+
+// ── Network error helper ───────────────────────────────────────────────────
+const isNetworkError = (error) => error?.isAxiosError === true && !error.response;
 
 // ─── Expense type → Bengali label ──────────────────────────────────────────────
 const EXPENSE_TYPE_LABELS = {
@@ -192,7 +195,6 @@ const ExpenseReport = () => {
 
   // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
   const isAdmin = user?.role === "admin";
-  // ব্যাকএন্ড যেই পারমিশন চাবি ব্যবহার করে (এখানে ধরে নেওয়া হয়েছে "expenseReport")
   const hasAccess = isAdmin || user?.permissions?.expenseReport === true;
   if (!hasAccess) {
     return <Popup type="denied" message="খরচের রিপোর্ট দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
@@ -202,6 +204,7 @@ const ExpenseReport = () => {
   const [expenseData, setExpenseData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
   const [timeRange, setTimeRange] = useState(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
 
@@ -217,6 +220,10 @@ const ExpenseReport = () => {
       const res = await expenseService.getSummary({ startDate: range.start, endDate: range.end });
       setExpenseData(res.data);
     } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true); // ← show default offline popup
+        return;
+      }
       const isPermissionDenied = err?.response?.status === 403;
       if (isPermissionDenied) setPermissionDenied(true);
       setPopup({
@@ -253,6 +260,7 @@ const ExpenseReport = () => {
           }}
         />
       )}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <style>{`
         @media print {

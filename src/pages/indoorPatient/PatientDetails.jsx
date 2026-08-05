@@ -33,6 +33,9 @@ const getErrorMessage = (err, fallback) => {
   return err?.response?.data?.error ?? fallback;
 };
 
+// ── Axios‑native network error detection (same as all other pages) ─────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
+
 // ─── Payment modes ─────────────────────────────────────────────────────────
 
 const PAYMENT_MODES = [
@@ -79,7 +82,11 @@ const CollectPaymentModal = ({ open, patientId, onClose, onSuccess, isExtra = fa
       onSuccess();
       onClose();
     } catch (err) {
-      setError(getErrorMessage(err, "Failed to record payment"));
+      if (isNetworkError(err)) {
+        setError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+      } else {
+        setError(getErrorMessage(err, "Failed to record payment"));
+      }
     } finally {
       setLoading(false);
     }
@@ -174,7 +181,11 @@ const EditPaymentModeModal = ({ open, patientId, paymentId, currentMode, onClose
       onSuccess();
       onClose();
     } catch (err) {
-      setError(getErrorMessage(err, "Failed to update payment mode"));
+      if (isNetworkError(err)) {
+        setError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+      } else {
+        setError(getErrorMessage(err, "Failed to update payment mode"));
+      }
     } finally {
       setLoading(false);
     }
@@ -247,9 +258,8 @@ const PatientDetails = () => {
   const canAddExpense = isAdmin || !!permissions?.addExpenseToPatient;
   const canEditPatient = isAdmin || !!permissions?.editPatient;
   const canViewBilling = isAdmin || !!permissions?.patientBilling;
-  const canApplyDiscount = isAdmin || !!permissions?.discount; // key renamed to "discount"
+  const canApplyDiscount = isAdmin || !!permissions?.discount;
 
-  // Billing tab visible if user has either patientBilling or discount permission
   const canAccessBillingTab = isAdmin || !!permissions?.patientBilling || !!permissions?.discount;
 
   // ─── Component state ───────────────────────────────────────────────────
@@ -273,6 +283,7 @@ const PatientDetails = () => {
   const [actionError, setActionError] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [billingDeniedPopup, setBillingDeniedPopup] = useState(false);
+  const [offlinePopup, setOfflinePopup] = useState(false); // new
 
   const [txForm, setTxForm] = useState({ spaceId: "", bedNumber: null, note: "" });
   const [docForm, setDocForm] = useState({ doctorId: "", note: "" });
@@ -309,8 +320,11 @@ const PatientDetails = () => {
         description: res.data.disease?.description ?? "",
         medicalHistory: res.data.disease?.medicalHistory ?? "",
       });
-    } catch {
-      // silence
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      }
+      // If not a network error, we silently fail; the page will show "Patient not found"
     } finally {
       setLoading(false);
     }
@@ -330,6 +344,8 @@ const PatientDetails = () => {
   const setEF = (k, v) => setEditForm((f) => ({ ...f, [k]: v }));
   const setTX = (k, v) => setTxForm((f) => ({ ...f, [k]: v }));
   const setCF = (k, v) => setClinicalForm((f) => ({ ...f, [k]: v }));
+
+  // ── Handlers with network error detection ───────────────────────────────
 
   const handleSaveInfo = async () => {
     setActionError("");
@@ -353,7 +369,11 @@ const PatientDetails = () => {
       setEditInfo(false);
       fetchPatient();
     } catch (err) {
-      setActionError(getErrorMessage(err, "Update failed"));
+      if (isNetworkError(err)) {
+        setActionError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+      } else {
+        setActionError(getErrorMessage(err, "Update failed"));
+      }
     } finally {
       setActionLoading(false);
     }
@@ -372,7 +392,11 @@ const PatientDetails = () => {
       setEditClinical(false);
       fetchPatient();
     } catch (err) {
-      setActionError(getErrorMessage(err, "Failed to update clinical notes"));
+      if (isNetworkError(err)) {
+        setActionError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+      } else {
+        setActionError(getErrorMessage(err, "Failed to update clinical notes"));
+      }
     } finally {
       setActionLoading(false);
     }
@@ -395,7 +419,11 @@ const PatientDetails = () => {
       setTxForm({ spaceId: "", bedNumber: null, note: "" });
       fetchPatient();
     } catch (err) {
-      setActionError(getErrorMessage(err, "Transfer failed"));
+      if (isNetworkError(err)) {
+        setActionError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+      } else {
+        setActionError(getErrorMessage(err, "Transfer failed"));
+      }
     } finally {
       setActionLoading(false);
     }
@@ -412,7 +440,11 @@ const PatientDetails = () => {
       setChangeDoc(false);
       fetchPatient();
     } catch (err) {
-      setActionError(getErrorMessage(err, "Failed to change doctor"));
+      if (isNetworkError(err)) {
+        setActionError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+      } else {
+        setActionError(getErrorMessage(err, "Failed to change doctor"));
+      }
     } finally {
       setActionLoading(false);
     }
@@ -424,7 +456,11 @@ const PatientDetails = () => {
       await indoorPatientService.release(patientId, {});
       navigate("/ipd/patients");
     } catch (err) {
-      setActionError(getErrorMessage(err, "Failed to release"));
+      if (isNetworkError(err)) {
+        setActionError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+      } else {
+        setActionError(getErrorMessage(err, "Failed to release"));
+      }
       setActionLoading(false);
     }
   };
@@ -436,7 +472,11 @@ const PatientDetails = () => {
       await indoorPatientService.deletePatient(patientId, { note: deleteNote.trim() });
       navigate("/ipd/patients");
     } catch (err) {
-      setDeleteError(getErrorMessage(err, "Failed to delete patient"));
+      if (isNetworkError(err)) {
+        setDeleteError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+      } else {
+        setDeleteError(getErrorMessage(err, "Failed to delete patient"));
+      }
       setActionLoading(false);
     }
   };
@@ -462,7 +502,7 @@ const PatientDetails = () => {
     return () => window.removeEventListener("afterprint", reset);
   }, []);
 
-  // ── Loading / Not Found ─────────────────────────────────────────────────
+  // ── Loading / Not Found / Error handling ────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
@@ -550,6 +590,9 @@ const PatientDetails = () => {
           }
         }
       `}</style>
+
+      {/* Offline popup for initial fetch failure */}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       {/* Billing denied popup */}
       {billingDeniedPopup && (

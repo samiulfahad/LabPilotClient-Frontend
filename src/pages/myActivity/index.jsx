@@ -49,6 +49,9 @@ const fmtDateTime = (ts) => {
   return d.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 };
 
+// ── Axios‑native network error detection ────────────────────────────────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TEAL = "#0F6E5C";
@@ -224,6 +227,7 @@ const MyActivity = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
   const [timeRange, setTimeRange] = useState(null);
 
   // On-demand panels
@@ -244,8 +248,12 @@ const MyActivity = () => {
       setLoading(true);
       const res = await myActivityService.getSummary({ startDate: range.start, endDate: range.end });
       setData(res.data);
-    } catch {
-      setPopup({ type: "error", message: "কার্যক্রমের তথ্য লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।" });
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: "কার্যক্রমের তথ্য লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।" });
+      }
     } finally {
       setLoading(false);
     }
@@ -256,9 +264,13 @@ const MyActivity = () => {
       setInvoicesLoading(true);
       const res = await myActivityService.getInvoices({ startDate: range.start, endDate: range.end });
       setInvoices(res.data.invoices ?? []);
-    } catch {
-      setPopup({ type: "error", message: "ইনভয়েস লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।" });
-      setInvoices([]);
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: "ইনভয়েস লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।" });
+        setInvoices([]);
+      }
     } finally {
       setInvoicesLoading(false);
     }
@@ -269,9 +281,13 @@ const MyActivity = () => {
       setCollectionsLoading(true);
       const res = await myActivityService.getCollections({ startDate: range.start, endDate: range.end });
       setCollections(res.data.collections ?? []);
-    } catch {
-      setPopup({ type: "error", message: "কালেকশন হিস্টোরি লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।" });
-      setCollections([]);
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: "কালেকশন হিস্টোরি লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।" });
+        setCollections([]);
+      }
     } finally {
       setCollectionsLoading(false);
     }
@@ -281,7 +297,6 @@ const MyActivity = () => {
     const range = { start, end };
     setTimeRange(range);
     fetchData(range);
-    // Refresh whichever panel is open for the new range
     if (activePanel === "invoices") fetchInvoices(range);
     if (activePanel === "collections") fetchCollections(range);
   };
@@ -310,6 +325,7 @@ const MyActivity = () => {
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-5">

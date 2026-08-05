@@ -62,6 +62,9 @@ const getErrorMessage = (err, fallback) => {
 
 const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
 
+// ── Axios‑native network error detection (same as all other pages) ──────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
+
 // ── Shared input helpers ───────────────────────────────────────────────────────
 
 const inputBase =
@@ -474,17 +477,6 @@ const DeptMultiSelect = ({ value, onChange, error, departments }) => {
 };
 
 // ── Space Form Modal — UNCHANGED sizing ─────────────────────────────────────
-// On a failed save the modal stays OPEN (no close) and the error surfaces
-// inline via `apiError` in the sticky footer, directly above the action
-// buttons — same pattern as ItemModal/StockModal in Products.jsx,
-// ReferrerFormModal in ManageReferrer.jsx, StaffFormModal in
-// ManageStaff.jsx, and DoctorFormModal in ManageDoctors.jsx. `onSubmit` is
-// expected to perform the API call and throw on failure; this modal owns
-// its own `saving`/`apiError` state rather than relying on the parent.
-//
-// Price is NOT edited here — chargePerDay is set once at creation and from
-// then on is only changed through the dedicated PriceEditModal (same split
-// as referrer commission having its own route/modal).
 
 const EMPTY_FORM = {
   name: "",
@@ -533,8 +525,6 @@ const SpaceFormModal = ({ editSpace, departments, onSubmit, onClose }) => {
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = "নাম আবশ্যক";
-    // chargePerDay is only collected (and validated) on create — edits go
-    // through PriceEditModal instead.
     if (!isEdit && (!form.chargePerDay || isNaN(form.chargePerDay) || Number(form.chargePerDay) < 0))
       e.chargePerDay = "সঠিক চার্জ লিখুন";
     if (!form.departments.length) e.departments = "অন্তত একটি বিভাগ নির্বাচন করুন";
@@ -622,8 +612,7 @@ const SpaceFormModal = ({ editSpace, departments, onSubmit, onClose }) => {
             )}
           </div>
 
-          {/* Charge — creation only; price changes go through the
-              dedicated "মূল্য পরিবর্তন" action / PriceEditModal */}
+          {/* Charge — creation only */}
           {!isEdit && (
             <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
               <p className="font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.1em] text-[#94A3B8] mb-2">
@@ -745,9 +734,7 @@ const SpaceFormModal = ({ editSpace, departments, onSubmit, onClose }) => {
           )}
         </div>
 
-        {/* Footer — fixed, never scrolls. apiError banner sits directly
-            above the action buttons so it's the last thing seen before
-            retrying. */}
+        {/* Footer — fixed, never scrolls */}
         <div className="shrink-0 bg-white border-t border-[#E2E8F0]">
           {apiError && (
             <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 bg-[#EF444408] border-[1.5px] border-[#EF444430] rounded-xl">
@@ -852,9 +839,6 @@ const DeptBadges = ({ departments: deptValues = [], allDepartments = [], maxVisi
 };
 
 // ── Bed Grid — UNCHANGED ─────────────────────────────────────────────────────
-// `onError` surfaces a failed release to the parent (shared Popup) instead
-// of silently swallowing it — every other mutation in this file reports
-// failures the same way, this one previously didn't.
 
 const BedGrid = ({ conf, spaceId, onUpdate, onReserveClick, onError }) => {
   const [busy, setBusy] = useState(null);
@@ -946,9 +930,6 @@ const BedGrid = ({ conf, spaceId, onUpdate, onReserveClick, onError }) => {
 };
 
 // ── Space Row — card style, mirrors ReferrerRow / DoctorRow ────────────────────
-// `busy` prop removed — it was never set by the parent (dead loading state
-// that always evaluated false). `onBedError` threads bed-release failures
-// up to the shared Popup.
 
 const SpaceRow = ({
   space,
@@ -1154,14 +1135,11 @@ const ManageSpaces = () => {
   const [departments, setDepartments] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [popup, setPopup] = useState(null);
-  const [formModal, setFormModal] = useState(null); // null | { editSpace } — editSpace is null for "add"
-  // Delete / release confirmations go through the shared <Popup
-  // type="warning"> directly (see render section below), not a bespoke
-  // modal — same pattern as Products.jsx / ManageReferrer.jsx /
-  // ManageTests.jsx / ManageStaff.jsx / ManageDoctors.jsx.
-  const [confirmTarget, setConfirmTarget] = useState(null); // { type: "delete" | "release", space }
-  const [reserveModal, setReserveModal] = useState(null); // { space, bedNumber? }
-  const [priceModal, setPriceModal] = useState(null); // { space } | null
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
+  const [formModal, setFormModal] = useState(null);
+  const [confirmTarget, setConfirmTarget] = useState(null);
+  const [reserveModal, setReserveModal] = useState(null);
+  const [priceModal, setPriceModal] = useState(null);
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
 
@@ -1171,7 +1149,11 @@ const ManageSpaces = () => {
       setDepartments(deptRes.data.departments ?? []);
       setSpaces(spacesRes.data);
     } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "কক্ষ লোড করতে ব্যর্থ।") });
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "কক্ষ লোড করতে ব্যর্থ।") });
+      }
     } finally {
       setInitialLoading(false);
     }
@@ -1208,18 +1190,10 @@ const ManageSpaces = () => {
 
   const hasFilters = deptFilter !== "all";
 
-  // ── Create / Edit ──
   const openAdd = () => setFormModal({ editSpace: null });
   const openEdit = (space) => setFormModal({ editSpace: space });
   const closeForm = () => setFormModal(null);
 
-  // The form modal itself owns saving/apiError state and stays open on
-  // failure — this just performs the API call, updates local state, and
-  // closes on success. Any thrown error propagates back to the modal.
-  //
-  // chargePerDay is only included in the payload on create — the update
-  // route no longer accepts it (price changes go through
-  // spaceService.updatePrice / PriceEditModal instead).
   const handleFormSubmit = async (form) => {
     const basePayload = {
       name: form.name.trim(),
@@ -1247,36 +1221,51 @@ const ManageSpaces = () => {
     closeForm();
   };
 
-  // No in-flight spinner on the confirm popup itself — it closes as soon as
-  // onConfirm fires, so a failure just surfaces as a follow-up error toast.
-  // Mirrors handleDelete in Products.jsx / ManageReferrer.jsx / ManageTests.jsx.
   const handleDelete = async (space) => {
     try {
       await spaceService.delete(space._id);
       setSpaces((p) => p.filter((s) => s._id !== space._id));
       setPopup({ type: "success", message: `"${space.name}" মুছে ফেলা হয়েছে।` });
     } catch (err) {
-      if (getErrorStatus(err) === 404) {
-        setSpaces((p) => p.filter((s) => s._id !== space._id));
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        if (getErrorStatus(err) === 404) {
+          setSpaces((p) => p.filter((s) => s._id !== space._id));
+        }
+        setPopup({ type: "error", message: getErrorMessage(err, "কক্ষ মুছতে ব্যর্থ হয়েছে।") });
       }
-      setPopup({ type: "error", message: getErrorMessage(err, "কক্ষ মুছতে ব্যর্থ হয়েছে।") });
     } finally {
       setConfirmTarget(null);
     }
   };
 
-  // ── Price edit ──
   const handleUpdatePrice = async (space, chargePerDay) => {
-    await spaceService.updatePrice(space._id, chargePerDay);
-    setSpaces((p) => p.map((s) => (s._id === space._id ? { ...s, chargePerDay } : s)));
-    setPopup({ type: "success", message: `"${space.name}"-এর মূল্য আপডেট করা হয়েছে।` });
+    try {
+      await spaceService.updatePrice(space._id, chargePerDay);
+      setSpaces((p) => p.map((s) => (s._id === space._id ? { ...s, chargePerDay } : s)));
+      setPopup({ type: "success", message: `"${space.name}"-এর মূল্য আপডেট করা হয়েছে।` });
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "মূল্য আপডেট ব্যর্থ হয়েছে।") });
+      }
+    }
   };
 
-  // ── Single-space reserve / release ──
   const handleReserveSingle = async (space, note) => {
-    await spaceService.reserve(space._id, note);
-    setSpaces((p) => p.map((s) => (s._id === space._id ? { ...s, reserved: true, reservedNote: note } : s)));
-    setPopup({ type: "success", message: `"${space.name}" সংরক্ষিত হয়েছে।` });
+    try {
+      await spaceService.reserve(space._id, note);
+      setSpaces((p) => p.map((s) => (s._id === space._id ? { ...s, reserved: true, reservedNote: note } : s)));
+      setPopup({ type: "success", message: `"${space.name}" সংরক্ষিত হয়েছে।` });
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "সংরক্ষণ ব্যর্থ হয়েছে।") });
+      }
+    }
   };
 
   const handleReleaseSingle = async (space) => {
@@ -1285,27 +1274,41 @@ const ManageSpaces = () => {
       setSpaces((p) => p.map((s) => (s._id === space._id ? { ...s, reserved: false, reservedNote: "" } : s)));
       setPopup({ type: "success", message: `"${space.name}"-এর সংরক্ষণ মুক্ত করা হয়েছে।` });
     } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "মুক্ত করতে ব্যর্থ হয়েছে।") });
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "মুক্ত করতে ব্যর্থ হয়েছে।") });
+      }
     } finally {
       setConfirmTarget(null);
     }
   };
 
-  // ── Bed-level reserve ──
   const handleReserveBed = async (space, note) => {
     const bedNumber = reserveModal.bedNumber;
-    await spaceService.reserveBed(space._id, bedNumber, note);
-    setSpaces((p) =>
-      p.map((s) =>
-        s._id === space._id
-          ? {
-              ...s,
-              multiBedConf: { ...s.multiBedConf, reserved: [...(s.multiBedConf.reserved ?? []), { bedNumber, note }] },
-            }
-          : s,
-      ),
-    );
-    setPopup({ type: "success", message: `শয্যা ${bedNumber} সংরক্ষিত হয়েছে।` });
+    try {
+      await spaceService.reserveBed(space._id, bedNumber, note);
+      setSpaces((p) =>
+        p.map((s) =>
+          s._id === space._id
+            ? {
+                ...s,
+                multiBedConf: {
+                  ...s.multiBedConf,
+                  reserved: [...(s.multiBedConf.reserved ?? []), { bedNumber, note }],
+                },
+              }
+            : s,
+        ),
+      );
+      setPopup({ type: "success", message: `শয্যা ${bedNumber} সংরক্ষিত হয়েছে।` });
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "শয্যা সংরক্ষণ ব্যর্থ হয়েছে।") });
+      }
+    }
   };
 
   const handleSpaceUpdate = (space, updater) => {
@@ -1317,14 +1320,18 @@ const ManageSpaces = () => {
     );
   };
 
-  // Surfaces a failed bed-release (thrown from BedGrid) via the shared popup.
   const handleBedError = (err) => {
-    setPopup({ type: "error", message: getErrorMessage(err, "শয্যা মুক্ত করতে ব্যর্থ হয়েছে।") });
+    if (isNetworkError(err)) {
+      setOfflinePopup(true);
+    } else {
+      setPopup({ type: "error", message: getErrorMessage(err, "শয্যা মুক্ত করতে ব্যর্থ হয়েছে।") });
+    }
   };
 
   return (
     <section className={`min-h-screen px-4 py-6 ${pageGradientBg} font-['IBM_Plex_Sans',sans-serif]`}>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       {formModal && (
         <SpaceFormModal
@@ -1379,7 +1386,6 @@ const ManageSpaces = () => {
       )}
 
       <div className="max-w-2xl mx-auto">
-        {/* Page header — gradient icon badge, matching ManageReferrer/ManageDoctors/ManageStaff */}
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-3">
             <div
@@ -1409,7 +1415,6 @@ const ManageSpaces = () => {
           </div>
         </div>
 
-        {/* Stats */}
         {!initialLoading && (
           <div className="grid grid-cols-4 gap-3 mb-5">
             <StatCard
@@ -1443,7 +1448,6 @@ const ManageSpaces = () => {
           </div>
         )}
 
-        {/* Toolbar card */}
         <div className="px-4 py-3 flex flex-wrap items-center gap-2 mb-4 bg-white border border-[#E2E8F0] rounded-2xl">
           <div className="relative flex-[1_1_160px]">
             <Search className="w-[13px] h-[13px] text-[#94A3B8] absolute left-[11px] top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -1481,7 +1485,6 @@ const ManageSpaces = () => {
           )}
         </div>
 
-        {/* Space cards */}
         {initialLoading ? (
           <Skeleton />
         ) : filtered.length === 0 ? (
@@ -1511,7 +1514,6 @@ const ManageSpaces = () => {
           </div>
         )}
 
-        {/* Footer note */}
         <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8] mt-4 text-center">
           * Booked beds are managed automatically via the invoice flow
         </p>

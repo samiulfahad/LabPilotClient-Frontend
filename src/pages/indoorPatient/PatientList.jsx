@@ -7,8 +7,7 @@ import Popup from "../../components/popup";
 import { useAuthStore } from "../../store/authStore";
 
 // ─── Clipboard helper ──────────────────────────────────────────────────────────
-// Uses the async Clipboard API where available and falls back to the legacy
-// execCommand approach for non-secure contexts / older webviews.
+
 const copyToClipboard = async (text) => {
   try {
     if (navigator.clipboard?.writeText) {
@@ -142,6 +141,8 @@ const PatientRow = ({ patient }) => {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
+
 const FILTERS = [
   { value: "admitted", label: "ভর্তি", activeClass: "bg-blue-600 text-white shadow-md shadow-blue-200" },
   { value: "released", label: "রিলিজ", activeClass: "bg-emerald-600 text-white shadow-md shadow-emerald-200" },
@@ -153,12 +154,10 @@ const PatientList = () => {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "admin";
 
-  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
   const hasAccess = isAdmin || user?.permissions?.patientList === true;
   if (!hasAccess) {
     return <Popup type="denied" message="রোগীর তালিকা দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
   }
-  // ════════════════════════════════════════════════
 
   const [patients, setPatients] = useState([]);
   const [total, setTotal] = useState(0);
@@ -168,6 +167,7 @@ const PatientList = () => {
   const [searchInput, setSearchInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [offlinePopup, setOfflinePopup] = useState(false);   // ← renamed and no custom message
   const searchTimer = useRef(null);
 
   const fetchPatients = async () => {
@@ -177,8 +177,12 @@ const PatientList = () => {
       const res = await indoorPatientService.getPatients({ status, search, page, limit: 20 });
       setPatients(res.data.patients ?? []);
       setTotal(res.data.total ?? 0);
-    } catch {
-      setError("রোগীর তালিকা লোড করতে ব্যর্থ হয়েছে");
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);          // ← use offline popup without message
+      } else {
+        setError("রোগীর তালিকা লোড করতে ব্যর্থ হয়েছে");
+      }
     } finally {
       setLoading(false);
     }
@@ -201,6 +205,10 @@ const PatientList = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
+      {offlinePopup && (
+        <Popup type="offline" onClose={() => setOfflinePopup(false)} />
+      )}
+
       <div className="max-w-6xl mx-auto">
         <PageHeader
           title="রোগীদের তালিকা"

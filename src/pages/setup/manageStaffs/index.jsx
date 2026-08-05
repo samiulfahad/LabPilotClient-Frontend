@@ -102,6 +102,9 @@ const getErrorMessage = (err, fallback) => {
 const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
 const buildInitialPerms = (list) => Object.fromEntries(list.map((p) => [p.key, false]));
 
+// ── Axios‑native network error detection (same as all other pages) ──────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
+
 /* ─── Portal shell (Sheet) ─────────────────────────────────────────────── */
 const Sheet = ({ isOpen, onClose, children, width = "480px" }) => {
   useEffect(() => {
@@ -1036,6 +1039,7 @@ const ManageStaff = () => {
   const [permissionsList, setPermissionsList] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
   const [formModal, setFormModal] = useState(null);
   const [adjustModal, setAdjustModal] = useState(null);
   const [modal, setModal] = useState(null);
@@ -1053,7 +1057,11 @@ const ManageStaff = () => {
         );
         setPermissionsList(visiblePerms);
       } catch (err) {
-        setPopup({ type: "error", message: getErrorMessage(err, "ডেটা লোড করতে ব্যর্থ।") });
+        if (isNetworkError(err)) {
+          setOfflinePopup(true);
+        } else {
+          setPopup({ type: "error", message: getErrorMessage(err, "ডেটা লোড করতে ব্যর্থ।") });
+        }
       } finally {
         setInitialLoading(false);
       }
@@ -1066,7 +1074,11 @@ const ManageStaff = () => {
       const res = await staffService.getStaffs();
       setStaff(res.data);
     } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "কর্মী লোড করতে ব্যর্থ।") });
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "কর্মী লোড করতে ব্যর্থ।") });
+      }
     }
   };
 
@@ -1115,8 +1127,12 @@ const ManageStaff = () => {
       setStaff((prev) => prev.filter((m) => m._id !== member._id));
       setPopup({ type: "success", message: "কর্মী মুছে ফেলা হয়েছে।" });
     } catch (err) {
-      if (getErrorStatus(err) === 404) setStaff((prev) => prev.filter((m) => m._id !== member._id));
-      setPopup({ type: "error", message: getErrorMessage(err, "কর্মী মুছতে ব্যর্থ।") });
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        if (getErrorStatus(err) === 404) setStaff((prev) => prev.filter((m) => m._id !== member._id));
+        setPopup({ type: "error", message: getErrorMessage(err, "কর্মী মুছতে ব্যর্থ।") });
+      }
     }
   };
 
@@ -1126,7 +1142,11 @@ const ManageStaff = () => {
       setStaff((prev) => prev.map((m) => (m._id === member._id ? { ...m, isActive: activate } : m)));
       setPopup({ type: "success", message: `কর্মী ${activate ? "সক্রিয়" : "নিষ্ক্রিয়"} করা হয়েছে।` });
     } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "স্ট্যাটাস পরিবর্তন ব্যর্থ।") });
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "স্ট্যাটাস পরিবর্তন ব্যর্থ।") });
+      }
     }
   };
 
@@ -1145,6 +1165,7 @@ const ManageStaff = () => {
   return (
     <section className={`min-h-screen px-4 sm:px-6 py-6 lg:py-8 ${pageGradientBg} ${bn}`}>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       {formModal !== null && (
         <StaffFormModal

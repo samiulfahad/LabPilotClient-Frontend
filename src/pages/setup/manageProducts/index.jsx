@@ -131,6 +131,9 @@ const getErrorMessage = (err, fallback) => {
 
 const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
 
+// ── Axios‑native network error detection (same as all other pages) ──────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
+
 // ── Shared input helpers ───────────────────────────────────────────────────────
 
 const inputBase =
@@ -146,10 +149,8 @@ const blurInput = (e) => {
 };
 
 // ── Stock Modal ────────────────────────────────────────────────────────────────
-// Delta-based adjustment (unchanged) — its own route, its own button.
-// On a failed save the modal stays OPEN so the entered delta isn't lost.
 
-const StockModal = ({ item, onClose, onSave }) => {
+const StockModal = ({ item, onClose, onSave, onNetworkError }) => {
   const [delta, setDelta] = useState(1);
   const [mode, setMode] = useState("add");
   const [note, setNote] = useState("");
@@ -172,7 +173,12 @@ const StockModal = ({ item, onClose, onSave }) => {
       await productService.adjustStock(item._id, effectiveDelta, note.trim() || undefined);
       onSave();
     } catch (err) {
-      setApiError(getErrorMessage(err, "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+      if (isNetworkError(err)) {
+        setApiError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+        onNetworkError?.();
+      } else {
+        setApiError(getErrorMessage(err, "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+      }
     } finally {
       setLoading(false);
     }
@@ -336,10 +342,8 @@ const StockModal = ({ item, onClose, onSave }) => {
 };
 
 // ── Price Modal ────────────────────────────────────────────────────────────────
-// Its own route (PATCH /products/:itemId/price) — separate from info edits
-// and stock adjustments. Stays open on failure so the typed value isn't lost.
 
-const PriceModal = ({ item, onClose, onSave }) => {
+const PriceModal = ({ item, onClose, onSave, onNetworkError }) => {
   const [price, setPrice] = useState(String(item.price ?? ""));
   const [saving, setSaving] = useState(false);
   const [apiError, setApiError] = useState("");
@@ -354,11 +358,14 @@ const PriceModal = ({ item, onClose, onSave }) => {
       await productService.updateProductPrice(item._id, parseFloat(price));
       onSave();
     } catch (err) {
-      if (getErrorStatus(err) === 404) {
+      if (isNetworkError(err)) {
+        setApiError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+        onNetworkError?.();
+      } else if (getErrorStatus(err) === 404) {
         setApiError("আইটেমটি আর পাওয়া যায়নি।");
-        return;
+      } else {
+        setApiError(getErrorMessage(err, "মূল্য সংরক্ষণ ব্যর্থ।"));
       }
-      setApiError(getErrorMessage(err, "মূল্য সংরক্ষণ ব্যর্থ।"));
     } finally {
       setSaving(false);
     }
@@ -461,11 +468,8 @@ const PriceModal = ({ item, onClose, onSave }) => {
 };
 
 // ── Info Modal (Edit) ─────────────────────────────────────────────────────────
-// Name, description, unit, and the hasStock toggle only — price has its own
-// modal/route, and the stock number itself only ever moves via StockModal's
-// delta+note adjustment, never a raw overwrite here.
 
-const InfoModal = ({ item, onClose, onSave }) => {
+const InfoModal = ({ item, onClose, onSave, onNetworkError }) => {
   const typeDef = ITEM_TYPES[item.type] ?? ITEM_TYPES.product;
   const TypeIcon = typeDef.icon;
 
@@ -515,7 +519,12 @@ const InfoModal = ({ item, onClose, onSave }) => {
       await productService.updateProductInfo(item._id, payload);
       onSave();
     } catch (err) {
-      setApiError(getErrorMessage(err, "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+      if (isNetworkError(err)) {
+        setApiError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+        onNetworkError?.();
+      } else {
+        setApiError(getErrorMessage(err, "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+      }
     } finally {
       setLoading(false);
     }
@@ -720,10 +729,8 @@ const InfoModal = ({ item, onClose, onSave }) => {
 };
 
 // ── Create Modal ───────────────────────────────────────────────────────────────
-// Create only — name, price, description, initial stock, unit. Editing an
-// existing item is split across InfoModal / PriceModal / StockModal instead.
 
-const CreateItemModal = ({ activeType, onClose, onSave }) => {
+const CreateItemModal = ({ activeType, onClose, onSave, onNetworkError }) => {
   const typeDef = ITEM_TYPES[activeType];
   const TypeIcon = typeDef.icon;
 
@@ -782,7 +789,12 @@ const CreateItemModal = ({ activeType, onClose, onSave }) => {
       await productService.createProduct(payload);
       onSave();
     } catch (err) {
-      setApiError(getErrorMessage(err, "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+      if (isNetworkError(err)) {
+        setApiError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+        onNetworkError?.();
+      } else {
+        setApiError(getErrorMessage(err, "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+      }
     } finally {
       setLoading(false);
     }
@@ -1334,6 +1346,7 @@ export default function Products() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState("");
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [stockFilter, setStockFilter] = useState("all");
@@ -1360,9 +1373,13 @@ export default function Products() {
       setPagination(res.data?.pagination ?? { total: 0, page: 1, limit: LIMIT, totalPages: 0 });
       if (res.data?.totalsByType) setTotalsByType(res.data.totalsByType);
     } catch (err) {
-      const message = getErrorMessage(err, "আইটেম লোড করতে ব্যর্থ।");
-      setError(message);
-      if (err?.response?.status === 403) setPopup({ type: "error", message });
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        const message = getErrorMessage(err, "আইটেম লোড করতে ব্যর্থ।");
+        setError(message);
+        if (err?.response?.status === 403) setPopup({ type: "error", message });
+      }
     } finally {
       setInitialLoading(false);
     }
@@ -1397,8 +1414,12 @@ export default function Products() {
       if (items.length === 1 && page > 1) setPage((p) => p - 1);
       else fetchItems();
     } catch (err) {
-      const message = getErrorMessage(err, "মুছতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।");
-      setPopup({ type: "error", message });
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        const message = getErrorMessage(err, "মুছতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।");
+        setPopup({ type: "error", message });
+      }
     }
   };
 
@@ -1406,6 +1427,8 @@ export default function Products() {
     setModal(null);
     fetchItems();
   };
+
+  const handleNetworkError = () => setOfflinePopup(true);
 
   const grandTotal = Object.values(totalsByType).reduce((a, b) => a + b, 0);
   const atLimit = grandTotal >= LAB_PRODUCT_LIMIT;
@@ -1433,13 +1456,33 @@ export default function Products() {
   return (
     <section className={`min-h-screen px-4 py-6 ${pageGradientBg} font-[Noto_Sans_Bengali,sans-serif]`}>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       {/* Modals */}
       {modal?.type === "create" && (
-        <CreateItemModal activeType={activeType} onClose={() => setModal(null)} onSave={handleSave} />
+        <CreateItemModal
+          activeType={activeType}
+          onClose={() => setModal(null)}
+          onSave={handleSave}
+          onNetworkError={handleNetworkError}
+        />
       )}
-      {modal?.type === "info" && <InfoModal item={modal.item} onClose={() => setModal(null)} onSave={handleSave} />}
-      {modal?.type === "price" && <PriceModal item={modal.item} onClose={() => setModal(null)} onSave={handleSave} />}
+      {modal?.type === "info" && (
+        <InfoModal
+          item={modal.item}
+          onClose={() => setModal(null)}
+          onSave={handleSave}
+          onNetworkError={handleNetworkError}
+        />
+      )}
+      {modal?.type === "price" && (
+        <PriceModal
+          item={modal.item}
+          onClose={() => setModal(null)}
+          onSave={handleSave}
+          onNetworkError={handleNetworkError}
+        />
+      )}
       {modal?.type === "delete" && (
         <Popup
           type="warning"
@@ -1450,7 +1493,14 @@ export default function Products() {
           onClose={closeDeleteModal}
         />
       )}
-      {modal?.type === "stock" && <StockModal item={modal.item} onClose={() => setModal(null)} onSave={handleSave} />}
+      {modal?.type === "stock" && (
+        <StockModal
+          item={modal.item}
+          onClose={() => setModal(null)}
+          onSave={handleSave}
+          onNetworkError={handleNetworkError}
+        />
+      )}
 
       <div className="max-w-2xl mx-auto">
         {/* Page header */}

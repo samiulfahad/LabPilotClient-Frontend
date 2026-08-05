@@ -41,6 +41,9 @@ const getErrorMessage = (err, fallback) => {
   return err?.response?.data?.error ?? fallback;
 };
 
+// ── Network error helper (mirrors CollectionReport et al.) ──────────────────
+const isNetworkError = (error) => error?.isAxiosError === true && !error.response;
+
 // ── Formatters ─────────────────────────────────────────────────────────────────
 
 const fmt = {
@@ -194,7 +197,7 @@ const BreakdownAccordion = ({ breakdown }) => {
 
 // ── Current Bill Card ──────────────────────────────────────────────────────────
 
-const CurrentBillCard = ({ status, onPaySuccess, onPayError }) => {
+const CurrentBillCard = ({ status, onPaySuccess, onPayError, onNetworkError }) => {
   const [paying, setPaying] = useState(false);
 
   if (!status?.hasUnpaidBill) {
@@ -235,7 +238,11 @@ const CurrentBillCard = ({ status, onPaySuccess, onPayError }) => {
       await billingService.pay(billId);
       onPaySuccess();
     } catch (err) {
-      onPayError(getErrorMessage(err, "পেমেন্ট ব্যর্থ হয়েছে। আবার চেষ্টা করুন।"));
+      if (isNetworkError(err)) {
+        onNetworkError?.();
+      } else {
+        onPayError(getErrorMessage(err, "পেমেন্ট ব্যর্থ হয়েছে। আবার চেষ্টা করুন।"));
+      }
     } finally {
       setPaying(false);
     }
@@ -535,6 +542,7 @@ const Billing = () => {
   const [historyError, setHistoryError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
 
   const fetchStatus = async () => {
     setLoadingStatus(true);
@@ -543,6 +551,10 @@ const Billing = () => {
       const res = await billingService.getStatus();
       setStatus(res.data);
     } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+        return;
+      }
       setStatusError(getErrorMessage(err, "বিলিং স্ট্যাটাস লোড করতে ব্যর্থ।"));
     } finally {
       setLoadingStatus(false);
@@ -556,6 +568,10 @@ const Billing = () => {
       const res = await billingService.getHistory();
       setHistory(res.data.bills ?? []);
     } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+        return;
+      }
       setHistoryError(getErrorMessage(err, "বিলিং ইতিহাস লোড করতে ব্যর্থ।"));
     } finally {
       setLoadingHistory(false);
@@ -583,6 +599,8 @@ const Billing = () => {
     setPopup({ type: "error", message });
   };
 
+  const handleNetworkError = () => setOfflinePopup(true);
+
   const totalPaid = history.filter((b) => b.status === "paid").reduce((s, b) => s + (b.totalAmount ?? 0), 0);
   const totalUnpaid = history.filter((b) => b.status === "unpaid").reduce((s, b) => s + (b.totalAmount ?? 0), 0);
   const paidCount = history.filter((b) => b.status === "paid").length;
@@ -593,6 +611,7 @@ const Billing = () => {
       style={{ background: "linear-gradient(to bottom right,#f8fafc,#eff6ff,#eef2ff)" }}
     >
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <div className="max-w-2xl mx-auto">
         {/* ── Page header ────────────────────────────────────────────────── */}
@@ -670,7 +689,12 @@ const Billing = () => {
                 </div>
               </div>
             ) : (
-              <CurrentBillCard status={status} onPaySuccess={handlePaySuccess} onPayError={handlePayError} />
+              <CurrentBillCard
+                status={status}
+                onPaySuccess={handlePaySuccess}
+                onPayError={handlePayError}
+                onNetworkError={handleNetworkError}
+              />
             )}
           </div>
         </div>

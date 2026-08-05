@@ -63,7 +63,7 @@ import { useAuthStore } from "../../store/authStore";
 import Popup from "../../components/popup";
 import LoadingScreen from "../../components/loadingPage";
 
-// ─── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / DeleteInvoices.jsx / ReportDownload.jsx) ──
+// ─── Error helpers ─────────────────────────────────────────────────────────────
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
@@ -71,6 +71,9 @@ const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
+
+// ── Network error helper ─────────────────────────────────────────────────────
+const isNetworkError = (error) => error?.isAxiosError === true && !error.response;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -93,8 +96,6 @@ const ROLE_META = {
 };
 
 // Icon treatment for each known permission key.
-// Falls back to a generic Shield icon for any key the server adds
-// that isn't in this map yet, so new permissions don't break rendering.
 const PERMISSION_ICON_MAP = {
   createInvoice: { icon: FilePlus },
   deleteInvoice: { icon: Trash2 },
@@ -160,6 +161,7 @@ const DeviceIcon = ({ type, className, style }) => {
   if (type === "tablet") return <Tablet className={className} style={style} />;
   return <Monitor className={className} style={style} />;
 };
+
 // ─── Shared input helpers ──────────────────────────────────────────────────────
 
 const inputBase =
@@ -358,7 +360,7 @@ const ModalHeader = ({ icon: Icon, eyebrow, title, subtitle, gradFrom, gradTo, o
 
 // ─── Phone Modal ────────────────────────────────────────────────────────────────
 
-const PhoneModal = ({ onClose, onSuccess }) => {
+const PhoneModal = ({ onClose, onSuccess, onNetworkError }) => {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -373,7 +375,11 @@ const PhoneModal = ({ onClose, onSuccess }) => {
       await accountService.changePhone({ phone: phone.trim(), currentPassword: password });
       onSuccess("ফোন নম্বর সফলভাবে পরিবর্তন হয়েছে!");
     } catch (err) {
-      setError(getErrorMessage(err, "ফোন নম্বর পরিবর্তন করতে ব্যর্থ"));
+      if (isNetworkError(err)) {
+        onNetworkError?.();
+      } else {
+        setError(getErrorMessage(err, "ফোন নম্বর পরিবর্তন করতে ব্যর্থ"));
+      }
     } finally {
       setLoading(false);
     }
@@ -445,7 +451,7 @@ const PhoneModal = ({ onClose, onSuccess }) => {
 
 // ─── Email Modal ────────────────────────────────────────────────────────────────
 
-const EmailModal = ({ onClose, onSuccess, currentEmail }) => {
+const EmailModal = ({ onClose, onSuccess, currentEmail, onNetworkError }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -461,7 +467,11 @@ const EmailModal = ({ onClose, onSuccess, currentEmail }) => {
       await accountService.changeEmail({ email: trimmed, currentPassword: password });
       onSuccess(currentEmail ? "ইমেইল সফলভাবে পরিবর্তন হয়েছে!" : "ইমেইল সফলভাবে যুক্ত হয়েছে!");
     } catch (err) {
-      setError(getErrorMessage(err, "ইমেইল পরিবর্তন করতে ব্যর্থ"));
+      if (isNetworkError(err)) {
+        onNetworkError?.();
+      } else {
+        setError(getErrorMessage(err, "ইমেইল পরিবর্তন করতে ব্যর্থ"));
+      }
     } finally {
       setLoading(false);
     }
@@ -532,7 +542,7 @@ const EmailModal = ({ onClose, onSuccess, currentEmail }) => {
 
 // ─── Password Modal ─────────────────────────────────────────────────────────────
 
-const PasswordModal = ({ onClose, onSuccess }) => {
+const PasswordModal = ({ onClose, onSuccess, onNetworkError }) => {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -549,7 +559,11 @@ const PasswordModal = ({ onClose, onSuccess }) => {
       await accountService.changePassword({ currentPassword: current, newPassword: next });
       onSuccess("পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে!");
     } catch (err) {
-      setError(getErrorMessage(err, "পাসওয়ার্ড পরিবর্তন করতে ব্যর্থ"));
+      if (isNetworkError(err)) {
+        onNetworkError?.();
+      } else {
+        setError(getErrorMessage(err, "পাসওয়ার্ড পরিবর্তন করতে ব্যর্থ"));
+      }
     } finally {
       setLoading(false);
     }
@@ -776,8 +790,11 @@ const Account = () => {
   const [logoutAllBusy, setLogoutAllBusy] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← separate offline state
   const [modal, setModal] = useState(null); // "phone" | "email" | "password" | null
   const [confirmModal, setConfirmModal] = useState(null);
+
+  const handleNetworkError = () => setOfflinePopup(true);
 
   useEffect(() => {
     fetchAccount();
@@ -792,6 +809,10 @@ const Account = () => {
       const res = await accountService.getMe();
       setAccount(res.data);
     } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+        return;
+      }
       setAcctError(getErrorMessage(err, "অ্যাকাউন্ট লোড করতে ব্যর্থ।"));
       setPopup({ type: "error", message: getErrorMessage(err, "অ্যাকাউন্ট লোড করতে ব্যর্থ।") });
     } finally {
@@ -806,6 +827,10 @@ const Account = () => {
       const res = await accountService.getSessions();
       setSessions(res.data.sessions ?? []);
     } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+        return;
+      }
       setSessError(getErrorMessage(err, "সেশন তালিকা লোড করতে ব্যর্থ হয়েছে"));
     } finally {
       setLoadingSess(false);
@@ -819,6 +844,10 @@ const Account = () => {
       const res = await accountService.getStaffPermissions();
       setPermissionsList(res.data.permissions ?? []);
     } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+        return;
+      }
       setPermError(getErrorMessage(err, "অনুমতির তালিকা লোড করতে ব্যর্থ হয়েছে"));
     } finally {
       setLoadingPerms(false);
@@ -832,7 +861,11 @@ const Account = () => {
       setSessions((prev) => prev.filter((s) => s.deviceId !== deviceId));
       setPopup({ type: "success", message: "সেশন সফলভাবে লগআউট হয়েছে।" });
     } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "সেশন লগআউট করতে ব্যর্থ।") });
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "সেশন লগআউট করতে ব্যর্থ।") });
+      }
     } finally {
       setLoggingOut(false);
       setConfirmModal(null);
@@ -863,9 +896,6 @@ const Account = () => {
   const perms = account?.permissions ?? {};
   const isAdmin = role === "admin" || role === "supportAdmin";
 
-  // Only show permissions that are (a) applicable to this lab type
-  // (hospitalOnly permissions hidden for non-hospital labs) and
-  // (b) actually granted to this staff member.
   const visiblePermissions = permissionsList.filter(
     (p) => (p.for !== "hospitalOnly" || labType === "hospital") && perms[p.key],
   );
@@ -879,16 +909,32 @@ const Account = () => {
       style={{ background: "linear-gradient(to bottom right,#f8fafc,#eff6ff,#eef2ff)" }}
     >
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       {modal === "phone" &&
-        createPortal(<PhoneModal onClose={() => setModal(null)} onSuccess={handleSuccess} />, document.body)}
+        createPortal(
+          <PhoneModal onClose={() => setModal(null)} onSuccess={handleSuccess} onNetworkError={handleNetworkError} />,
+          document.body,
+        )}
       {modal === "email" &&
         createPortal(
-          <EmailModal onClose={() => setModal(null)} onSuccess={handleSuccess} currentEmail={account?.email} />,
+          <EmailModal
+            onClose={() => setModal(null)}
+            onSuccess={handleSuccess}
+            currentEmail={account?.email}
+            onNetworkError={handleNetworkError}
+          />,
           document.body,
         )}
       {modal === "password" &&
-        createPortal(<PasswordModal onClose={() => setModal(null)} onSuccess={handleSuccess} />, document.body)}
+        createPortal(
+          <PasswordModal
+            onClose={() => setModal(null)}
+            onSuccess={handleSuccess}
+            onNetworkError={handleNetworkError}
+          />,
+          document.body,
+        )}
 
       {confirmModal &&
         createPortal(

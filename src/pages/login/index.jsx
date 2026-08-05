@@ -15,6 +15,10 @@ import {
   Loader2,
   ShieldCheck,
 } from "lucide-react";
+import Popup from "../../components/popup"; // new import
+
+// ── Axios‑native network error detection (same as other pages) ───────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
 
 /* ─── Icon input — placeholder doubles as the label ──────────────────────── */
 const IconInput = ({ icon: Icon, error, rightSlot, className = "", ...props }) => (
@@ -114,6 +118,9 @@ export default function Login() {
   // Resend timer
   const [resendTimer, setResendTimer] = useState(0);
 
+  // Offline popup state
+  const [offlinePopup, setOfflinePopup] = useState(false);
+
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 60);
     return () => clearTimeout(t);
@@ -129,8 +136,8 @@ export default function Login() {
   // ── Login ──
   const validateLogin = () => {
     const e = {};
-    if (!/^\d{4}$/.test(labKey)) e.labKey = "Must be 4 digits";
-    if (phone.length < 11) e.phone = "Enter 11 digits";
+    if (!/^\d{1,5}$/.test(labKey)) e.labKey = "1 to 5 digits";
+    if (!/^01\d{9}$/.test(phone)) e.phone = "Enter valid 11-digit number";
     if (password.length < 6) e.password = "Short password";
     setErrors(e);
     return !Object.keys(e).length;
@@ -140,16 +147,25 @@ export default function Login() {
     if (!validateLogin()) return;
     setLoginError("");
     setLoading(true);
-    const result = await login(labKey, phone, password);
-    setLoading(false);
-    if (result.success) navigate("/");
-    else setLoginError(result.message);
+    try {
+      const result = await login(labKey, phone, password);
+      setLoading(false);
+      if (result.success) navigate("/");
+      else setLoginError(result.message);
+    } catch (err) {
+      setLoading(false);
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setLoginError("Login failed. Please try again.");
+      }
+    }
   };
 
   // ── Forgot password — request OTP ──
   const handleRequestOtp = async () => {
-    if (!/^\d{4}$/.test(resetLabKey)) return setResetError("Lab Key must be 4 digits");
-    if (resetPhone.length < 11) return setResetError("Enter 11 digit phone number");
+    if (!/^\d{1,5}$/.test(resetLabKey)) return setResetError("Lab Key must be 1 to 5 digits");
+    if (!/^01\d{9}$/.test(resetPhone)) return setResetError("Enter valid 11-digit phone number");
     setResetError("");
     setLoading(true);
     try {
@@ -160,8 +176,12 @@ export default function Login() {
       setResendTimer(120);
       setView("otp");
     } catch (err) {
-      const msg = err?.response?.data?.error;
-      setResetError(msg || "Something went wrong. Please try again.");
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        const msg = err?.response?.data?.error;
+        setResetError(msg || "Something went wrong. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -179,8 +199,12 @@ export default function Login() {
       setResendTimer(120);
       setOtp("");
     } catch (err) {
-      const msg = err?.response?.data?.error;
-      setOtpError(msg || "Failed to resend OTP.");
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        const msg = err?.response?.data?.error;
+        setOtpError(msg || "Failed to resend OTP.");
+      }
     } finally {
       setLoading(false);
     }
@@ -201,8 +225,29 @@ export default function Login() {
       });
       setView("success");
     } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+        return;
+      }
+      const status = err?.response?.status;
       const msg = err?.response?.data?.error;
-      setOtpError(msg || "Invalid or expired OTP. Please try again.");
+      const attemptsLeft = err?.response?.data?.attemptsLeft;
+
+      if (status === 429) {
+        // OTP is dead server-side — don't leave a live-looking form up.
+        setOtp("");
+        setNewPassword("");
+        setResendTimer(0);
+        setResetError(msg || "Too many incorrect attempts. Please request a new OTP.");
+        setView("reset");
+        return;
+      }
+
+      setOtpError(
+        typeof attemptsLeft === "number"
+          ? `${msg || "Invalid or expired OTP"} — ${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} left`
+          : msg || "Invalid or expired OTP. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -227,6 +272,9 @@ export default function Login() {
         fontFamily: "'Inter', system-ui, sans-serif",
       }}
     >
+      {/* Offline popup */}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
+
       {/* Background blobs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div
@@ -302,7 +350,7 @@ export default function Login() {
                   inputMode="numeric"
                   placeholder="Lab ID"
                   value={labKey}
-                  onChange={(e) => setLabKey(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  onChange={(e) => setLabKey(e.target.value.replace(/\D/g, "").slice(0, 5))}
                 />
 
                 <IconInput
@@ -387,7 +435,7 @@ export default function Login() {
                   inputMode="numeric"
                   placeholder="Lab ID"
                   value={resetLabKey}
-                  onChange={(e) => setResetLabKey(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  onChange={(e) => setResetLabKey(e.target.value.replace(/\D/g, "").slice(0, 5))}
                 />
 
                 <IconInput

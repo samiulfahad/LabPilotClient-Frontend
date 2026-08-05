@@ -121,6 +121,9 @@ const toInputDate = (dateStr) => {
   return isNaN(d) ? "" : d.toISOString().slice(0, 10);
 };
 
+// ── Axios‑native network error detection (same as all other pages) ──────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
+
 // ─── Color tokens (shared LabPilot palette) ────────────────────────────────────
 
 const TEAL = {
@@ -261,7 +264,7 @@ const BridgeDivider = () => (
 
 // ─── Meta Modal (dates + created / edited / added info) ───────────────────────
 
-const MetaModal = ({ record, test, onClose, onSaved }) => {
+const MetaModal = ({ record, test, onClose, onSaved, onNetworkError }) => {
   const added = test.addedAt ? formatDateTime(test.addedAt) : null;
   const created = test.completedAt ? formatDateTime(test.completedAt) : null;
   const edited = test.updatedAt ? formatDateTime(test.updatedAt) : null;
@@ -300,8 +303,13 @@ const MetaModal = ({ record, test, onClose, onSaved }) => {
       }
       onSaved(test.testId, test.addedAt, { sampleCollectionDate: sampleDate || null, reportDate: reportDate || null });
       setSaved(true);
-    } catch {
-      setError("তারিখ সেভ করা সম্ভব হয়নি");
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+        onNetworkError?.();
+      } else {
+        setError("তারিখ সেভ করা সম্ভব হয়নি");
+      }
     } finally {
       setSaving(false);
     }
@@ -745,7 +753,13 @@ const RecordDetail = ({ record, onDatesSaved }) => {
       )}
 
       {metaTest && (
-        <MetaModal record={record} test={metaTest} onClose={() => setMetaTest(null)} onSaved={onDatesSaved} />
+        <MetaModal
+          record={record}
+          test={metaTest}
+          onClose={() => setMetaTest(null)}
+          onSaved={onDatesSaved}
+          onNetworkError={() => setNetworkError(true)} // will be defined in parent
+        />
       )}
     </div>
   );
@@ -760,6 +774,7 @@ const Report = () => {
   const [popup, setPopup] = useState(null);
   const [notFound, setNotFound] = useState(false);
   const [invalidId, setInvalidId] = useState(false);
+  const [networkError, setNetworkError] = useState(false); // new
 
   const location = useLocation();
 
@@ -784,8 +799,13 @@ const Report = () => {
         setRecord(normalizeIndoor(res.data));
       }
     } catch (err) {
-      if (err?.response?.status === 404) setNotFound(true);
-      else setPopup({ type: "error", message: "Something went wrong. Please try again." });
+      if (isNetworkError(err)) {
+        setNetworkError(true);
+      } else if (err?.response?.status === 404) {
+        setNotFound(true);
+      } else {
+        setPopup({ type: "error", message: "Something went wrong. Please try again." });
+      }
     } finally {
       setSearching(false);
     }
@@ -829,6 +849,7 @@ const Report = () => {
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6">
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {networkError && <Popup type="offline" onClose={() => setNetworkError(false)} />}
 
       <style>{`
         @keyframes fadeUp {

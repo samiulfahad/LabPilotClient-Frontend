@@ -84,8 +84,6 @@ const recordStamp = (start, end) => {
   return generatedStamp(end);
 };
 
-// ── Error helpers (mirrors ManageReferrer.jsx) ─────────────────────────────────
-
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
 const getErrorMessage = (err, fallback) => {
@@ -93,8 +91,10 @@ const getErrorMessage = (err, fallback) => {
   return err?.response?.data?.error ?? fallback;
 };
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
+// ── Axios‑specific network error detection ──────────────────────────────────
+const isNetworkError = (error) => error?.isAxiosError === true && !error.response;
 
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 const SkeletonReceipt = () => (
   <div className="bg-white border border-[#E3E0D6] rounded-lg overflow-hidden animate-pulse">
     <div className="h-[3px] bg-[#E3E0D6]" />
@@ -117,7 +117,6 @@ const SkeletonReceipt = () => (
 );
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
-
 const ReceiptLine = ({ label, value, tone = "#1C1F1E", icon: Icon, bold = false }) => (
   <div className="flex items-baseline gap-3 py-2.5">
     <span
@@ -148,8 +147,6 @@ const LedgerCell = ({ icon: Icon, label, value, accent, sub }) => (
   </div>
 );
 
-// Clickable variant of LedgerCell — used for drill-down sections that expand
-// an inline list below when tapped.
 const ClickableLedgerCell = ({ icon: Icon, label, value, accent, open, onClick }) => (
   <button
     type="button"
@@ -202,8 +199,6 @@ const SectionDivider = ({ label }) => (
   </div>
 );
 
-// ─── Summary primitives ───────────────────────────────────────────────────────
-
 const SummarySection = ({ title, icon: Icon, accent, rows, badge }) => (
   <div className="border border-[#E3E0D6] rounded-sm overflow-hidden mb-4 last:mb-0">
     <div
@@ -230,8 +225,6 @@ const SummarySection = ({ title, icon: Icon, accent, rows, badge }) => (
     </div>
   </div>
 );
-
-// ─── Referrer commission toggle (%-based vs test-wise) ────────────────────────
 
 const CommissionToggle = ({ view, onChange, accent = "#B5772A" }) => (
   <div className="flex items-center gap-1 shrink-0 no-print">
@@ -261,8 +254,6 @@ const CommissionToggle = ({ view, onChange, accent = "#B5772A" }) => (
     </button>
   </div>
 );
-
-// ─── Stamp ────────────────────────────────────────────────────────────────────
 
 const SEAL_BLUE = "#1E4FA0";
 const SEAL_RED = "#C0312B";
@@ -307,25 +298,19 @@ const RoundSeal = ({ dateLabel, variant = "outdoor" }) => {
   );
 };
 
-// ─── Color tokens ─────────────────────────────────────────────────────────────
-
 const TEAL = "#0F6E5C";
 const OCHRE = "#B5772A";
 const RUST = "#B23A2E";
 const INDIGO = "#3730A3";
 const VIOLET = "#7C3AED";
 
-// ─── Discount patient drill-down (inline) ─────────────────────────────────────
-
 const DiscountPatientsInline = ({ loading, patients }) => (
   <div className="border border-t-0 border-[#E3D9C6] rounded-b-sm bg-[#FFFDF9] overflow-hidden">
     <div className="max-h-72 overflow-y-auto px-4 divide-y divide-[#F0EEE6]">
       {loading && <p className="py-6 text-center text-sm text-[#8A8F89] font-noto">লোড হচ্ছে...</p>}
-
       {!loading && (!patients || patients.length === 0) && (
         <p className="py-6 text-center text-sm text-[#8A8F89] font-noto">এই সময়ে কোনো ডিসকাউন্ট প্রয়োগ হয়নি।</p>
       )}
-
       {!loading &&
         patients?.map((p) => (
           <div key={p._id} className="py-3 flex items-center justify-between gap-3">
@@ -344,19 +329,15 @@ const DiscountPatientsInline = ({ loading, patients }) => (
   </div>
 );
 
-// ─── Admission / release patient drill-down (inline) ─────────────────────────
-
 const AdmissionPatientsInline = ({ loading, patients, type }) => (
   <div className="border border-t-0 border-[#E3E0D6] rounded-b-sm bg-[#FFFDF9] overflow-hidden">
     <div className="max-h-72 overflow-y-auto px-4 divide-y divide-[#F0EEE6]">
       {loading && <p className="py-6 text-center text-sm text-[#8A8F89] font-noto">লোড হচ্ছে...</p>}
-
       {!loading && (!patients || patients.length === 0) && (
         <p className="py-6 text-center text-sm text-[#8A8F89] font-noto">
           {type === "admitted" ? "এই সময়ে কোনো রোগী ভর্তি হয়নি।" : "এই সময়ে কোনো রোগী ছাড়প্রাপ্ত হয়নি।"}
         </p>
       )}
-
       {!loading &&
         patients?.map((p) => (
           <div key={p._id} className="py-3 flex items-center justify-between gap-3">
@@ -381,17 +362,13 @@ const AdmissionPatientsInline = ({ loading, patients, type }) => (
   </div>
 );
 
-// ─── Outstanding (AR) patient drill-down (inline) ────────────────────────────
-
 const OutstandingPatientsInline = ({ loading, patients }) => (
   <div className="border border-t-0 border-[#E3D5D2] rounded-b-sm bg-[#FFFBFA] overflow-hidden">
     <div className="max-h-72 overflow-y-auto px-4 divide-y divide-[#F0EEE6]">
       {loading && <p className="py-6 text-center text-sm text-[#8A8F89] font-noto">লোড হচ্ছে...</p>}
-
       {!loading && (!patients || patients.length === 0) && (
         <p className="py-6 text-center text-sm text-[#8A8F89] font-noto">বর্তমানে কোনো রোগীর বকেয়া নেই।</p>
       )}
-
       {!loading &&
         patients?.map((p) => (
           <div key={p._id} className="py-3 flex items-center justify-between gap-3">
@@ -412,17 +389,13 @@ const OutstandingPatientsInline = ({ loading, patients }) => (
   </div>
 );
 
-// ─── Deleted patient drill-down (IPD, inline) ─────────────────────────────────
-
 const DeletedPatientsInline = ({ loading, patients }) => (
   <div className="border border-t-0 border-[#E3D9D5] rounded-b-sm bg-[#FFFBFA] overflow-hidden">
     <div className="max-h-72 overflow-y-auto px-4 divide-y divide-[#F0EEE6]">
       {loading && <p className="py-6 text-center text-sm text-[#8A8F89] font-noto">লোড হচ্ছে...</p>}
-
       {!loading && (!patients || patients.length === 0) && (
         <p className="py-6 text-center text-sm text-[#8A8F89] font-noto">এই সময়ে কোনো রোগী ডিলিট করা হয়নি।</p>
       )}
-
       {!loading &&
         patients?.map((p) => (
           <div key={p._id} className="py-3 flex items-center justify-between gap-3">
@@ -459,17 +432,13 @@ const DeletedPatientsInline = ({ loading, patients }) => (
   </div>
 );
 
-// ─── Deleted invoice drill-down (Outdoor, inline) ─────────────────────────────
-
 const DeletedInvoicesInline = ({ loading, invoices }) => (
   <div className="border border-t-0 border-[#E3D9D5] rounded-b-sm bg-[#FFFBFA] overflow-hidden">
     <div className="max-h-72 overflow-y-auto px-4 divide-y divide-[#F0EEE6]">
       {loading && <p className="py-6 text-center text-sm text-[#8A8F89] font-noto">লোড হচ্ছে...</p>}
-
       {!loading && (!invoices || invoices.length === 0) && (
         <p className="py-6 text-center text-sm text-[#8A8F89] font-noto">এই সময়ে কোনো ইনভয়েস ডিলিট করা হয়নি।</p>
       )}
-
       {!loading &&
         invoices?.map((inv) => (
           <div key={inv._id} className="py-3 flex items-center justify-between gap-3">
@@ -504,8 +473,6 @@ const DeletedInvoicesInline = ({ loading, invoices }) => (
   </div>
 );
 
-// ─── Category revenue breakdown bars ─────────────────────────────────────────
-
 const CATEGORY_LABELS = { test: "পরীক্ষা", medicine: "মেডিসিন", product: "পণ্য", other: "অন্যান্য" };
 
 const CategoryBreakdown = ({ breakdown }) => {
@@ -533,8 +500,6 @@ const CategoryBreakdown = ({ breakdown }) => {
   );
 };
 
-// ─── Payment-mode breakdown (compact inline "Cash 10000 | bKash 5000 | Others 3000" line) ───────
-
 const PAYMENT_MODE_LABELS = {
   cash: "Cash",
   bkash: "bKash",
@@ -548,7 +513,7 @@ const PaymentModeBreakdown = ({ breakdown }) => {
   const b = breakdown ?? {};
   const entries = Object.entries(PAYMENT_MODE_LABELS)
     .map(([key, label]) => ({ key, label, amount: b[key] ?? 0 }))
-    .filter((e) => e.amount > 0); // hide zero-amount modes
+    .filter((e) => e.amount > 0);
 
   if (entries.length === 0) return null;
 
@@ -569,13 +534,12 @@ const PaymentModeBreakdown = ({ breakdown }) => {
   );
 };
 
-// ─── Outdoor cashmemo receipt ─────────────────────────────────────────────────
-
 const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddress, labPhone, isHospital }) => {
   const d = summary ?? {};
   const e = expenseSummary ?? {};
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
-  const grossCounterAmount = (d.initial ?? 0) - (d.labAdjustment ?? 0) - (d.referrerDiscount ?? 0);
+  const grossCounterAmount =
+    (d.initial ?? 0) - (d.labAdjustment ?? 0) - (d.referrerDiscount ?? 0) + (d.totalInvoiceFee ?? 0);
   const eyebrowLabel = isHospital ? "বহির্বিভাগ ক্যাশ মেমু" : "ক্যাশ মেমু";
 
   const [commissionView, setCommissionView] = useState("percentage");
@@ -641,6 +605,7 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
           <ReceiptLine label="মোট বিক্রি" value={`৳${fmt(d.initial)}`} bold />
           <ReceiptLine label="ল্যাব ডিস্কাউন্ট" value={`− ৳${fmt(d.labAdjustment)}`} tone={OCHRE} />
           <ReceiptLine label="রেফারার ডিস্কাউন্ট" value={`− ৳${fmt(d.referrerDiscount)}`} tone={OCHRE} />
+          <ReceiptLine label="অনলাইন ইনভয়েস ফি" value={`+ ৳${fmt(d.totalInvoiceFee)}`} tone={TEAL} />
         </div>
 
         <div className="mt-4 border border-[#E3E0D6] rounded-sm overflow-hidden">
@@ -648,7 +613,7 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
             className="flex items-center justify-between px-4 py-3 bg-[#F5F4EF] border-l-4"
             style={{ borderColor: TEAL }}
           >
-            <p className="text-sm font-semibold text-[#1C1F1E] font-noto">সকল ডিসকাউন্ট বাদে আয় (নিট টোটাল)</p>
+            <p className="text-sm font-semibold text-[#1C1F1E] font-noto">সকল ডিসকাউন্ট বাদে ও ফি সহ আয় (নিট টোটাল)</p>
             <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums" style={{ color: TEAL }}>
               ৳{fmt(grossCounterAmount)}
             </p>
@@ -738,8 +703,6 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
     </div>
   );
 };
-
-// ─── Indoor (IPD) revenue-cycle receipt ──────────────────────────────────────
 
 const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) => {
   const d = summary ?? {};
@@ -1065,8 +1028,6 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
   );
 };
 
-// ─── Summary receipt (Outdoor/Earnings + Indoor + Expense) ──────────────────
-
 const SummaryReceipt = ({
   isHospital,
   outdoorSummary,
@@ -1085,11 +1046,13 @@ const SummaryReceipt = ({
   const [commissionView, setCommissionView] = useState("percentage");
   const outdoorCommissionValue = commissionView === "percentage" ? o.referrerCommission : o.referrerCommissionTestWise;
 
-  const outdoorGrossCounterAmount = (o.initial ?? 0) - (o.labAdjustment ?? 0) - (o.referrerDiscount ?? 0);
+  const outdoorGrossCounterAmount =
+    (o.initial ?? 0) - (o.labAdjustment ?? 0) - (o.referrerDiscount ?? 0) + (o.totalInvoiceFee ?? 0);
 
   const outdoorRows = [
     { label: "মোট বিলড", value: `৳${fmt(o.initial)}`, bold: true },
-    { label: "সকল ডিসকাউন্ট বাদে নিট টোটাল", value: `৳${fmt(outdoorGrossCounterAmount)}`, bold: true },
+    { label: "অনলাইন ইনভয়েস ফি", value: `+ ৳${fmt(o.totalInvoiceFee)}`, tone: TEAL },
+    { label: "সকল ডিসকাউন্ট ও ফি সহ নিট টোটাল", value: `৳${fmt(outdoorGrossCounterAmount)}`, bold: true },
     { label: "আদায়", value: `৳${fmt(o.totalPaid)}`, tone: TEAL },
     { label: "বাকি", value: `৳${fmt(o.totalDue)}`, tone: RUST },
   ];
@@ -1164,8 +1127,6 @@ const SummaryReceipt = ({
   );
 };
 
-// ─── Tab button ───────────────────────────────────────────────────────────────
-
 const TabBtn = ({ active, onClick, children, accent = "#0F6E5C" }) => (
   <button
     onClick={onClick}
@@ -1179,17 +1140,14 @@ const TabBtn = ({ active, onClick, children, accent = "#0F6E5C" }) => (
   </button>
 );
 
-// ─── Main component ───────────────────────────────────────────────────────────
-
 const CashMemo = () => {
   const navigate = useNavigate();
   const lab = useAuthStore((s) => s.lab);
   const user = useAuthStore((s) => s.user);
   const isHospital = user?.type === "hospital";
 
-  // ─── PERMISSION CHECK (before any hooks) ──────────────────────────────────
   const isAdmin = user?.role === "admin";
-  const hasAccess = isAdmin || user?.permissions?.cashmemo
+  const hasAccess = isAdmin || user?.permissions?.cashmemo;
   if (!hasAccess) {
     return <Popup type="denied" message="ক্যাশমেমু দেখার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />;
   }
@@ -1206,10 +1164,9 @@ const CashMemo = () => {
   const [expenseLoading, setExpenseLoading] = useState(true);
 
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← separate offline state
   const [timeRange, setTimeRange] = useState(null);
 
-  // When true, closing the popup redirects home instead of just dismissing —
-  // mirrors DailyReport's "no permission" lock treatment for 403s.
   const [permissionDenied, setPermissionDenied] = useState(false);
 
   const loadedForRangeRef = useRef({ outdoor: false, indoor: false, summary: false });
@@ -1250,14 +1207,17 @@ const CashMemo = () => {
     }
   };
 
-  // ── Updated fetch functions with 403 → "denied" popup ─────────────────────
-
+  // ── Fetch functions using Axios network‑error detection ─────────────────
   const fetchOutdoor = async (range) => {
     try {
       setOutdoorLoading(true);
       const res = await cashmemoService.getSummary({ startDate: range.start, endDate: range.end });
       setOutdoorSummary(res.data);
     } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+        return;
+      }
       const isPermissionDenied = err?.response?.status === 403;
       if (isPermissionDenied) setPermissionDenied(true);
       setPopup({
@@ -1275,6 +1235,10 @@ const CashMemo = () => {
       const res = await cashmemoService.getIpdSummary({ startDate: range.start, endDate: range.end });
       setIndoorSummary(res.data);
     } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+        return;
+      }
       const isPermissionDenied = err?.response?.status === 403;
       if (isPermissionDenied) setPermissionDenied(true);
       setPopup({
@@ -1292,6 +1256,10 @@ const CashMemo = () => {
       const res = await cashmemoService.getExpenseSummary({ startDate: range.start, endDate: range.end });
       setExpenseSummary(res.data);
     } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+        return;
+      }
       const isPermissionDenied = err?.response?.status === 403;
       if (isPermissionDenied) setPermissionDenied(true);
       setPopup({
@@ -1356,6 +1324,7 @@ const CashMemo = () => {
           }}
         />
       )}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <style>{`
         @page {
@@ -1469,7 +1438,7 @@ const CashMemo = () => {
 
         <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-4 pb-6 no-print font-noto">
           {activeTab === "outdoor"
-            ? "নিট আয় = মোট পরিমাণ − ল্যাব সমন্বয় − রেফারার ডিস্কাউন্ট − কমিশন"
+            ? "নিট আয় = মোট পরিমাণ − ল্যাব সমন্বয় − রেফারার ডিস্কাউন্ট − কমিশন + অনলাইন ইনভয়েস ফি"
             : activeTab === "indoor"
               ? "মোট বিল = এই সময়কালে যোগ করা আইটেম | বকেয়া তালিকা = বর্তমান মুহূর্তের হিসাব | ডিলিট = ডিলিটের সময় অনুযায়ী"
               : "সারসংক্ষেপ = সকল বিভাগের বিলিং, আদায় ও খরচের একত্রিত চিত্র"}

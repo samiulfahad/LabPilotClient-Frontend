@@ -1,8 +1,8 @@
 import React from "react";
-import { CheckCircle2, XCircle, AlertTriangle, X } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, X, WifiOff } from "lucide-react";
 import Portal from "../Portal";
 
-// Four types: success, error, warning (confirm/cancel), denied (info-only)
+// ── typeConfig – now includes "offline" ──────────────────────────────────
 const typeConfig = {
   success: {
     icon: CheckCircle2,
@@ -41,14 +41,26 @@ const typeConfig = {
     buttonColor: "bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700",
     singleButton: true,
   },
+  // ── NEW TYPE ──────────────────────────────────────────────────────────
+  offline: {
+    icon: WifiOff,
+    title: "No Internet",
+    titleColor: "text-slate-600",
+    iconBgColor: "bg-gradient-to-br from-slate-100 to-gray-100",
+    iconColor: "text-slate-500",
+    buttonColor: "bg-gradient-to-r from-slate-600 to-gray-600 hover:from-slate-700 hover:to-gray-700",
+    singleButton: true,
+    defaultMessage: "ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন", // ← built‑in message
+  },
 };
 
-// Matching ring/focus colors keyed by type, so buttons and icon halo stay in sync with the config above
+// ── ring colors – also extended ──────────────────────────────────────────
 const ringColor = {
   success: "ring-green-100 focus:ring-green-200",
   error: "ring-red-100 focus:ring-red-200",
   warning: "ring-yellow-100 focus:ring-yellow-200",
   denied: "ring-amber-100 focus:ring-amber-200",
+  offline: "ring-slate-100 focus:ring-slate-200", // new
 };
 
 const Popup = ({
@@ -62,6 +74,9 @@ const Popup = ({
   const config = typeConfig[type];
   const IconComponent = config.icon;
   const [isClosing, setIsClosing] = React.useState(false);
+
+  // Use explicit message, or the type’s default message, or empty string.
+  const displayMessage = message || config.defaultMessage || "";
 
   const handleConfirm = () => {
     onConfirm?.();
@@ -91,6 +106,8 @@ const Popup = ({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [config.singleButton]);
 
+  const ringClass = ringColor[type] || "ring-slate-100 focus:ring-slate-200";
+
   return (
     <Portal>
       <div
@@ -116,7 +133,7 @@ const Popup = ({
           </button>
 
           <div className="px-8 pt-9 pb-8 text-center">
-            {/* Icon with halo ring instead of flat block */}
+            {/* Icon */}
             <div className="flex justify-center mb-5">
               <div
                 className={`relative flex items-center justify-center w-16 h-16 rounded-full ${config.iconBgColor} ring-8 ring-slate-50 transition-all duration-300 ${
@@ -142,7 +159,7 @@ const Popup = ({
                 isClosing ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"
               }`}
             >
-              {message}
+              {displayMessage}
             </p>
 
             {/* Buttons */}
@@ -154,12 +171,10 @@ const Popup = ({
               {config.singleButton ? (
                 <button
                   onClick={handleClose}
-                  className={`
-                    w-full py-3 px-6 text-white text-[15px] font-semibold rounded-2xl
-                    transition-all duration-200 focus:outline-none focus:ring-4 ${ringColor[type]}
+                  className={`w-full py-3 px-6 text-white text-[15px] font-semibold rounded-2xl
+                    transition-all duration-200 focus:outline-none focus:ring-4 ${ringClass}
                     shadow-md shadow-slate-900/10 hover:shadow-lg transform hover:scale-[1.015] active:scale-[0.98]
-                    ${config.buttonColor}
-                  `}
+                    ${config.buttonColor}`}
                   autoFocus
                 >
                   OK
@@ -179,12 +194,10 @@ const Popup = ({
                   </button>
                   <button
                     onClick={handleConfirm}
-                    className={`
-                      flex-1 py-3 px-6 text-white text-[15px] font-semibold rounded-2xl
-                      transition-all duration-200 focus:outline-none focus:ring-4 ${ringColor[type]}
+                    className={`flex-1 py-3 px-6 text-white text-[15px] font-semibold rounded-2xl
+                      transition-all duration-200 focus:outline-none focus:ring-4 ${ringClass}
                       shadow-md shadow-slate-900/10 hover:shadow-lg transform hover:scale-[1.015] active:scale-[0.98]
-                      ${config.confirmButtonColor}
-                    `}
+                      ${config.confirmButtonColor}`}
                     autoFocus
                   >
                     {confirmText}

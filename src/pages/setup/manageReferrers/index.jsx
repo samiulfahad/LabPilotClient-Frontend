@@ -82,6 +82,9 @@ const getErrorMessage = (err, fallback) => {
   return err?.response?.data?.error ?? fallback;
 };
 
+// ── Axios‑native network error detection (same as all other pages) ──────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
+
 // ── Shared input helpers ───────────────────────────────────────────────────────
 const inputBase =
   "w-full outline-none transition-all rounded-xl border-[1.5px] border-[#E2E8F0] bg-white text-[#0F172A] font-['IBM_Plex_Mono',monospace]";
@@ -736,6 +739,7 @@ const ManageReferrer = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [popup, setPopup] = useState(null);
+  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
   const [formModal, setFormModal] = useState(null);
   const [formApiError, setFormApiError] = useState("");
   const [commissionModal, setCommissionModal] = useState(null);
@@ -748,7 +752,11 @@ const ManageReferrer = () => {
       const res = await referrerService.getAll();
       setReferrers(res.data);
     } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "রেফারার লোড করতে ব্যর্থ।") });
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "রেফারার লোড করতে ব্যর্থ।") });
+      }
     } finally {
       setInitialLoading(false);
     }
@@ -823,16 +831,28 @@ const ManageReferrer = () => {
       setPopup({ type: "success", message: isEdit ? "রেফারার আপডেট হয়েছে।" : "রেফারার নিবন্ধিত হয়েছে।" });
       setFormModal(null);
     } catch (err) {
-      setFormApiError(getErrorMessage(err, "সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setFormApiError(getErrorMessage(err, "সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+      }
     } finally {
       setSaving(false);
     }
   };
 
   const handleCommissionSaved = async () => {
-    setCommissionModal(null);
-    await loadReferrers();
-    setPopup({ type: "success", message: "কমিশন আপডেট হয়েছে।" });
+    try {
+      setCommissionModal(null);
+      await loadReferrers();
+      setPopup({ type: "success", message: "কমিশন আপডেট হয়েছে।" });
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "রিফ্রেশ ব্যর্থ হয়েছে।") });
+      }
+    }
   };
 
   const handleDelete = async (_id) => {
@@ -841,7 +861,11 @@ const ManageReferrer = () => {
       setReferrers((prev) => prev.filter((r) => r._id !== _id));
       setPopup({ type: "success", message: "রেফারার মুছে ফেলা হয়েছে।" });
     } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "মুছতে ব্যর্থ।") });
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "মুছতে ব্যর্থ।") });
+      }
     }
   };
 
@@ -850,6 +874,7 @@ const ManageReferrer = () => {
   return (
     <section className={`min-h-screen px-4 py-6 ${pageGradientBg} font-[Noto_Sans_Bengali,sans-serif]`}>
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       {formModal && (
         <ReferrerFormModal

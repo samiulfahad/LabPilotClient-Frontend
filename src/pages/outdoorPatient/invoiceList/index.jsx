@@ -98,7 +98,7 @@ const copyToClipboard = async (text) => {
   }
 };
 
-// ── Error helpers (mirrors ManageReferrer.jsx / CashMemo.jsx / SalesReport.jsx / CreateInvoice.jsx) ──
+// ── Error helpers ─────────────────────────────────────────────────────────────
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
@@ -106,6 +106,9 @@ const getErrorMessage = (err, fallback) => {
   if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
+
+// ── Axios‑native network error detection (same as all other pages) ──────────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
 
 const SEAL_BLUE = "#1E4FA0";
 const SEAL_RED = "#C0312B";
@@ -122,8 +125,6 @@ const PAYMENT_MODES = [
 ];
 
 // ─── Copy Invoice ID Button ───────────────────────────────────────────────────
-// Shared, reusable across the row and the details modal so the copy behaviour
-// (feedback state, timeout, fallback) lives in exactly one place.
 
 const CopyIdButton = ({ value, size = "xs" }) => {
   const [copied, setCopied] = useState(false);
@@ -188,11 +189,8 @@ const RoundSeal = ({ dateLabel }) => (
 );
 
 // ─── Collect Due Modal (ledger-styled) ────────────────────────────────────────
-// Matches this file's own manifest/ledger aesthetic — IBM Plex Mono, sharp
-// [2px]/[3px] corners, #0F6E5C / #C0312B / #1E4FA0 palette — rather than the
-// rounded blue UI used in CreateInvoice/SearchInvoice.
 
-const CollectDueModal = ({ invoice, isOpen, onClose, onConfirm }) => {
+const CollectDueModal = ({ invoice, isOpen, onClose, onConfirm, onNetworkError }) => {
   const due = invoice ? getDue(invoice) : 0;
   const [amount, setAmount] = useState(due);
   const [paymentMode, setPaymentMode] = useState("cash");
@@ -231,8 +229,13 @@ const CollectDueModal = ({ invoice, isOpen, onClose, onConfirm }) => {
       setSubmitting(true);
       setError("");
       await onConfirm({ amount: toFixed2(numericAmount), paymentMode });
-    } catch {
-      setError("আদায় ব্যর্থ হয়েছে, আবার চেষ্টা করুন।");
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+        onNetworkError?.();
+      } else {
+        setError("আদায় ব্যর্থ হয়েছে, আবার চেষ্টা করুন।");
+      }
       setSubmitting(false);
     }
   };
@@ -370,6 +373,7 @@ const InvoiceRow = ({
   onLoadingChange,
   onError,
   onSuccess,
+  onNetworkError, // new
 }) => {
   const { date, time } = formatDateTime(invoice.createdAt);
   const [confirming, setConfirming] = useState(false);
@@ -385,8 +389,6 @@ const InvoiceRow = ({
   const patient = invoice.patient;
 
   const toggleExpanded = () => setExpanded((v) => !v);
-  // Row toggle needs Enter/Space support now that it's a <div role="button">
-  // instead of a native <button> (see FIX note below).
   const handleToggleKeyDown = (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
@@ -401,21 +403,29 @@ const InvoiceRow = ({
       await invoiceService.markDelivered(invoice.invoiceId);
       onDelivered(invoice.invoiceId);
     } catch (err) {
-      onError(getErrorMessage(err, "Failed to mark as delivered. Please try again."));
+      if (isNetworkError(err)) {
+        onNetworkError?.();
+      } else {
+        onError(getErrorMessage(err, "Failed to mark as delivered. Please try again."));
+      }
     } finally {
       onLoadingChange(null);
     }
   };
 
   const handleCollectDue = async ({ amount, paymentMode }) => {
-    const { data } = await invoiceService.collectDue(invoice.invoiceId, { amount, paymentMode });
-    onCollected(invoice.invoiceId, amount);
-    setCollectingDue(false);
-    onSuccess(
-      data?.due > 0
-        ? `${patient.name} থেকে ${fmt(amount)} আদায় হয়েছে। অবশিষ্ট বাকি: ${fmt(data.due)}।`
-        : `${patient.name} থেকে ${fmt(amount)} আদায় হয়েছে। ইনভয়েস #${invoice.invoiceId} সম্পূর্ণ পরিশোধিত।`,
-    );
+    try {
+      const { data } = await invoiceService.collectDue(invoice.invoiceId, { amount, paymentMode });
+      onCollected(invoice.invoiceId, amount);
+      setCollectingDue(false);
+      onSuccess(
+        data?.due > 0
+          ? `${patient.name} থেকে ${fmt(amount)} আদায় হয়েছে। অবশিষ্ট বাকি: ${fmt(data.due)}।`
+          : `${patient.name} থেকে ${fmt(amount)} আদায় হয়েছে। ইনভয়েস #${invoice.invoiceId} সম্পূর্ণ পরিশোধিত।`,
+      );
+    } catch (err) {
+      throw err; // let CollectDueModal catch it
+    }
   };
 
   return (
@@ -436,6 +446,7 @@ const InvoiceRow = ({
         isOpen={collectingDue}
         onClose={() => setCollectingDue(false)}
         onConfirm={handleCollectDue}
+        onNetworkError={onNetworkError}
       />
 
       <EditPatientModal
@@ -445,6 +456,7 @@ const InvoiceRow = ({
         onSaved={onPatientUpdated}
         onLoadingChange={onLoadingChange}
         onError={onError}
+        onNetworkError={onNetworkError}
       />
       <InvoiceDetailsModal
         invoiceId={invoice.invoiceId}
@@ -458,13 +470,6 @@ const InvoiceRow = ({
 
       {/* Ledger row */}
       <div>
-        {/* Main row.
-            FIX: this was a native <button> wrapping the row, but CopyIdButton
-            (rendered inside, next to the invoice ID) is also a <button> —
-            <button> can't nest inside <button> in HTML, which React flags as
-            a hydration error. Swapped to a div with role="button"/tabIndex/
-            onKeyDown so it's still keyboard-accessible and behaves the same,
-            without the illegal nesting. */}
         <div
           role="button"
           tabIndex={0}
@@ -513,7 +518,7 @@ const InvoiceRow = ({
           </div>
         </div>
 
-        {/* Sub-row: date + actions, visible on expand */}
+        {/* Sub-row: date + actions */}
         {expanded && (
           <div className="pl-8 pr-1 py-2 border-t border-[#EDEBE3] bg-[#FAF9F5] rounded-b-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -610,6 +615,7 @@ const InvoiceList = () => {
   const [nextCursor, setNextCursor] = useState(null);
   const [loadingMessage, setLoadingMessage] = useState(null);
   const [popup, setPopup] = useState(null);
+  const [networkError, setNetworkError] = useState(false); // new
   const [statusFilter, setStatusFilter] = useState("all");
   const [timeRange, setTimeRange] = useState(null);
 
@@ -625,7 +631,11 @@ const InvoiceList = () => {
       setNextCursor(data.nextCursor);
       setHasMore(data.hasMore);
     } catch (err) {
-      setPopup({ type: "error", message: getErrorMessage(err, "Could not load invoices") });
+      if (isNetworkError(err)) {
+        setNetworkError(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "Could not load invoices") });
+      }
     } finally {
       setInitialLoading(false);
       setLoadingMore(false);
@@ -661,14 +671,12 @@ const InvoiceList = () => {
         ? invoices.filter((inv) => isFullyPaid(inv))
         : invoices;
 
-  // date label for seal
   const sealLabel = timeRange
     ? new Date(timeRange.end)
         .toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" })
         .toUpperCase()
     : "";
 
-  // heading label
   const headingLabel = (() => {
     if (!timeRange) return "";
     const s = new Date(timeRange.start);
@@ -698,9 +706,6 @@ const InvoiceList = () => {
       prev.map((inv) => (inv.invoiceId === id ? { ...inv, delivery: { ...inv.delivery, status: true } } : inv)),
     );
 
-  // Adds the collected amount to `paid`, capped at `final` — mirrors the
-  // backend's own clamping so the UI never shows an impossible state even
-  // before the network response comes back.
   const handleCollected = (id, collectedAmount) =>
     setInvoices((prev) =>
       prev.map((inv) =>
@@ -733,6 +738,7 @@ const InvoiceList = () => {
 
       {loadingMessage && <LoadingScreen message={loadingMessage} />}
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+      {networkError && <Popup type="offline" onClose={() => setNetworkError(false)} />}
 
       <div className="max-w-2xl mx-auto">
         {/* Page header */}
@@ -862,6 +868,7 @@ const InvoiceList = () => {
                       onLoadingChange={(msg) => setLoadingMessage(msg)}
                       onError={(msg) => setPopup({ type: "error", message: msg })}
                       onSuccess={(msg) => setPopup({ type: "success", message: msg })}
+                      onNetworkError={() => setNetworkError(true)}
                     />
                   ))}
                 </div>
@@ -910,14 +917,21 @@ export const InvoiceDetailsModal = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchInvoice = () => {
+  const fetchInvoice = async () => {
     setError(null);
     setLoading(true);
-    invoiceService
-      .getInvoiceByInvoiceId(invoiceId)
-      .then((res) => setInvoice(res.data))
-      .catch((err) => setError(getErrorMessage(err, "Failed to load invoice details.")))
-      .finally(() => setLoading(false));
+    try {
+      const res = await invoiceService.getInvoiceByInvoiceId(invoiceId);
+      setInvoice(res.data);
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+      } else {
+        setError(getErrorMessage(err, "Failed to load invoice details."));
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -1196,7 +1210,7 @@ export const InvoiceDetailsModal = ({
 
 // ─── Edit Patient Modal ───────────────────────────────────────────────────────
 
-export const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingChange, onError }) => {
+export const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingChange, onError, onNetworkError }) => {
   const [form, setForm] = useState({ name: "", gender: "", age: "", contactNumber: "" });
 
   useEffect(() => {
@@ -1215,7 +1229,12 @@ export const EditPatientModal = ({ invoice, isOpen, onClose, onSaved, onLoadingC
       await invoiceService.updatePatientInfo(invoice.invoiceId, { patient: form });
       onSaved(invoice.invoiceId, { patient: { ...form, age: Number(form.age) } });
     } catch (err) {
-      onError(getErrorMessage(err, "Failed to update patient info. Please try again."));
+      if (isNetworkError(err)) {
+        onNetworkError?.();
+        onError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
+      } else {
+        onError(getErrorMessage(err, "Failed to update patient info. Please try again."));
+      }
     } finally {
       onLoadingChange(null);
     }

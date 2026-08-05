@@ -13,6 +13,10 @@ import {
   totalExpenses,
   totalPayments,
 } from "./indoorPatientHelpers";
+import Popup from "../../components/popup";
+
+// ── Axios‑native network error detection (same as all other pages) ───────
+const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
 
 const SearchPatient = () => {
   const navigate = useNavigate();
@@ -21,6 +25,7 @@ const SearchPatient = () => {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState("");
+  const [networkError, setNetworkError] = useState(false);
   const searchTimer = useRef(null);
 
   const doSearch = async (q) => {
@@ -35,8 +40,12 @@ const SearchPatient = () => {
       const res = await indoorPatientService.getPatients({ status: "all", search: q, page: 1, limit: 30 });
       setResults(res.data.patients ?? []);
       setSearched(true);
-    } catch {
-      setError("Search failed");
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setNetworkError(true);
+      } else {
+        setError("Search failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -50,6 +59,9 @@ const SearchPatient = () => {
 
   return (
     <div className="min-h-full bg-slate-50/50">
+      {/* Offline popup */}
+      {networkError && <Popup type="offline" onClose={() => setNetworkError(false)} />}
+
       <div className="max-w-4xl mx-auto p-4 sm:p-6">
         <PageHeader
           title="Search Patient"
