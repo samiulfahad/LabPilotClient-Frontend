@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
-import collectionReportAPI from "../../../api/dailyReports/collectionReport";
+import collectionService from "../../../api/dailyReports/collectionReport";
 import Popup from "../../../components/popup";
 import { useAuthStore } from "../../../store/authStore";
 
@@ -380,7 +380,7 @@ const CollectionReport = () => {
   const fetchData = async (range) => {
     try {
       setLoading(true);
-      const res = await collectionReportAPI.getSummary({ startDate: range.start, endDate: range.end });
+      const res = await collectionService.getSummary({ startDate: range.start, endDate: range.end });
       setData(res.data);
     } catch (err) {
       setPopup({

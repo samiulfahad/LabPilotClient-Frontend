@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { ArrowLeft, Printer, AlertCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
-import expenseReportAPI from "../../../api/dailyReports/expenseReport";
+import expenseService from "../../../api/dailyReports/expenseReport";
 import Popup from "../../../components/popup";
 import { useAuthStore } from "../../../store/authStore";
 
@@ -214,7 +214,7 @@ const ExpenseReport = () => {
   const fetchData = async (range) => {
     try {
       setLoading(true);
-      const res = await expenseReportAPI.getSummary({ startDate: range.start, endDate: range.end });
+      const res = await expenseService.getSummary({ startDate: range.start, endDate: range.end });
       setExpenseData(res.data);
     } catch (err) {
       const isPermissionDenied = err?.response?.status === 403;

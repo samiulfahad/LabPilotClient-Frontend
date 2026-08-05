@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { ArrowLeft, Printer, AlertCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
-import salesReportAPI from "../../../api/dailyReports/salesReport";
+import salesService from "../../../api/dailyReports/salesReport";
 import Popup from "../../../components/popup";
 import { useAuthStore } from "../../../store/authStore";
 
@@ -253,7 +253,7 @@ const SalesReport = () => {
   const fetchData = async (range) => {
     try {
       setLoading(true);
-      const res = await salesReportAPI.getSummary({ startDate: range.start, endDate: range.end });
+      const res = await salesService.getSummary({ startDate: range.start, endDate: range.end });
       setSalesData(res.data);
     } catch (err) {
       const isPermissionDenied = err?.response?.status === 403;

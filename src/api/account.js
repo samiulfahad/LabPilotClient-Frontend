@@ -25,6 +25,9 @@ const accountService = {
    * @param {{ email: string, currentPassword: string }} data
    */
   changeEmail: (data) => api.patch("/account/email", data),
+
+
+   getStaffPermissions: () => api.get("/account/staff-permissions"),
 };
 
 export default accountService;

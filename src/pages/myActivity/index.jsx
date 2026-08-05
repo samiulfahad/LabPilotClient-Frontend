@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { ArrowLeft, Wallet, Receipt, Stethoscope, BedDouble, FileText, History, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import TimeFrame from "../../components/timeFrame";
-import myActivityAPI from "../../api/myActivity";
+import myActivityService from "../../api/myActivity";
 import Popup from "../../components/popup";
 import { useAuthStore } from "../../store/authStore";
 
@@ -242,7 +242,7 @@ const MyActivity = () => {
   const fetchData = async (range) => {
     try {
       setLoading(true);
-      const res = await myActivityAPI.getSummary({ startDate: range.start, endDate: range.end });
+      const res = await myActivityService.getSummary({ startDate: range.start, endDate: range.end });
       setData(res.data);
     } catch {
       setPopup({ type: "error", message: "কার্যক্রমের তথ্য লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।" });
@@ -254,7 +254,7 @@ const MyActivity = () => {
   const fetchInvoices = async (range) => {
     try {
       setInvoicesLoading(true);
-      const res = await myActivityAPI.getInvoices({ startDate: range.start, endDate: range.end });
+      const res = await myActivityService.getInvoices({ startDate: range.start, endDate: range.end });
       setInvoices(res.data.invoices ?? []);
     } catch {
       setPopup({ type: "error", message: "ইনভয়েস লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।" });
@@ -267,7 +267,7 @@ const MyActivity = () => {
   const fetchCollections = async (range) => {
     try {
       setCollectionsLoading(true);
-      const res = await myActivityAPI.getCollections({ startDate: range.start, endDate: range.end });
+      const res = await myActivityService.getCollections({ startDate: range.start, endDate: range.end });
       setCollections(res.data.collections ?? []);
     } catch {
       setPopup({ type: "error", message: "কালেকশন হিস্টোরি লোড করা সম্ভব হয়নি। আবার চেষ্টা করুন।" });

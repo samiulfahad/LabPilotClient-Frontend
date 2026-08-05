@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom"; // added useNavigate
 import TimeFrame from "../../../components/timeFrame";
-import discountReportAPI from "../../../api/dailyReports/discountReport";
+import discountService from "../../../api/dailyReports/discountReport";
 import Popup from "../../../components/popup";
 import { useAuthStore } from "../../../store/authStore";
 
@@ -376,7 +376,7 @@ const DiscountReport = () => {
   const fetchData = async (range) => {
     try {
       setLoading(true);
-      const res = await discountReportAPI.getSummary({ startDate: range.start, endDate: range.end });
+      const res = await discountService.getSummary({ startDate: range.start, endDate: range.end });
       setData(res.data);
     } catch (err) {
       const isPermissionDenied = err?.response?.status === 403;

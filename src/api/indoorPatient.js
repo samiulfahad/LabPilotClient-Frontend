@@ -3,6 +3,7 @@ import api from "./baseAPI";
 
 const indoorPatientService = {
   getRequiredData: () => api.get("/indoor-patients/required-data"),
+  getDataForAddItem: () => api.get("/indoor-patients/add-items/required-data"),
   getPatients: (params) => api.get("/indoor-patients", { params }),
   getPatient: (id) => api.get(`/indoor-patient/${id}`),
   getByAdmissionId: (admissionId) => api.get(`/indoor-patient/by-admission-id/${admissionId}`),

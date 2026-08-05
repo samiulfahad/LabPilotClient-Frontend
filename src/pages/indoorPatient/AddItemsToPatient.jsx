@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import indoorPatientService from "../../api/indoorPatient";
-import invoiceService from "../../api/invoice";
 import Popup from "../../components/popup";
 import { useAuthStore } from "../../store/authStore";
 import { Btn, ErrorMsg, PageHeader, Sk, fmt, totalExpenses, totalPayments } from "./indoorPatientHelpers";
@@ -258,8 +257,7 @@ const AddItemsForm = ({ patient, onBack, onDone }) => {
   const isPackage = patient.dealType === "package";
 
   useEffect(() => {
-    invoiceService
-      .getRequiredData()
+    indoorPatientService.getDataForAddItem
       .then((res) => setCatalog({ tests: res.data.tests ?? [], products: res.data.products ?? [] }))
       .catch((err) => setCatError(getErrorMessage(err, "তালিকা লোড করতে ব্যর্থ হয়েছে")))
       .finally(() => setCatLoading(false));

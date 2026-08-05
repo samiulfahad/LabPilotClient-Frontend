@@ -59,7 +59,6 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import accountService from "../../api/account";
-import staticDataAPI from "../../api/staticData";
 import { useAuthStore } from "../../store/authStore";
 import Popup from "../../components/popup";
 import LoadingScreen from "../../components/loadingPage";
@@ -817,7 +816,7 @@ const Account = () => {
     try {
       setLoadingPerms(true);
       setPermError("");
-      const res = await staticDataAPI.getStaffPermissions();
+      const res = await accountService.getStaffPermissions();
       setPermissionsList(res.data.permissions ?? []);
     } catch (err) {
       setPermError(getErrorMessage(err, "অনুমতির তালিকা লোড করতে ব্যর্থ হয়েছে"));

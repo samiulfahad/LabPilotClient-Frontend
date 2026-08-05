@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
-import commissionReportAPI from "../../../api/dailyReports/commissionReport";
+import commissionService from "../../../api/dailyReports/commissionReport";
 import Popup from "../../../components/popup";
 import { useAuthStore } from "../../../store/authStore";
 
@@ -795,7 +795,7 @@ const CommissionReport = () => {
   const fetchData = async (range) => {
     try {
       setLoading(true);
-      const res = await commissionReportAPI.getSummary({ startDate: range.start, endDate: range.end });
+      const res = await commissionService.getSummary({ startDate: range.start, endDate: range.end });
       setData(res.data);
     } catch (err) {
       const isPermissionDenied = err?.response?.status === 403;
