@@ -27,6 +27,7 @@ import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
 import LoadingScreen from "../../../components/loadingPage";
 import PrintId from "../../../components/PrintId";
+import ScanButton from "../../../components/scanButton";
 import { InvoiceDetailsModal, EditPatientModal } from "../invoiceList/index"; // ← extract from InvoiceList if needed
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -364,10 +365,10 @@ const ResultCard = ({
         {/* Barcode / QR print — same PrintId component used in Report.jsx, placed above the card */}
         <PrintId displayId={invoice.invoiceId} onError={onError} />
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all duration-200 overflow-hidden">
+        <div className="bg-white shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all duration-200 overflow-hidden">
           {/* Header */}
           <div className="flex items-center gap-3 px-4 pt-3.5 pb-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 shadow-sm">
+            <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 shadow-sm">
               <span className="text-[11px] font-bold text-white">{index + 1}</span>
             </div>
             <div className="flex-1 min-w-0">
@@ -462,6 +463,7 @@ const SearchInvoice = () => {
   const [loadingMessage, setLoadingMessage] = useState(null);
   const [popup, setPopup] = useState(null);
   const [offlinePopup, setOfflinePopup] = useState(false);
+  const [focused, setFocused] = useState(false);
   const debounceRef = useRef(null);
 
   const queryType = detectQueryType(query.trim());
@@ -500,6 +502,13 @@ const SearchInvoice = () => {
     setQuery("");
     setResults([]);
     setSearched(false);
+  };
+
+  const handleScan = (text) => {
+    clearTimeout(debounceRef.current);
+    const q = text.trim();
+    setQuery(q);
+    runSearch(q);
   };
 
   // Optimistic updates
@@ -543,30 +552,46 @@ const SearchInvoice = () => {
 
         {/* ── Search box ────────────────────────────────────────────────── */}
         <div className="relative mb-2">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-            {loading ? (
-              <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
-            ) : hint ? (
-              <hint.icon className={`w-4 h-4 ${hint.color}`} />
-            ) : (
-              <Search className="w-4 h-4 text-gray-400" />
+          <div
+            className={`flex items-center gap-2.5 h-[3.375rem] pl-4 pr-2 bg-white transition-all duration-200 ${
+              focused || loading
+                ? "shadow-[0_2px_20px_rgba(99,102,241,0.16)] ring-2 ring-indigo-500/70"
+                : "shadow-[0_1px_2px_rgba(15,23,42,0.06),0_1px_8px_rgba(15,23,42,0.04)] ring-1 ring-gray-200"
+            }`}
+          >
+            <div className="shrink-0">
+              {loading ? (
+                <Loader2 className="w-4 h-4 text-indigo-500 animate-spin" />
+              ) : hint ? (
+                <hint.icon className={`w-4 h-4 ${hint.color} transition-colors`} />
+              ) : (
+                <Search className={`w-4 h-4 transition-colors ${focused ? "text-indigo-500" : "text-gray-400"}`} />
+              )}
+            </div>
+            <input
+              type="text"
+              autoFocus
+              value={query}
+              onChange={handleChange}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              placeholder="01XXXXXXXXX  ·  ABT9546  ·  Patient name"
+              className="flex-1 min-w-0 bg-transparent text-sm text-gray-900 placeholder-gray-300 focus:outline-none"
+            />
+            {query && (
+              <button
+                onClick={handleClear}
+                className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             )}
+            <div className="w-px h-5 bg-gray-200 shrink-0" />
+            <ScanButton
+              onScan={handleScan}
+              className="!border-0 !bg-transparent !p-2 !rounded-xl text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+            />
           </div>
-          <input
-            type="text"
-            value={query}
-            onChange={handleChange}
-            placeholder="01XXXXXXXXX  ·  ABT9546  ·  Patient name"
-            className="w-full pl-11 pr-10 py-3.5 text-sm bg-white border border-gray-200 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all placeholder-gray-300"
-          />
-          {query && (
-            <button
-              onClick={handleClear}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
 
         {/* ── Query type hint ────────────────────────────────────────────── */}

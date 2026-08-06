@@ -76,12 +76,12 @@ const MobileMenu = () => {
         >
           <Link to="/" className="flex flex-col min-w-0">
             <span
-              className="text-gray-900 font-bold text-base leading-none truncate"
+              className="text-gray-900 font-bold text-lg leading-none truncate"
               style={{ fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: "-0.02em" }}
             >
               LabPilot<span className="font-light">Pro</span>
             </span>
-            <span className="text-[10px] text-gray-500 font-medium leading-tight truncate">
+            <span className="text-xs text-gray-500 font-medium leading-tight truncate">
               The Modern Lab Management System{" "}
             </span>
           </Link>
@@ -91,7 +91,7 @@ const MobileMenu = () => {
             className="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg hover:bg-gray-100/80 transition-all duration-200"
             aria-label={isMenuOpen ? "Close menu" : "Open menu"}
           >
-            {isMenuOpen ? <X className="w-5 h-5 text-gray-700" /> : <Menu className="w-5 h-5 text-gray-700" />}
+            {isMenuOpen ? <X className="w-6 h-6 text-gray-700" /> : <Menu className="w-6 h-6 text-gray-700" />}
           </button>
         </nav>
 
@@ -121,11 +121,11 @@ const MobileMenu = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 shrink-0 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center ring-1 ring-white/30">
-                  <span className="text-white font-bold text-lg">LP</span>
+                  <span className="text-white font-bold text-xl">LP</span>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-white font-semibold text-sm truncate">LabPilot Pro</p>
-                  <p className="text-blue-100/90 text-xs font-medium truncate">The Modern Lab Management System</p>
+                  <p className="text-white font-semibold text-base truncate">LabPilot Pro</p>
+                  <p className="text-blue-100/90 text-sm font-medium truncate">The Modern Lab Management System</p>
                 </div>
               </div>
               <button
@@ -133,7 +133,7 @@ const MobileMenu = () => {
                 className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30"
                 aria-label="Close menu"
               >
-                <X className="w-4 h-4 text-white" />
+                <X className="w-5 h-5 text-white" />
               </button>
             </div>
           </div>
@@ -166,11 +166,11 @@ const MobileMenu = () => {
                               : "bg-gray-100 text-gray-500 group-hover:bg-blue-50 group-hover:text-blue-600"
                           }`}
                         >
-                          <Icon className="w-4 h-4" />
+                          <Icon className="w-5 h-5" />
                         </div>
-                        <span className="font-medium text-sm flex-1 truncate">{item.label}</span>
+                        <span className="font-medium text-base flex-1 truncate">{item.label}</span>
                         <ChevronRight
-                          className={`w-4 h-4 shrink-0 ${
+                          className={`w-5 h-5 shrink-0 ${
                             isActive ? "text-blue-600" : "text-gray-400 group-hover:translate-x-0.5"
                           } transition-transform`}
                         />
@@ -188,8 +188,8 @@ const MobileMenu = () => {
               onClick={handleLogoutClick}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-gray-700 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all duration-200 group"
             >
-              <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span className="text-red-600 font-medium">লগ আউট</span>
+              <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <span className="text-red-600 font-medium text-base">লগ আউট</span>
             </button>
           </div>
         </div>
@@ -203,21 +203,21 @@ const MobileMenu = () => {
               <AlertTriangle className="w-8 h-8 text-red-500" />
             </div>
 
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Confirm Logout</h3>
-            <p className="text-md text-gray-500 mb-8 px-4">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Confirm Logout</h3>
+            <p className="text-base text-gray-500 mb-8 px-4">
               Are you sure you want to sign out of <strong>LabPilot Pro</strong>?
             </p>
 
             <div className="flex w-full gap-3">
               <button
                 onClick={() => setShowConfirm(false)}
-                className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                className="flex-1 px-4 py-3 rounded-xl text-base font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleLogoutConfirm}
-                className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-200 transition-all active:scale-95"
+                className="flex-1 px-4 py-3 rounded-xl text-base font-semibold text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-200 transition-all active:scale-95"
               >
                 Logout
               </button>
