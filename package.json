@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"
@@ -16,6 +16,7 @@
     "@fontsource/noto-sans-bengali": "^5.2.11",
     "@react-pdf/renderer": "^4.5.1",
     "@tailwindcss/vite": "^4.3.2",
+    "@yudiel/react-qr-scanner": "^2.6.0",
     "axios": "^1.18.1",
     "jsbarcode": "^3.12.3",
     "jwt-decode": "^4.0.0",

@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import Popup from "../../components/popup";
-import invoiceService from "../../api/invoice";
+import ScanButton from "../../components/scanButton";
 import indoorPatientService from "../../api/indoorPatient";
 import reportService from "../../api/report";
 import PrintId from "../../components/PrintId";
@@ -528,7 +528,7 @@ const TestActions = ({ record, test }) => {
 
 // ─── Record Detail Card ───────────────────────────────────────────────────────
 
-const RecordDetail = ({ record, onDatesSaved }) => {
+const RecordDetail = ({ record, onDatesSaved, onNetworkError }) => {
   const [metaTest, setMetaTest] = useState(null);
   const [qrDataUrl, setQrDataUrl] = useState(null);
 
@@ -758,7 +758,7 @@ const RecordDetail = ({ record, onDatesSaved }) => {
           test={metaTest}
           onClose={() => setMetaTest(null)}
           onSaved={onDatesSaved}
-          onNetworkError={() => setNetworkError(true)} // will be defined in parent
+          onNetworkError={onNetworkError}
         />
       )}
     </div>
@@ -774,7 +774,7 @@ const Report = () => {
   const [popup, setPopup] = useState(null);
   const [notFound, setNotFound] = useState(false);
   const [invalidId, setInvalidId] = useState(false);
-  const [networkError, setNetworkError] = useState(false); // new
+  const [networkError, setNetworkError] = useState(false);
 
   const location = useLocation();
 
@@ -792,10 +792,10 @@ const Report = () => {
       setInvalidId(false);
       setRecord(null);
       if (type === "outdoor") {
-        const res = await invoiceService.getReportSummary(id.trim().toUpperCase());
+        const res = await reportService.getOutdoorPatient(id.trim().toUpperCase());
         setRecord(normalizeOutdoor(res.data));
       } else {
-        const res = await indoorPatientService.getByAdmissionId(id.trim().toUpperCase());
+        const res = await reportService.getIndoorPatient(id.trim().toUpperCase());
         setRecord(normalizeIndoor(res.data));
       }
     } catch (err) {
@@ -823,6 +823,12 @@ const Report = () => {
   const handleSearch = () => {
     const q = searchQuery.trim();
     if (q) fetchRecord(q);
+  };
+
+  const handleScan = (text) => {
+    const q = text.trim().toUpperCase();
+    setSearchQuery(q);
+    fetchRecord(q);
   };
 
   const handleClear = () => {
@@ -896,6 +902,7 @@ const Report = () => {
                 </button>
               )}
             </div>
+            <ScanButton onScan={handleScan} />
             <button
               onClick={handleSearch}
               disabled={!searchQuery.trim() || searching}
@@ -958,7 +965,11 @@ const Report = () => {
           <>
             <PrintId displayId={record.displayId} onError={handlePrintError} />
             <div className="fu fu2">
-              <RecordDetail record={record} onDatesSaved={handleDatesSaved} />
+              <RecordDetail
+                record={record}
+                onDatesSaved={handleDatesSaved}
+                onNetworkError={() => setNetworkError(true)}
+              />
             </div>
           </>
         )}

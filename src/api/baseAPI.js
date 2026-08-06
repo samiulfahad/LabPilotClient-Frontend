@@ -1,8 +1,10 @@
 import axios from "axios";
 import { useAuthStore } from "../store/authStore";
 
+const ip = "http://10.155.23.187:3000/v1"
+const local = "http://localhost:3000/v1"
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:3000/v1",
+  baseURL: ip,
   timeout: 15000,
   withCredentials: true, // ✅ sends cookies cross-origin
 });

@@ -13,7 +13,6 @@ const invoiceService = {
   getInvoiceByInvoiceId: (_id) => api.get(`/invoice/${_id}`),
   // Lean fetch for the Reports page — patient info, amounts, and per-test
   // status + dates only. No report body, no referrer, no schema details.
-  getReportSummary: (invoiceId) => api.get(`/invoice/${invoiceId}/report-summary`),
   updatePatientInfo: (invoiceId, data) => api.patch(`/invoice/${invoiceId}/patient-info`, data),
   // Pass { amount, paymentMode } — amount is optional (omit to collect the
   // full due amount); the backend always re-clamps it to (0, due] anyway.
