@@ -9,7 +9,7 @@ const CARDS = [
     icon: FlaskConical,
     link: "/manage-tests",
     color: "blue",
-    permission: "manageTests", // correct key
+    permission: "manageTests",
   },
   {
     title: "ঔষধ,পণ্য, সেবা",
@@ -25,7 +25,7 @@ const CARDS = [
     icon: Users,
     link: "/manage-staffs",
     color: "emerald",
-    permission: "manageStaffs", // was adminOnly – now permission‑based
+    permission: "manageStaffs",
   },
   {
     title: "রোগী রেফারার",
@@ -41,8 +41,8 @@ const CARDS = [
     icon: BedDouble,
     link: "/manage-spaces",
     color: "sky",
-    hospitalOnly: true, // hidden for diagnostic centres
-    permission: "manageAdmissionSpace", // was adminOnly – now permission‑based
+    hospitalOnly: true,
+    permission: "manageAdmissionSpace",
   },
   {
     title: "কর্তব্যরত চিকিৎসক",
@@ -55,8 +55,68 @@ const CARDS = [
   },
 ];
 
+// Refined, self-contained per-category token set — one entry per card color.
 const colorMap = {
-  /* …unchanged… */
+  blue: {
+    bar: "from-blue-500 to-blue-600",
+    iconBox: "bg-blue-50 border-blue-100",
+    icon: "text-blue-600",
+    label: "group-hover:text-blue-900",
+    desc: "group-hover:text-blue-500",
+    ring: "group-hover:ring-blue-100",
+    focusRing: "focus-visible:ring-blue-400",
+    rail: "bg-blue-400",
+  },
+  amber: {
+    bar: "from-amber-500 to-amber-600",
+    iconBox: "bg-amber-50 border-amber-100",
+    icon: "text-amber-600",
+    label: "group-hover:text-amber-900",
+    desc: "group-hover:text-amber-500",
+    ring: "group-hover:ring-amber-100",
+    focusRing: "focus-visible:ring-amber-400",
+    rail: "bg-amber-400",
+  },
+  emerald: {
+    bar: "from-emerald-500 to-emerald-600",
+    iconBox: "bg-emerald-50 border-emerald-100",
+    icon: "text-emerald-600",
+    label: "group-hover:text-emerald-900",
+    desc: "group-hover:text-emerald-500",
+    ring: "group-hover:ring-emerald-100",
+    focusRing: "focus-visible:ring-emerald-400",
+    rail: "bg-emerald-400",
+  },
+  purple: {
+    bar: "from-purple-500 to-purple-600",
+    iconBox: "bg-purple-50 border-purple-100",
+    icon: "text-purple-600",
+    label: "group-hover:text-purple-900",
+    desc: "group-hover:text-purple-500",
+    ring: "group-hover:ring-purple-100",
+    focusRing: "focus-visible:ring-purple-400",
+    rail: "bg-purple-400",
+  },
+  sky: {
+    bar: "from-sky-500 to-sky-600",
+    iconBox: "bg-sky-50 border-sky-100",
+    icon: "text-sky-600",
+    label: "group-hover:text-sky-900",
+    desc: "group-hover:text-sky-500",
+    ring: "group-hover:ring-sky-100",
+    focusRing: "focus-visible:ring-sky-400",
+    rail: "bg-sky-400",
+  },
+  rose: {
+    bar: "from-rose-500 to-rose-600",
+    iconBox: "bg-rose-50 border-rose-100",
+    icon: "text-rose-600",
+    label: "group-hover:text-rose-900",
+    desc: "group-hover:text-rose-500",
+    ring: "group-hover:ring-rose-100",
+    focusRing: "focus-visible:ring-rose-400",
+    rail: "bg-rose-400",
+  },
 };
 
 const Setup = () => {
@@ -66,18 +126,19 @@ const Setup = () => {
   const isAdmin = role === "admin";
   const isHospital = user?.type === "hospital";
 
-  // Filter out hospital‑only cards for diagnostic centres
   const visibleCards = CARDS.filter((item) => !item.hospitalOnly || isHospital);
 
   const hasAccess = (item) => {
     if (isAdmin) return true;
-    if (!item.permission) return true; // items without a permission key are public
+    if (!item.permission) return true;
     return !!permissions?.[item.permission];
   };
 
+  const unlockedCount = visibleCards.filter(hasAccess).length;
+
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_120%_80%_at_50%_-10%,#eef2ff_0%,#f8fafc_45%,#f8fafc_100%)] px-4 py-8 font-noto">
-      <div className="max-w-2xl mx-auto space-y-7">
+      <div className="max-w-3xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex items-center gap-4">
           <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-200 shrink-0">
@@ -86,12 +147,14 @@ const Setup = () => {
           </div>
           <div>
             <h1 className="text-[22px] font-black text-slate-900 tracking-tight leading-tight">ল্যাব ম্যানেজমেন্ট</h1>
-            <p className="text-[14px] text-slate-400 mt-0.5">সিস্টেম কনফিগারেশন ও ব্যবস্থাপনা</p>
+            <p className="text-[13.5px] text-slate-400 mt-0.5">
+              {unlockedCount}/{visibleCards.length} মডিউলে প্রবেশাধিকার আছে
+            </p>
           </div>
         </div>
 
         {/* Cards grid */}
-        <div className="grid grid-cols-2 gap-3.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
           {visibleCards.map((item, idx) => {
             const Icon = item.icon;
             const c = colorMap[item.color] || {};
@@ -99,11 +162,12 @@ const Setup = () => {
 
             const cardInner = (
               <>
-                {allowed && (
-                  <div
-                    className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${c.bar} scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out origin-left`}
-                  />
-                )}
+                {/* Persistent category rail — brightens on hover, communicates grouping at a glance */}
+                <div
+                  className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${
+                    allowed ? c.bar : "from-slate-200 to-slate-200"
+                  } opacity-40 group-hover:opacity-100 transition-opacity duration-300`}
+                />
 
                 <div className="relative">
                   <div
@@ -111,11 +175,11 @@ const Setup = () => {
                       allowed ? c.iconBox : "bg-slate-50 border-slate-100"
                     }`}
                   >
-                    {allowed ? (
-                      <Icon size={20} className={`transition-colors duration-200 ${c.icon}`} strokeWidth={2} />
-                    ) : (
-                      <Icon size={20} className="text-slate-300" strokeWidth={2} />
-                    )}
+                    <Icon
+                      size={20}
+                      className={`transition-colors duration-200 ${allowed ? c.icon : "text-slate-300"}`}
+                      strokeWidth={2}
+                    />
                   </div>
                   {!allowed && (
                     <div className="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center">
@@ -126,7 +190,7 @@ const Setup = () => {
 
                 <div className="text-center space-y-1.5">
                   <p
-                    className={`text-[16px] font-bold tracking-tight transition-colors duration-200 leading-snug ${
+                    className={`text-[15.5px] font-bold tracking-tight transition-colors duration-200 leading-snug ${
                       allowed ? `text-slate-700 ${c.label}` : "text-slate-400"
                     }`}
                   >
@@ -155,7 +219,7 @@ const Setup = () => {
               return (
                 <div
                   key={item.link}
-                  title="No Permission"
+                  title="প্রবেশাধিকার নেই"
                   style={{ animationDelay: `${idx * 40}ms` }}
                   className={`${baseClass} border-slate-100 hover:border-slate-100 cursor-not-allowed select-none opacity-70 saturate-0`}
                 >
@@ -169,7 +233,7 @@ const Setup = () => {
                 key={item.link}
                 to={item.link}
                 style={{ animationDelay: `${idx * 40}ms`, outline: "none" }}
-                className={`${baseClass} border-slate-200 hover:border-slate-200 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-200/60 group-hover:ring-1 ${c.ring} ${c.focusRing}`}
+                className={`${baseClass} border-slate-200 hover:border-slate-200 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-200/60 ring-1 ring-transparent ${c.ring} ${c.focusRing}`}
               >
                 {cardInner}
               </Link>
@@ -182,6 +246,9 @@ const Setup = () => {
         @keyframes cardIn {
           from { opacity: 0; transform: translateY(10px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [class*="animate-\\[cardIn"] { animation: none !important; }
         }
       `}</style>
     </div>

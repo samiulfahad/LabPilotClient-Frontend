@@ -31,6 +31,7 @@ import {
   Settings2,
   CreditCard,
   BedDouble,
+  Lock,
 } from "lucide-react";
 import Popup from "../../../components/popup";
 import staffService from "../../../api/staff";
@@ -96,7 +97,7 @@ const EMPTY_FORM = { name: "", email: "", phone: "" };
 /* ─── Error helpers ────────────────────────────────────────────────────── */
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 const getErrorMessage = (err, fallback) => {
-  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  if (err?.response?.status === 403) return err?.response?.data?.error ?? PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
 const getErrorStatus = (error) => error?.response?.status ?? error?.status ?? null;
@@ -506,7 +507,7 @@ const PermissionGroups = ({ permissionsList, permissions, onTogglePerm, onToggle
 };
 
 /* ─── Staff Form Modal (create / edit permissions) — now 880px wide ──── */
-const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
+const StaffFormModal = ({ initial, permissionsList, onClose, onSaved, atStaffLimit, maxStaff }) => {
   const isEdit = !!initial?._id;
   const isAdmin = initial?.role === "admin";
 
@@ -545,6 +546,16 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
 
   const handleSubmit = async () => {
     if (!isEdit) {
+      // Re-check the seat limit right before submit, not just at the point
+      // the modal was opened — covers a modal left open in a background tab
+      // while another admin fills the last seat elsewhere. No API call is
+      // made when this fires; the backend check is still there as a
+      // second, authoritative guard for direct API access.
+      if (atStaffLimit) {
+        return setApiError(
+          `আপনার প্ল্যানে সর্বোচ্চ ${maxStaff} জন স্টাফ যোগ করা যাবে। সীমা বাড়াতে আপনার প্ল্যান আপগ্রেড করুন।`,
+        );
+      }
       if (!form.name.trim()) return setApiError("নাম প্রয়োজন।");
       if (!form.phone.trim()) return setApiError("ফোন নম্বর প্রয়োজন।");
       if (adjustmentEnabled && (!adjustmentAmount || Number(adjustmentAmount) <= 0)) {
@@ -568,6 +579,10 @@ const StaffFormModal = ({ initial, permissionsList, onClose, onSaved }) => {
       }
       onSaved(isEdit);
     } catch (err) {
+      // A STAFF_LIMIT_REACHED response arrives here too (e.g. another admin
+      // filled the last seat between page load and submit) — the backend's
+      // Bangla message is shown as-is via getErrorMessage, same as any other
+      // API error, so no special-casing is needed on this path.
       setApiError(getErrorMessage(err, "সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
     } finally {
       setSaving(false);
@@ -1036,6 +1051,7 @@ const ManageStaff = () => {
   }
 
   const [staff, setStaff] = useState([]);
+  const [maxStaff, setMaxStaff] = useState(null);
   const [permissionsList, setPermissionsList] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [popup, setPopup] = useState(null);
@@ -1051,7 +1067,8 @@ const ManageStaff = () => {
     const boot = async () => {
       try {
         const [staffRes, permsRes] = await Promise.all([staffService.getStaffs(), staticDataAPI.getStaffPermissions()]);
-        setStaff(staffRes.data);
+        setStaff(staffRes.data.staffs);
+        setMaxStaff(staffRes.data.maxStaff);
         const visiblePerms = permsRes.data.permissions.filter(
           (p) => p.for !== "hospitalOnly" || labType === "hospital",
         );
@@ -1072,7 +1089,8 @@ const ManageStaff = () => {
   const loadStaff = async () => {
     try {
       const res = await staffService.getStaffs();
-      setStaff(res.data);
+      setStaff(res.data.staffs);
+      setMaxStaff(res.data.maxStaff);
     } catch (err) {
       if (isNetworkError(err)) {
         setOfflinePopup(true);
@@ -1093,6 +1111,13 @@ const ManageStaff = () => {
     inactive: staff.filter((s) => !s.isActive).length,
     fullAccess: staff.filter((s) => s.role === "admin" || permissionsList.every((p) => s.permissions[p.key])).length,
   };
+
+  // ─── Staff seat limit ────────────────────────────────────────────────
+  // maxStaff comes straight from GET /staffs (the backend reads it off the
+  // lab record) — no second request needed. null means "no limit set on
+  // this lab" rather than "zero seats", so staff creation stays unblocked.
+  const staffSeatCount = staff.filter((s) => s.role === "staff").length;
+  const atStaffLimit = maxStaff !== null && staffSeatCount >= maxStaff;
 
   const filtered = staff.filter((s) => {
     if (permFilter !== "all" && !s.permissions[permFilter]) return false;
@@ -1150,6 +1175,20 @@ const ManageStaff = () => {
     }
   };
 
+  // Guarded entry point for opening the "add staff" modal — used by both
+  // the header button and the empty-state CTA so the limit check lives in
+  // one place.
+  const handleAddStaffClick = () => {
+    if (atStaffLimit) {
+      setPopup({
+        type: "error",
+        message: `আপনার প্ল্যানে সর্বোচ্চ ${maxStaff} জন স্টাফ যোগ করা যাবে। সীমা বাড়াতে আপনার প্ল্যান আপগ্রেড করুন।`,
+      });
+      return;
+    }
+    setFormModal({});
+  };
+
   const hasFilters = permFilter !== "all" || statusFilter !== "all" || search !== "";
 
   const rowProps = (member) => ({
@@ -1173,6 +1212,8 @@ const ManageStaff = () => {
           permissionsList={permissionsList}
           onClose={() => setFormModal(null)}
           onSaved={handleSaved}
+          atStaffLimit={atStaffLimit}
+          maxStaff={maxStaff}
         />
       )}
 
@@ -1229,6 +1270,11 @@ const ManageStaff = () => {
               </h1>
               <p className="text-[13px] mt-0.5" style={{ color: INK_MUTE }}>
                 অ্যাকাউন্ট ও অনুমতি পরিচালনা
+                {maxStaff !== null && (
+                  <span className={`ml-1.5 ${mono}`} style={{ color: atStaffLimit ? RUST : INK_MUTE }}>
+                    ({staffSeatCount}/{maxStaff} সিট ব্যবহৃত)
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -1240,14 +1286,18 @@ const ManageStaff = () => {
                 </span>
               </GhostBtn>
             </Link>
-            <SolidBtn onClick={() => setFormModal({})}>
-              <UserPlus size={13} /> নতুন স্টাফ
+            <SolidBtn
+              onClick={handleAddStaffClick}
+              disabled={atStaffLimit}
+              title={atStaffLimit ? `স্টাফ সীমা (${maxStaff}) পূর্ণ হয়েছে` : undefined}
+            >
+              {atStaffLimit ? <Lock size={13} /> : <UserPlus size={13} />} নতুন স্টাফ
             </SolidBtn>
           </div>
         </div>
 
         {!initialLoading && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          <div className={`grid grid-cols-2 sm:grid-cols-4 ${maxStaff !== null ? "lg:grid-cols-5" : ""} gap-3 mb-5`}>
             <StatCard icon={Users} label="মোট কর্মী" value={stats.total} tone={TEAL} tint={TEAL_TINT} />
             <StatCard icon={ShieldCheck} label="সক্রিয়" value={stats.active} tone={TEAL_DARK} tint={TEAL_TINT} />
             <StatCard icon={ShieldOff} label="নিষ্ক্রিয়" value={stats.inactive} tone={RUST} tint={RUST_TINT} />
@@ -1258,6 +1308,28 @@ const ManageStaff = () => {
               tone={VIOLET}
               tint={VIOLET_TINT}
             />
+            {maxStaff !== null && (
+              <StatCard
+                icon={Lock}
+                label="স্টাফ সীমা"
+                value={`${staffSeatCount}/${maxStaff}`}
+                tone={atStaffLimit ? RUST : AMBER}
+                tint={atStaffLimit ? RUST_TINT : AMBER_TINT}
+              />
+            )}
+          </div>
+        )}
+
+        {atStaffLimit && (
+          <div
+            className="flex items-start gap-2.5 px-3.5 py-2.5 mb-4"
+            style={{ border: `1px solid ${AMBER}40`, borderRadius: "8px", background: AMBER_TINT }}
+          >
+            <Lock size={13} style={{ color: AMBER, marginTop: 1 }} />
+            <p className={`text-[11px] leading-[1.5] ${bn}`} style={{ color: "#92400E" }}>
+              আপনার প্ল্যানে সর্বোচ্চ {maxStaff} জন স্টাফ যোগ করা যাবে এবং আপনি সীমায় পৌঁছেছেন। নতুন স্টাফ যোগ করতে হলে
+              আপনার প্ল্যান আপগ্রেড করুন অথবা কোনো বিদ্যমান স্টাফ মুছে ফেলুন।
+            </p>
           </div>
         )}
 

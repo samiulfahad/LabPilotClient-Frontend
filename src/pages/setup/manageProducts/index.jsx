@@ -25,6 +25,7 @@ import {
   CheckCircle2,
   RotateCcw,
   ChevronDown,
+  Lock,
 } from "lucide-react";
 import Popup from "../../../components/popup";
 import productService from "../../../api/products";
@@ -55,7 +56,6 @@ const pageGradientBg = "bg-[radial-gradient(ellipse_120%_80%_at_50%_-10%,#eef2ff
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const LAB_PRODUCT_LIMIT = 500;
 const LIMIT = 50;
 const DEBOUNCE_MS = 400;
 
@@ -125,7 +125,7 @@ const stockBadge = (stock) => {
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
 const getErrorMessage = (err, fallback) => {
-  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  if (err?.response?.status === 403) return err?.response?.data?.error ?? PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
 
@@ -1353,6 +1353,11 @@ export default function Products() {
   const [page, setPage] = useState(1);
   const [modal, setModal] = useState(null);
   const [totalsByType, setTotalsByType] = useState({ medicine: 0, product: 0, service: 0 });
+  // ─── Per-type limits ─────────────────────────────────────────────────────
+  // Comes straight from GET /products (backend reads limit.maxMedicine /
+  // maxProduct / maxService off the lab record). null means "no limit set"
+  // for that type — mirrors maxReferrer in ManageReferrer.jsx.
+  const [maxByType, setMaxByType] = useState({ medicine: null, product: null, service: null });
   const debounceRef = useRef(null);
 
   const handleSearchChange = (val) => {
@@ -1372,6 +1377,7 @@ export default function Products() {
       setItems(res.data?.products ?? []);
       setPagination(res.data?.pagination ?? { total: 0, page: 1, limit: LIMIT, totalPages: 0 });
       if (res.data?.totalsByType) setTotalsByType(res.data.totalsByType);
+      if (res.data?.maxByType) setMaxByType(res.data.maxByType);
     } catch (err) {
       if (isNetworkError(err)) {
         setOfflinePopup(true);
@@ -1430,10 +1436,16 @@ export default function Products() {
 
   const handleNetworkError = () => setOfflinePopup(true);
 
-  const grandTotal = Object.values(totalsByType).reduce((a, b) => a + b, 0);
-  const atLimit = grandTotal >= LAB_PRODUCT_LIMIT;
   const typeDef = ITEM_TYPES[activeType];
   const TypeIcon = typeDef.icon;
+
+  // ─── Active type's limit ─────────────────────────────────────────────────
+  // Per-type now, not a flat catalog-wide cap. atLimit only ever gates the
+  // *currently active* tab's "New Item" button — creating in one type never
+  // blocks creating in another.
+  const activeMax = maxByType[activeType];
+  const activeCount = totalsByType[activeType] ?? 0;
+  const atLimit = activeMax !== null && activeCount >= activeMax;
 
   const filteredItems = items.filter((item) => {
     if (stockFilter === "all" || !typeDef.hasStock) return true;
@@ -1522,15 +1534,14 @@ export default function Products() {
           <button
             onClick={() => !atLimit && setModal({ type: "create" })}
             disabled={atLimit}
-            className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none"
+            title={atLimit ? `সর্বোচ্চ ${activeMax}টি ${typeDef.bangla}` : undefined}
+            className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none disabled:cursor-not-allowed"
             style={{
               background: atLimit ? C.muted : typeDef.grad,
               boxShadow: atLimit ? "none" : `0 4px 14px ${typeDef.accent}40`,
-              cursor: atLimit ? "not-allowed" : "pointer",
             }}
-            title={atLimit ? `সর্বোচ্চ ${LAB_PRODUCT_LIMIT}টি আইটেম` : undefined}
           >
-            <Plus className="w-[13px] h-[13px]" />
+            {atLimit ? <Lock className="w-[13px] h-[13px]" /> : <Plus className="w-[13px] h-[13px]" />}
             নতুন {typeDef.bangla}
           </button>
         </div>
@@ -1540,7 +1551,7 @@ export default function Products() {
           <div className="grid grid-cols-4 gap-3 mb-5">
             <StatCard
               label="মোট"
-              value={grandTotal}
+              value={stats.medicine + stats.product + stats.service}
               color={C.ink}
               grad="linear-gradient(135deg,#0F172A,#1E293B)"
               icon={Grid3X3}
@@ -1569,12 +1580,25 @@ export default function Products() {
           </div>
         )}
 
+        {atLimit && (
+          <div className="flex items-start gap-2.5 px-3.5 py-2.5 mb-4 bg-[#FEF2F2] border-[1.5px] border-[#EF444430] rounded-xl">
+            <Lock className="w-[13px] h-[13px] text-[#EF4444] mt-[1px] shrink-0" />
+            <p className="text-[11px] leading-[1.5] text-[#991B1B] font-[Noto_Sans_Bengali,sans-serif]">
+              আপনার ল্যাবে সর্বোচ্চ {activeMax}টি {typeDef.bangla} যোগ করা যাবে এবং আপনি সীমায় পৌঁছেছেন। নতুন{" "}
+              {typeDef.bangla} যোগ করতে সীমা বাড়াতে আমাদের সাথে যোগাযোগ করুন।
+            </p>
+          </div>
+        )}
+
         {/* Type tab card */}
         <div className="px-4 py-3 mb-4 bg-white border border-[#E2E8F0] rounded-2xl">
           <div className="flex items-center gap-2 flex-wrap">
             {Object.values(ITEM_TYPES).map((t) => {
               const Icon = t.icon;
               const isActive = t.key === activeType;
+              const tMax = maxByType[t.key];
+              const tCount = totalsByType[t.key] ?? 0;
+              const tAtLimit = tMax !== null && tCount >= tMax;
               return (
                 <button
                   key={t.key}
@@ -1596,25 +1620,28 @@ export default function Products() {
                         : { color: C.muted, background: "#F1F5F9" }
                     }
                   >
-                    {totalsByType[t.key] ?? 0}
+                    {tMax !== null ? `${tCount}/${tMax}` : tCount}
                   </span>
+                  {tAtLimit && <Lock className="w-[10px] h-[10px]" style={{ color: C.red }} />}
                 </button>
               );
             })}
-            <div className="ml-auto flex items-center gap-2">
-              <span className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
-                {grandTotal}/{LAB_PRODUCT_LIMIT}
-              </span>
-              <div className="w-16 h-1 bg-[#E2E8F0] rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${Math.min((grandTotal / LAB_PRODUCT_LIMIT) * 100, 100)}%`,
-                    background: atLimit ? C.red : grandTotal / LAB_PRODUCT_LIMIT > 0.8 ? C.amber : C.teal,
-                  }}
-                />
+            {activeMax !== null && (
+              <div className="ml-auto flex items-center gap-2">
+                <span className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8]">
+                  {activeCount}/{activeMax}
+                </span>
+                <div className="w-16 h-1 bg-[#E2E8F0] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min((activeCount / activeMax) * 100, 100)}%`,
+                      background: atLimit ? C.red : activeCount / activeMax > 0.8 ? C.amber : C.teal,
+                    }}
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -1712,7 +1739,9 @@ export default function Products() {
 
         {/* Footer note */}
         <p className="font-['IBM_Plex_Mono',monospace] text-[10px] text-[#94A3B8] mt-4 text-center">
-          * সর্বোচ্চ {LAB_PRODUCT_LIMIT}টি আইটেম · বর্তমানে {grandTotal}টি
+          {activeMax !== null
+            ? `* সর্বোচ্চ ${activeMax}টি ${typeDef.bangla} · বর্তমানে ${activeCount}টি`
+            : `* বর্তমানে ${activeCount}টি ${typeDef.bangla}`}
         </p>
       </div>
     </section>

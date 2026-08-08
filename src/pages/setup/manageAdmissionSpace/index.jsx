@@ -11,6 +11,10 @@
  * Styled to match the Referrer/Doctor/Staff card-list aesthetic:
  * IBM Plex Mono/Sans, shared Modal + Popup pattern, ActionChip rows,
  * StatCard grid, avatar-chip expandable cards, standalone toolbar card.
+ *
+ * LIMIT CHECK (added): GET /spaces now returns { spaces, maxAdmissionSpace }.
+ * maxAdmissionSpace gates the "New" button, same pattern as maxDoctor in
+ * ManageDoctors.jsx / maxReferrer in ManageReferrer.jsx.
  */
 
 // React Compiler handles memoisation — no useCallback/useMemo
@@ -36,6 +40,7 @@ import {
   Search,
   RotateCcw,
   AlertCircle,
+  Lock,
 } from "lucide-react";
 
 import Modal from "../../../components/modal";
@@ -56,7 +61,7 @@ const pageGradientBg = "bg-[radial-gradient(ellipse_120%_80%_at_50%_-10%,#eef2ff
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
 const getErrorMessage = (err, fallback) => {
-  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  if (err?.response?.status === 403) return err?.response?.data?.error ?? PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
 
@@ -1133,6 +1138,7 @@ const ManageSpaces = () => {
 
   const [spaces, setSpaces] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [maxAdmissionSpace, setMaxAdmissionSpace] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [popup, setPopup] = useState(null);
   const [offlinePopup, setOfflinePopup] = useState(false); // ← new
@@ -1147,7 +1153,10 @@ const ManageSpaces = () => {
     try {
       const [deptRes, spacesRes] = await Promise.all([spaceService.getDepartments(), spaceService.getAll()]);
       setDepartments(deptRes.data.departments ?? []);
-      setSpaces(spacesRes.data);
+      setSpaces(spacesRes.data.spaces ?? []);
+      setMaxAdmissionSpace(
+        typeof spacesRes.data.maxAdmissionSpace === "number" ? spacesRes.data.maxAdmissionSpace : null,
+      );
     } catch (err) {
       if (isNetworkError(err)) {
         setOfflinePopup(true);
@@ -1181,6 +1190,12 @@ const ManageSpaces = () => {
     }, 0),
   };
 
+  // ─── Admission space limit ──────────────────────────────────────────────
+  // maxAdmissionSpace comes straight from GET /spaces (backend reads it off
+  // the lab record). null means "no limit set on this lab" — mirrors
+  // maxDoctor in ManageDoctors.jsx / maxReferrer in ManageReferrer.jsx.
+  const atSpaceLimit = maxAdmissionSpace !== null && stats.total >= maxAdmissionSpace;
+
   const filtered = spaces.filter((s) => {
     const depts = s.departments ?? (s.department ? [s.department] : []);
     if (deptFilter !== "all" && !depts.includes(deptFilter)) return false;
@@ -1190,7 +1205,19 @@ const ManageSpaces = () => {
 
   const hasFilters = deptFilter !== "all";
 
-  const openAdd = () => setFormModal({ editSpace: null });
+  // Guarded entry point for opening the "add space" form — mirrors
+  // handleAddDoctorClick in ManageDoctors.jsx, keeping the limit check in
+  // one place rather than scattered across every trigger of setFormModal.
+  const openAdd = () => {
+    if (atSpaceLimit) {
+      setPopup({
+        type: "error",
+        message: `আপনার ল্যাবে সর্বোচ্চ ${maxAdmissionSpace}টি কক্ষ/স্থান যোগ করা যাবে। সীমা পূর্ণ হয়েছে। সীমা বাড়াতে আমাদের সাথে যোগাযোগ করুন।`,
+      });
+      return;
+    }
+    setFormModal({ editSpace: null });
+  };
   const openEdit = (space) => setFormModal({ editSpace: space });
   const closeForm = () => setFormModal(null);
 
@@ -1401,22 +1428,35 @@ const ManageSpaces = () => {
               <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[22px] font-bold text-[#0F172A] leading-tight">
                 Manage Spaces
               </h1>
-              <p className="text-[13px] text-[#64748B] mt-0.5">Wards, cabins, and indoor patient spaces.</p>
+              <p className="text-[13px] text-[#64748B] mt-0.5">
+                Wards, cabins, and indoor patient spaces.
+                {maxAdmissionSpace !== null && (
+                  <span
+                    className="ml-1.5 font-['IBM_Plex_Mono',monospace]"
+                    style={{ color: atSpaceLimit ? "#EF4444" : "#64748B" }}
+                  >
+                    ({stats.total}/{maxAdmissionSpace} used)
+                  </span>
+                )}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={openAdd}
-              className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none shadow-[0_4px_14px_rgba(99,102,241,0.4)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.5)]"
-              style={{ background: "linear-gradient(135deg,#6366F1,#4F46E5)" }}
+              disabled={atSpaceLimit}
+              title={atSpaceLimit ? `Space limit (${maxAdmissionSpace}) reached` : undefined}
+              className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none shadow-[0_4px_14px_rgba(99,102,241,0.4)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.5)] disabled:opacity-60 disabled:shadow-none disabled:cursor-not-allowed"
+              style={{ background: atSpaceLimit ? "#94A3B8" : "linear-gradient(135deg,#6366F1,#4F46E5)" }}
             >
-              <Plus className="w-[13px] h-[13px]" /> New
+              {atSpaceLimit ? <Lock className="w-[13px] h-[13px]" /> : <Plus className="w-[13px] h-[13px]" />}
+              New
             </button>
           </div>
         </div>
 
         {!initialLoading && (
-          <div className="grid grid-cols-4 gap-3 mb-5">
+          <div className={`grid grid-cols-4 ${maxAdmissionSpace !== null ? "sm:grid-cols-5" : ""} gap-3 mb-5`}>
             <StatCard
               label="Total"
               value={stats.total}
@@ -1445,6 +1485,27 @@ const ManageSpaces = () => {
               grad="linear-gradient(135deg,#F59E0B,#D97706)"
               icon={BookMarked}
             />
+            {maxAdmissionSpace !== null && (
+              <StatCard
+                label="Limit"
+                value={`${stats.total}/${maxAdmissionSpace}`}
+                color={atSpaceLimit ? "#EF4444" : "#64748B"}
+                grad={
+                  atSpaceLimit ? "linear-gradient(135deg,#EF4444,#DC2626)" : "linear-gradient(135deg,#64748B,#475569)"
+                }
+                icon={Lock}
+              />
+            )}
+          </div>
+        )}
+
+        {atSpaceLimit && (
+          <div className="flex items-start gap-2.5 px-3.5 py-2.5 mb-4 bg-[#FEF2F2] border-[1.5px] border-[#EF444430] rounded-xl">
+            <Lock className="w-[13px] h-[13px] text-[#EF4444] mt-[1px] shrink-0" />
+            <p className="text-[11px] leading-[1.5] text-[#991B1B] font-[Noto_Sans_Bengali,sans-serif]">
+              আপনার ল্যাবে সর্বোচ্চ {maxAdmissionSpace}টি কক্ষ/স্থান যোগ করা যাবে এবং আপনি সীমায় পৌঁছেছেন। নতুন কক্ষ
+              যোগ করতে সীমা বাড়াতে আমাদের সাথে যোগাযোগ করুন।
+            </p>
           </div>
         )}
 

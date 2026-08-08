@@ -23,6 +23,7 @@ import {
   BadgePercent,
   Banknote,
   Check,
+  Lock,
 } from "lucide-react";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
@@ -78,7 +79,7 @@ const EMPTY_FORM = {
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
 const getErrorMessage = (err, fallback) => {
-  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  if (err?.response?.status === 403) return err?.response?.data?.error ?? PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
 
@@ -736,6 +737,7 @@ const ManageReferrer = () => {
   }
 
   const [referrers, setReferrers] = useState([]);
+  const [maxReferrer, setMaxReferrer] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [popup, setPopup] = useState(null);
@@ -750,7 +752,8 @@ const ManageReferrer = () => {
   const loadReferrers = async () => {
     try {
       const res = await referrerService.getAll();
-      setReferrers(res.data);
+      setReferrers(res.data.referrers);
+      setMaxReferrer(res.data.maxReferrer);
     } catch (err) {
       if (isNetworkError(err)) {
         setOfflinePopup(true);
@@ -776,6 +779,13 @@ const ManageReferrer = () => {
     [referrers],
   );
 
+  // ─── Referrer limit ─────────────────────────────────────────────────────
+  // maxReferrer comes straight from GET /referrers (backend reads it off
+  // the lab record). null means "no limit set on this lab". No per-type
+  // split here — the limit applies to the full referrer list, mirroring
+  // how the backend counts it.
+  const atReferrerLimit = maxReferrer !== null && stats.total >= maxReferrer;
+
   const filtered = useMemo(
     () =>
       referrers.filter((r) => {
@@ -799,6 +809,20 @@ const ManageReferrer = () => {
     setFormModal(data);
   };
 
+  // Guarded entry point for opening the "add referrer" form — used by both
+  // the header button and (if needed elsewhere) any other add entry point,
+  // so the limit check lives in one place.
+  const handleAddReferrerClick = () => {
+    if (atReferrerLimit) {
+      setPopup({
+        type: "error",
+        message: `আপনার ল্যাবে সর্বোচ্চ ${maxReferrer} জন রেফারার যোগ করা যাবে। সীমা পূর্ণ হয়েছে। সীমা বাড়াতে আমাদের সাথে যোগাযোগ করুন।`,
+      });
+      return;
+    }
+    openFormModal({ ...EMPTY_FORM, formType: "addReferrer" });
+  };
+
   const closeFormModal = () => {
     setFormModal(null);
     setFormApiError("");
@@ -806,12 +830,23 @@ const ManageReferrer = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const isEdit = formModal.formType === "editReferrer";
+
+    // Re-check the limit right before submit (not just at the point the
+    // form was opened) — covers a form left open while the last slot gets
+    // filled elsewhere. No API call is made when this fires; the backend
+    // check remains the authoritative guard for direct API access.
+    if (!isEdit && atReferrerLimit) {
+      return setFormApiError(
+        `আপনার ল্যাবে সর্বোচ্চ ${maxReferrer} জন রেফারার যোগ করা যাবে। সীমা পূর্ণ হয়েছে। সীমা বাড়াতে আমাদের সাথে যোগাযোগ করুন।`,
+      );
+    }
+
     if (!formModal.name?.trim()) return setFormApiError("নাম প্রয়োজন।");
     if (!formModal.contactNumber?.trim()) return setFormApiError("যোগাযোগ নম্বর প্রয়োজন।");
     try {
       setSaving(true);
       setFormApiError("");
-      const isEdit = formModal.formType === "editReferrer";
       if (isEdit) {
         const { name, contactNumber, degree, details, type, _id } = formModal;
         await referrerService.editReferrer({ name, contactNumber, degree, details, type, _id });
@@ -923,7 +958,17 @@ const ManageReferrer = () => {
               <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[22px] font-bold text-[#0F172A] leading-tight">
                 রেফারার তালিকা
               </h1>
-              <p className="text-[13px] text-[#64748B] mt-0.5">রেফারেল ও কমিশন পরিচালনা।</p>
+              <p className="text-[13px] text-[#64748B] mt-0.5">
+                রেফারেল ও কমিশন পরিচালনা।
+                {maxReferrer !== null && (
+                  <span
+                    className="ml-1.5 font-['IBM_Plex_Mono',monospace]"
+                    style={{ color: atReferrerLimit ? "#EF4444" : "#64748B" }}
+                  >
+                    ({stats.total}/{maxReferrer} ব্যবহৃত)
+                  </span>
+                )}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -934,18 +979,21 @@ const ManageReferrer = () => {
               <ArrowLeft className="w-[13px] h-[13px]" /> Back
             </Link>
             <button
-              onClick={() => openFormModal({ ...EMPTY_FORM, formType: "addReferrer" })}
-              className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none shadow-[0_4px_14px_rgba(99,102,241,0.4)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.5)]"
-              style={{ background: "linear-gradient(135deg,#6366F1,#4F46E5)" }}
+              onClick={handleAddReferrerClick}
+              disabled={atReferrerLimit}
+              title={atReferrerLimit ? `রেফারার সীমা (${maxReferrer}) পূর্ণ হয়েছে` : undefined}
+              className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none shadow-[0_4px_14px_rgba(99,102,241,0.4)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.5)] disabled:opacity-60 disabled:shadow-none disabled:cursor-not-allowed"
+              style={{ background: atReferrerLimit ? "#94A3B8" : "linear-gradient(135deg,#6366F1,#4F46E5)" }}
             >
-              <UserPlus className="w-[13px] h-[13px]" /> New Referrer
+              {atReferrerLimit ? <Lock className="w-[13px] h-[13px]" /> : <UserPlus className="w-[13px] h-[13px]" />}
+              New Referrer
             </button>
           </div>
         </div>
 
         {/* Stats */}
         {!initialLoading && (
-          <div className="grid grid-cols-4 gap-3 mb-5">
+          <div className={`grid grid-cols-4 ${maxReferrer !== null ? "sm:grid-cols-5" : ""} gap-3 mb-5`}>
             <StatCard
               label="মোট"
               value={stats.total}
@@ -974,6 +1022,29 @@ const ManageReferrer = () => {
               grad="linear-gradient(135deg,#0D9488,#0F766E)"
               icon={Building2}
             />
+            {maxReferrer !== null && (
+              <StatCard
+                label="সীমা"
+                value={`${stats.total}/${maxReferrer}`}
+                color={atReferrerLimit ? "#EF4444" : "#64748B"}
+                grad={
+                  atReferrerLimit
+                    ? "linear-gradient(135deg,#EF4444,#DC2626)"
+                    : "linear-gradient(135deg,#64748B,#475569)"
+                }
+                icon={Lock}
+              />
+            )}
+          </div>
+        )}
+
+        {atReferrerLimit && (
+          <div className="flex items-start gap-2.5 px-3.5 py-2.5 mb-4 bg-[#FEF2F2] border-[1.5px] border-[#EF444430] rounded-xl">
+            <Lock className="w-[13px] h-[13px] text-[#EF4444] mt-[1px] shrink-0" />
+            <p className="text-[11px] leading-[1.5] text-[#991B1B] font-[Noto_Sans_Bengali,sans-serif]">
+              আপনার ল্যাবে সর্বোচ্চ {maxReferrer} জন রেফারার যোগ করা যাবে এবং আপনি সীমায় পৌঁছেছেন। নতুন রেফারার যোগ
+              করতে সীমা বাড়াতে আমাদের সাথে যোগাযোগ করুন।
+            </p>
           </div>
         )}
 

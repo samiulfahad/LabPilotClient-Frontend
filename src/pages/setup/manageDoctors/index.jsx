@@ -23,6 +23,7 @@ import {
   AlertCircle,
   RotateCcw,
   Stethoscope,
+  Lock,
 } from "lucide-react";
 import Modal from "../../../components/modal";
 import doctorService from "../../../api/doctor";
@@ -58,7 +59,7 @@ const pageGradientBg = "bg-[radial-gradient(ellipse_120%_80%_at_50%_-10%,#eef2ff
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
 
 const getErrorMessage = (err, fallback) => {
-  if (err?.response?.status === 403) return PERMISSION_DENIED_MESSAGE;
+  if (err?.response?.status === 403) return err?.response?.data?.error ?? PERMISSION_DENIED_MESSAGE;
   return err?.response?.data?.error ?? fallback;
 };
 
@@ -997,6 +998,7 @@ const ManageDoctors = () => {
   const [departments, setDepartments] = useState([]);
   const [designations, setDesignations] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [maxDoctor, setMaxDoctor] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
@@ -1029,9 +1031,10 @@ const ManageDoctors = () => {
   const fetchDoctors = async ({ search: s = "", department: d = "", page = 1 } = {}) => {
     try {
       const res = await doctorService.getAll({ search: s, department: d, page });
-      const { doctors: data, total, totalPages, page: cur } = res.data;
+      const { doctors: data, total, totalPages, page: cur, maxDoctor: maxD } = res.data;
       setDoctors(data);
       setPagination({ page: cur, totalPages, total });
+      setMaxDoctor(typeof maxD === "number" ? maxD : null);
     } catch (err) {
       if (isNetworkError(err)) {
         setOfflinePopup(true);
@@ -1104,6 +1107,26 @@ const ManageDoctors = () => {
     [doctors, pagination.total],
   );
 
+  // ─── Doctor limit ─────────────────────────────────────────────────────────
+  // maxDoctor comes straight from GET /doctors (backend reads it off the lab
+  // record). null means "no limit set on this lab" — mirrors maxReferrer in
+  // ManageReferrer.jsx / maxByType in Products.jsx.
+  const atDoctorLimit = maxDoctor !== null && pagination.total >= maxDoctor;
+
+  // Guarded entry point for opening the "add doctor" form — mirrors
+  // handleAddReferrerClick in ManageReferrer.jsx, keeping the limit check in
+  // one place rather than scattered across every trigger of setFormModal.
+  const handleAddDoctorClick = () => {
+    if (atDoctorLimit) {
+      setPopup({
+        type: "error",
+        message: `আপনার ল্যাবে সর্বোচ্চ ${maxDoctor} জন ডাক্তার যোগ করা যাবে। সীমা পূর্ণ হয়েছে। সীমা বাড়াতে আমাদের সাথে যোগাযোগ করুন।`,
+      });
+      return;
+    }
+    setFormModal({});
+  };
+
   const hasFilters = deptFilter !== "all" || commFilter !== "all";
   const deptOptions = departments.map((d) => ({ value: d.value, label: d.label }));
 
@@ -1158,7 +1181,17 @@ const ManageDoctors = () => {
               <h1 className="font-['IBM_Plex_Sans',sans-serif] text-[22px] font-bold text-[#0F172A] leading-tight">
                 ডাক্তার তালিকা
               </h1>
-              <p className="text-[13px] text-[#64748B] mt-0.5">কমিশন ও রেফারেল ডাক্তার পরিচালনা।</p>
+              <p className="text-[13px] text-[#64748B] mt-0.5">
+                কমিশন ও রেফারেল ডাক্তার পরিচালনা।
+                {maxDoctor !== null && (
+                  <span
+                    className="ml-1.5 font-['IBM_Plex_Mono',monospace]"
+                    style={{ color: atDoctorLimit ? "#EF4444" : "#64748B" }}
+                  >
+                    ({pagination.total}/{maxDoctor} ব্যবহৃত)
+                  </span>
+                )}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1169,18 +1202,21 @@ const ManageDoctors = () => {
               <ArrowLeft className="w-[13px] h-[13px]" /> ফিরে
             </Link>
             <button
-              onClick={() => setFormModal({})}
-              className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none shadow-[0_4px_14px_rgba(13,148,136,0.4)] hover:shadow-[0_6px_20px_rgba(13,148,136,0.5)]"
-              style={{ background: "linear-gradient(135deg,#0D9488,#0F766E)" }}
+              onClick={handleAddDoctorClick}
+              disabled={atDoctorLimit}
+              title={atDoctorLimit ? `ডাক্তার সীমা (${maxDoctor}) পূর্ণ হয়েছে` : undefined}
+              className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none shadow-[0_4px_14px_rgba(13,148,136,0.4)] hover:shadow-[0_6px_20px_rgba(13,148,136,0.5)] disabled:opacity-60 disabled:shadow-none disabled:cursor-not-allowed"
+              style={{ background: atDoctorLimit ? "#94A3B8" : "linear-gradient(135deg,#0D9488,#0F766E)" }}
             >
-              <UserPlus className="w-[13px] h-[13px]" /> নতুন ডাক্তার
+              {atDoctorLimit ? <Lock className="w-[13px] h-[13px]" /> : <UserPlus className="w-[13px] h-[13px]" />}
+              নতুন ডাক্তার
             </button>
           </div>
         </div>
 
         {/* Stats */}
         {!initialLoading && (
-          <div className="grid grid-cols-4 gap-3 mb-5">
+          <div className={`grid grid-cols-4 ${maxDoctor !== null ? "sm:grid-cols-5" : ""} gap-3 mb-5`}>
             <StatCard
               label="মোট ডাক্তার"
               value={stats.total}
@@ -1209,6 +1245,27 @@ const ManageDoctors = () => {
               grad="linear-gradient(135deg,#8B5CF6,#7C3AED)"
               icon={Layers}
             />
+            {maxDoctor !== null && (
+              <StatCard
+                label="সীমা"
+                value={`${stats.total}/${maxDoctor}`}
+                color={atDoctorLimit ? "#EF4444" : "#64748B"}
+                grad={
+                  atDoctorLimit ? "linear-gradient(135deg,#EF4444,#DC2626)" : "linear-gradient(135deg,#64748B,#475569)"
+                }
+                icon={Lock}
+              />
+            )}
+          </div>
+        )}
+
+        {atDoctorLimit && (
+          <div className="flex items-start gap-2.5 px-3.5 py-2.5 mb-4 bg-[#FEF2F2] border-[1.5px] border-[#EF444430] rounded-xl">
+            <Lock className="w-[13px] h-[13px] text-[#EF4444] mt-[1px] shrink-0" />
+            <p className="text-[11px] leading-[1.5] text-[#991B1B] font-[Noto_Sans_Bengali,sans-serif]">
+              আপনার ল্যাবে সর্বোচ্চ {maxDoctor} জন ডাক্তার যোগ করা যাবে এবং আপনি সীমায় পৌঁছেছেন। নতুন ডাক্তার যোগ করতে
+              সীমা বাড়াতে আমাদের সাথে যোগাযোগ করুন।
+            </p>
           </div>
         )}
 
