@@ -46,26 +46,30 @@ const isNetworkError = (error) => error?.isAxiosError === true && !error.respons
 
 // ── Formatters ─────────────────────────────────────────────────────────────────
 
+const BST_OFFSET_MS = 6 * 60 * 60 * 1000;
+
 const fmt = {
   currency: (amount) => `৳${(amount ?? 0).toLocaleString("en-IN")}`,
 
+  // billingPeriodStart/End and dueDate are BST calendar boundaries stored as
+  // UTC ms — shift into BST, then lock the formatter to UTC display so the
+  // viewer's own browser timezone can't re-shift the date again.
   date: (ts) =>
     ts
-      ? new Date(ts).toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        })
+      ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }).format(
+          new Date(ts + BST_OFFSET_MS),
+        )
       : "—",
 
   period: (ts) =>
     ts
-      ? new Date(ts).toLocaleDateString("en-GB", {
-          year: "numeric",
-          month: "long",
-        })
+      ? new Intl.DateTimeFormat("en-GB", { year: "numeric", month: "long", timeZone: "UTC" }).format(
+          new Date(ts + BST_OFFSET_MS),
+        )
       : "—",
 
+  // paidAt is an exact instant, not a BST calendar boundary — showing it in
+  // the viewer's own local time is correct here, so no BST shift applied.
   datetime: (ts) =>
     ts
       ? new Date(ts).toLocaleString("en-GB", {
@@ -77,6 +81,28 @@ const fmt = {
           hour12: true,
         })
       : "—",
+};
+
+// ── Breakdown row builder ───────────────────────────────────────────────────────
+// Mirrors the backend's forceInvoiceFee branching: when true, feePerInvoice is
+// the flat per-invoice rate actually charged; when false, totalInvoiceFee (the
+// sum of each invoice's own fee) is what was actually charged.
+const buildBreakdownRows = (breakdown) => {
+  if (!breakdown) return [];
+  const rows = breakdown.forceInvoiceFee
+    ? [
+        { label: "মাসিক ফি", value: breakdown.monthlyFee },
+        { label: "প্রতি-ইনভয়েস ফি (নির্ধারিত)", value: breakdown.feePerInvoice },
+        { label: "প্রতি-ইনভয়েস কমিশন", value: breakdown.commission },
+        { label: "ইনভয়েস থেকে নেট চার্জ", value: breakdown.netInvoiceFee },
+      ]
+    : [
+        { label: "মাসিক ফি", value: breakdown.monthlyFee },
+        { label: "মোট ইনভয়েস ফি", value: breakdown.totalInvoiceFee },
+        { label: "প্রতি-ইনভয়েস কমিশন", value: breakdown.commission },
+        { label: "ইনভয়েস থেকে নেট চার্জ", value: breakdown.netInvoiceFee },
+      ];
+  return rows.filter((r) => r.value != null && r.value !== 0);
 };
 
 // ── Stat Card ──────────────────────────────────────────────────────────────────
@@ -155,12 +181,8 @@ const BreakdownAccordion = ({ breakdown }) => {
   const [open, setOpen] = useState(false);
   if (!breakdown || Object.keys(breakdown).length === 0) return null;
 
-  const rows = [
-    { label: "মাসিক ফি", value: breakdown.monthlyFee },
-    { label: "প্রতি-ইনভয়েস ফি (রোগী চার্জ)", value: breakdown.perInvoiceFee },
-    { label: "প্রতি-ইনভয়েস কমিশন", value: breakdown.commission },
-    { label: "প্রতি-ইনভয়েস নেট (সফটওয়্যার)", value: breakdown.perInvoiceNet },
-  ].filter((r) => r.value != null && r.value !== 0);
+  const rows = buildBreakdownRows(breakdown);
+  if (rows.length === 0) return null;
 
   return (
     <div className="mt-3 border-[1.5px] border-[#E2E8F0] rounded-xl overflow-hidden">
@@ -328,6 +350,7 @@ const HistoryRow = ({ bill, index }) => {
   const [expanded, setExpanded] = useState(false);
   const isOverdue = bill.status === "unpaid" && Date.now() > new Date(bill.dueDate).getTime();
   const isPaid = bill.status === "paid";
+  const breakdownRows = buildBreakdownRows(bill.breakdown);
 
   return (
     <div className={`transition-all border-b border-[#E2E8F0] ${isPaid ? "opacity-100" : "opacity-90"}`}>
@@ -369,29 +392,22 @@ const HistoryRow = ({ bill, index }) => {
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4">
             {/* Breakdown */}
-            {bill.breakdown && Object.keys(bill.breakdown).length > 0 && (
+            {breakdownRows.length > 0 && (
               <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
                 <p className="px-4 py-2.5 font-['IBM_Plex_Mono',monospace] text-[9px] font-bold uppercase tracking-[0.08em] text-[#94A3B8] border-b border-[#E2E8F0]">
                   চার্জ বিস্তারিত
                 </p>
-                {[
-                  { label: "মাসিক ফি", value: bill.breakdown.monthlyFee },
-                  { label: "প্রতি-ইনভয়েস ফি", value: bill.breakdown.perInvoiceFee },
-                  { label: "কমিশন", value: bill.breakdown.commission },
-                  { label: "নেট (সফটওয়্যার)", value: bill.breakdown.perInvoiceNet },
-                ]
-                  .filter((r) => r.value != null && r.value !== 0)
-                  .map((r) => (
-                    <div
-                      key={r.label}
-                      className="flex justify-between px-4 py-2 border-b border-[#F1F5F9] last:border-b-0"
-                    >
-                      <span className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#64748B]">{r.label}</span>
-                      <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#0F172A]">
-                        {fmt.currency(r.value)}
-                      </span>
-                    </div>
-                  ))}
+                {breakdownRows.map((r) => (
+                  <div
+                    key={r.label}
+                    className="flex justify-between px-4 py-2 border-b border-[#F1F5F9] last:border-b-0"
+                  >
+                    <span className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#64748B]">{r.label}</span>
+                    <span className="font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#0F172A]">
+                      {fmt.currency(r.value)}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -524,16 +540,13 @@ const Billing = () => {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "admin";
-
-  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
   const hasAccess = isAdmin || user?.permissions?.manageBilling === true;
-  if (!hasAccess) {
-    return (
-      <Popup type="denied" message="মাসিক বিলিং দেখা বা পরিশোধ করার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />
-    );
-  }
-  // ════════════════════════════════════════════════
 
+  // All hooks must run unconditionally on every render — the permission
+  // check (and its early return) now happens AFTER every hook below,
+  // instead of before them. Bailing out before hooks were called was a
+  // Rules-of-Hooks violation that could throw or misbehave if `hasAccess`
+  // ever changes value between renders (e.g. `user` populating async).
   const [status, setStatus] = useState(null);
   const [history, setHistory] = useState([]);
   const [loadingStatus, setLoadingStatus] = useState(true);
@@ -542,7 +555,7 @@ const Billing = () => {
   const [historyError, setHistoryError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [popup, setPopup] = useState(null);
-  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
+  const [offlinePopup, setOfflinePopup] = useState(false);
 
   const fetchStatus = async () => {
     setLoadingStatus(true);
@@ -579,9 +592,13 @@ const Billing = () => {
   };
 
   useEffect(() => {
+    // Skip the fetch entirely for a user without access — no point firing
+    // requests that the backend's `authorize("manageBilling")` hook will
+    // reject anyway.
+    if (!hasAccess) return;
     fetchStatus();
     fetchHistory();
-  }, []);
+  }, [hasAccess]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -604,6 +621,14 @@ const Billing = () => {
   const totalPaid = history.filter((b) => b.status === "paid").reduce((s, b) => s + (b.totalAmount ?? 0), 0);
   const totalUnpaid = history.filter((b) => b.status === "unpaid").reduce((s, b) => s + (b.totalAmount ?? 0), 0);
   const paidCount = history.filter((b) => b.status === "paid").length;
+
+  // ═══════════ ফ্রন্টএন্ড পারমিশন চেক ═══════════
+  if (!hasAccess) {
+    return (
+      <Popup type="denied" message="মাসিক বিলিং দেখা বা পরিশোধ করার অনুমতি আপনার নেই।" onClose={() => navigate("/")} />
+    );
+  }
+  // ════════════════════════════════════════════════
 
   return (
     <section
