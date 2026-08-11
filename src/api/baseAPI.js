@@ -1,8 +1,8 @@
 import axios from "axios";
 import { useAuthStore } from "../store/authStore";
 
-const ip = "http://10.155.23.187:3000/v1"
-const local = "http://localhost:3000/v1"
+const ip = "http://10.155.23.187:3000/v1";
+const local = "http://localhost:3000/v1";
 const api = axios.create({
   baseURL: local,
   timeout: 15000,
@@ -28,6 +28,22 @@ const resetRefreshState = (error = null, token = null) => {
   isRefreshing = false;
 };
 
+// ── Piggyback billing status off any response header ───────────────────────
+// The backend stamps X-Billing-Due / X-Billing-Overdue / X-Billing-Due-Date
+// on every authenticated response (cached server-side, 5-min TTL). This lets
+// any staff session pick up a status change on their very next ordinary API
+// call, without a dedicated polling request.
+const syncBillingStatusFromHeaders = (response) => {
+  const due = response.headers["x-billing-due"];
+  if (due === undefined) return; // route not authenticated / hook didn't run
+
+  useAuthStore.getState().setBillingStatus({
+    hasUnpaidBill: due === "true",
+    isOverdue: response.headers["x-billing-overdue"] === "true",
+    dueDate: response.headers["x-billing-due-date"] ? Number(response.headers["x-billing-due-date"]) : null,
+  });
+};
+
 // ── Request interceptor: attach access token ──────────────────────────────
 api.interceptors.request.use(
   (config) => {
@@ -42,7 +58,10 @@ api.interceptors.request.use(
 
 // ── Response interceptor ──────────────────────────────────────────────────
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    syncBillingStatusFromHeaders(response);
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;

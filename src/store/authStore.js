@@ -6,11 +6,16 @@ import { getDeviceInfo } from "../utils/deviceInfo";
 
 export const useAuthStore = create(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       lab: null,
       token: null,
       isAuthenticated: false,
+
+      // billingStatus is intentionally NOT persisted — it's a live reflection
+      // of the backend's 5-min cache, not identity/session data. Re-fetched
+      // fresh on every app mount instead of trusted from localStorage.
+      billingStatus: null, // { hasUnpaidBill, isOverdue, dueDate, amount } | null
 
       setToken: (newToken) => set({ token: newToken }),
 
@@ -47,7 +52,7 @@ export const useAuthStore = create(
         } catch (error) {
           console.error("Logout API failed, but clearing local state anyway", error);
         } finally {
-          set({ user: null, lab: null, token: null, isAuthenticated: false });
+          set({ user: null, lab: null, token: null, isAuthenticated: false, billingStatus: null });
         }
       },
 
@@ -58,7 +63,36 @@ export const useAuthStore = create(
         } catch (error) {
           console.error("Logout-all API failed, but clearing local state anyway", error);
         } finally {
-          set({ user: null, lab: null, token: null, isAuthenticated: false });
+          set({ user: null, lab: null, token: null, isAuthenticated: false, billingStatus: null });
+        }
+      },
+
+      // ── Billing status ──────────────────────────────────────────────────────
+      // Merge-style setter: header updates (hasUnpaidBill/isOverdue/dueDate)
+      // don't carry `amount`, so a partial update must not wipe out the amount
+      // set by the last full /billing/status fetch.
+      setBillingStatus: (partial) => set((state) => ({ billingStatus: { ...state.billingStatus, ...partial } })),
+
+      // Full fetch — call on app mount to seed state, and right after a
+      // successful payment to make the banner disappear instantly for the
+      // paying session (other sessions pick it up via response headers).
+      fetchBillingStatus: async () => {
+        try {
+          const { data } = await api.get("/billing/status");
+          if (!data.hasUnpaidBill) {
+            set({ billingStatus: { hasUnpaidBill: false, isOverdue: false, dueDate: null, amount: null } });
+            return;
+          }
+          set({
+            billingStatus: {
+              hasUnpaidBill: true,
+              isOverdue: data.isOverdue,
+              dueDate: data.bill.dueDate,
+              amount: data.bill.amount,
+            },
+          });
+        } catch (error) {
+          console.error("Failed to fetch billing status", error);
         }
       },
     }),

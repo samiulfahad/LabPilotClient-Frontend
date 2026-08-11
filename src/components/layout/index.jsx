@@ -1,5 +1,6 @@
 import DesktopMenu from "./DesktopMenu";
 import MobileMenu from "./MobileMenu";
+import BillingBanner from "../../components/billingBanner";
 
 const Layout = ({ children }) => {
   return (
@@ -11,7 +12,8 @@ const Layout = ({ children }) => {
         <DesktopMenu />
       </div>
       <div className="flex-1 flex flex-col lg:ml-64 print:ml-0">
-        
+        <BillingBanner />
+
         <main className="flex-1 bg-white/80 backdrop-blur-sm relative pt-16 lg:pt-0 print:pt-0">{children}</main>
 
         {/* Global Footer – hide on print */}

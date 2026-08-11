@@ -20,6 +20,12 @@ import Popup from "../../components/popup"; // new import
 // ── Axios‑native network error detection (same as other pages) ───────
 const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
 
+// Mirrors the backend's LOGIN_LAB_KEY_PATTERN (authRoutes.js) — digits for a
+// normal login ("1112"), or digits followed by a letters-only suffix for a
+// temporary support-admin login ("1112SAK"). Kept in sync with the server
+// pattern intentionally; if one changes, the other should too.
+const LOGIN_LAB_KEY_PATTERN = /^\d{1,5}[A-Za-z]{0,5}$/;
+
 /* ─── Icon input — placeholder doubles as the label ──────────────────────── */
 const IconInput = ({ icon: Icon, error, rightSlot, className = "", ...props }) => (
   <div className="flex flex-col gap-1.5">
@@ -136,7 +142,10 @@ export default function Login() {
   // ── Login ──
   const validateLogin = () => {
     const e = {};
-    if (!/^\d{1,5}$/.test(labKey)) e.labKey = "1 to 5 digits";
+    // Digits for a normal login, or digits + a letters-only suffix for a
+    // temporary support-admin login (e.g. "1112SAK") — see
+    // LOGIN_LAB_KEY_PATTERN above.
+    if (!LOGIN_LAB_KEY_PATTERN.test(labKey)) e.labKey = "1-5 digit Lab ID";
     if (!/^01\d{9}$/.test(phone)) e.phone = "Enter valid 11-digit number";
     if (password.length < 6) e.password = "Short password";
     setErrors(e);
@@ -347,10 +356,14 @@ export default function Login() {
                   icon={Hash}
                   error={errors.labKey}
                   type="text"
-                  inputMode="numeric"
+                  inputMode="text"
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   placeholder="Lab ID"
                   value={labKey}
-                  onChange={(e) => setLabKey(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                  onChange={(e) => setLabKey(e.target.value.replace(/[^0-9a-zA-Z]/g, "").slice(0, 11))}
                 />
 
                 <IconInput
