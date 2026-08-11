@@ -9,8 +9,9 @@ export const useAuthStore = create(
     (set, get) => ({
       user: null,
       lab: null,
-      token: null,
+      token: null, // in-memory only — NOT persisted, see partialize below
       isAuthenticated: false,
+      isInitializing: true, // true until the initial /refresh check resolves
 
       // billingStatus is intentionally NOT persisted — it's a live reflection
       // of the backend's 5-min cache, not identity/session data. Re-fetched
@@ -18,6 +19,41 @@ export const useAuthStore = create(
       billingStatus: null, // { hasUnpaidBill, isOverdue, dueDate, amount } | null
 
       setToken: (newToken) => set({ token: newToken }),
+
+      // ── Called once on app mount (see App.jsx) ─────────────────────────────
+      // The access token lives only in memory, so a hard refresh/new tab
+      // always starts with token: null. This re-derives a fresh access token
+      // from the httpOnly refresh cookie — same mechanism as the 444 retry
+      // flow in baseAPI.js — so the session survives a reload without ever
+      // putting the token in localStorage.
+      //
+      // `user`/`lab` ARE persisted (non-sensitive display info), so on a
+      // normal reload they're already populated from storage before this
+      // resolves — we just refresh them from the server response as the
+      // source of truth, and fall back to whatever's already in the store
+      // if the backend doesn't hand back `lab` for some reason.
+      initialize: async () => {
+        try {
+          const { data } = await api.post("/refresh");
+          const decodedUser = jwtDecode(data.accessToken);
+          set((state) => ({
+            user: decodedUser,
+            lab: data.lab ?? state.lab,
+            token: data.accessToken,
+            isAuthenticated: true,
+            isInitializing: false,
+          }));
+        } catch {
+          set({
+            user: null,
+            lab: null,
+            token: null,
+            isAuthenticated: false,
+            billingStatus: null,
+            isInitializing: false,
+          });
+        }
+      },
 
       login: async (labKey, phone, password) => {
         try {
@@ -97,12 +133,16 @@ export const useAuthStore = create(
       },
     }),
     {
-      name: "labpilot-auth",
+      name: "chinku_pappa",
+      // Only non-sensitive display info survives a reload. `token` is
+      // deliberately excluded — an access token in localStorage is
+      // readable by any injected script (XSS, malicious extension, a
+      // compromised dependency). `isAuthenticated` is excluded too, so a
+      // stale "true" can't flash protected UI before initialize() confirms
+      // the session is actually still valid.
       partialize: (state) => ({
         user: state.user,
         lab: state.lab,
-        token: state.token,
-        isAuthenticated: state.isAuthenticated,
       }),
     },
   ),

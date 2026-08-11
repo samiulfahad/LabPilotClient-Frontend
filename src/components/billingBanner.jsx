@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { AlertTriangle, Wallet } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 
@@ -9,7 +9,6 @@ const formatDate = (ms) =>
   ms == null ? "" : new Date(ms).toLocaleDateString("bn-BD", { day: "numeric", month: "long", year: "numeric" });
 
 const BillingBanner = () => {
-  const navigate = useNavigate();
   const billingStatus = useAuthStore((s) => s.billingStatus);
   const fetchBillingStatus = useAuthStore((s) => s.fetchBillingStatus);
   const user = useAuthStore((s) => s.user);
@@ -49,7 +48,11 @@ const BillingBanner = () => {
       };
 
   return (
-    <div className={`font-noto ${palette.bg} border-b ${palette.border} px-4 py-2.5 print:hidden`}>
+    // mt-16 lg:mt-0 — the mobile navbar is `fixed` (see MobileMenu.jsx's own
+    // `h-16` spacer under it), so this banner needs the same offset on
+    // mobile or the fixed nav overlaps its top edge. Desktop nav isn't
+    // fixed, so no offset needed there.
+    <div className={`font-noto ${palette.bg} border-b ${palette.border} px-4 py-2.5 mt-16 lg:mt-0 print:hidden`}>
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
           <AlertTriangle className={`w-4 h-4 shrink-0 ${palette.icon}`} />
@@ -64,13 +67,13 @@ const BillingBanner = () => {
         </div>
 
         {canPay && (
-          <button
-            onClick={() => navigate("/billing")}
+          <Link
+            to="/billing"
             className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white ${palette.btn} transition-colors`}
           >
             <Wallet className="w-3.5 h-3.5" />
             বিল পরিশোধ করুন
-          </button>
+          </Link>
         )}
       </div>
     </div>

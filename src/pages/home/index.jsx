@@ -12,13 +12,16 @@ import {
   MapPin,
   Phone,
   Home as HomeIcon,
-  FilePlus,
-  FileText,
   ArrowLeftRight,
   Percent,
   CreditCard,
   UserCircle,
   Users2,
+  Stethoscope,
+  BedDouble,
+  ClipboardPlus,
+  Settings,
+  Stamp,
 } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 
@@ -43,8 +46,20 @@ const getGreeting = () => {
   return "শুভ সন্ধ্যা";
 };
 
-// ─── quick-access actions ─────────────────────────────────────────────────────
-const ACTIONS = [
+// Same admin-bypass + `modules.includes` rule as RequireModules in App.jsx
+// and getMenuForLabType in menuConfig.js — kept local so this component
+// doesn't need to reach into that file just for a boolean check.
+const hasModuleAccess = (user, moduleKey) => {
+  if (moduleKey === null) return true;
+  const isAdmin = user?.role === "admin";
+  return isAdmin || !!user?.modules?.includes(moduleKey);
+};
+
+// ─── quick-access actions, per lab type ────────────────────────────────────────
+// `module` mirrors the module names in ALLOWED_PERMISSIONS (staticData.js) /
+// hospitalMenu & diagnosticCenterMenu (menuConfig.js), so a card only ever
+// shows up for someone the route gate (RequireModules) will actually let in.
+const HOSPITAL_ACTIONS = [
   {
     to: "/outdoor/invoice/new",
     icon: Plus,
@@ -52,22 +67,43 @@ const ACTIONS = [
     sub: "রোগীর বিলিং তৈরি করুন",
     grad: "from-violet-500 to-indigo-600",
     glow: "rgba(99,102,241,0.3)",
+    module: "invoice",
   },
   {
-    to: "/outdoor/invoice/all",
-    icon: ReceiptText,
-    label: "ইনভয়েস তালিকা",
-    sub: "রেকর্ড দেখুন ও পরিচালনা করুন",
+    to: "/outdoor",
+    icon: Stethoscope,
+    label: "আউটডোর রোগী",
+    sub: "ইনভয়েস ও রোগী তথ্য",
     grad: "from-sky-400 to-blue-600",
     glow: "rgba(59,130,246,0.3)",
+    module: "invoice",
+  },
+  {
+    to: "/ipd/admit",
+    icon: BedDouble,
+    label: "রোগী ভর্তি",
+    sub: "নতুন ইনডোর ভর্তি",
+    grad: "from-cyan-400 to-blue-500",
+    glow: "rgba(34,211,238,0.3)",
+    module: "indoorPatient",
+  },
+  {
+    to: "/ipd/patients",
+    icon: ClipboardPlus,
+    label: "ভর্তি রোগীর তালিকা",
+    sub: "ওয়ার্ড ও আইসিইউ তথ্য",
+    grad: "from-teal-400 to-cyan-600",
+    glow: "rgba(20,184,166,0.3)",
+    module: "indoorPatient",
   },
   {
     to: "/report",
     icon: FlaskConical,
     label: "রিপোর্টস",
     sub: "পরীক্ষার ফলাফল ও তথ্য",
-    grad: "from-teal-400 to-emerald-600",
+    grad: "from-emerald-400 to-green-600",
     glow: "rgba(16,185,129,0.3)",
+    module: "testReport",
   },
   {
     to: "/cashmemo",
@@ -76,22 +112,7 @@ const ACTIONS = [
     sub: "মুনাফা ও সংগ্রহ",
     grad: "from-amber-400 to-orange-500",
     glow: "rgba(245,158,11,0.3)",
-  },
-  {
-    to: "/collection-report",
-    icon: ArrowLeftRight,
-    label: "লেনদেন",
-    sub: "পেমেন্ট রেকর্ড",
-    grad: "from-blue-400 to-cyan-600",
-    glow: "rgba(6,182,212,0.3)",
-  },
-  {
-    to: "/commission-report",
-    icon: Percent,
-    label: "কমিশন",
-    sub: "রেফারেল আয়",
-    grad: "from-fuchsia-500 to-pink-600",
-    glow: "rgba(217,70,239,0.3)",
+    module: "dailyReport",
   },
   {
     to: "/billing",
@@ -100,6 +121,7 @@ const ACTIONS = [
     sub: "পেমেন্ট ও বকেয়া",
     grad: "from-rose-400 to-red-600",
     glow: "rgba(239,68,68,0.3)",
+    module: "billing",
   },
   {
     to: "/account",
@@ -108,15 +130,112 @@ const ACTIONS = [
     sub: "প্রোফাইল ও সেটিংস",
     grad: "from-slate-400 to-slate-600",
     glow: "rgba(100,116,139,0.3)",
+    module: null,
   },
 ];
 
-// ─── nav menu ─────────────────────────────────────────────────────────────────
-const NAV_MENU = [
-  { to: "/", icon: HomeIcon, label: "প্রধান পাতা", color: "text-indigo-500", bg: "bg-indigo-50" },
-  { to: "/manage-referrers", icon: Users, label: "রেফারার", color: "text-fuchsia-600", bg: "bg-fuchsia-50" },
-  { to: "/manage-staffs", icon: Users2, label: "স্টাফ", color: "text-rose-500", bg: "bg-rose-50" },
-  { to: "/lab-management", icon: Microscope, label: "ল্যাব সেটিংস", color: "text-gray-600", bg: "bg-gray-100" },
+const DIAGNOSTIC_ACTIONS = [
+  {
+    to: "/outdoor/invoice/new",
+    icon: Plus,
+    label: "নতুন ইনভয়েস",
+    sub: "রোগীর বিলিং তৈরি করুন",
+    grad: "from-violet-500 to-indigo-600",
+    glow: "rgba(99,102,241,0.3)",
+    module: "invoice",
+  },
+  {
+    to: "/invoice-master",
+    icon: ReceiptText,
+    label: "ইনভয়েস মাস্টার",
+    sub: "রেকর্ড দেখুন ও পরিচালনা করুন",
+    grad: "from-sky-400 to-blue-600",
+    glow: "rgba(59,130,246,0.3)",
+    module: "invoice",
+  },
+  {
+    to: "/report",
+    icon: FlaskConical,
+    label: "রিপোর্টস",
+    sub: "পরীক্ষার ফলাফল ও তথ্য",
+    grad: "from-teal-400 to-emerald-600",
+    glow: "rgba(16,185,129,0.3)",
+    module: "testReport",
+  },
+  {
+    to: "/cashmemo",
+    icon: BarChart3,
+    label: "ক্যাশমেমু",
+    sub: "মুনাফা ও সংগ্রহ",
+    grad: "from-amber-400 to-orange-500",
+    glow: "rgba(245,158,11,0.3)",
+    module: "dailyReport",
+  },
+  {
+    to: "/collection-report",
+    icon: ArrowLeftRight,
+    label: "লেনদেন",
+    sub: "পেমেন্ট রেকর্ড",
+    grad: "from-blue-400 to-cyan-600",
+    glow: "rgba(6,182,212,0.3)",
+    module: "dailyReport",
+  },
+  {
+    to: "/commission-report",
+    icon: Percent,
+    label: "কমিশন",
+    sub: "রেফারেল আয়",
+    grad: "from-fuchsia-500 to-pink-600",
+    glow: "rgba(217,70,239,0.3)",
+    module: "dailyReport",
+  },
+  {
+    to: "/billing",
+    icon: CreditCard,
+    label: "বিলিং",
+    sub: "পেমেন্ট ও বকেয়া",
+    grad: "from-rose-400 to-red-600",
+    glow: "rgba(239,68,68,0.3)",
+    module: "billing",
+  },
+  {
+    to: "/account",
+    icon: UserCircle,
+    label: "অ্যাকাউন্ট",
+    sub: "প্রোফাইল ও সেটিংস",
+    grad: "from-slate-400 to-slate-600",
+    glow: "rgba(100,116,139,0.3)",
+    module: null,
+  },
+];
+
+// ─── nav menu, per lab type ─────────────────────────────────────────────────
+const HOSPITAL_NAV = [
+  { to: "/", icon: HomeIcon, label: "প্রধান পাতা", color: "text-indigo-500", bg: "bg-indigo-50", module: null },
+  {
+    to: "/manage-doctors",
+    icon: Stamp,
+    label: "ডাক্তার",
+    color: "text-emerald-600",
+    bg: "bg-emerald-50",
+    module: "setup",
+  },
+  { to: "/manage-staffs", icon: Users2, label: "স্টাফ", color: "text-rose-500", bg: "bg-rose-50", module: "setup" },
+  { to: "/setup", icon: Settings, label: "সেটআপ", color: "text-gray-600", bg: "bg-gray-100", module: "setup" },
+];
+
+const DIAGNOSTIC_NAV = [
+  { to: "/", icon: HomeIcon, label: "প্রধান পাতা", color: "text-indigo-500", bg: "bg-indigo-50", module: null },
+  {
+    to: "/manage-referrers",
+    icon: Users,
+    label: "রেফারার",
+    color: "text-fuchsia-600",
+    bg: "bg-fuchsia-50",
+    module: "setup",
+  },
+  { to: "/manage-staffs", icon: Users2, label: "স্টাফ", color: "text-rose-500", bg: "bg-rose-50", module: "setup" },
+  { to: "/setup", icon: Settings, label: "সেটআপ", color: "text-gray-600", bg: "bg-gray-100", module: "setup" },
 ];
 
 // ─── Action card ─────────────────────────────────────────────────────────────
@@ -158,12 +277,19 @@ const Home = () => {
   const labAddress = lab?.contact?.address ?? "—";
   const labPhone = lab?.contact?.primary ?? "—";
   const isLabActive = lab?.isActive ?? false;
+  const isHospital = lab?.type === "hospital";
 
   const userName = user?.name ?? "ব্যবহারকারী";
   const userRole = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "—";
 
   const greeting = getGreeting();
   const greetingEmoji = greeting === "শুভ সকাল" ? "☀️" : greeting === "শুভ দুপুর" ? "🌤️" : "🌙";
+
+  // Pick the right config by lab.type, then filter to what this user's
+  // modules actually grant — same rule the route gate applies, so nothing
+  // shown here ever 404s or bounces into the "denied" popup.
+  const actions = (isHospital ? HOSPITAL_ACTIONS : DIAGNOSTIC_ACTIONS).filter((a) => hasModuleAccess(user, a.module));
+  const navMenu = (isHospital ? HOSPITAL_NAV : DIAGNOSTIC_NAV).filter((n) => hasModuleAccess(user, n.module));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
@@ -200,9 +326,7 @@ const Home = () => {
 
               <div className="flex flex-col items-end gap-2 shrink-0">
                 <div className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-xl text-right">
-                  <p className="text-[11px] text-indigo-400 font-bold tracking-widest leading-none font-noto">
-                    Lab ID
-                  </p>
+                  <p className="text-[11px] text-indigo-400 font-bold tracking-widest leading-none font-noto">Lab ID</p>
                   <p className="text-base font-black text-indigo-700 leading-tight mt-0.5 font-noto">{labId}</p>
                 </div>
                 {isLabActive ? (
@@ -221,7 +345,9 @@ const Home = () => {
 
             {/* ── Lab name + contact ── */}
             <div className="mt-4 mb-4 pl-0.5">
-              <p className="text-xs font-bold text-indigo-400 tracking-widest mb-1 font-noto">আপনার ল্যাব</p>
+              <p className="text-xs font-bold text-indigo-400 tracking-widest mb-1 font-noto">
+                {isHospital ? "আপনার হাসপাতাল" : "আপনার ল্যাব"}
+              </p>
               <p className="text-lg font-black text-gray-800 leading-snug font-noto">{labName}</p>
               <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-1.5">
                 <div className="flex items-center gap-1.5">
@@ -240,7 +366,7 @@ const Home = () => {
               {[
                 { label: "লগইন করেছেন", value: userName },
                 { label: "ভূমিকা", value: userRole },
-                { label: "সংস্করণ", value: "LabPilot v1" },
+                { label: "প্রতিষ্ঠানের ধরন", value: isHospital ? "হাসপাতাল" : "ডায়াগনস্টিক সেন্টার" },
               ].map(({ label, value }) => (
                 <div key={label}>
                   <p className="text-xs text-gray-400 tracking-wide font-semibold font-noto">{label}</p>
@@ -265,7 +391,7 @@ const Home = () => {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {ACTIONS.map((action, idx) => (
+          {actions.map((action, idx) => (
             <Card key={action.to} {...action} idx={idx} />
           ))}
         </div>
@@ -284,7 +410,7 @@ const Home = () => {
         </div>
 
         <div className="grid grid-cols-4 gap-2">
-          {NAV_MENU.map(({ to, icon: Icon, label, color, bg }, idx) => (
+          {navMenu.map(({ to, icon: Icon, label, color, bg }, idx) => (
             <Link
               key={to}
               to={to}
@@ -305,7 +431,7 @@ const Home = () => {
 
         {/* ── Footer ── */}
         <p className="text-center text-[11px] text-gray-300 font-medium mt-10 font-noto">
-          LabPilot · ডায়াগনস্টিক ল্যাব ম্যানেজমেন্ট সিস্টেম
+          LabPilot · {isHospital ? "হাসপাতাল ম্যানেজমেন্ট সিস্টেম" : "ডায়াগনস্টিক ল্যাব ম্যানেজমেন্ট সিস্টেম"}
         </p>
       </div>
 
