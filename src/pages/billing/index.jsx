@@ -726,28 +726,7 @@ const Billing = () => {
 
         {/* ── History ledger card ─────────────────────────────────────────── */}
         <div className="bg-white overflow-hidden border border-[#E2E8F0] rounded-[20px] shadow-[0_4px_20px_rgba(15,23,42,0.07)]">
-          <SectionHeader
-            icon={FileText}
-            eyebrow="বিলিং লেজার"
-            accentColor="#6366F1"
-            subtitle={!loadingHistory ? `শেষ ২৪ মাস · ${history.length}টি রেকর্ড` : "লোড হচ্ছে…"}
-            right={
-              !loadingHistory && history.length > 0 ? (
-                <div className="flex items-center gap-2">
-                  {paidCount > 0 && (
-                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#0D9488] bg-[#0D948810] rounded-[6px] border border-[#0D948825]">
-                      পরিশোধিত {paidCount}টি
-                    </span>
-                  )}
-                  {history.length - paidCount > 0 && (
-                    <span className="px-2 py-0.5 font-['IBM_Plex_Mono',monospace] text-[11px] font-bold text-[#F59E0B] bg-[#F59E0B10] rounded-[6px] border border-[#F59E0B25]">
-                      বকেয়া {history.length - paidCount}টি
-                    </span>
-                  )}
-                </div>
-              ) : null
-            }
-          />
+          <SectionHeader icon={FileText} eyebrow="বিলিং লেজার" accentColor="#6366F1" />
 
           {/* Column labels */}
           {!loadingHistory && history.length > 0 && (
