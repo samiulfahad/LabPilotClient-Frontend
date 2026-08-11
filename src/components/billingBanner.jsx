@@ -6,7 +6,7 @@ import { useAuthStore } from "../store/authStore";
 const formatBDT = (amount) => (amount == null ? "" : `৳${Number(amount).toLocaleString("en-BD")}`);
 
 const formatDate = (ms) =>
-  ms == null ? "" : new Date(ms).toLocaleDateString("bn-BD", { day: "numeric", month: "short", year: "numeric" });
+  ms == null ? "" : new Date(ms).toLocaleDateString("bn-BD", { day: "numeric", month: "long", year: "numeric" });
 
 const BillingBanner = () => {
   const navigate = useNavigate();
@@ -24,11 +24,13 @@ const BillingBanner = () => {
 
   const isOverdue = billingStatus.isOverdue;
 
-  // "Pay now" only makes sense for people who can actually reach /billing —
-  // that route is module-gated to "billing" (or admin) on the frontend, and
-  // POST /billing/pay is gated to "manageBilling" on the backend. Everyone
-  // else still sees the warning, just without an action they can't use.
-  const canPay = user?.role === "admin" || user?.modules?.includes("billing");
+  // "Pay now" — and the amount itself — only shown to people who hold
+  // "manageBilling" (admins implicitly have it). POST /billing/pay is
+  // gated to the same permission on the backend, so anyone without it
+  // couldn't act on the amount anyway; showing it would just leak billing
+  // info to staff who aren't supposed to see it. Everyone else still sees
+  // the due-date warning, just without the amount or a button they can't use.
+  const canPay = user?.role === "admin" || !!user?.permissions?.manageBilling;
 
   const palette = isOverdue
     ? {
@@ -54,8 +56,8 @@ const BillingBanner = () => {
           <p className={`text-sm font-medium ${palette.text} truncate`}>
             {isOverdue
               ? `পেমেন্টের সময়সীমা শেষ হয়ে গেছে — শেষ তারিখ ছিল ${formatDate(billingStatus.dueDate)}`
-              : `আপনার একটি বিল বকেয়া আছে — পরিশোধের শেষ তারিখ ${formatDate(billingStatus.dueDate)}`}
-            {billingStatus.amount != null && (
+              : `আপনার প্রতিষ্ঠানের বকেয়া বিল আছে — পরিশোধের শেষ তারিখ ${formatDate(billingStatus.dueDate)}`}
+            {canPay && billingStatus.amount != null && (
               <span className="ml-1 font-mono">({formatBDT(billingStatus.amount)})</span>
             )}
           </p>
