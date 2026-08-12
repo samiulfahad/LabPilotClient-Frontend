@@ -1,10 +1,30 @@
 import { useState, useEffect } from "react";
 import { NavLink, Link } from "react-router-dom";
-import { LogOut, Menu, X, ChevronRight, AlertTriangle } from "lucide-react";
+import {
+  LogOut,
+  Menu,
+  X,
+  ChevronRight,
+  AlertTriangle,
+  Home as HomeIcon,
+  FlaskConical,
+  Activity,
+  Plus,
+} from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import { getMenuForLabType } from "./menu";
 import LoadingScreen from "../loadingPage";
 import Modal from "../modal";
+
+// Same admin-bypass + `modules.includes` rule as hasModuleAccess in Home.jsx,
+// RequireModules in App.jsx, and getMenuForLabType in menu.js — kept local
+// so the bottom quick-access bar only ever shows buttons this user's
+// modules actually grant.
+const hasModuleAccess = (user, moduleKey) => {
+  if (moduleKey === null) return true;
+  const isAdmin = user?.role === "admin";
+  return isAdmin || !!user?.modules?.includes(moduleKey);
+};
 
 const MobileMenu = () => {
   const logout = useAuthStore((s) => s.logout);
@@ -18,6 +38,13 @@ const MobileMenu = () => {
   const [loggingOut, setLoggingOut] = useState(false);
 
   const visibleMenu = getMenuForLabType(lab?.type, user);
+
+  // Quick-access slots for the bottom bar. Home/My Activity/Menu are
+  // `module: null` in menu.js (always visible); Report/Invoice only render
+  // if this user's modules grant them — same rule as the full drawer menu,
+  // so nothing here ever 404s.
+  const hasReportAccess = hasModuleAccess(user, "testReport");
+  const hasInvoiceAccess = hasModuleAccess(user, "invoice");
 
   useEffect(() => {
     const handleScroll = () => {
@@ -60,42 +87,74 @@ const MobileMenu = () => {
     setLoggingOut(false);
   };
 
+  const navBtnClass = ({ isActive }) =>
+    `flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
+      isActive ? "text-blue-600" : "text-gray-500 hover:text-gray-700"
+    }`;
+
   return (
     <>
-      {/* ─── Mobile Navbar ──────────────────────────────────────────────── */}
+      {/* ─── Mobile Navbar (bottom, quick-access) ──────────────────────── */}
       <div className="lg:hidden font-anek">
+        {/* Spacer so page content isn't hidden behind the fixed bottom bar */}
+        <div className="h-16" />
+
         <nav
           className={`
-            fixed top-0 left-0 right-0 z-50
-            flex items-center justify-between px-4 py-3
-            bg-white/90 backdrop-blur-md border-b border-gray-200/80
-            transition-all duration-300 shadow-sm
-            overflow-x-hidden
-            ${scrollDirection === "down" ? "-translate-y-full" : "translate-y-0"}
+            fixed bottom-0 left-0 right-0 z-50
+            h-16 px-1
+            bg-white/90 backdrop-blur-md border-t border-gray-200/80
+            shadow-[0_-2px_12px_rgba(0,0,0,0.04)]
+            transition-all duration-300
+            ${scrollDirection === "down" ? "translate-y-full" : "translate-y-0"}
           `}
         >
-          <Link to="/" className="flex flex-col min-w-0">
-            <span
-              className="text-gray-900 font-bold text-lg leading-none truncate"
-              style={{ fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: "-0.02em" }}
+          <div className="relative h-full flex items-center">
+            <NavLink to="/" end className={navBtnClass}>
+              <HomeIcon className="w-5 h-5" />
+              <span className="text-[10px] font-medium font-anek">হোম</span>
+            </NavLink>
+
+            {hasReportAccess && (
+              <NavLink to="/report" className={navBtnClass}>
+                <FlaskConical className="w-5 h-5" />
+                <span className="text-[10px] font-medium font-anek">রিপোর্টস</span>
+              </NavLink>
+            )}
+
+            {/* Elevated FAB — raised above the bar, common "primary action"
+               pattern for mobile bottom nav. Only rendered if the user can
+               actually create invoices (route is gated the same way). */}
+            {hasInvoiceAccess && (
+              <div className="flex-1 flex items-center justify-center">
+                <Link
+                  to="/outdoor/invoice/new"
+                  onClick={closeMenu}
+                  aria-label="নতুন ইনভয়েস"
+                  className="-mt-8 w-14 h-14 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 ring-4 ring-white active:scale-95 transition-transform duration-150"
+                >
+                  <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
+                </Link>
+              </div>
+            )}
+
+            <NavLink to="/my-activity" className={navBtnClass}>
+              <Activity className="w-5 h-5" />
+              <span className="text-[10px] font-medium font-anek">এক্টিভিটি</span>
+            </NavLink>
+
+            <button
+              onClick={toggleMenu}
+              className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
+                isMenuOpen ? "text-blue-600" : "text-gray-500 hover:text-gray-700"
+              }`}
+              aria-label={isMenuOpen ? "Close menu" : "Open menu"}
             >
-              LabPilot<span className="font-light">Pro</span>
-            </span>
-            <span className="text-xs text-gray-500 font-medium leading-tight truncate">
-              The Modern Lab Management System{" "}
-            </span>
-          </Link>
-
-          <button
-            onClick={toggleMenu}
-            className="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg hover:bg-gray-100/80 transition-all duration-200"
-            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
-          >
-            {isMenuOpen ? <X className="w-6 h-6 text-gray-700" /> : <Menu className="w-6 h-6 text-gray-700" />}
-          </button>
+              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              <span className="text-[10px] font-medium font-anek">মেনু</span>
+            </button>
+          </div>
         </nav>
-
-        <div className="h-16" />
       </div>
 
       {isMenuOpen && (
