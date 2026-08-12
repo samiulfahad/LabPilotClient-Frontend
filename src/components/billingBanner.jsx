@@ -48,11 +48,7 @@ const BillingBanner = () => {
       };
 
   return (
-    // mt-16 lg:mt-0 — the mobile navbar is `fixed` (see MobileMenu.jsx's own
-    // `h-16` spacer under it), so this banner needs the same offset on
-    // mobile or the fixed nav overlaps its top edge. Desktop nav isn't
-    // fixed, so no offset needed there.
-    <div className={`font-noto ${palette.bg} border-b ${palette.border} px-4 py-2.5 mt-16 lg:mt-0 print:hidden`}>
+    <div className={`font-noto ${palette.bg} border-b ${palette.border} px-4 py-2.5 print:hidden`}>
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
           <AlertTriangle className={`w-4 h-4 shrink-0 ${palette.icon}`} />
