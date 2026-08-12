@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { useAuthStore } from "./store/authStore";
 
@@ -9,8 +9,11 @@ import Report from "./pages/report";
 import ReportUpload from "./pages/reportUpload";
 import ReportDownload from "./pages/reportDownload";
 import Help from "./pages/help";
-import SetPassword from "./pages/setPassword";
 import Popup from "./components/popup";
+import AuthLoadingScreen from "./components/AuthLoadingScreen";
+
+// Set Password
+import SetPassword from "./pages/setPassword";
 
 // Account
 import Account from "./pages/account";
@@ -106,6 +109,27 @@ const RequireModules = ({ modules }) => {
 // ─── Main App Component ─────────────────────────────────────────────────────
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isInitializing = useAuthStore((s) => s.isInitializing);
+  const initialize = useAuthStore((s) => s.initialize);
+
+  // Runs once per tab/mount. `token` is intentionally NOT persisted (see
+  // authStore.js), so a fresh tab or a hard reload always starts with
+  // token: null even though `user`/`lab` are already hydrated from
+  // localStorage. This exchanges the httpOnly refresh cookie for a new
+  // access token so the existing session is picked up instead of bouncing
+  // to /login. isInitializing starts true and flips false once this
+  // resolves (success or failure) — see the gate below.
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  // Block rendering routes until we know the real auth state. Without this,
+  // ProtectedRoutes reads isAuthenticated as false on the very first render
+  // (before /refresh has had a chance to resolve) and redirects to /login
+  // even though the session is actually still valid.
+  if (isInitializing) {
+    return <AuthLoadingScreen />;
+  }
 
   return (
     <Routes>

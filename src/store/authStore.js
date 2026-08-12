@@ -133,7 +133,7 @@ export const useAuthStore = create(
       },
     }),
     {
-      name: "chinku_pappa",
+      name: "labpilot-auth",
       // Only non-sensitive display info survives a reload. `token` is
       // deliberately excluded — an access token in localStorage is
       // readable by any injected script (XSS, malicious extension, a

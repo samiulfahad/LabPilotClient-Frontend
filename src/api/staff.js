@@ -8,6 +8,7 @@ const staffService = {
   deactivateStaff: (_id) => api.patch(`/staff/${_id}/deactivate`),
   activateStaff: (_id) => api.patch(`/staff/${_id}/activate`),
   deleteStaff: (_id) => api.delete(`/staff/${_id}`),
+  resendPasswordSetup: (_id) => api.post(`/staff/${_id}/resend-password-setup`),
 };
 
 export default staffService;

@@ -320,7 +320,6 @@ const Home = () => {
                 </div>
                 <h1 className="text-3xl font-black text-gray-900 leading-tight tracking-tight font-noto">
                   স্বাগতম, {userName}
-                  <span className="text-indigo-500">।</span>
                 </h1>
               </div>
 

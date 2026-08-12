@@ -13,8 +13,6 @@ import {
   RotateCcw,
   UserPlus,
   Shield,
-  ShieldCheck,
-  ShieldOff,
   AlertCircle,
   ChevronDown,
   Phone,
@@ -32,6 +30,7 @@ import {
   CreditCard,
   BedDouble,
   Lock,
+  Send,
 } from "lucide-react";
 import Popup from "../../../components/popup";
 import staffService from "../../../api/staff";
@@ -302,12 +301,13 @@ const IconBtn = ({ icon: Icon, tone = INK_MUTE, tint = "#F1EFE7", title, ...prop
   </button>
 );
 
-const ActionBtn = ({ icon: Icon, label, tone = INK_MUTE, tint = "#F1EFE7", ...props }) => (
+const ActionBtn = ({ icon: Icon, label, tone = INK_MUTE, tint = "#F1EFE7", loading, ...props }) => (
   <button
     type="button"
-    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${mono}`}
+    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${mono}`}
     style={{ color: tone, border: `1px solid ${tone}35`, borderRadius: "5px", background: "white" }}
     onMouseEnter={(e) => {
+      if (props.disabled) return;
       e.currentTarget.style.background = tint;
       e.currentTarget.style.borderColor = tone;
     }}
@@ -317,7 +317,14 @@ const ActionBtn = ({ icon: Icon, label, tone = INK_MUTE, tint = "#F1EFE7", ...pr
     }}
     {...props}
   >
-    <Icon size={12} />
+    {loading ? (
+      <div
+        className="w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin shrink-0"
+        style={{ opacity: 0.6 }}
+      />
+    ) : (
+      <Icon size={12} />
+    )}
     {label}
   </button>
 );
@@ -384,12 +391,6 @@ const StatCard = ({ icon: Icon, label, value, tone = TEAL, tint = TEAL_TINT }) =
     onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 3px 10px rgba(28,35,33,0.06)")}
     onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
   >
-    <div
-      className="w-10 h-10 flex items-center justify-center shrink-0"
-      style={{ background: tint, color: tone, borderRadius: "3px" }}
-    >
-      <Icon size={17} />
-    </div>
     <div>
       <p className={`text-[26px] font-extrabold leading-none ${mono}`} style={{ color: INK }}>
         {value}
@@ -891,11 +892,26 @@ const ROLE_META = {
   staff: { label: "স্টাফ", color: TEAL, tint: TEAL_TINT },
 };
 
-const StaffRow = ({ member, permissionsList, onEdit, onAdjust, onDelete, onDeactivate, onActivate }) => {
+const StaffRow = ({
+  member,
+  permissionsList,
+  onEdit,
+  onAdjust,
+  onDelete,
+  onDeactivate,
+  onActivate,
+  onResend,
+  resendLoading,
+}) => {
   const [expanded, setExpanded] = useState(false);
-  const activePerms = permissionsList.filter((p) => member.permissions[p.key]);
+  // `member.permissions` is absent for admin accounts (see labRoutes.js —
+  // admin creation intentionally skips it, since admins bypass permission
+  // checks entirely), so this must be optional-chained rather than assumed
+  // present.
+  const activePerms = permissionsList.filter((p) => member.permissions?.[p.key]);
   const hasFullAccess = activePerms.length === permissionsList.length;
   const roleMeta = ROLE_META[member.role] ?? { label: "অন্যান্য", color: INK_MUTE, tint: GROUND };
+  const needsPasswordSetup = member.role !== "admin" && !member.hasPasswordSet;
 
   return (
     <div
@@ -926,6 +942,14 @@ const StaffRow = ({ member, permissionsList, onEdit, onAdjust, onDelete, onDeact
               {roleMeta.label}
             </span>
             {!member.isActive && <StatusStamp active={false} />}
+            {needsPasswordSetup && (
+              <span
+                className={`inline-flex items-center gap-1 px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-[0.08em] select-none ${mono}`}
+                style={{ color: AMBER, border: `1px dashed ${AMBER}`, borderRadius: "2px" }}
+              >
+                পাসওয়ার্ড সেট বাকি
+              </span>
+            )}
           </div>
           <p className={`text-[10.5px] mt-0.5 truncate ${mono}`} style={{ color: INK_MUTE }}>
             {member.phone || member.email || "—"}
@@ -1006,6 +1030,17 @@ const StaffRow = ({ member, permissionsList, onEdit, onAdjust, onDelete, onDeact
               {member.role !== "admin" && (
                 <>
                   <ActionBtn icon={Pencil} label="Permissions" tone={TEAL} tint={TEAL_TINT} onClick={onEdit} />
+                  {needsPasswordSetup && (
+                    <ActionBtn
+                      icon={Send}
+                      label={resendLoading ? "Sending…" : "Resend Link"}
+                      tone={AMBER}
+                      tint={AMBER_TINT}
+                      onClick={onResend}
+                      disabled={resendLoading}
+                      loading={resendLoading}
+                    />
+                  )}
                   <ActionBtn icon={Wallet} label="Adjustment Limit" tone={AMBER} tint={AMBER_TINT} onClick={onAdjust} />
                   {member.isActive ? (
                     <ActionBtn icon={UserX} label="Deactivate" tone={AMBER} tint={AMBER_TINT} onClick={onDeactivate} />
@@ -1062,6 +1097,7 @@ const ManageStaff = () => {
   const [search, setSearch] = useState("");
   const [permFilter, setPermFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [resendingId, setResendingId] = useState(null);
 
   useEffect(() => {
     const boot = async () => {
@@ -1175,6 +1211,28 @@ const ManageStaff = () => {
     }
   };
 
+  const handleResend = async (member) => {
+    if (resendingId) return; // one resend in flight at a time
+    setResendingId(member._id);
+    try {
+      const res = await staffService.resendPasswordSetup(member._id);
+      setPopup({
+        type: res.data.smsSent ? "success" : "error",
+        message: res.data.smsSent
+          ? "পাসওয়ার্ড সেট লিংক পুনরায় পাঠানো হয়েছে।"
+          : "লিংক তৈরি হয়েছে কিন্তু SMS পাঠাতে ব্যর্থ হয়েছে।",
+      });
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "লিংক পুনরায় পাঠাতে ব্যর্থ।") });
+      }
+    } finally {
+      setResendingId(null);
+    }
+  };
+
   // Guarded entry point for opening the "add staff" modal — used by both
   // the header button and the empty-state CTA so the limit check lives in
   // one place.
@@ -1199,6 +1257,8 @@ const ManageStaff = () => {
     onDelete: () => setModal({ type: "delete", member }),
     onDeactivate: () => setModal({ type: "deactivate", member }),
     onActivate: () => setModal({ type: "activate", member }),
+    onResend: () => handleResend(member),
+    resendLoading: resendingId === member._id,
   });
 
   return (
@@ -1298,20 +1358,13 @@ const ManageStaff = () => {
 
         {!initialLoading && (
           <div className={`grid grid-cols-2 sm:grid-cols-4 ${maxStaff !== null ? "lg:grid-cols-5" : ""} gap-3 mb-5`}>
-            <StatCard icon={Users} label="মোট কর্মী" value={stats.total} tone={TEAL} tint={TEAL_TINT} />
-            <StatCard icon={ShieldCheck} label="সক্রিয়" value={stats.active} tone={TEAL_DARK} tint={TEAL_TINT} />
-            <StatCard icon={ShieldOff} label="নিষ্ক্রিয়" value={stats.inactive} tone={RUST} tint={RUST_TINT} />
-            <StatCard
-              icon={Shield}
-              label="সম্পূর্ণ অ্যাক্সেস"
-              value={stats.fullAccess}
-              tone={VIOLET}
-              tint={VIOLET_TINT}
-            />
+            <StatCard label="Total Staff" value={stats.total} tone={TEAL} tint={TEAL_TINT} />
+            <StatCard label="Active Accounts" value={stats.active} tone={TEAL_DARK} tint={TEAL_TINT} />
+            <StatCard label="Inactive Accounts" value={stats.inactive} tone={RUST} tint={RUST_TINT} />
+            <StatCard label="Accounts with Full Access" value={stats.fullAccess} tone={VIOLET} tint={VIOLET_TINT} />
             {maxStaff !== null && (
               <StatCard
-                icon={Lock}
-                label="স্টাফ সীমা"
+                label="Account Limit"
                 value={`${staffSeatCount}/${maxStaff}`}
                 tone={atStaffLimit ? RUST : AMBER}
                 tint={atStaffLimit ? RUST_TINT : AMBER_TINT}

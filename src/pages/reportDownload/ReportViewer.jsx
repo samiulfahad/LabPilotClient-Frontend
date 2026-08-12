@@ -23,6 +23,10 @@ import {
 } from "lucide-react";
 import { ReportPDFDocument } from "./ReportPDF";
 
+// Fallback pad height (mm) used when a lab hasn't set medicalReport.padHeight
+// — roughly matches the old hardcoded 1.5in spacer.
+const DEFAULT_PAD_HEIGHT_MM = 38;
+
 const LAB_INFO = {
   name: "MediScan Diagnostics",
   tagline: "Precision Medicine · Trusted Results",
@@ -30,6 +34,7 @@ const LAB_INFO = {
   email: "reports@mediscan.com.bd",
   phone: "+880 1711-000000",
   regNo: "DGDA/LAB/2024/0042",
+  padHeight: DEFAULT_PAD_HEIGHT_MM,
 };
 
 const EMPTY_PATIENT = {
@@ -306,6 +311,7 @@ function PatientGrid({ patient }) {
 // ── Print HTML builder ────────────────────────────────────────────────────────
 function buildPrintHTML({ reportName, shortId, patient, labInfo, sections, printType, isIndoor = false }) {
   const isPad = printType === "PAD";
+  const padHeightMm = labInfo.padHeight > 0 ? labInfo.padHeight : DEFAULT_PAD_HEIGHT_MM;
 
   const statusInfo = (value, ref) => {
     const n = parseFloat(value);
@@ -430,8 +436,11 @@ function buildPrintHTML({ reportName, shortId, patient, labInfo, sections, print
   });
   const total = normal + low + high;
 
+  // Pad mode: leave the physical pre-printed letterhead area blank by
+  // spacing down `padHeightMm` (from the lab's medicalReport.padHeight
+  // setting, in mm) instead of drawing our own header.
   const topBlock = isPad
-    ? `<div style="height:1.5in;"></div>`
+    ? `<div style="height:${padHeightMm}mm;"></div>`
     : `<table style="width:100%;border-collapse:collapse;border-bottom:2px solid #0f172a;margin-bottom:0;">
          <tr>
            <td style="padding:14px 16px;vertical-align:top;">

@@ -61,6 +61,10 @@ function buildLabInfo(storeLab) {
     email: storeLab.contact?.publicEmail ?? "",
     phone: storeLab.contact?.primary ?? "",
     regNo: storeLab.registrationNumber ? String(storeLab.registrationNumber) : "",
+    // In mm — sourced from the lab's medicalReport.padHeight claim (see
+    // toMedicalReportClaim in authRoutes.js). 0 means "not set"; ReportViewer
+    // falls back to a default pad height in that case.
+    padHeight: storeLab.medicalReport?.padHeight ?? 0,
   };
 }
 
