@@ -89,7 +89,7 @@ const MobileMenu = () => {
 
   const navBtnClass = ({ isActive }) =>
     `flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
-      isActive ? "text-blue-600" : "text-gray-500 hover:text-gray-700"
+      isActive ? "text-white" : "text-blue-200 hover:text-white"
     }`;
 
   return (
@@ -103,8 +103,8 @@ const MobileMenu = () => {
           className={`
             fixed bottom-0 left-0 right-0 z-50
             h-16 px-1
-            bg-white/90 backdrop-blur-md border-t border-gray-200/80
-            shadow-[0_-2px_12px_rgba(0,0,0,0.04)]
+            bg-gradient-to-r from-blue-600 to-indigo-600 backdrop-blur-md border-t border-white/10
+            shadow-[0_-2px_12px_rgba(0,0,0,0.15)]
             transition-all duration-300
             ${scrollDirection === "down" ? "translate-y-full" : "translate-y-0"}
           `}
@@ -131,9 +131,9 @@ const MobileMenu = () => {
                   to="/outdoor/invoice/new"
                   onClick={closeMenu}
                   aria-label="নতুন ইনভয়েস"
-                  className="-mt-8 w-14 h-14 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 ring-4 ring-white active:scale-95 transition-transform duration-150"
+                  className="-mt-8 w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-lg shadow-black/20 ring-4 ring-indigo-600 active:scale-95 transition-transform duration-150"
                 >
-                  <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
+                  <Plus className="w-6 h-6 text-indigo-600" strokeWidth={2.5} />
                 </Link>
               </div>
             )}
@@ -146,7 +146,7 @@ const MobileMenu = () => {
             <button
               onClick={toggleMenu}
               className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
-                isMenuOpen ? "text-blue-600" : "text-gray-500 hover:text-gray-700"
+                isMenuOpen ? "text-white" : "text-blue-200 hover:text-white"
               }`}
               aria-label={isMenuOpen ? "Close menu" : "Open menu"}
             >
