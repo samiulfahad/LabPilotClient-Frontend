@@ -458,7 +458,7 @@ const ViewToggle = ({ view, onChange }) => (
       }`}
     >
       <LayoutList className="w-3 h-3" />
-      রেফারারদের হার ভিত্তিক কমিশন
+      রোগী ভিত্তিক কমিশন
     </button>
   </div>
 );
@@ -721,7 +721,7 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital
     <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
       <div className="min-w-0 flex-1">
         <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">
-          রেফারারদের হার ভিত্তিক কমিশন
+          রোগী ভিত্তিক কমিশন
         </p>
         <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
 
