@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   Printer,
+  Download,
   Trash2,
   PackageCheck,
   Clock,
@@ -1336,13 +1337,21 @@ const CashMemo = () => {
               disabled={currentLoading}
               className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase disabled:opacity-40 disabled:cursor-not-allowed font-noto"
             >
+              <Download className="w-3.5 h-3.5" /> Download
+            </button>
+            <button
+              onClick={() => window.print()}
+              disabled={currentLoading}
+              className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase disabled:opacity-40 disabled:cursor-not-allowed font-noto"
+            >
               <Printer className="w-3.5 h-3.5" /> Print
             </button>
             <Link
               to="/daily-reports"
-              className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase font-noto"
+              aria-label="Back"
+              className="p-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center justify-center"
             >
-              <ArrowLeft className="w-3.5 h-3.5" /> Back
+              <ArrowLeft className="w-3.5 h-3.5" />
             </Link>
           </div>
         </div>
