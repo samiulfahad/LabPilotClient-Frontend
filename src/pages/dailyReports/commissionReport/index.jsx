@@ -10,7 +10,6 @@ import {
   Building2,
   BadgeDollarSign,
   Tag,
-  ReceiptText,
   FlaskConical,
   LayoutList,
 } from "lucide-react";
@@ -464,55 +463,69 @@ const ViewToggle = ({ view, onChange }) => (
   </div>
 );
 
-// ─── Test-wise: shared grid template ──────────────────────────────────────────
-const TEST_ROW_GRID = "grid items-baseline gap-x-3 grid-cols-[1fr_112px_84px_128px]";
-const TEST_ROW_GRID_NO_HOSPITAL = "grid items-baseline gap-x-3 grid-cols-[1fr_112px_84px]";
+// ─── Test-wise: single test row ────────────────────────────────────────────
+// Layout is two stacked lines per test, both plain flex/justify-between rows
+// so left/right alignment is automatic and doesn't depend on isHospital
+// (unlike a fixed-column grid, which broke alignment when columns changed):
+//   Line 1: test name [+ rate-changed badge] ............ commission total
+//   Line 2: count · (Indoor X, Outdoor Y)  ............... count × rate = total
+// When the rate changed mid-window, line 2 just states the count/split and
+// a dated per-rate breakdown renders below instead of a single "× rate".
 
-const MergedTestRow = ({ name, total, outdoorCount, indoorCount, commissionTotal, rates, rateChanged, isHospital }) => (
-  <div className="py-1">
-    <div className={`${isHospital ? TEST_ROW_GRID : TEST_ROW_GRID_NO_HOSPITAL}`}>
-      <span className="font-noto text-sm text-[#1C1F1E] leading-tight truncate flex items-center gap-1.5">
-        {name}
-        {rateChanged && (
-          <span
-            className="font-['IBM_Plex_Mono'] text-[9px] uppercase px-1 py-[1px] rounded-[2px] font-noto shrink-0"
-            style={{ color: SEAL_RED, backgroundColor: `${SEAL_RED}12`, border: `1px solid ${SEAL_RED}33` }}
-            title="এই সময়সীমায় এই টেস্টের কমিশন পরিবর্তিত হয়েছে"
-          >
-            রেট পরিবর্তিত
+const MergedTestRow = ({ name, total, outdoorCount, indoorCount, commissionTotal, rates, rateChanged, isHospital }) => {
+  const singleRate = rates.length === 1 ? rates[0] : null;
+  const splitLabel = isHospital ? `ইনডোর ${indoorCount}, আউটডোর ${outdoorCount}` : null;
+
+  return (
+    <div className="py-2 border-b border-dotted border-[#F0EEE6] last:border-b-0">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="font-noto text-sm text-[#1C1F1E] font-medium leading-tight flex items-center gap-1.5 min-w-0">
+          <span className="truncate">{name}</span>
+          {rateChanged && (
+            <span
+              className="font-['IBM_Plex_Mono'] text-[9px] uppercase px-1 py-[1px] rounded-[2px] font-noto shrink-0"
+              style={{ color: SEAL_RED, backgroundColor: `${SEAL_RED}12`, border: `1px solid ${SEAL_RED}33` }}
+              title="এই সময়সীমায় এই টেস্টের কমিশন পরিবর্তিত হয়েছে"
+            >
+              রেট পরিবর্তিত
+            </span>
+          )}
+        </span>
+        <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums shrink-0" style={{ color: TEAL }}>
+          ৳{fmt(commissionTotal)}
+        </span>
+      </div>
+
+      <div className="flex items-baseline justify-between gap-3 mt-0.5">
+        <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] font-noto">
+          {total} বার{splitLabel ? ` (${splitLabel})` : ""}
+        </span>
+        {singleRate && (
+          <span className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] tabular-nums shrink-0">
+            {total} × ৳{fmt(singleRate.rate)} = ৳{fmt(commissionTotal)}
           </span>
         )}
-      </span>
-      <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] tabular-nums text-right">
-        {rates.length === 1 ? `${total} × ৳${fmt(rates[0].rate)}` : `${total} বার (ভিন্ন হার)`}
-      </span>
-      <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums text-right" style={{ color: TEAL }}>
-        ৳{fmt(commissionTotal)}
-      </span>
-      {isHospital && (
-        <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] font-noto text-right whitespace-nowrap">
-          আউটডোর {outdoorCount}, ইনডোর {indoorCount}
-        </span>
+      </div>
+
+      {rateChanged && (
+        <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 mt-1">
+          {rates.map((r) => (
+            <span key={r.rate} className="font-['IBM_Plex_Mono'] text-[11px] text-[#8A8F89] tabular-nums">
+              {fmtDate(r.firstSeenAt)}
+              {r.firstSeenAt !== r.lastSeenAt ? `–${fmtDate(r.lastSeenAt)}` : ""}: ৳{fmt(r.rate)} × {r.count} = ৳
+              {fmt(r.subtotal)}
+            </span>
+          ))}
+        </div>
       )}
     </div>
-    {rateChanged && (
-      <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 mt-1">
-        {rates.map((r) => (
-          <span key={r.rate} className="font-['IBM_Plex_Mono'] text-[11px] text-[#8A8F89] tabular-nums">
-            {fmtDate(r.firstSeenAt)}
-            {r.firstSeenAt !== r.lastSeenAt ? `–${fmtDate(r.lastSeenAt)}` : ""}: ৳{fmt(r.rate)} × {r.count} = ৳
-            {fmt(r.subtotal)}
-          </span>
-        ))}
-      </div>
-    )}
-  </div>
-);
+  );
+};
 
 // ─── Test-wise: single doctor card ──────────────────────────────────────────
-// Header no longer shows invoice count (redundant with ledger view). Instead,
-// when the referrer had a discount this window, a discount/net line is shown
-// under the per-test commission total.
+// Card-level summary block after the test rows: total commission, then
+// discount and net — but only when there's an actual discount, so the
+// common (no-discount) case stays a single clean total line.
 
 const DoctorTestCard = ({ rank, name, type, isRegistered, totalDiscount, outdoorMap, indoorMap, isHospital }) => {
   const accent = isRegistered ? TEAL : OCHRE;
@@ -522,6 +535,7 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, totalDiscount, outdoor
   const mergedTests = useMemo(() => mergeTestAggregates(outdoorMap, indoorMap), [outdoorMap, indoorMap]);
   const totalTests = mergedTests.reduce((s, t) => s + t.total, 0);
   const totalTestCommission = mergedTests.reduce((s, t) => s + t.commissionTotal, 0);
+  const hasDiscount = (totalDiscount ?? 0) > 0;
   const netCommission = totalTestCommission - (totalDiscount ?? 0);
 
   return (
@@ -557,29 +571,36 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, totalDiscount, outdoor
                 isHospital={isHospital}
               />
             ))}
-            <div
-              className={`${isHospital ? TEST_ROW_GRID : TEST_ROW_GRID_NO_HOSPITAL} pt-1.5 mt-1 border-t border-[#E3E0D6]`}
-            >
-              <span className="col-span-2 font-['IBM_Plex_Mono'] text-xs uppercase text-[#8A8F89] font-noto text-right">
-                কমিশন
-              </span>
-              <span
-                className="font-['IBM_Plex_Mono'] text-sm font-bold tabular-nums text-right"
-                style={{ color: TEAL }}
-              >
+
+            <div className="flex items-baseline justify-between gap-3 pt-2 mt-1 border-t border-[#E3E0D6]">
+              <span className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#8A8F89] font-noto">মোট কমিশন</span>
+              <span className="font-['IBM_Plex_Mono'] text-sm font-bold tabular-nums" style={{ color: TEAL }}>
                 ৳{fmt(totalTestCommission)}
               </span>
-              {isHospital && <span />}
             </div>
 
-            {totalDiscount > 0 && (
-              <div className="flex items-center justify-end flex-wrap gap-x-2.5 gap-y-1 mt-1.5 font-['IBM_Plex_Mono'] text-xs font-noto">
-                <span style={{ color: OCHRE }}>ডিস্কাউন্ট − ৳{fmt(totalDiscount)}</span>
-                <span className="text-[#D8D5CB]">·</span>
-                <span className="font-semibold" style={{ color: TEAL }}>
-                  নেট ৳{fmt(netCommission)}
-                </span>
-              </div>
+            {hasDiscount && (
+              <>
+                <div className="flex items-baseline justify-between gap-3 mt-1">
+                  <span className="font-['IBM_Plex_Mono'] text-xs uppercase font-noto" style={{ color: OCHRE }}>
+                    ডিস্কাউন্ট
+                  </span>
+                  <span className="font-['IBM_Plex_Mono'] text-xs font-semibold tabular-nums" style={{ color: OCHRE }}>
+                    − ৳{fmt(totalDiscount)}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between gap-3 mt-1 pt-1 border-t border-dotted border-[#E3E0D6]">
+                  <span
+                    className="font-['IBM_Plex_Mono'] text-xs uppercase font-semibold font-noto"
+                    style={{ color: TEAL }}
+                  >
+                    নেট
+                  </span>
+                  <span className="font-['IBM_Plex_Mono'] text-sm font-bold tabular-nums" style={{ color: TEAL }}>
+                    ৳{fmt(netCommission)}
+                  </span>
+                </div>
+              </>
             )}
           </>
         ) : (
@@ -591,9 +612,6 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, totalDiscount, outdoor
 };
 
 // ─── Test-wise view ───────────────────────────────────────────────────────────
-// Summary tiles now show Test / Test-wise commission (with net sub-line when
-// there's any discount) / Discount — invoice count dropped since it's already
-// visible in the ledger view and isn't needed here.
 
 const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, lab, isHospital }) => {
   const rows = useMemo(() => buildDoctorTestRows(registered, unregistered), [registered, unregistered]);

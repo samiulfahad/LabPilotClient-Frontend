@@ -170,7 +170,7 @@ const ClickableLedgerCell = ({ icon: Icon, label, value, accent, open, onClick }
   <button
     type="button"
     onClick={onClick}
-    className="w-full text-left px-5 py-4 border-l-[3px] hover:brightness-[0.98] transition-[filter] print:pointer-events-none"
+    className="w-full text-left px-5 py-4 border-l-[3px] hover:brightness-[0.98] transition-[filter]"
     style={{ borderColor: accent }}
   >
     <div className="flex items-center justify-between mb-1.5">
@@ -566,7 +566,7 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
       </div>
 
       <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">{eyebrowLabel}</p>
           <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
           <p className="font-['IBM_Plex_Mono'] text-sm text-[#8A8F89] mt-1.5 font-noto">
@@ -640,7 +640,7 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
           <button
             type="button"
             onClick={toggleDeleted}
-            className={`w-full text-left border border-[#E3D9D5] overflow-hidden hover:brightness-[0.98] transition-[filter] print:pointer-events-none ${
+            className={`w-full text-left border border-[#E3D9D5] overflow-hidden hover:brightness-[0.98] transition-[filter] ${
               deletedOpen ? "rounded-t-sm" : "rounded-sm"
             }`}
           >
@@ -820,7 +820,7 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
       </div>
 
       <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="font-['IBM_Plex_Mono'] text-xs uppercase mb-1.5 font-noto" style={{ color: INDIGO }}>
             অন্তঃবিভাগ (আইপিডি) মেমু
           </p>
@@ -893,7 +893,7 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
           <button
             type="button"
             onClick={toggleDiscount}
-            className={`w-full text-left border border-[#E3D9C6] overflow-hidden hover:brightness-[0.98] transition-[filter] print:pointer-events-none ${
+            className={`w-full text-left border border-[#E3D9C6] overflow-hidden hover:brightness-[0.98] transition-[filter] ${
               discountOpen ? "rounded-t-sm" : "rounded-sm"
             }`}
           >
@@ -931,7 +931,7 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
           <button
             type="button"
             onClick={toggleOutstanding}
-            className={`w-full text-left border border-[#E3D5D2] overflow-hidden hover:brightness-[0.98] transition-[filter] print:pointer-events-none ${
+            className={`w-full text-left border border-[#E3D5D2] overflow-hidden hover:brightness-[0.98] transition-[filter] ${
               outstandingOpen ? "rounded-t-sm" : "rounded-sm"
             }`}
           >
@@ -961,7 +961,7 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
           <button
             type="button"
             onClick={toggleDeleted}
-            className={`w-full text-left border border-[#E3D9D5] overflow-hidden hover:brightness-[0.98] transition-[filter] print:pointer-events-none ${
+            className={`w-full text-left border border-[#E3D9D5] overflow-hidden hover:brightness-[0.98] transition-[filter] ${
               deletedOpen ? "rounded-t-sm" : "rounded-sm"
             }`}
           >
@@ -1049,7 +1049,7 @@ const SummaryReceipt = ({
       </div>
 
       <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="font-['IBM_Plex_Mono'] text-xs uppercase mb-1.5 font-noto" style={{ color: VIOLET }}>
             সারসংক্ষেপ
           </p>
@@ -1280,6 +1280,69 @@ const CashMemo = () => {
         ? "cashmemo-ipd-printable"
         : "cashmemo-summary-printable";
 
+  // ─── Print via isolated iframe ────────────────────────────────────────────
+  // Same pattern as CommissionReport: clone just the active printable node
+  // into a throwaway iframe and print that in isolation, instead of
+  // window.print() + CSS visibility hiding on the whole page. Avoids stray
+  // blank pages on mobile and doesn't depend on which tab is active beyond
+  // picking the right #printableId.
+  const printReport = () => {
+    const printable = document.getElementById(printableId);
+    if (!printable) return;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+
+    // Carry over every stylesheet/style tag from the host page so Tailwind
+    // utilities and the IBM Plex / Noto fonts render identically.
+    const styleTags = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map((node) => node.outerHTML)
+      .join("\n");
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          ${styleTags}
+          <style>
+            @page { size: A4; margin: 12mm; }
+            html, body { margin: 0; padding: 0; background: #fff; height: auto; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .no-print { display: none !important; }
+          </style>
+        </head>
+        <body>${printable.outerHTML}</body>
+      </html>
+    `);
+    doc.close();
+
+    const triggerPrint = () => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      // Give the print dialog a moment to actually open before we tear
+      // the iframe down (mobile Safari especially needs this).
+      setTimeout(() => document.body.removeChild(iframe), 1000);
+    };
+
+    // Printing before fonts/stylesheets finish applying is the other common
+    // cause of a phantom extra page — wait for the iframe to fully load first.
+    if (doc.readyState === "complete") {
+      setTimeout(triggerPrint, 250);
+    } else {
+      iframe.onload = () => setTimeout(triggerPrint, 250);
+    }
+  };
+
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
       {popup && (
@@ -1294,37 +1357,8 @@ const CashMemo = () => {
       )}
       {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
-      <style>{`
-        @page {
-          size: A4;
-          margin: 12mm;
-        }
-        @media print {
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          html, body { height: auto !important; }
-          body * { visibility: hidden; }
-          #${printableId}, #${printableId} * { visibility: visible; }
-          #${printableId} {
-            position: absolute; top: 0; left: 0; width: 100%;
-            box-shadow: none; border: none; border-radius: 0;
-            font-size: 11px;
-            page-break-inside: avoid;
-            transform-origin: top left;
-          }
-          #${printableId} .px-6, #${printableId} .sm\\:px-8 { padding-left: 10px !important; padding-right: 10px !important; }
-          #${printableId} .py-5, #${printableId} .pt-6, #${printableId} .pb-5, #${printableId} .pt-5, #${printableId} .pb-4 {
-            padding-top: 6px !important; padding-bottom: 6px !important;
-          }
-          #${printableId} .mb-3, #${printableId} .mb-4, #${printableId} .my-4, #${printableId} .mt-4, #${printableId} .mt-3 {
-            margin-top: 4px !important; margin-bottom: 4px !important;
-          }
-          #${printableId} .max-h-72 { max-height: none !important; overflow: visible !important; }
-          .no-print { display: none !important; }
-        }
-      `}</style>
-
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-5 no-print">
+        <div className="flex items-center justify-between mb-5">
           <div>
             <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] font-noto">
               ক্যাশমেমু
@@ -1332,7 +1366,7 @@ const CashMemo = () => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => window.print()}
+              onClick={printReport}
               disabled={currentLoading}
               className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase disabled:opacity-40 disabled:cursor-not-allowed font-noto"
             >
@@ -1347,11 +1381,11 @@ const CashMemo = () => {
           </div>
         </div>
 
-        <div className="mb-4 no-print">
+        <div className="mb-4">
           <TimeFrame onFetchData={handleFetchData} />
         </div>
 
-        <div className="flex border-b border-[#E3E0D6] mb-5 no-print bg-white rounded-t-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)]">
+        <div className="flex border-b border-[#E3E0D6] mb-5 bg-white rounded-t-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)]">
           {tabs.map((t) => (
             <TabBtn key={t.key} active={activeTab === t.key} onClick={() => handleTabClick(t.key)} accent={t.accent}>
               {t.label}
@@ -1403,7 +1437,7 @@ const CashMemo = () => {
             />
           ))}
 
-        <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-4 pb-6 no-print font-noto">
+        <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-4 pb-6 font-noto">
           {activeTab === "outdoor"
             ? "নিট আয় = মোট পরিমাণ − ল্যাব সমন্বয় − রেফারার ডিস্কাউন্ট − কমিশন + অনলাইন ইনভয়েস ফি"
             : activeTab === "indoor"
