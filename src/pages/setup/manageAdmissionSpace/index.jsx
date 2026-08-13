@@ -15,12 +15,15 @@
  * LIMIT CHECK (added): GET /spaces now returns { spaces, maxAdmissionSpace }.
  * maxAdmissionSpace gates the "New" button, same pattern as maxDoctor in
  * ManageDoctors.jsx / maxReferrer in ManageReferrer.jsx.
+ *
+ * BACK BUTTON (added): matches the ArrowLeft Link → "/setup" pattern used
+ * in ManageDoctors.jsx / ManageReferrer.jsx, placed next to "New".
  */
 
 // React Compiler handles memoisation — no useCallback/useMemo
 
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom"; // ← added
+import { Link, useNavigate } from "react-router-dom"; // ← added Link
 import {
   BedDouble,
   Plus,
@@ -41,6 +44,7 @@ import {
   RotateCcw,
   AlertCircle,
   Lock,
+  ArrowLeft, // ← added
 } from "lucide-react";
 
 import Modal from "../../../components/modal";
@@ -1442,6 +1446,13 @@ const ManageSpaces = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Back button — matches ArrowLeft Link → "/setup" pattern in ManageDoctors.jsx */}
+            <Link
+              to="/setup"
+              className="flex items-center gap-1.5 transition-all font-semibold px-[14px] py-2 border-[1.5px] border-[#E2E8F0] rounded-xl text-[#64748B] font-['IBM_Plex_Mono',monospace] text-xs bg-white hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+            >
+              <ArrowLeft className="w-[13px] h-[13px]" />
+            </Link>
             <button
               onClick={openAdd}
               disabled={atSpaceLimit}

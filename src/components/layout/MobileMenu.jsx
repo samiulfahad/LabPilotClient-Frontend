@@ -132,7 +132,7 @@ const MobileMenu = () => {
             ${scrollDirection === "down" ? "translate-y-[150%]" : "translate-y-0"}
           `}
         >
-          <div className="relative mx-auto max-w-md h-16 px-1 flex items-center rounded-3xl bg-white/95 backdrop-blur-xl border border-gray-100 shadow-[0_10px_30px_rgba(15,23,42,0.12)]">
+          <div className="relative mx-auto max-w-md h-16 px-1 flex items-center rounded-3xl bg-gradient-to-br from-white via-indigo-50/70 to-purple-50/70 backdrop-blur-xl border border-indigo-100/70 shadow-[0_10px_30px_rgba(79,70,229,0.15)]">
             <NavItem to="/" end icon={HomeIcon} label="হোম" activeText="text-indigo-600" activeBg="bg-indigo-50" />
 
             {hasReportAccess && (

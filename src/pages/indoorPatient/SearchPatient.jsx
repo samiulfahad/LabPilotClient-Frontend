@@ -1,6 +1,7 @@
 // React Compiler active — no useCallback/useMemo
 import { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import indoorPatientService from "../../api/indoorPatient";
 import {
   Badge,
@@ -97,11 +98,17 @@ const SearchPatient = () => {
       {/* Sticky search header */}
       <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-md border-b border-slate-200/70">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-4 pb-3">
-          <PageHeader
-            title="Search Patient"
-            subtitle="Find by name, admission ID or phone"
-            back={() => navigate("/ipd")}
-          />
+          {/* Header row: PageHeader + Back, same row/style as PatientList.jsx
+             (bordered ArrowLeft link) instead of PageHeader's built-in back prop. */}
+          <div className="flex items-start justify-between gap-4">
+            <PageHeader title="Search Patient" subtitle="Find by name, admission ID or phone" />
+            <Link
+              to="/ipd-master"
+              className="shrink-0 px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase font-noto"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Back
+            </Link>
+          </div>
 
           <div
             className={`mt-3 w-full flex items-center gap-2.5 h-12 pl-4 pr-2 bg-white transition-all duration-200 ${

@@ -1,6 +1,7 @@
 // React Compiler active — no useCallback/useMemo
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import indoorPatientService from "../../api/indoorPatient";
 import { Btn, EmptyState, Input, PageHeader, Sk } from "./indoorPatientHelpers";
 import Popup from "../../components/popup";
@@ -167,7 +168,7 @@ const PatientList = () => {
   const [searchInput, setSearchInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [offlinePopup, setOfflinePopup] = useState(false);   // ← renamed and no custom message
+  const [offlinePopup, setOfflinePopup] = useState(false);
   const searchTimer = useRef(null);
 
   const fetchPatients = async () => {
@@ -179,7 +180,7 @@ const PatientList = () => {
       setTotal(res.data.total ?? 0);
     } catch (err) {
       if (isNetworkError(err)) {
-        setOfflinePopup(true);          // ← use offline popup without message
+        setOfflinePopup(true);
       } else {
         setError("রোগীর তালিকা লোড করতে ব্যর্থ হয়েছে");
       }
@@ -205,16 +206,16 @@ const PatientList = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 font-noto">
-      {offlinePopup && (
-        <Popup type="offline" onClose={() => setOfflinePopup(false)} />
-      )}
+      {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
-      <div className="max-w-6xl mx-auto">
-        <PageHeader
-          title="রোগীদের তালিকা"
-          subtitle="আইপিডি — ওয়ার্ড, বেড ও বিলিং"
-          back={() => navigate("/ipd")}
-          action={
+      <div className="max-w-3xl mx-auto">
+        {/* Header row: PageHeader + actions on the same flex line so the
+           buttons align with the title's baseline instead of sitting in a
+           separate row above it. */}
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <PageHeader title="রোগীদের তালিকা" subtitle="আইপিডি — ওয়ার্ড, বেড ও বিলিং" />
+
+          <div className="flex items-center gap-2 shrink-0">
             <Btn
               variant="primary"
               onClick={() => navigate("/ipd/admit")}
@@ -225,8 +226,14 @@ const PatientList = () => {
               </svg>
               রোগী ভর্তি
             </Btn>
-          }
-        />
+            <Link
+              to="/ipd-master"
+              className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase font-noto"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Back
+            </Link>
+          </div>
+        </div>
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3 mb-4">

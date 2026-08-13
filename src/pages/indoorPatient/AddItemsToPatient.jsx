@@ -1,6 +1,7 @@
 // React Compiler active — no useCallback/useMemo
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import indoorPatientService from "../../api/indoorPatient";
 import Popup from "../../components/popup";
 import { useAuthStore } from "../../store/authStore";
@@ -724,6 +725,19 @@ const AddItemsToPatient = () => {
       {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <div className="max-w-2xl mx-auto">
+        {/* Back button — same style as CollectionReport.jsx's back link.
+           originPatientId is already known synchronously from the query
+           string, so the destination can be computed inline as a real
+           Link rather than needing handleDone's onClick logic. */}
+        <div className="flex items-center justify-end mb-4">
+          <Link
+            to="/ipd-master"
+            className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase font-noto"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Back
+          </Link>
+        </div>
+
         <PageHeader
           title="টেস্ট / পণ্য যোগ করুন"
           subtitle={
@@ -731,7 +745,6 @@ const AddItemsToPatient = () => {
               ? `${selectedPatient.patient?.name}-এর জন্য আইটেম যোগ করা হচ্ছে`
               : "প্রথমে একজন ভর্তি রোগী বেছে নিন"
           }
-          back={handleDone}
         />
 
         {preloading ? (

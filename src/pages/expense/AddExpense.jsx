@@ -1,6 +1,6 @@
 // React Compiler active — no useCallback/useMemo
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Wallet, ArrowLeft, ChevronRight, Receipt, CheckCircle2, ListOrdered, PlusCircle } from "lucide-react";
 import expenseService from "../../api/expense";
 import { fmt, EXPENSE_TYPES, typeConfig } from "./expenseHelpers";
@@ -171,7 +171,7 @@ const AddExpense = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [justAdded, setJustAdded] = useState(null);
-  const [offlinePopup, setOfflinePopup] = useState(false); // ← new
+  const [offlinePopup, setOfflinePopup] = useState(false);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const isValid = form.type && Number(form.amount) > 0;
@@ -193,7 +193,7 @@ const AddExpense = () => {
     } catch (err) {
       setConfirming(false);
       if (isNetworkError(err)) {
-        setOfflinePopup(true); // ← show default offline popup
+        setOfflinePopup(true);
       } else {
         setError(getErrorMessage(err, "খরচ যোগ করতে ব্যর্থ হয়েছে"));
       }
@@ -226,21 +226,24 @@ const AddExpense = () => {
       )}
 
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="mb-4 flex items-center gap-3">
-          <button
-            onClick={() => navigate("/expense")}
-            className="p-2.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 transition-colors"
+        {/* Header: title group left, same bordered ArrowLeft "Back" link
+           used across the other pages, right-aligned in the same row. */}
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-blue-600 rounded-xl shadow-sm">
+              <Wallet className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold text-slate-900">নতুন খরচ</h1>
+              <p className="text-sm text-slate-500">খরচের বিস্তারিত পূরণ করুন</p>
+            </div>
+          </div>
+          <Link
+            to="/expense"
+            className="shrink-0 px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase font-noto"
           >
-            <ArrowLeft className="w-4 h-4 text-slate-600" />
-          </button>
-          <div className="p-2.5 bg-blue-600 rounded-xl shadow-sm">
-            <Wallet className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900">নতুন খরচ</h1>
-            <p className="text-sm text-slate-500">খরচের বিস্তারিত পূরণ করুন</p>
-          </div>
+            <ArrowLeft className="w-3.5 h-3.5" /> Back
+          </Link>
         </div>
 
         <form
