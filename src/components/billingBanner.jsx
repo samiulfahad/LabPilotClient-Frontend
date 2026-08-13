@@ -59,7 +59,7 @@ const BillingBanner = () => {
             to shrink it below its full unwrapped text width, which was
             pushing the row wider than the viewport on mobile.
           */}
-          <p className={`text-sm font-medium ${palette.text} truncate min-w-0 flex-1`}>
+          <p className={`text-sm font-medium ${palette.text} min-w-0 flex-1`}>
             {isOverdue
               ? `পেমেন্টের সময়সীমা শেষ হয়ে গেছে — শেষ তারিখ ছিল ${formatDate(billingStatus.dueDate)}`
               : `আপনার প্রতিষ্ঠানের বকেয়া বিল আছে — পরিশোধের শেষ তারিখ ${formatDate(billingStatus.dueDate)}`}
