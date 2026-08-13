@@ -667,7 +667,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, lab, 
         <div className="grid grid-cols-3 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
           <LedgerCell
             icon={BadgeDollarSign}
-            label="টেস্ট-ভিত্তিক কমিশন"
+            label="কমিশন"
             value={`৳${fmt(totalTestCommission)}`}
             accent={SEAL_BLUE}
           />
@@ -734,20 +734,19 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital
     </div>
 
     <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
-      <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
+      <div className="grid grid-cols-3 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
         <LedgerCell
           icon={BadgeDollarSign}
           label="কমিশন"
           value={`৳${fmt(d.totals.totalCommission)}`}
-          accent={TEAL}
-          sub={`${fmt(d.totals.totalInvoices)} টি ইনভয়েস থেকে`}
+          accent={SEAL_BLUE}
         />
+        <LedgerCell icon={Tag} label="ডিস্কাউন্ট" value={`৳${fmt(d.totals.totalDiscount)}`} accent={RUST} />
         <LedgerCell
-          icon={Tag}
-          label="ডিস্কাউন্ট"
-          value={`৳${fmt(d.totals.totalDiscount)}`}
-          accent={RUST}
-          sub={`${fmt(referrerCount)} জন রেফারারের মধ্যে`}
+          icon={BadgeDollarSign}
+          label="নেট কমিশন"
+          value={`৳${fmt(d.totals.totalCommission - d.totals.totalDiscount)}`}
+          accent={TEAL}
         />
       </div>
     </div>
