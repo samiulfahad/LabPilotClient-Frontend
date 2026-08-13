@@ -612,6 +612,8 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, totalDiscount, outdoor
 };
 
 // ─── Test-wise view ───────────────────────────────────────────────────────────
+// Summary grid: total test-based commission, discount, net commission.
+// (Test-count cell removed per spec — only money figures shown here.)
 
 const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, lab, isHospital }) => {
   const rows = useMemo(() => buildDoctorTestRows(registered, unregistered), [registered, unregistered]);
@@ -622,6 +624,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, lab, 
     0,
   );
   const totalDiscountAll = rows.reduce((s, r) => s + (r.totalDiscount ?? 0), 0);
+  const netCommissionAll = totalTestCommission - totalDiscountAll;
 
   return (
     <div
@@ -663,26 +666,13 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, lab, 
       <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
         <div className="grid grid-cols-3 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
           <LedgerCell
-            icon={FlaskConical}
-            label="টেস্ট"
-            value={totalOutdoorOccurrences + totalIndoorOccurrences}
-            accent={TEAL}
-            sub={isHospital ? `আউটডোর ${totalOutdoorOccurrences} · ইনডোর ${totalIndoorOccurrences}` : undefined}
-          />
-          <LedgerCell
             icon={BadgeDollarSign}
             label="টেস্ট-ভিত্তিক কমিশন"
             value={`৳${fmt(totalTestCommission)}`}
             accent={SEAL_BLUE}
-            sub={totalDiscountAll > 0 ? `নেট ৳${fmt(totalTestCommission - totalDiscountAll)}` : undefined}
           />
-          <LedgerCell
-            icon={Tag}
-            label="ডিস্কাউন্ট"
-            value={`৳${fmt(totalDiscountAll)}`}
-            accent={RUST}
-            sub={`${fmt(rows.length)} জন রেফারারের মধ্যে`}
-          />
+          <LedgerCell icon={Tag} label="ডিস্কাউন্ট" value={`৳${fmt(totalDiscountAll)}`} accent={RUST} />
+          <LedgerCell icon={BadgeDollarSign} label="নেট কমিশন" value={`৳${fmt(netCommissionAll)}`} accent={TEAL} />
         </div>
       </div>
 
