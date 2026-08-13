@@ -257,7 +257,7 @@ const CommissionToggle = ({ view, onChange, accent = "#B5772A" }) => (
           : { color: accent, borderColor: `${accent}40`, backgroundColor: "transparent" }
       }
     >
-      রেফারার ভিত্তিক
+      রোগী ভিত্তিক
     </button>
     <button
       type="button"
