@@ -613,7 +613,7 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
             className="flex items-center justify-between px-4 py-3 bg-[#F5F4EF] border-l-4"
             style={{ borderColor: TEAL }}
           >
-            <p className="text-sm font-semibold text-[#1C1F1E] font-noto">সকল ডিসকাউন্ট বাদে ও ফি সহ আয় (নিট টোটাল)</p>
+            <p className="text-sm font-semibold text-[#1C1F1E] font-noto">সকল ডিসকাউন্ট বাদে (নিট টোটাল)</p>
             <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums" style={{ color: TEAL }}>
               ৳{fmt(grossCounterAmount)}
             </p>
@@ -675,10 +675,7 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
             >
               <div className="flex items-center gap-2">
                 <Trash2 className="w-3.5 h-3.5 text-[#B23A2E] shrink-0" />
-                <p className="text-sm font-medium text-[#1C1F1E] font-noto">ডিলিট করা ইনভয়েস</p>
-                <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8807A] font-noto">
-                  (সকল হিসাব থেকে বাদ দেওয়া হয়েছে)
-                </span>
+                <p className="text-sm font-medium text-[#1C1F1E] font-noto">Deleted Invoice</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="font-['IBM_Plex_Mono'] text-sm font-semibold text-[#B23A2E] tabular-nums">
@@ -686,7 +683,7 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
                 </span>
                 <span className="text-[#B23A2E]/40">·</span>
                 <span className="font-['IBM_Plex_Mono'] text-sm text-[#B23A2E]/70 tabular-nums">
-                  এবং টাকার পরিমাণ ৳{fmt(d.totalAmountDeleted ?? 0)}
+                  ৳{fmt(d.totalAmountDeleted ?? 0)}
                 </span>
                 {deletedOpen ? (
                   <ChevronDown className="w-4 h-4 text-[#B23A2E] no-print" />
@@ -999,10 +996,7 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
             >
               <div className="flex items-center gap-2">
                 <Trash2 className="w-3.5 h-3.5 text-[#B23A2E] shrink-0" />
-                <p className="text-sm font-medium text-[#1C1F1E] font-noto">ডিলিট করা রোগী</p>
-                <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8807A] font-noto">
-                  (সকল হিসাব থেকে বাদ দেওয়া হয়েছে)
-                </span>
+                <p className="text-sm font-medium text-[#1C1F1E] font-noto">Deleted Patient</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="font-['IBM_Plex_Mono'] text-sm font-semibold text-[#B23A2E] tabular-nums">
@@ -1052,7 +1046,7 @@ const SummaryReceipt = ({
   const outdoorRows = [
     { label: "মোট বিলড", value: `৳${fmt(o.initial)}`, bold: true },
     { label: "অনলাইন ইনভয়েস ফি", value: `+ ৳${fmt(o.totalInvoiceFee)}`, tone: TEAL },
-    { label: "সকল ডিসকাউন্ট ও ফি সহ নিট টোটাল", value: `৳${fmt(outdoorGrossCounterAmount)}`, bold: true },
+    { label: "সকল ডিসকাউন্ট  নিট টোটাল", value: `৳${fmt(outdoorGrossCounterAmount)}`, bold: true },
     { label: "আদায়", value: `৳${fmt(o.totalPaid)}`, tone: TEAL },
     { label: "বাকি", value: `৳${fmt(o.totalDue)}`, tone: RUST },
   ];
