@@ -628,17 +628,16 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
         <PaymentModeBreakdown breakdown={d.paymentModeBreakdown} />
 
         <div className="border border-[#E3D9C6] rounded-sm overflow-hidden mb-4">
-          <div
-            className="flex items-center justify-between px-4 py-3 bg-[#FBF7EF] border-l-4"
-            style={{ borderColor: OCHRE }}
-          >
-            <div className="flex items-center gap-2">
+          <div className="px-4 py-3 bg-[#FBF7EF] border-l-4" style={{ borderColor: OCHRE }}>
+            <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-[#1C1F1E] font-noto">মোট কমিশন</p>
+              <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums shrink-0" style={{ color: OCHRE }}>
+                − ৳{fmt(commissionValue)}
+              </p>
+            </div>
+            <div className="mt-2">
               <CommissionToggle view={commissionView} onChange={setCommissionView} accent={OCHRE} />
             </div>
-            <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums" style={{ color: OCHRE }}>
-              − ৳{fmt(commissionValue)}
-            </p>
           </div>
         </div>
 
@@ -1094,17 +1093,16 @@ const SummaryReceipt = ({
         <PaymentModeBreakdown breakdown={o.paymentModeBreakdown} />
 
         <div className="border border-[#E3D9C6] rounded-sm overflow-hidden mb-4">
-          <div
-            className="flex items-center justify-between px-4 py-3 border-l-4"
-            style={{ backgroundColor: `${OCHRE}08`, borderColor: OCHRE }}
-          >
-            <div className="flex items-center gap-2">
+          <div className="px-4 py-3 border-l-4" style={{ backgroundColor: `${OCHRE}08`, borderColor: OCHRE }}>
+            <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-[#1C1F1E] font-noto">রেফারার কমিশন (বহির্বিভাগ)</p>
+              <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums shrink-0" style={{ color: OCHRE }}>
+                − ৳{fmt(outdoorCommissionValue)}
+              </p>
+            </div>
+            <div className="mt-2">
               <CommissionToggle view={commissionView} onChange={setCommissionView} accent={OCHRE} />
             </div>
-            <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums" style={{ color: OCHRE }}>
-              − ৳{fmt(outdoorCommissionValue)}
-            </p>
           </div>
         </div>
 
