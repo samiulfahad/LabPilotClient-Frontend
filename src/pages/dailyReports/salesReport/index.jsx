@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { ArrowLeft, Printer, AlertCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
+import ReportSeal from "../../../components/ReportSeal";
 import salesService from "../../../api/dailyReports/salesReport";
 import Popup from "../../../components/popup";
 import { useAuthStore } from "../../../store/authStore";
@@ -164,37 +165,22 @@ const EmptyRow = ({ label }) => (
   </div>
 );
 
-const SEAL_BLUE = "#1E4FA0";
-const SEAL_RED = "#C0312B";
+const INK = "#1C1F1E";
+const TEAL = "#0F6E5C";
 
-const RoundSeal = ({ dateLabel, label }) => (
-  <div className="relative shrink-0 select-none rotate-[-3deg]">
-    <div
-      className="bg-white px-4 py-2.5 rounded-[3px]"
-      style={{ border: `2px solid ${SEAL_BLUE}`, boxShadow: `inset 0 0 0 3px ${SEAL_BLUE}05` }}
+// Header stat cell — mirrors CollectionReport/DiscountReport/ExpenseReport so
+// multiple stats stay on a single row instead of wrapping.
+const HeaderStat = ({ label, value, accent }) => (
+  <div className="flex flex-col gap-0.5 px-2.5 first:pl-0 last:pr-0">
+    <span className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-[#A8ACA3] font-noto whitespace-nowrap">
+      {label}
+    </span>
+    <span
+      className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums whitespace-nowrap"
+      style={{ color: accent ?? INK }}
     >
-      <div className="border" style={{ borderColor: `${SEAL_BLUE}55`, padding: "5px 10px" }}>
-        <p
-          className="text-center font-['IBM_Plex_Mono'] font-bold uppercase"
-          style={{ color: SEAL_BLUE, fontSize: "10px", letterSpacing: "2px" }}
-        >
-          LabPilotPro.com
-        </p>
-        <div className="h-px w-full my-1" style={{ backgroundColor: `${SEAL_BLUE}55` }} />
-        <p
-          className="text-center font-['IBM_Plex_Mono'] font-extrabold uppercase"
-          style={{ color: SEAL_RED, fontSize: "15px", letterSpacing: "1.5px" }}
-        >
-          {label}
-        </p>
-        <p
-          className="text-center font-['IBM_Plex_Mono'] font-semibold"
-          style={{ color: SEAL_RED, fontSize: "11px", letterSpacing: "0.5px" }}
-        >
-          {dateLabel}
-        </p>
-      </div>
-    </div>
+      {value}
+    </span>
   </div>
 );
 
@@ -348,7 +334,8 @@ const SalesReport = () => {
                 to="/daily-reports"
                 className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase font-noto"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />Back
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Back
               </Link>
             </div>
           </div>
@@ -378,23 +365,21 @@ const SalesReport = () => {
             </div>
 
             <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
-              <div>
+              <div className="min-w-0">
                 <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">সেলস রিপোর্ট</p>
                 <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">
                   {headingLabel}
                 </h2>
-                <p className="font-['IBM_Plex_Mono'] text-sm text-[#8A8F89] mt-1.5 font-noto">
-                  মোট টেস্ট- {fmt(totalTestOrders)}টি
-                  <br />
-                  মোট পণ্য- {fmt(totalProductUnits)}টি
-                  <br />
-                  মোট মেডিসিন- {fmt(totalMedicineUnits)}টি
-                  <br />
-                  মোট সার্ভিস- {fmt(totalServiceUnits)}টি
-                </p>
+
+                <div className="flex flex-nowrap divide-x divide-[#E3E0D6] mt-3">
+                  <HeaderStat label="টেস্ট" value={`${fmt(totalTestOrders)}টি`} accent={TEAL} />
+                  <HeaderStat label="পণ্য" value={`${fmt(totalProductUnits)}টি`} />
+                  <HeaderStat label="মেডিসিন" value={`${fmt(totalMedicineUnits)}টি`} />
+                  <HeaderStat label="সার্ভিস" value={`${fmt(totalServiceUnits)}টি`} />
+                </div>
               </div>
 
-              <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} label="Sales Report" />
+              <ReportSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} reportName="Sales Report" />
             </div>
 
             <LedgerSection

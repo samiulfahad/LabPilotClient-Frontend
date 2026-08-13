@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
+import ReportSeal from "../../../components/ReportSeal";
 import discountService from "../../../api/dailyReports/discountReport";
 import Popup from "../../../components/popup";
 import { useAuthStore } from "../../../store/authStore";
@@ -74,11 +75,29 @@ const isFullMonthRange = (start, end) => {
   );
 };
 
+// Seal date stamp: single day → one date, full month → "MONTH YEAR",
+// any other multi-day range → "DD MON – DD MON, YYYY" so the seal never
+// silently drops the start date on a date-range selection.
 const recordStamp = (start, end) => {
+  if (!start || !end) return generatedStamp();
+
   if (isFullMonthRange(start, end)) {
     return new Date(start).toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase();
   }
-  return generatedStamp(end);
+
+  const s = new Date(start);
+  const e = new Date(end);
+
+  if (s.toDateString() === e.toDateString()) {
+    return generatedStamp(end);
+  }
+
+  const fmtShort = (d) => d.toLocaleDateString("en-US", { day: "2-digit", month: "short" }).toUpperCase();
+  const sameYear = s.getFullYear() === e.getFullYear();
+
+  return sameYear
+    ? `${fmtShort(s)} – ${fmtShort(e)}, ${e.getFullYear()}`
+    : `${fmtShort(s)} ${s.getFullYear()} – ${fmtShort(e)} ${e.getFullYear()}`;
 };
 
 // Merge an invoices[] (opd) list and a patients[] (ipd) list into a single
@@ -176,9 +195,14 @@ const EmptyRow = ({ label }) => (
 );
 
 const HeaderStat = ({ label, value, accent }) => (
-  <div className="flex flex-col gap-0.5 px-4 first:pl-0 last:pr-0">
-    <span className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#A8ACA3] font-noto whitespace-nowrap">{label}</span>
-    <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: accent ?? INK }}>
+  <div className="flex flex-col gap-0.5 px-2.5 first:pl-0 last:pr-0">
+    <span className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-[#A8ACA3] font-noto whitespace-nowrap">
+      {label}
+    </span>
+    <span
+      className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums whitespace-nowrap"
+      style={{ color: accent ?? INK }}
+    >
       {value}
     </span>
   </div>
@@ -234,41 +258,6 @@ const DiscountRow = ({ entry, idx }) => {
         <span className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums" style={{ color: TEAL }}>
           ৳{fmt(entry.amount)}
         </span>
-      </div>
-    </div>
-  );
-};
-
-// ─── Seal ───────────────────────────────────────────────────────────────────
-
-const RoundSeal = ({ dateLabel }) => {
-  return (
-    <div className="relative shrink-0 select-none rotate-[-3deg]">
-      <div
-        className="bg-white px-4 py-2.5 rounded-[3px]"
-        style={{ border: `2px solid ${SEAL_BLUE}`, boxShadow: `inset 0 0 0 3px ${SEAL_BLUE}05` }}
-      >
-        <div className="border" style={{ borderColor: `${SEAL_BLUE}55`, padding: "5px 10px" }}>
-          <p
-            className="text-center font-['IBM_Plex_Mono'] font-bold uppercase"
-            style={{ color: SEAL_BLUE, fontSize: "10px", letterSpacing: "2px" }}
-          >
-            LabPilotPro.com
-          </p>
-          <div className="h-px w-full my-1" style={{ backgroundColor: `${SEAL_BLUE}55` }} />
-          <p
-            className="text-center font-['IBM_Plex_Mono'] font-extrabold uppercase whitespace-nowrap"
-            style={{ color: SEAL_RED, fontSize: "11px", letterSpacing: "1px" }}
-          >
-            Discount Report
-          </p>
-          <p
-            className="text-center font-['IBM_Plex_Mono'] font-semibold"
-            style={{ color: SEAL_RED, fontSize: "11px", letterSpacing: "0.5px" }}
-          >
-            {dateLabel}
-          </p>
-        </div>
       </div>
     </div>
   );
@@ -436,9 +425,6 @@ const DiscountReport = () => {
             <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] font-noto">
               ডিসকাউন্ট রিপোর্ট
             </h1>
-            <p className="text-base text-[#767D78] mt-1 font-noto">
-              নির্ধারিত সময়সীমায় স্টাফদের প্রদত্ত ছাড়ের হিসাব
-            </p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -492,7 +478,7 @@ const DiscountReport = () => {
                 </h2>
 
                 {!isStaff && (
-                  <div className="flex flex-wrap divide-x divide-[#E3E0D6] mt-3">
+                  <div className="flex flex-nowrap divide-x divide-[#E3E0D6] mt-3">
                     <HeaderStat
                       label="মোট ডিসকাউন্ট"
                       value={`৳${fmt(d.totals.totalDiscount)}`}
@@ -508,7 +494,7 @@ const DiscountReport = () => {
                 )}
               </div>
 
-              <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} />
+              <ReportSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} reportName="Discount Report" />
             </div>
 
             {/* Staff ledger */}

@@ -416,7 +416,6 @@ const CollectionReport = () => {
             <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] font-noto">
               কালেকশন রিপোর্ট
             </h1>
-            <p className="text-base text-[#767D78] mt-1 font-noto">নির্ধারিত সময়সীমায় স্টাফদের কালেকশনের হিসাব</p>
           </div>
           <div className="flex items-center gap-2">
             <button

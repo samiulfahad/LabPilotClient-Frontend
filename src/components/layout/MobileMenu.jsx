@@ -7,9 +7,12 @@ import {
   ChevronRight,
   AlertTriangle,
   Home as HomeIcon,
-  FlaskConical,
+  ClipboardList,
+  CalendarClock,
   Activity,
   Plus,
+  TrendingUp,
+  Receipt,
 } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import { getMenuForLabType } from "./menu";
@@ -58,10 +61,14 @@ const MobileMenu = () => {
 
   const visibleMenu = getMenuForLabType(lab?.type, user);
 
+  const isAdmin = user?.role === "admin";
+
   // Quick-access slots for the bottom bar. Home/My Activity/Menu are
   // `module: null` in menu.js (always visible); Report/Invoice only render
   // if this user's modules grant them — same rule as the full drawer menu,
-  // so nothing here ever 404s.
+  // so nothing here ever 404s. Admins get a fixed 5-slot layout instead
+  // (see isAdmin branch below), so these module checks only matter for
+  // non-admin users.
   const hasReportAccess = hasModuleAccess(user, "testReport");
   const hasInvoiceAccess = hasModuleAccess(user, "invoice");
 
@@ -135,51 +142,95 @@ const MobileMenu = () => {
           <div className="relative mx-auto max-w-md h-16 px-1 flex items-center rounded-3xl bg-gradient-to-br from-white via-indigo-50/70 to-purple-50/70 backdrop-blur-xl border border-indigo-100/70 shadow-[0_10px_30px_rgba(79,70,229,0.15)]">
             <NavItem to="/" end icon={HomeIcon} label="হোম" activeText="text-indigo-600" activeBg="bg-indigo-50" />
 
-            {hasReportAccess && (
-              <NavItem
-                to="/report"
-                icon={FlaskConical}
-                label="রিপোর্টস"
-                activeText="text-emerald-600"
-                activeBg="bg-emerald-50"
-              />
-            )}
-
-            {/* Elevated FAB — only when it lands as the true center of an
-               odd-length row (see showInvoiceAsFab above). Otherwise the
-               same action renders as a flat icon further down. */}
-            {showInvoiceAsFab && (
-              <div className="flex-1 flex items-center justify-center">
-                <Link
-                  to="/outdoor/invoice/new"
+            {isAdmin ? (
+              <>
+                {/* Left of the center FAB — Sales Report.
+                   Flat route, matching the single-segment style used
+                   throughout Setup.jsx (/manage-tests, /manage-staffs, etc). */}
+                <NavItem
+                  to="/sales-report"
+                  icon={TrendingUp}
+                  label="সেলস রিপোর্ট"
+                  activeText="text-emerald-600"
+                  activeBg="bg-emerald-50"
                   onClick={closeMenu}
-                  aria-label="নতুন ইনভয়েস"
-                  className="-mt-8 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/40 ring-4 ring-white active:scale-95 transition-transform duration-150"
-                >
-                  <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
-                </Link>
-              </div>
-            )}
+                />
 
-            {showInvoiceFlat && (
-              <NavItem
-                to="/outdoor/invoice/new"
-                end
-                icon={Plus}
-                label="নতুন"
-                activeText="text-indigo-600"
-                activeBg="bg-indigo-50"
-                onClick={closeMenu}
-              />
-            )}
+                {/* Elevated FAB — Daily Reports hub, admin-only center slot.
+                   Route confirmed against menu.js (dailyReport module). */}
+                <div className="flex-1 flex items-center justify-center">
+                  <Link
+                    to="/daily-reports"
+                    onClick={closeMenu}
+                    aria-label="ডেইলি রিপোর্টস"
+                    className="-mt-8 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/40 ring-4 ring-white active:scale-95 transition-transform duration-150"
+                  >
+                    <CalendarClock className="w-6 h-6 text-white" strokeWidth={2.5} />
+                  </Link>
+                </div>
 
-            <NavItem
-              to="/my-activity"
-              icon={Activity}
-              label="এক্টিভিটি"
-              activeText="text-amber-600"
-              activeBg="bg-amber-50"
-            />
+                {/* Right of the center FAB — Cashmemo Report.
+                   Flat route, matching the single-segment style confirmed by
+                   Setup.jsx. Still not in menu.js, so double-check this
+                   against your router if CashMemo.jsx lives elsewhere. */}
+                <NavItem
+                  to="/cashmemo"
+                  icon={Receipt}
+                  label="ক্যাশমেমো"
+                  activeText="text-amber-600"
+                  activeBg="bg-amber-50"
+                  onClick={closeMenu}
+                />
+              </>
+            ) : (
+              <>
+                {hasReportAccess && (
+                  <NavItem
+                    to="/report"
+                    icon={ClipboardList}
+                    label="রিপোর্টস"
+                    activeText="text-emerald-600"
+                    activeBg="bg-emerald-50"
+                  />
+                )}
+
+                {/* Elevated FAB — only when it lands as the true center of an
+                   odd-length row (see showInvoiceAsFab above). Otherwise the
+                   same action renders as a flat icon further down. */}
+                {showInvoiceAsFab && (
+                  <div className="flex-1 flex items-center justify-center">
+                    <Link
+                      to="/outdoor/invoice/new"
+                      onClick={closeMenu}
+                      aria-label="নতুন ইনভয়েস"
+                      className="-mt-8 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/40 ring-4 ring-white active:scale-95 transition-transform duration-150"
+                    >
+                      <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
+                    </Link>
+                  </div>
+                )}
+
+                {showInvoiceFlat && (
+                  <NavItem
+                    to="/outdoor/invoice/new"
+                    end
+                    icon={Plus}
+                    label="নতুন"
+                    activeText="text-indigo-600"
+                    activeBg="bg-indigo-50"
+                    onClick={closeMenu}
+                  />
+                )}
+
+                <NavItem
+                  to="/my-activity"
+                  icon={Activity}
+                  label="এক্টিভিটি"
+                  activeText="text-amber-600"
+                  activeBg="bg-amber-50"
+                />
+              </>
+            )}
 
             <button
               onClick={toggleMenu}

@@ -229,6 +229,7 @@ const OCHRE = "#B5772A";
 const RUST = "#B23A2E";
 const SEAL_BLUE = "#1E4FA0";
 const SEAL_RED = "#C0312B";
+const INK = "#1C1F1E";
 
 const TYPE_META = {
   doctor: { label: "ডাক্তার", Icon: Stethoscope },
@@ -278,6 +279,21 @@ const SkeletonReceipt = () => (
 );
 
 // ─── Receipt primitives ───────────────────────────────────────────────────────
+
+// Small stat column — mirrors the HeaderStat used in Collection/Discount/Sales reports.
+const HeaderStat = ({ label, value, accent }) => (
+  <div className="flex flex-col gap-0.5 px-2.5 first:pl-0 last:pr-0">
+    <span className="font-['IBM_Plex_Mono'] text-[10px] uppercase text-[#A8ACA3] font-noto whitespace-nowrap">
+      {label}
+    </span>
+    <span
+      className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums whitespace-nowrap"
+      style={{ color: accent ?? INK }}
+    >
+      {value}
+    </span>
+  </div>
+);
 
 const LedgerCell = ({ icon: Icon, label, value, accent, sub }) => (
   <div className="px-5 py-4 border-l-[3px]" style={{ borderColor: accent }}>
@@ -429,7 +445,7 @@ const ViewToggle = ({ view, onChange }) => (
       }`}
     >
       <FlaskConical className="w-3 h-3" />
-      টেস্ট ভিত্তিক
+      টেস্ট ভিত্তিক কমিশন
     </button>
 
     <button
@@ -441,7 +457,7 @@ const ViewToggle = ({ view, onChange }) => (
       }`}
     >
       <LayoutList className="w-3 h-3" />
-      রেফারার ভিত্তিক
+      রেফারারদের হার ভিত্তিক কমিশন
     </button>
   </div>
 );
@@ -539,7 +555,7 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorM
               className={`${isHospital ? TEST_ROW_GRID : TEST_ROW_GRID_NO_HOSPITAL} pt-1.5 mt-1 border-t border-[#E3E0D6]`}
             >
               <span className="col-span-2 font-['IBM_Plex_Mono'] text-xs uppercase text-[#8A8F89] font-noto text-right">
-                মোট কমিশন
+                কমিশন
               </span>
               <span
                 className="font-['IBM_Plex_Mono'] text-sm font-bold tabular-nums text-right"
@@ -589,14 +605,19 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
       <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">
-            টেস্ট-ভিত্তিক রিপোর্ট
+            টেস্ট-ভিত্তিক কমিশন রিপোর্ট
           </p>
           <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
-          <p className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] mt-1.5 flex items-center gap-1.5 font-noto">
-            <FlaskConical className="w-3 h-3" />
-            {rows.length} জন রেফারার
-            {isHospital ? ` · আউটডোর ${totalOutdoorOccurrences} · ইনডোর ${totalIndoorOccurrences}` : ""}
-          </p>
+
+          <div className="flex flex-nowrap divide-x divide-[#E3E0D6] mt-2">
+            <HeaderStat label="রেফারার" value={`${fmt(rows.length)} জন`} accent={TEAL} />
+            {isHospital && (
+              <>
+                <HeaderStat label="আউটডোর" value={fmt(totalOutdoorOccurrences)} />
+                <HeaderStat label="ইনডোর" value={fmt(totalIndoorOccurrences)} accent={SEAL_BLUE} />
+              </>
+            )}
+          </div>
         </div>
         <ReportSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} reportName="Commission Report" />
       </div>
@@ -605,7 +626,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
         <div className="grid grid-cols-3 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
           <LedgerCell
             icon={FlaskConical}
-            label="মোট টেস্ট (বার)"
+            label="টেস্ট"
             value={totalOutdoorOccurrences + totalIndoorOccurrences}
             accent={TEAL}
             sub={isHospital ? `আউটডোর ${totalOutdoorOccurrences} · ইনডোর ${totalIndoorOccurrences}` : undefined}
@@ -618,7 +639,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
           />
           <LedgerCell
             icon={ReceiptText}
-            label="মোট ইনভয়েস"
+            label="ইনভয়েস"
             value={fmt(d.totals.totalInvoices)}
             accent={RUST}
             sub={`কমিশন ৳${fmt(d.totals.totalCommission)}`}
@@ -670,12 +691,13 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital
 
     <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
       <div className="min-w-0 flex-1">
-        <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">কমিশন রিপোর্ট</p>
+        <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">রেফারারদের হার ভিত্তিক কমিশন</p>
         <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
-        <p className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] mt-1.5 flex items-center gap-1.5 font-noto">
-          <ReceiptText className="w-3 h-3" />
-          {referrerCount} জন রেফারার · {fmt(d.totals.totalInvoices)} টি ইনভয়েস
-        </p>
+
+        <div className="flex flex-nowrap divide-x divide-[#E3E0D6] mt-2">
+          <HeaderStat label="রেফারার" value={`${fmt(referrerCount)} জন`} accent={TEAL} />
+          <HeaderStat label="ইনভয়েস" value={`${fmt(d.totals.totalInvoices)} টি`} />
+        </div>
       </div>
       <ReportSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} reportName="Commission Report" />
     </div>
@@ -684,14 +706,14 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital
       <div className="grid grid-cols-2 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
         <LedgerCell
           icon={BadgeDollarSign}
-          label="কমিশন প্রদেয়"
+          label="কমিশন"
           value={`৳${fmt(d.totals.totalCommission)}`}
           accent={TEAL}
           sub={`${fmt(d.totals.totalInvoices)} টি ইনভয়েস থেকে`}
         />
         <LedgerCell
           icon={Tag}
-          label="প্রদত ডিস্কাউন্ট"
+          label="ডিস্কাউন্ট"
           value={`৳${fmt(d.totals.totalDiscount)}`}
           accent={RUST}
           sub={`${fmt(referrerCount)} জন রেফারারের মধ্যে`}
@@ -839,9 +861,6 @@ const CommissionReport = () => {
             <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] font-noto">
               কমিশন রিপোর্ট
             </h1>
-            <p className="text-base text-[#767D78] mt-1 font-noto">
-              নির্ধারিত সময়সীমায় রেফারারদের কমিশন ডিস্কাউন্টের হিসাব।
-            </p>
           </div>
           <div className="flex items-center gap-2">
             <button

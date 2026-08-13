@@ -1329,7 +1329,6 @@ const CashMemo = () => {
             <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] font-noto">
               ক্যাশমেমু
             </h1>
-            <p className="text-base text-[#767D78] mt-1 font-noto">নির্ধারিত সময়ের বিক্রি ও আয়ের হিসাব</p>
           </div>
           <div className="flex items-center gap-2">
             <button
