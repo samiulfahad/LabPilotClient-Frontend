@@ -864,9 +864,24 @@ const CommissionReport = () => {
   // stray blank page on mobile. Instead we clone just the report into a
   // throwaway iframe and print that in isolation. Works for either view
   // since both LedgerView and TestWiseView render the same #commission-printable id.
+  //
+  // Two bugs this fixes vs. the old version:
+  //  1. No <base> in the iframe doc meant root-relative stylesheet URLs
+  //     (e.g. "/assets/index-xxxx.css" from a prod build) resolved against
+  //     "about:blank" instead of the app's origin — worked only while the
+  //     browser happened to still have that exact URL warm, so it silently
+  //     broke after the tab sat idle or the cache was evicted.
+  //  2. A fixed 250ms setTimeout doesn't guarantee stylesheets/fonts have
+  //     actually finished loading before print() fires — replaced with real
+  //     load-event waiting on every <link rel="stylesheet">.
+  let printInFlight = false;
+
   const printReport = () => {
+    if (printInFlight) return; // guard against double-tap / overlapping prints
     const printable = document.getElementById("commission-printable");
     if (!printable) return;
+
+    printInFlight = true;
 
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
@@ -877,13 +892,21 @@ const CommissionReport = () => {
     iframe.style.border = "0";
     document.body.appendChild(iframe);
 
+    const cleanup = () => {
+      printInFlight = false;
+      if (iframe.parentNode) document.body.removeChild(iframe);
+    };
+
     const doc = iframe.contentDocument || iframe.contentWindow.document;
 
-    // Carry over every stylesheet/style tag from the host page so Tailwind
-    // utilities and the IBM Plex / Noto fonts render identically.
-    const styleTags = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
-      .map((node) => node.outerHTML)
-      .join("\n");
+    const linkNodes = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
+    const styleNodes = Array.from(document.querySelectorAll("style"));
+
+    // Use the resolved absolute .href (DOM property), not the raw attribute —
+    // this is what anchors root-relative URLs to the real origin regardless
+    // of what base the throwaway iframe document ends up with.
+    const linkTags = linkNodes.map((l) => `<link rel="stylesheet" href="${l.href}">`).join("\n");
+    const styleTags = styleNodes.map((s) => s.outerHTML).join("\n");
 
     doc.open();
     doc.write(`
@@ -891,6 +914,8 @@ const CommissionReport = () => {
       <html>
         <head>
           <meta charset="utf-8" />
+          <base href="${document.baseURI}" />
+          ${linkTags}
           ${styleTags}
           <style>
             @page { margin: 12mm; }
@@ -903,20 +928,35 @@ const CommissionReport = () => {
     doc.close();
 
     const triggerPrint = () => {
+      if (!iframe.contentWindow) return cleanup();
       iframe.contentWindow.focus();
       iframe.contentWindow.print();
       // Give the print dialog a moment to actually open before we tear
       // the iframe down (mobile Safari especially needs this).
-      setTimeout(() => document.body.removeChild(iframe), 1000);
+      setTimeout(cleanup, 1000);
     };
 
-    // Printing before fonts/stylesheets finish applying is the other common
-    // cause of a phantom extra page — wait for the iframe to fully load first.
-    if (doc.readyState === "complete") {
-      setTimeout(triggerPrint, 250);
-    } else {
-      iframe.onload = () => setTimeout(triggerPrint, 250);
-    }
+    // Wait for every stylesheet <link> the iframe actually needs to finish
+    // loading (or fail) rather than guessing with a fixed delay, then wait
+    // one more frame for layout/fonts to settle.
+    const iframeLinks = Array.from(doc.querySelectorAll('link[rel="stylesheet"]'));
+    const linkLoadPromises = iframeLinks.map(
+      (link) =>
+        new Promise((resolve) => {
+          if (link.sheet) return resolve(); // already loaded (cached)
+          link.addEventListener("load", resolve, { once: true });
+          link.addEventListener("error", resolve, { once: true }); // don't block print on a 404
+        }),
+    );
+
+    const fontsReady = iframe.contentDocument?.fonts?.ready ?? Promise.resolve();
+
+    Promise.race([
+      Promise.all([...linkLoadPromises, fontsReady]),
+      new Promise((resolve) => setTimeout(resolve, 3000)), // hard cap so a stuck fetch can't hang printing forever
+    ]).then(() => {
+      requestAnimationFrame(() => requestAnimationFrame(triggerPrint));
+    });
   };
 
   const d = data ?? EMPTY_DATA;
