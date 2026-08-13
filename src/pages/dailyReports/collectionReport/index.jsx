@@ -113,6 +113,63 @@ const getErrorMessage = (err, fallback) => {
 // Axios‑native network error detection
 const isNetworkError = (error) => error?.isAxiosError === true && !error.response;
 
+// ── Isolated print ─────────────────────────────────────────────────────────
+// window.print() prints the WHOLE document, including anything outside this
+// component that @media print in this file can never reach — a persistent
+// app shell (sidebar/topbar from the router layout) and TimeFrame's calendar
+// modal, which is rendered via createPortal straight onto document.body, not
+// nested under this component at all. Either can leave leftover layout
+// height that mobile print engines turn into a trailing blank page.
+//
+// Printing a hidden iframe that contains ONLY the report card sidesteps all
+// of that: nothing else in the app can end up on the printed page.
+const printElementInIsolation = (node) => {
+  if (!node) return;
+
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.setAttribute("aria-hidden", "true");
+  document.body.appendChild(iframe);
+
+  const cleanup = () => {
+    if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+  };
+
+  const doc = iframe.contentWindow.document;
+  const styleTags = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+    .map((el) => el.outerHTML)
+    .join("\n");
+
+  doc.open();
+  doc.write(`<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    ${styleTags}
+    <style>
+      @page { size: A4; margin: 12mm; }
+      html, body { margin: 0; padding: 0; background: #fff; height: auto; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    </style>
+  </head>
+  <body>${node.outerHTML}</body>
+</html>`);
+  doc.close();
+
+  // Give linked stylesheets a moment to load before printing so Tailwind
+  // classes are actually applied in the iframe.
+  setTimeout(() => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(cleanup, 1000);
+  }, 350);
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TEAL = "#0F6E5C";
@@ -395,6 +452,10 @@ const CollectionReport = () => {
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
   const modeEntries = Object.entries(d.totals.byMode ?? {}).filter(([, value]) => value > 0);
 
+  const handlePrint = () => {
+    printElementInIsolation(document.getElementById("transactions-printable"));
+  };
+
   return (
     <section
       id="collection-report-page"
@@ -403,54 +464,13 @@ const CollectionReport = () => {
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
       {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
-      <style>{`
-        @media print {
-          @page {
-            size: A4;
-            margin: 12mm;
-          }
-
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-
-          /* Some parent layout (root App/router wrapper) may force
-             min-height:100vh on html/body. That extra forced height is
-             invisible on screen but print engines paginate against it,
-             producing a trailing blank page. Force it back to the
-             content's real height. */
-          html, body {
-            height: auto !important;
-            min-height: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-
-          /* Elements already tagged no-print are simply removed from the
-             layout — no leftover invisible flow height, so there's no
-             extra blank page on mobile print engines. */
-          .no-print { display: none !important; }
-
-          #collection-report-page {
-            min-height: 0 !important;
-            height: auto !important;
-            background: #fff !important;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-
-          .max-w-2xl {
-            max-width: 100% !important;
-            margin: 0 !important;
-          }
-
-          #transactions-printable {
-            box-shadow: none !important;
-            border: none !important;
-            border-radius: 0 !important;
-            page-break-inside: avoid;
-            break-inside: avoid;
-          }
-        }
-      `}</style>
+      {/*
+        No @media print block here anymore. Printing now happens on an
+        isolated iframe (see printElementInIsolation / handlePrint) that
+        contains ONLY the report card, so nothing outside this component
+        — app shell, sidebar, TimeFrame's portaled calendar modal — can
+        contribute stray height or an extra blank page.
+      */}
 
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-5 no-print">
@@ -461,7 +481,7 @@ const CollectionReport = () => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => window.print()}
+              onClick={handlePrint}
               disabled={loading}
               className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase disabled:opacity-40 disabled:cursor-not-allowed font-noto"
             >
