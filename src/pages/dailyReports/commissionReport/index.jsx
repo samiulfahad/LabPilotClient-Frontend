@@ -194,6 +194,8 @@ const mergeTestAggregates = (outdoorMap, indoorMap) => {
 };
 
 // ─── Build doctor-first test summary rows — outdoor + indoor kept separate ───
+// Carries totalDiscount through (referrer-level discount from the outdoor
+// invoices) so the test-wise view can show a net figure per referrer.
 const buildDoctorTestRows = (registered, unregistered) => {
   const rows = [];
 
@@ -206,7 +208,7 @@ const buildDoctorTestRows = (registered, unregistered) => {
       name: (isRegistered ? r.name : r.referredBy) ?? "অজানা",
       type: isRegistered ? (r.type ?? "unknown") : "unregistered",
       isRegistered,
-      invoiceCount: r.totalInvoices ?? r.invoices?.length ?? 0,
+      totalDiscount: r.totalDiscount ?? 0,
       outdoorMap,
       indoorMap,
     });
@@ -508,8 +510,11 @@ const MergedTestRow = ({ name, total, outdoorCount, indoorCount, commissionTotal
 );
 
 // ─── Test-wise: single doctor card ──────────────────────────────────────────
+// Header no longer shows invoice count (redundant with ledger view). Instead,
+// when the referrer had a discount this window, a discount/net line is shown
+// under the per-test commission total.
 
-const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorMap, indoorMap, isHospital }) => {
+const DoctorTestCard = ({ rank, name, type, isRegistered, totalDiscount, outdoorMap, indoorMap, isHospital }) => {
   const accent = isRegistered ? TEAL : OCHRE;
   const meta = TYPE_META[type] ?? TYPE_META.unknown;
   const Icon = isRegistered ? meta.Icon : UserX;
@@ -517,6 +522,7 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorM
   const mergedTests = useMemo(() => mergeTestAggregates(outdoorMap, indoorMap), [outdoorMap, indoorMap]);
   const totalTests = mergedTests.reduce((s, t) => s + t.total, 0);
   const totalTestCommission = mergedTests.reduce((s, t) => s + t.commissionTotal, 0);
+  const netCommission = totalTestCommission - (totalDiscount ?? 0);
 
   return (
     <div className="py-4 border-b border-dashed border-[#E3E0D6] last:border-b-0">
@@ -531,7 +537,7 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorM
         )}
         <span className="flex-1 border-b border-dotted border-[#D8D5CB]" />
         <span className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] tabular-nums shrink-0 font-noto">
-          {invoiceCount} ইনভয়েস · {totalTests} টেস্ট
+          {totalTests} টেস্ট
         </span>
       </div>
 
@@ -565,6 +571,16 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorM
               </span>
               {isHospital && <span />}
             </div>
+
+            {totalDiscount > 0 && (
+              <div className="flex items-center justify-end flex-wrap gap-x-2.5 gap-y-1 mt-1.5 font-['IBM_Plex_Mono'] text-xs font-noto">
+                <span style={{ color: OCHRE }}>ডিস্কাউন্ট − ৳{fmt(totalDiscount)}</span>
+                <span className="text-[#D8D5CB]">·</span>
+                <span className="font-semibold" style={{ color: TEAL }}>
+                  নেট ৳{fmt(netCommission)}
+                </span>
+              </div>
+            )}
           </>
         ) : (
           <p className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] font-noto">নেই</p>
@@ -575,8 +591,11 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, invoiceCount, outdoorM
 };
 
 // ─── Test-wise view ───────────────────────────────────────────────────────────
+// Summary tiles now show Test / Test-wise commission (with net sub-line when
+// there's any discount) / Discount — invoice count dropped since it's already
+// visible in the ledger view and isn't needed here.
 
-const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, lab, isHospital }) => {
+const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, lab, isHospital }) => {
   const rows = useMemo(() => buildDoctorTestRows(registered, unregistered), [registered, unregistered]);
   const totalOutdoorOccurrences = rows.reduce((s, r) => s + sumAggregateCounts(r.outdoorMap), 0);
   const totalIndoorOccurrences = rows.reduce((s, r) => s + sumAggregateCounts(r.indoorMap), 0);
@@ -584,6 +603,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
     (s, r) => s + mergeTestAggregates(r.outdoorMap, r.indoorMap).reduce((ss, t) => ss + t.commissionTotal, 0),
     0,
   );
+  const totalDiscountAll = rows.reduce((s, r) => s + (r.totalDiscount ?? 0), 0);
 
   return (
     <div
@@ -636,13 +656,14 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
             label="টেস্ট-ভিত্তিক কমিশন"
             value={`৳${fmt(totalTestCommission)}`}
             accent={SEAL_BLUE}
+            sub={totalDiscountAll > 0 ? `নেট ৳${fmt(totalTestCommission - totalDiscountAll)}` : undefined}
           />
           <LedgerCell
-            icon={ReceiptText}
-            label="ইনভয়েস"
-            value={fmt(d.totals.totalInvoices)}
+            icon={Tag}
+            label="ডিস্কাউন্ট"
+            value={`৳${fmt(totalDiscountAll)}`}
             accent={RUST}
-            sub={`কমিশন ৳${fmt(d.totals.totalCommission)}`}
+            sub={`${fmt(rows.length)} জন রেফারারের মধ্যে`}
           />
         </div>
       </div>
@@ -656,7 +677,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
               name={r.name}
               type={r.type}
               isRegistered={r.isRegistered}
-              invoiceCount={r.invoiceCount}
+              totalDiscount={r.totalDiscount}
               outdoorMap={r.outdoorMap}
               indoorMap={r.indoorMap}
               isHospital={isHospital}
@@ -957,7 +978,6 @@ const CommissionReport = () => {
             unregistered={d.unregistered}
             headingLabel={headingLabel}
             timeRange={timeRange}
-            d={d}
             lab={lab}
             isHospital={isHospital}
           />
