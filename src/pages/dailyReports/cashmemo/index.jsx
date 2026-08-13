@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
+import ReportSeal from "../../../components/ReportSeal";
 import cashmemoService from "../../../api/dailyReports/cashmemo";
 import Popup from "../../../components/popup";
 import { useAuthStore } from "../../../store/authStore";
@@ -77,11 +78,29 @@ const isFullMonthRange = (start, end) => {
   );
 };
 
+// Seal date stamp: single day → one date, full month → "MONTH YEAR",
+// any other multi-day range → "DD MON – DD MON, YYYY" so the seal never
+// silently drops the start date on a date-range selection.
 const recordStamp = (start, end) => {
+  if (!start || !end) return generatedStamp();
+
   if (isFullMonthRange(start, end)) {
     return new Date(start).toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase();
   }
-  return generatedStamp(end);
+
+  const s = new Date(start);
+  const e = new Date(end);
+
+  if (s.toDateString() === e.toDateString()) {
+    return generatedStamp(end);
+  }
+
+  const fmtShort = (d) => d.toLocaleDateString("en-US", { day: "2-digit", month: "short" }).toUpperCase();
+  const sameYear = s.getFullYear() === e.getFullYear();
+
+  return sameYear
+    ? `${fmtShort(s)} – ${fmtShort(e)}, ${e.getFullYear()}`
+    : `${fmtShort(s)} ${s.getFullYear()} – ${fmtShort(e)} ${e.getFullYear()}`;
 };
 
 const PERMISSION_DENIED_MESSAGE = "আপনার কর্তৃপক্ষ আপনাকে এই কাজটি করার বা এই তথ্যটি পাওয়ার অনুমতি দেয়নি।";
@@ -254,49 +273,6 @@ const CommissionToggle = ({ view, onChange, accent = "#B5772A" }) => (
     </button>
   </div>
 );
-
-const SEAL_BLUE = "#1E4FA0";
-const SEAL_RED = "#C0312B";
-const SEAL_INDIGO = "#3730A3";
-const SEAL_VIOLET = "#6D28D9";
-
-const RoundSeal = ({ dateLabel, variant = "outdoor" }) => {
-  const borderColor = variant === "indoor" ? SEAL_INDIGO : variant === "summary" ? SEAL_VIOLET : SEAL_BLUE;
-  const titleColor = borderColor;
-  const subtitleColor = SEAL_RED;
-  const subtitle = variant === "indoor" ? "IPD Memo" : variant === "summary" ? "Summary" : "Cashmemo";
-
-  return (
-    <div className="relative shrink-0 select-none rotate-[-3deg]">
-      <div
-        className="bg-white px-4 py-2.5 rounded-[3px]"
-        style={{ border: `2px solid ${borderColor}`, boxShadow: `inset 0 0 0 3px ${borderColor}05` }}
-      >
-        <div className="border" style={{ borderColor: `${borderColor}55`, padding: "5px 10px" }}>
-          <p
-            className="text-center font-['IBM_Plex_Mono'] font-bold uppercase"
-            style={{ color: titleColor, fontSize: "10px", letterSpacing: "2px" }}
-          >
-            LabPilotPro.com
-          </p>
-          <div className="h-px w-full my-1" style={{ backgroundColor: `${borderColor}55` }} />
-          <p
-            className="text-center font-['IBM_Plex_Mono'] font-extrabold uppercase"
-            style={{ color: subtitleColor, fontSize: "15px", letterSpacing: "1.5px" }}
-          >
-            {subtitle}
-          </p>
-          <p
-            className="text-center font-['IBM_Plex_Mono'] font-semibold"
-            style={{ color: subtitleColor, fontSize: "11px", letterSpacing: "0.5px" }}
-          >
-            {dateLabel}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const TEAL = "#0F6E5C";
 const OCHRE = "#B5772A";
@@ -597,7 +573,7 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
             {d.totalInvoices ?? 0}টি ইনভয়েস রেকর্ড করা হয়েছে
           </p>
         </div>
-        <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} variant="outdoor" />
+        <ReportSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} reportName="Cashmemo" />
       </div>
 
       <div className="px-6 sm:px-8 py-5">
@@ -850,7 +826,7 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
           </p>
           <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
         </div>
-        <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} variant="indoor" />
+        <ReportSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} reportName="IPD Memo" />
       </div>
 
       <div className="px-6 sm:px-8 py-5">
@@ -1079,7 +1055,7 @@ const SummaryReceipt = ({
           </p>
           <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
         </div>
-        <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} variant="summary" />
+        <ReportSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} reportName="Summary" />
       </div>
 
       <div className="px-6 sm:px-8 py-5">
