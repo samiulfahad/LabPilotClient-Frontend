@@ -3,7 +3,7 @@
  * babel-plugin-react-compiler handles all memoization automatically.
  */
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Modal from "../../../components/modal";
 import {
   Plus,
@@ -26,6 +26,7 @@ import {
   RotateCcw,
   ChevronDown,
   Lock,
+  ArrowLeft,
 } from "lucide-react";
 import Popup from "../../../components/popup";
 import productService from "../../../api/products";
@@ -1531,19 +1532,28 @@ export default function Products() {
               <p className="text-[13px] text-[#64748B] mt-0.5">ওষুধ, পণ্য ও সেবা পরিচালনা করুন।</p>
             </div>
           </div>
-          <button
-            onClick={() => !atLimit && setModal({ type: "create" })}
-            disabled={atLimit}
-            title={atLimit ? `সর্বোচ্চ ${activeMax}টি ${typeDef.bangla}` : undefined}
-            className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none disabled:cursor-not-allowed"
-            style={{
-              background: atLimit ? C.muted : typeDef.grad,
-              boxShadow: atLimit ? "none" : `0 4px 14px ${typeDef.accent}40`,
-            }}
-          >
-            {atLimit ? <Lock className="w-[13px] h-[13px]" /> : <Plus className="w-[13px] h-[13px]" />}
-            নতুন {typeDef.bangla}
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/setup"
+              aria-label="Back"
+              className="flex items-center justify-center w-9 h-9 shrink-0 transition-all border-[1.5px] border-[#E2E8F0] rounded-xl text-[#64748B] bg-white hover:bg-[#F1F5F9] hover:text-[#0F172A]"
+            >
+              <ArrowLeft className="w-[15px] h-[15px]" />
+            </Link>
+            <button
+              onClick={() => !atLimit && setModal({ type: "create" })}
+              disabled={atLimit}
+              title={atLimit ? `সর্বোচ্চ ${activeMax}টি ${typeDef.bangla}` : undefined}
+              className="flex items-center gap-1.5 transition-all font-semibold px-4 py-2 rounded-xl text-white font-['IBM_Plex_Mono',monospace] text-xs border-none disabled:cursor-not-allowed"
+              style={{
+                background: atLimit ? C.muted : typeDef.grad,
+                boxShadow: atLimit ? "none" : `0 4px 14px ${typeDef.accent}40`,
+              }}
+            >
+              {atLimit ? <Lock className="w-[13px] h-[13px]" /> : <Plus className="w-[13px] h-[13px]" />}
+              নতুন {typeDef.bangla}
+            </button>
+          </div>
         </div>
 
         {/* Stats */}

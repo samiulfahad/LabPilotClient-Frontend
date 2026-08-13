@@ -904,11 +904,20 @@ const StaffRow = ({
   resendLoading,
 }) => {
   const [expanded, setExpanded] = useState(false);
+<<<<<<< HEAD
   // `member.permissions` is absent for admin accounts (see labRoutes.js —
   // admin creation intentionally skips it, since admins bypass permission
   // checks entirely), so this must be optional-chained rather than assumed
   // present.
   const activePerms = permissionsList.filter((p) => member.permissions?.[p.key]);
+=======
+
+  // Admins may not carry a `permissions` object from the backend at all
+  // (they implicitly have full access), so fall back to {} before indexing
+  // into it — otherwise this throws for every admin row.
+  const memberPermissions = member.permissions ?? {};
+  const activePerms = permissionsList.filter((p) => memberPermissions[p.key]);
+>>>>>>> main
   const hasFullAccess = activePerms.length === permissionsList.length;
   const roleMeta = ROLE_META[member.role] ?? { label: "অন্যান্য", color: INK_MUTE, tint: GROUND };
   const needsPasswordSetup = member.role !== "admin" && !member.hasPasswordSet;
@@ -1145,7 +1154,7 @@ const ManageStaff = () => {
     total: staff.length,
     active: staff.filter((s) => s.isActive).length,
     inactive: staff.filter((s) => !s.isActive).length,
-    fullAccess: staff.filter((s) => s.role === "admin" || permissionsList.every((p) => s.permissions[p.key])).length,
+    fullAccess: staff.filter((s) => s.role === "admin" || permissionsList.every((p) => s.permissions?.[p.key])).length,
   };
 
   // ─── Staff seat limit ────────────────────────────────────────────────
@@ -1156,7 +1165,10 @@ const ManageStaff = () => {
   const atStaffLimit = maxStaff !== null && staffSeatCount >= maxStaff;
 
   const filtered = staff.filter((s) => {
-    if (permFilter !== "all" && !s.permissions[permFilter]) return false;
+    // s.permissions may be absent for admins — optional-chain the lookup so
+    // filtering by a specific permission simply excludes them instead of
+    // throwing.
+    if (permFilter !== "all" && !s.permissions?.[permFilter]) return false;
     if (statusFilter === "active" && !s.isActive) return false;
     if (statusFilter === "inactive" && s.isActive) return false;
     if (search.trim()) {
@@ -1339,11 +1351,9 @@ const ManageStaff = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link to="/lab-management">
+            <Link to="/setup">
               <GhostBtn>
-                <span className="flex items-center gap-1.5">
-                  <ArrowLeft size={13} /> ফিরে
-                </span>
+                <ArrowLeft size={13} />
               </GhostBtn>
             </Link>
             <SolidBtn

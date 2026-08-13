@@ -1,6 +1,6 @@
 // React Compiler active — no useCallback/useMemo
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import indoorPatientService from "../../api/indoorPatient";
 import { BLOOD_GROUPS, Btn, BedSelector, ErrorMsg, Select, Sk, Textarea } from "./indoorPatientHelpers";
 import Popup from "../../components/popup";
@@ -225,8 +225,13 @@ const AdmitPatient = () => {
 
     setLoading(true);
     try {
-      await indoorPatientService.admit(payload);
-      navigate("/ipd/admitted");
+      const res = await indoorPatientService.admit(payload);
+      // NOTE: assumes the admit endpoint responds with the newly created
+      // admission record at res.data._id (mirrors the shape used elsewhere,
+      // e.g. AddItemsToPatient's getPatient response). If your API instead
+      // nests it (e.g. res.data.admission._id or res.data.patient._id),
+      // update the line below to match.
+      navigate(`/ipd/patient/${res.data._id}`);
     } catch (err) {
       if (isNetworkError(err)) {
         setOfflinePopup(true);
@@ -245,20 +250,23 @@ const AdmitPatient = () => {
 
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="mb-6 flex items-center gap-3">
-          <button
-            onClick={() => navigate("/ipd")}
-            className="p-2.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 transition-colors"
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-blue-600 rounded-xl shadow-sm">
+              <UserCircle className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold text-slate-900">রোগী ভর্তি</h1>
+              <p className="text-sm text-slate-500">নতুন ইনডোর রোগী নিবন্ধন করুন</p>
+            </div>
+          </div>
+
+          <Link
+            to="/ipd-master"
+            className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase font-noto shrink-0"
           >
-            <ArrowLeft className="w-4 h-4 text-slate-600" />
-          </button>
-          <div className="p-2.5 bg-blue-600 rounded-xl shadow-sm">
-            <UserCircle className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900">রোগী ভর্তি</h1>
-            <p className="text-sm text-slate-500">নতুন ইনডোর রোগী নিবন্ধন করুন</p>
-          </div>
+            <ArrowLeft className="w-3.5 h-3.5" /> Back
+          </Link>
         </div>
 
         {reqLoading ? (

@@ -753,19 +753,13 @@ const InvoiceList = () => {
               disabled={initialLoading}
               className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Printer className="w-3.5 h-3.5" /> প্রিন্ট
+              <Printer className="w-3.5 h-3.5" /> Print
             </button>
             <Link
-              to="/lab-management"
+              to="/outdoor"
               className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase"
             >
-              <ArrowLeft className="w-3.5 h-3.5" /> ফিরে যান
-            </Link>
-            <Link
-              to="/outdoor/invoice/new"
-              className="px-3 py-2 rounded-sm border border-[#0F6E5C] text-[#0F6E5C] hover:bg-[#0F6E5C] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase font-semibold"
-            >
-              <Plus className="w-3.5 h-3.5" /> নতুন
+              <ArrowLeft className="w-3.5 h-3.5" /> Back
             </Link>
           </div>
         </div>
