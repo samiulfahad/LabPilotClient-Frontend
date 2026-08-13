@@ -113,63 +113,6 @@ const getErrorMessage = (err, fallback) => {
 // Axios‑native network error detection
 const isNetworkError = (error) => error?.isAxiosError === true && !error.response;
 
-// ── Isolated print ─────────────────────────────────────────────────────────
-// window.print() prints the WHOLE document, including anything outside this
-// component that @media print in this file can never reach — a persistent
-// app shell (sidebar/topbar from the router layout) and TimeFrame's calendar
-// modal, which is rendered via createPortal straight onto document.body, not
-// nested under this component at all. Either can leave leftover layout
-// height that mobile print engines turn into a trailing blank page.
-//
-// Printing a hidden iframe that contains ONLY the report card sidesteps all
-// of that: nothing else in the app can end up on the printed page.
-const printElementInIsolation = (node) => {
-  if (!node) return;
-
-  const iframe = document.createElement("iframe");
-  iframe.style.position = "fixed";
-  iframe.style.right = "0";
-  iframe.style.bottom = "0";
-  iframe.style.width = "0";
-  iframe.style.height = "0";
-  iframe.style.border = "0";
-  iframe.setAttribute("aria-hidden", "true");
-  document.body.appendChild(iframe);
-
-  const cleanup = () => {
-    if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-  };
-
-  const doc = iframe.contentWindow.document;
-  const styleTags = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-    .map((el) => el.outerHTML)
-    .join("\n");
-
-  doc.open();
-  doc.write(`<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    ${styleTags}
-    <style>
-      @page { size: A4; margin: 12mm; }
-      html, body { margin: 0; padding: 0; background: #fff; height: auto; }
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    </style>
-  </head>
-  <body>${node.outerHTML}</body>
-</html>`);
-  doc.close();
-
-  // Give linked stylesheets a moment to load before printing so Tailwind
-  // classes are actually applied in the iframe.
-  setTimeout(() => {
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
-    setTimeout(cleanup, 1000);
-  }, 350);
-};
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TEAL = "#0F6E5C";
@@ -452,25 +395,20 @@ const CollectionReport = () => {
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
   const modeEntries = Object.entries(d.totals.byMode ?? {}).filter(([, value]) => value > 0);
 
-  const handlePrint = () => {
-    printElementInIsolation(document.getElementById("transactions-printable"));
-  };
-
   return (
-    <section
-      id="collection-report-page"
-      className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto"
-    >
+    <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
       {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
-      {/*
-        No @media print block here anymore. Printing now happens on an
-        isolated iframe (see printElementInIsolation / handlePrint) that
-        contains ONLY the report card, so nothing outside this component
-        — app shell, sidebar, TimeFrame's portaled calendar modal — can
-        contribute stray height or an extra blank page.
-      */}
+      <style>{`
+        @media print {
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          body * { visibility: hidden; }
+          #transactions-printable, #transactions-printable * { visibility: visible; }
+          #transactions-printable { position: fixed; top: 0; left: 0; width: 100%; padding: 32px; box-shadow: none; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
 
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-5 no-print">
@@ -481,7 +419,7 @@ const CollectionReport = () => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handlePrint}
+              onClick={() => window.print()}
               disabled={loading}
               className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase disabled:opacity-40 disabled:cursor-not-allowed font-noto"
             >
