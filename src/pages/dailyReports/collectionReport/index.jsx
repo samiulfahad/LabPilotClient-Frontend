@@ -405,7 +405,14 @@ const CollectionReport = () => {
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           body * { visibility: hidden; }
           #transactions-printable, #transactions-printable * { visibility: visible; }
-          #transactions-printable { position: fixed; top: 0; left: 0; width: 100%; padding: 32px; box-shadow: none; }
+          #transactions-printable {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 32px;
+            box-shadow: none;
+          }
           .no-print { display: none !important; }
         }
       `}</style>
