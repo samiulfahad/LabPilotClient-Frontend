@@ -52,7 +52,14 @@ const BillingBanner = () => {
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
           <AlertTriangle className={`w-4 h-4 shrink-0 ${palette.icon}`} />
-          <p className={`text-sm font-medium ${palette.text} truncate`}>
+          {/*
+            min-w-0 + flex-1 on the <p> itself (not just its wrapper) —
+            it's the direct flex item here, and `truncate` sets
+            white-space: nowrap, so without min-w-0 the browser refuses
+            to shrink it below its full unwrapped text width, which was
+            pushing the row wider than the viewport on mobile.
+          */}
+          <p className={`text-sm font-medium ${palette.text} truncate min-w-0 flex-1`}>
             {isOverdue
               ? `পেমেন্টের সময়সীমা শেষ হয়ে গেছে — শেষ তারিখ ছিল ${formatDate(billingStatus.dueDate)}`
               : `আপনার প্রতিষ্ঠানের বকেয়া বিল আছে — পরিশোধের শেষ তারিখ ${formatDate(billingStatus.dueDate)}`}
