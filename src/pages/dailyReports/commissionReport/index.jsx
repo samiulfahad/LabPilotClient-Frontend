@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import TimeFrame from "../../../components/timeFrame";
+import ReportSeal from "../../../components/ReportSeal";
 import commissionService from "../../../api/dailyReports/commissionReport";
 import Popup from "../../../components/popup";
 import { useAuthStore } from "../../../store/authStore";
@@ -74,11 +75,29 @@ const isFullMonthRange = (start, end) => {
   );
 };
 
+// Seal date stamp: single day → one date, full month → "MONTH YEAR",
+// any other multi-day range → "DD MON – DD MON, YYYY" so the seal never
+// silently drops the start date on a date-range selection.
 const recordStamp = (start, end) => {
+  if (!start || !end) return generatedStamp();
+
   if (isFullMonthRange(start, end)) {
     return new Date(start).toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase();
   }
-  return generatedStamp(end);
+
+  const s = new Date(start);
+  const e = new Date(end);
+
+  if (s.toDateString() === e.toDateString()) {
+    return generatedStamp(end);
+  }
+
+  const fmtShort = (d) => d.toLocaleDateString("en-US", { day: "2-digit", month: "short" }).toUpperCase();
+  const sameYear = s.getFullYear() === e.getFullYear();
+
+  return sameYear
+    ? `${fmtShort(s)} – ${fmtShort(e)}, ${e.getFullYear()}`
+    : `${fmtShort(s)} ${s.getFullYear()} – ${fmtShort(e)} ${e.getFullYear()}`;
 };
 
 // ─── Aggregate outdoor tests for one referrer's invoices ──────────────────────
@@ -397,39 +416,6 @@ const EmptySection = ({ label }) => (
   <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] py-3 font-noto">{label}</p>
 );
 
-// ─── Seal ─────────────────────────────────────────────────────────────────────
-
-const RoundSeal = ({ dateLabel }) => (
-  <div className="relative shrink-0 select-none rotate-[-3deg]">
-    <div
-      className="bg-white px-4 py-2.5 rounded-[3px]"
-      style={{ border: `2px solid ${SEAL_BLUE}`, boxShadow: `inset 0 0 0 3px ${SEAL_BLUE}05` }}
-    >
-      <div className="border" style={{ borderColor: `${SEAL_BLUE}55`, padding: "5px 10px" }}>
-        <p
-          className="text-center font-['IBM_Plex_Mono'] font-bold uppercase"
-          style={{ color: SEAL_BLUE, fontSize: "10px", letterSpacing: "2px" }}
-        >
-          LabPilotPro.com
-        </p>
-        <div className="h-px w-full my-1" style={{ backgroundColor: `${SEAL_BLUE}55` }} />
-        <p
-          className="text-center font-['IBM_Plex_Mono'] font-extrabold uppercase whitespace-nowrap"
-          style={{ color: SEAL_RED, fontSize: "11px", letterSpacing: "1px" }}
-        >
-          Commission Report
-        </p>
-        <p
-          className="text-center font-['IBM_Plex_Mono'] font-semibold"
-          style={{ color: SEAL_RED, fontSize: "11px", letterSpacing: "0.5px" }}
-        >
-          {dateLabel}
-        </p>
-      </div>
-    </div>
-  </div>
-);
-
 // ─── View toggle ──────────────────────────────────────────────────────────────
 
 const ViewToggle = ({ view, onChange }) => (
@@ -601,7 +587,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
       </div>
 
       <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">
             টেস্ট-ভিত্তিক রিপোর্ট
           </p>
@@ -612,7 +598,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, d, la
             {isHospital ? ` · আউটডোর ${totalOutdoorOccurrences} · ইনডোর ${totalIndoorOccurrences}` : ""}
           </p>
         </div>
-        <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} />
+        <ReportSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} reportName="Commission Report" />
       </div>
 
       <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
@@ -683,7 +669,7 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital
     </div>
 
     <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
-      <div>
+      <div className="min-w-0 flex-1">
         <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">কমিশন রিপোর্ট</p>
         <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
         <p className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] mt-1.5 flex items-center gap-1.5 font-noto">
@@ -691,7 +677,7 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital
           {referrerCount} জন রেফারার · {fmt(d.totals.totalInvoices)} টি ইনভয়েস
         </p>
       </div>
-      <RoundSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} />
+      <ReportSeal dateLabel={recordStamp(timeRange?.start, timeRange?.end)} reportName="Commission Report" />
     </div>
 
     <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
