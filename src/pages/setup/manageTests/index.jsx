@@ -1319,21 +1319,21 @@ const ManageTests = () => {
         {!initialLoading && (
           <div className="grid grid-cols-4 gap-3 mb-5">
             <StatCard
-              label="মোট টেস্ট"
+              label="Total"
               value={stats.total}
               color={C.teal}
               grad="linear-gradient(135deg,#0D9488,#0F766E)"
               icon={FlaskConical}
             />
             <StatCard
-              label="অনলাইন"
+              label="Online"
               value={stats.online}
               color={C.green}
               grad="linear-gradient(135deg,#10B981,#059669)"
               icon={Wifi}
             />
             <StatCard
-              label="অফলাইন"
+              label="Offline"
               value={stats.offline}
               color={C.amber}
               grad="linear-gradient(135deg,#F59E0B,#D97706)"
