@@ -1,4 +1,4 @@
-\\\\/**
+/**
  * useCallback / useMemo are intentionally absent throughout this file.
  * babel-plugin-react-compiler handles all memoization automatically.
  */
