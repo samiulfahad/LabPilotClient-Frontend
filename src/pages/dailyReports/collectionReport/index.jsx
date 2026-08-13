@@ -391,31 +391,77 @@ const CollectionReport = () => {
     fetchData(range);
   };
 
+  // ─── Print via isolated iframe ────────────────────────────────────────────
+  // Printing straight from the page (window.print() + visibility:hidden) still
+  // leaves the rest of the app in the layout tree, which is what causes the
+  // stray blank page on mobile. Instead we clone just the report into a
+  // throwaway iframe and print that in isolation.
+  const printReport = () => {
+    const printable = document.getElementById("transactions-printable");
+    if (!printable) return;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+
+    // Carry over every stylesheet/style tag from the host page so Tailwind
+    // utilities and the IBM Plex / Noto fonts render identically.
+    const styleTags = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map((node) => node.outerHTML)
+      .join("\n");
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          ${styleTags}
+          <style>
+            @page { margin: 12mm; }
+            html, body { margin: 0; padding: 0; background: #fff; height: auto; }
+          </style>
+        </head>
+        <body>${printable.outerHTML}</body>
+      </html>
+    `);
+    doc.close();
+
+    const triggerPrint = () => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      // Give the print dialog a moment to actually open before we tear
+      // the iframe down (mobile Safari especially needs this).
+      setTimeout(() => document.body.removeChild(iframe), 1000);
+    };
+
+    // Printing before fonts/stylesheets finish applying is the other common
+    // cause of a phantom extra page — wait for the iframe to fully load first.
+    if (doc.readyState === "complete") {
+      setTimeout(triggerPrint, 250);
+    } else {
+      iframe.onload = () => setTimeout(triggerPrint, 250);
+    }
+  };
+
   const d = data ?? EMPTY_DATA;
   const headingLabel = buildHeadingLabel(timeRange?.start, timeRange?.end);
   const modeEntries = Object.entries(d.totals.byMode ?? {}).filter(([, value]) => value > 0);
 
   return (
-    <section className="min-h-screen print:min-h-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
+    <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
       {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
-      <style>{`
-        @media print {
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          body * { display: none !important; }
-          #transactions-printable, #transactions-printable * { display: revert !important; }
-          #transactions-printable {
-            position: static !important;
-            width: 100%;
-            padding: 32px;
-            box-shadow: none;
-          }
-        }
-      `}</style>
-
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-5 no-print">
+        <div className="flex items-center justify-between mb-5">
           <div>
             <h1 className="font-['IBM_Plex_Sans'] text-2xl sm:text-3xl font-semibold text-[#1C1F1E] font-noto">
               কালেকশন রিপোর্ট
@@ -423,7 +469,7 @@ const CollectionReport = () => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => window.print()}
+              onClick={printReport}
               disabled={loading}
               className="px-3 py-2 rounded-sm border border-[#1C1F1E]/15 text-[#1C1F1E] hover:bg-[#1C1F1E] hover:text-white transition-colors flex items-center gap-1.5 font-['IBM_Plex_Mono'] text-xs uppercase disabled:opacity-40 disabled:cursor-not-allowed font-noto"
             >
@@ -438,7 +484,7 @@ const CollectionReport = () => {
           </div>
         </div>
 
-        <div className="mb-5 no-print">
+        <div className="mb-5">
           <TimeFrame onFetchData={handleFetchData} />
         </div>
 
@@ -515,7 +561,7 @@ const CollectionReport = () => {
           </div>
         )}
 
-        <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-4 pb-6 no-print font-noto">
+        <p className="font-['IBM_Plex_Mono'] text-center text-xs text-[#A8ACA3] mt-4 pb-6 font-noto">
           শুধুমাত্র সক্রিয় (ডিলিট না হওয়া) এডমিশনের কালেকশন অন্তর্ভুক্ত
         </p>
       </div>
