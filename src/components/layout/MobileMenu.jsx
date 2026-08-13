@@ -89,7 +89,7 @@ const MobileMenu = () => {
 
   const navBtnClass = ({ isActive }) =>
     `flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
-      isActive ? "text-white" : "text-blue-200 hover:text-white"
+      isActive ? "text-white" : "text-slate-400 hover:text-slate-200"
     }`;
 
   return (
@@ -103,7 +103,7 @@ const MobileMenu = () => {
           className={`
             fixed bottom-0 left-0 right-0 z-50
             h-16 px-1
-            bg-gradient-to-r from-blue-600 to-indigo-600 backdrop-blur-md border-t border-white/10
+            bg-gradient-to-r from-slate-800 to-slate-900 backdrop-blur-md border-t border-white/10
             shadow-[0_-2px_12px_rgba(0,0,0,0.15)]
             transition-all duration-300
             ${scrollDirection === "down" ? "translate-y-full" : "translate-y-0"}
@@ -146,7 +146,7 @@ const MobileMenu = () => {
             <button
               onClick={toggleMenu}
               className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
-                isMenuOpen ? "text-white" : "text-blue-200 hover:text-white"
+                isMenuOpen ? "text-white" : "text-slate-400 hover:text-slate-200"
               }`}
               aria-label={isMenuOpen ? "Close menu" : "Open menu"}
             >
