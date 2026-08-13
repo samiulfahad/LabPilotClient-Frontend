@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Clock, Calendar, CalendarDays, Circle, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Clock, Calendar, CalendarDays, CalendarRange, Circle, ChevronLeft, ChevronRight, X } from "lucide-react";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const toStartOfDay = (d) => new Date(d).setHours(0, 0, 0, 0);
@@ -23,7 +23,7 @@ const MONTHS = [
   "December",
 ];
 
-const buildRange = (mode, d) => {
+const buildRange = (mode, d, d2) => {
   if (mode === "today") {
     const n = new Date();
     return { start: new Date(n).setHours(0, 0, 0, 0), end: new Date(n).setHours(23, 59, 59, 999) };
@@ -35,12 +35,18 @@ const buildRange = (mode, d) => {
       end: new Date(d.getFullYear(), d.getMonth() + 1, 0).setHours(23, 59, 59, 999),
     };
   }
+  if (mode === "dateRange") return { start: toStartOfDay(d), end: toEndOfDay(d2) };
 };
 
-const buildLabel = (mode, d) => {
+const buildLabel = (mode, d, d2) => {
   if (mode === "today") return "Today";
   if (mode === "date") return d.toLocaleString("en-US", { year: "numeric", month: "long", day: "numeric" });
   if (mode === "month") return d.toLocaleString("en-US", { year: "numeric", month: "long" });
+  if (mode === "dateRange") {
+    const s = d.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const e = d2.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return `${s} – ${e}`;
+  }
 };
 
 // ─── Modal shell ──────────────────────────────────────────────────────────────
@@ -195,17 +201,148 @@ const MonthGrid = ({ initial, onPick, onClose }) => {
   );
 };
 
+// ─── Date range calendar ───────────────────────────────────────────────────────
+const MAX_RANGE_DAYS = 15;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const daysBetween = (a, b) => Math.round((toStartOfDay(b) - toStartOfDay(a)) / DAY_MS) + 1;
+
+const DateRangeCalendar = ({ initial, onPick, onClose }) => {
+  const [cursor, setCursor] = useState(new Date(initial.getFullYear(), initial.getMonth(), 1));
+  const [start, setStart] = useState(null);
+  const [end, setEnd] = useState(null);
+  const [error, setError] = useState(false);
+  const today = new Date();
+
+  const firstWeekday = new Date(cursor.getFullYear(), cursor.getMonth(), 1).getDay();
+  const daysInMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
+  const cells = [...Array(firstWeekday).fill(null), ...Array(daysInMonth)].map((_, i) =>
+    i < firstWeekday ? null : i - firstWeekday + 1,
+  );
+
+  const maxEnd = start ? new Date(toStartOfDay(start) + (MAX_RANGE_DAYS - 1) * DAY_MS) : null;
+
+  const isFuture = (day) => new Date(cursor.getFullYear(), cursor.getMonth(), day) > today;
+  const isBeyondMax = (dateObj) => start && !end && maxEnd && toStartOfDay(dateObj) > toStartOfDay(maxEnd);
+  const canGoNext =
+    new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1) <= new Date(today.getFullYear(), today.getMonth(), 1);
+
+  const handleClick = (dateObj) => {
+    if (!start || (start && end)) {
+      setStart(dateObj);
+      setEnd(null);
+      setError(false);
+      return;
+    }
+    if (dateObj < start) {
+      setStart(dateObj);
+      setEnd(null);
+      setError(false);
+      return;
+    }
+    if (daysBetween(start, dateObj) > MAX_RANGE_DAYS) {
+      setError(true);
+      return;
+    }
+    setEnd(dateObj);
+    setError(false);
+    onPick(start, dateObj);
+  };
+
+  const inRange = (dateObj) => {
+    if (!start) return false;
+    if (!end) return sameDay(dateObj, start);
+    return dateObj >= toStartOfDay(start) && dateObj <= toStartOfDay(end);
+  };
+  const isEdge = (dateObj) => (start && sameDay(dateObj, start)) || (end && sameDay(dateObj, end));
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-3">
+        <button
+          onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
+          className="w-8 h-8 rounded-[9px] flex items-center justify-center text-[#6b6b8a] hover:bg-[#f4f2ff] hover:text-[#4a3fbe] transition-colors"
+        >
+          <ChevronLeft size={16} strokeWidth={2.3} />
+        </button>
+        <span className="text-[13.5px] font-semibold text-[#2d2b55] font-['DM_Sans',_sans-serif]">
+          {MONTHS[cursor.getMonth()]} {cursor.getFullYear()}
+        </span>
+        <button
+          onClick={() => canGoNext && setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
+          disabled={!canGoNext}
+          className="w-8 h-8 rounded-[9px] flex items-center justify-center text-[#6b6b8a] hover:bg-[#f4f2ff] hover:text-[#4a3fbe] transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+        >
+          <ChevronRight size={16} strokeWidth={2.3} />
+        </button>
+      </div>
+
+      <div className="text-[11px] font-medium text-[#9898b8] mb-2 font-['DM_Sans',_sans-serif]">
+        {error
+          ? `Range can't exceed ${MAX_RANGE_DAYS} days`
+          : !start
+            ? "Select start date"
+            : !end
+              ? `Select end date (max ${MAX_RANGE_DAYS} days)`
+              : "Range selected"}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {WEEKDAYS.map((w, i) => (
+          <div key={i} className="text-center text-[10px] font-semibold text-[#a8a8c0] py-1 uppercase">
+            {w}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((day, i) => {
+          if (day === null) return <div key={i} />;
+          const dateObj = new Date(cursor.getFullYear(), cursor.getMonth(), day);
+          const future = isFuture(day);
+          const beyondMax = isBeyondMax(dateObj);
+          const disabled = future || beyondMax;
+          const isToday = sameDay(dateObj, today);
+          const selected = inRange(dateObj);
+          const edge = isEdge(dateObj);
+          return (
+            <button
+              key={i}
+              disabled={disabled}
+              onClick={() => handleClick(dateObj)}
+              className={`h-9 rounded-[9px] text-[12.5px] font-medium font-['DM_Mono',_monospace] flex items-center justify-center transition-all duration-100
+                ${
+                  disabled
+                    ? "text-[#d8d8e6] cursor-not-allowed"
+                    : edge
+                      ? "bg-[#4a3fbe] text-white"
+                      : selected
+                        ? "bg-[#eeebff] text-[#4a3fbe]"
+                        : isToday
+                          ? "border-[1.5px] border-[#4a3fbe] text-[#4a3fbe] hover:bg-[#f0eeff]"
+                          : "text-[#3a3a55] hover:bg-[#4a3fbe] hover:text-white"
+                }`}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+};
+
 // ─── TimeFrame ────────────────────────────────────────────────────────────────
 const FILTERS = [
   { key: "today", label: "Today", icon: Clock },
   { key: "date", label: "By Date", icon: Calendar },
   { key: "month", label: "By Month", icon: CalendarDays },
+  { key: "dateRange", label: "Date Range", icon: CalendarRange },
 ];
 
 const TimeFrame = ({ onFetchData }) => {
   const [activeMode, setActiveMode] = useState("today");
   const [activeLabel, setActiveLabel] = useState("Today");
-  const [modal, setModal] = useState(null); // "date" | "month" | null
+  const [modal, setModal] = useState(null); // "date" | "month" | "dateRange" | null
 
   const fireToday = () => {
     const { start, end } = buildRange("today");
@@ -222,9 +359,9 @@ const TimeFrame = ({ onFetchData }) => {
     setModal(key);
   };
 
-  const handlePick = (mode, dateObj) => {
-    const { start, end } = buildRange(mode, dateObj);
-    const label = buildLabel(mode, dateObj);
+  const handlePick = (mode, dateObj, dateObj2) => {
+    const { start, end } = buildRange(mode, dateObj, dateObj2);
+    const label = buildLabel(mode, dateObj, dateObj2);
     setActiveMode(mode);
     setActiveLabel(label);
     setModal(null);
@@ -272,7 +409,7 @@ const TimeFrame = ({ onFetchData }) => {
         <ModalShell onClose={() => setModal(null)}>
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] font-semibold text-[#9898b8] uppercase tracking-[0.06em]">
-              {modal === "date" ? "Pick a date" : "Pick a month"}
+              {modal === "date" ? "Pick a date" : modal === "month" ? "Pick a month" : "Pick a range"}
             </span>
             <button
               onClick={() => setModal(null)}
@@ -281,10 +418,10 @@ const TimeFrame = ({ onFetchData }) => {
               <X size={13} strokeWidth={2.5} />
             </button>
           </div>
-          {modal === "date" ? (
-            <DayCalendar initial={new Date()} onPick={(d) => handlePick("date", d)} />
-          ) : (
-            <MonthGrid initial={new Date()} onPick={(d) => handlePick("month", d)} />
+          {modal === "date" && <DayCalendar initial={new Date()} onPick={(d) => handlePick("date", d)} />}
+          {modal === "month" && <MonthGrid initial={new Date()} onPick={(d) => handlePick("month", d)} />}
+          {modal === "dateRange" && (
+            <DateRangeCalendar initial={new Date()} onPick={(a, b) => handlePick("dateRange", a, b)} />
           )}
         </ModalShell>
       )}
@@ -293,205 +430,3 @@ const TimeFrame = ({ onFetchData }) => {
 };
 
 export default TimeFrame;
-
-// import { useState } from "react";
-// import { Clock, Calendar, CalendarDays, CalendarRange, ArrowRight, X, Circle } from "lucide-react";
-
-// // ─── helpers ─────────────────────────────────────────────────────────────────
-// const toStartOfDay = (d) => new Date(d).setHours(0, 0, 0, 0);
-// const toEndOfDay = (d) => new Date(d).setHours(23, 59, 59, 999);
-
-// const buildRange = (mode, a, b) => {
-//   if (mode === "today") {
-//     const n = new Date();
-//     return { start: new Date(n).setHours(0, 0, 0, 0), end: new Date(n).setHours(23, 59, 59, 999) };
-//   }
-//   if (mode === "date") return { start: toStartOfDay(a), end: toEndOfDay(a) };
-//   if (mode === "month") {
-//     const d = new Date(a);
-//     return {
-//       start: new Date(d.getFullYear(), d.getMonth(), 1).setHours(0, 0, 0, 0),
-//       end: new Date(d.getFullYear(), d.getMonth() + 1, 0).setHours(23, 59, 59, 999),
-//     };
-//   }
-//   if (mode === "dateRange") return { start: toStartOfDay(a), end: toEndOfDay(b) };
-// };
-
-// const buildLabel = (mode, a, b) => {
-//   const fmt = (s, o) => new Date(s).toLocaleString("en-US", o);
-//   if (mode === "today") return "Today";
-//   if (mode === "date") return fmt(a, { year: "numeric", month: "long", day: "numeric" });
-//   if (mode === "month") return fmt(a, { year: "numeric", month: "long" });
-//   if (mode === "dateRange") {
-//     const s = fmt(a, { month: "short", day: "numeric", year: "numeric" });
-//     const e = fmt(b, { month: "short", day: "numeric", year: "numeric" });
-//     return `${s} – ${e}`;
-//   }
-// };
-
-// // ─── PickerPanel ──────────────────────────────────────────────────────────────
-// const PickerPanel = ({ mode, onConfirm, onCancel }) => {
-//   const today = new Date().toISOString().split("T")[0];
-//   const thisMonth = today.slice(0, 7);
-//   const [a, setA] = useState(today);
-//   const [b, setB] = useState(today);
-
-//   const rangeErr = mode === "dateRange" && a && b && a > b;
-//   const valid = mode === "date" || mode === "month" ? !!a : !!a && !!b && !rangeErr;
-
-//   const apply = () => {
-//     if (valid) onConfirm(mode, a, mode === "dateRange" ? b : a);
-//   };
-
-//   const inputClass =
-//     "w-full py-2 px-[11px] text-[12.5px] font-['DM_Mono',_monospace] font-medium border-[1.5px] border-[#e0ddf8] rounded-[9px] bg-[#f8f7ff] text-[#2d2b55] outline-none transition-all duration-150 focus:border-[#7c6ff5] focus:bg-white focus:shadow-[0_0_0_3px_rgba(124,111,245,0.12)] box-border";
-
-//   return (
-//     <div className="mt-3 pt-3 border-t-[1.5px] border-dashed border-[#ebebf5] flex items-end gap-2.5 flex-wrap animate-[tf-drop_0.15s_ease]">
-//       {mode === "date" && (
-//         <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
-//           <span className="text-[10.5px] font-semibold text-[#9898b8] uppercase tracking-[0.06em]">Date</span>
-//           <input type="date" value={a} max={today} onChange={(e) => setA(e.target.value)} className={inputClass} />
-//         </div>
-//       )}
-//       {mode === "month" && (
-//         <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
-//           <span className="text-[10.5px] font-semibold text-[#9898b8] uppercase tracking-[0.06em]">Month</span>
-//           <input
-//             type="month"
-//             value={a.slice(0, 7)}
-//             max={thisMonth}
-//             onChange={(e) => setA(e.target.value + "-01")}
-//             className={inputClass}
-//           />
-//         </div>
-//       )}
-//       {mode === "dateRange" && (
-//         <>
-//           <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
-//             <span className="text-[10.5px] font-semibold text-[#9898b8] uppercase tracking-[0.06em]">From</span>
-//             <input type="date" value={a} max={today} onChange={(e) => setA(e.target.value)} className={inputClass} />
-//           </div>
-//           <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
-//             <span className="text-[10.5px] font-semibold text-[#9898b8] uppercase tracking-[0.06em]">To</span>
-//             <input
-//               type="date"
-//               value={b}
-//               min={a}
-//               max={today}
-//               onChange={(e) => setB(e.target.value)}
-//               className={inputClass}
-//             />
-//           </div>
-//         </>
-//       )}
-
-//       <div className="flex gap-1.5 items-center shrink-0 pb-[1px]">
-//         <button
-//           className="w-[34px] h-[34px] rounded-[9px] border-[1.5px] border-[#e8e8f0] bg-[#fafafd] text-[#9898b8] flex items-center justify-center cursor-pointer transition-all duration-150 outline-none hover:border-[#f0a0a0] hover:text-[#d05050] hover:bg-[#fff4f4]"
-//           onClick={onCancel}
-//         >
-//           <X size={13} strokeWidth={2.5} />
-//         </button>
-//         <button
-//           className="inline-flex items-center gap-1.5 py-2 px-4 rounded-[9px] bg-[#4a3fbe] border-none text-white text-[12.5px] font-semibold font-['DM_Sans',_sans-serif] cursor-pointer transition-all duration-150 outline-none whitespace-nowrap enabled:hover:bg-[#3b31a8] enabled:hover:shadow-[0_3px_10px_rgba(74,63,190,0.3)] enabled:hover:-translate-y-[1px] disabled:opacity-[0.38] disabled:cursor-not-allowed disabled:transform-none"
-//           onClick={apply}
-//           disabled={!valid}
-//         >
-//           <ArrowRight size={12} strokeWidth={2.5} /> Apply
-//         </button>
-//       </div>
-
-//       {rangeErr && <p className="w-full text-[11px] text-[#d05050] mt-[-4px]">End date must be after start date.</p>}
-//     </div>
-//   );
-// };
-
-// // ─── TimeFrame ────────────────────────────────────────────────────────────────
-// const FILTERS = [
-//   { key: "today", label: "Today", icon: Clock },
-//   { key: "date", label: "By Date", icon: Calendar },
-//   { key: "month", label: "By Month", icon: CalendarDays },
-//   { key: "dateRange", label: "Date Range", icon: CalendarRange },
-// ];
-
-// const TimeFrame = ({ onFetchData }) => {
-//   const [activeMode, setActiveMode] = useState("today");
-//   const [activeLabel, setActiveLabel] = useState("Today");
-//   const [pickerMode, setPickerMode] = useState(null);
-
-//   const fireToday = () => {
-//     const { start, end } = buildRange("today");
-//     setActiveMode("today");
-//     setActiveLabel("Today");
-//     setPickerMode(null);
-//     onFetchData(start, end, "Today");
-//   };
-
-//   const handleTab = (key) => {
-//     if (key === "today") {
-//       fireToday();
-//       return;
-//     }
-//     setPickerMode((p) => (p === key ? null : key));
-//   };
-
-//   const handleConfirm = (mode, a, b) => {
-//     const { start, end } = buildRange(mode, a, b);
-//     const label = buildLabel(mode, a, b);
-//     setActiveMode(mode);
-//     setActiveLabel(label);
-//     setPickerMode(null);
-//     onFetchData(start, end, label);
-//   };
-
-//   return (
-//     <>
-//       {/* Retaining the entry keyframe definition locally to preserve dropdown behavior seamlessly */}
-//       <style>{`
-//         @keyframes tf-drop {
-//           from { opacity: 0; transform: translateY(-6px); }
-//           to   { opacity: 1; transform: translateY(0); }
-//         }
-//       `}</style>
-
-//       <div className="font-['DM_Sans',_sans-serif] bg-white border-[1.5px] border-[#e8e8f0] rounded-[16px] pt-[14px] pb-[14px] px-4 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_4px_12px_rgba(80,60,180,0.04)]">
-//         <div className="flex items-center gap-1.5 flex-wrap">
-//           {FILTERS.map(({ key, label, icon: TabIcon }) => {
-//             const isActive = activeMode === key;
-//             const isOpen = pickerMode === key;
-
-//             return (
-//               <button
-//                 key={key}
-//                 onClick={() => handleTab(key)}
-//                 className={`inline-flex items-center gap-1.5 py-[7px] px-[13px] rounded-[10px] border-[1.5px] text-[12.5px] font-medium cursor-pointer transition-all duration-150 whitespace-nowrap tracking-[-0.01em] outline-none relative overflow-hidden
-//                   ${
-//                     isActive
-//                       ? "bg-[#4a3fbe] border-[#4a3fbe] text-white shadow-[0_2px_8px_rgba(74,63,190,0.28)]"
-//                       : isOpen
-//                         ? "bg-[#f0eeff] border-[#c4bcf8] text-[#4a3fbe]"
-//                         : "border-[#ebebf5] bg-[#fafafd] text-[#6b6b8a] hover:border-[#c8c4f0] hover:text-[#4a3fbe] hover:bg-[#f4f2ff]"
-//                   }`}
-//               >
-//                 <TabIcon size={14} strokeWidth={2.2} />
-//                 {label}
-//               </button>
-//             );
-//           })}
-
-//           <div className="ml-auto inline-flex items-center gap-[7px] pt-1.5 pb-1.5 pr-3 pl-2.5 rounded-[10px] bg-[#f6f5ff] border-[1.5px] border-[#e0dcfc] text-[#4a3fbe] text-xs font-semibold font-['DM_Mono',_monospace] tracking-[-0.02em] whitespace-nowrap max-w-[240px] truncate">
-//             <span className="text-[#7c6ff5] shrink-0 animate-pulse">
-//               <Circle size={6} fill="currentColor" strokeWidth={0} />
-//             </span>
-//             {activeLabel}
-//           </div>
-//         </div>
-
-//         {pickerMode && <PickerPanel mode={pickerMode} onConfirm={handleConfirm} onCancel={() => setPickerMode(null)} />}
-//       </div>
-//     </>
-//   );
-// };
-
-// export default TimeFrame;
