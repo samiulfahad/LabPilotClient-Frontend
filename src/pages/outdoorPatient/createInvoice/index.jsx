@@ -56,7 +56,10 @@ const INITIAL_FORM = {
   labAdjustmentAmount: 0,
   paidAmount: "",
   paymentMode: "cash",
-  onlineFeeEnabled: true,
+  // Off by default. If the lab has forceInvoiceFee set, computeAmount()
+  // applies the fee regardless of this flag — this only matters for the
+  // manual toggle case. See "Online Invoice Fee" below.
+  onlineFeeEnabled: false,
   onlineFeePaidBy: "lab",
 };
 
@@ -104,6 +107,11 @@ const calcReferrerCommission = (referredBy, initial, referrerDiscountAmt) => {
   return Math.max(0, toFixed2(gross - referrerDiscountAmt));
 };
 
+// Online invoice fee: driven purely by the lab's billing config, not by
+// whether any selected test happens to carry a schemaId.
+//   - forceInvoiceFee: true  -> fee always applied, no toggle shown
+//   - forceInvoiceFee: false -> fee off by default; user can flip
+//     form.onlineFeeEnabled via the toggle to apply it manually
 const computeAmount = (form, feeConfig = {}) => {
   const { feePerInvoice = 0, forceInvoiceFee = false } = feeConfig;
 
@@ -119,8 +127,7 @@ const computeAmount = (form, feeConfig = {}) => {
 
   const referrerCommission = calcReferrerCommission(form.referredBy, initial, referrerDiscount);
 
-  const hasOnlineTest = form.selectedTests.some((t) => !!t.schemaId);
-  const feeApplied = hasOnlineTest && feePerInvoice > 0 && (forceInvoiceFee || form.onlineFeeEnabled);
+  const feeApplied = feePerInvoice > 0 && (forceInvoiceFee || form.onlineFeeEnabled);
   const invoiceFee = feeApplied ? feePerInvoice : 0;
 
   const beforeFee = Math.max(0, afterReferrerDiscount - labAdjustment);
@@ -139,7 +146,6 @@ const computeAmount = (form, feeConfig = {}) => {
     afterReferrerDiscount,
     invoiceFee,
     feeApplied,
-    hasOnlineTest,
   };
 };
 
@@ -1025,12 +1031,13 @@ const InvoiceForm = ({
             </div>
           )}
 
-          {/* Online Invoice Fee — shown only when the lab has one configured
-              AND the cart contains at least one online test (schemaId set).
+          {/* Online Invoice Fee — shown whenever the lab has a fee configured
+              (feePerInvoice > 0), regardless of what's in the cart.
               If forceInvoiceFee is on, it's mandatory (no toggle, always
-              applied) — but still hidden entirely with no online test in
-              the cart. Always added on top of the patient's total. */}
-          {feePerInvoice > 0 && amount.hasOnlineTest && (
+              applied). Otherwise it's off by default and the staff can turn
+              it on manually via the toggle. Always added on top of the
+              patient's total. */}
+          {feePerInvoice > 0 && (
             <div className="space-y-2">
               {forceInvoiceFee ? (
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
