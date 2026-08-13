@@ -26,6 +26,25 @@ const hasModuleAccess = (user, moduleKey) => {
   return isAdmin || !!user?.modules?.includes(moduleKey);
 };
 
+// Small helper so each bottom-bar item can carry its own accent color and
+// active-state pill background, instead of one flat color for the whole bar.
+const NavItem = ({ to, end, icon: Icon, label, activeText, activeBg }) => (
+  <NavLink to={to} end={end} className="flex-1 h-full flex items-center justify-center">
+    {({ isActive }) => (
+      <div className={`flex flex-col items-center justify-center gap-1 ${isActive ? activeText : "text-gray-400"}`}>
+        <div
+          className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 ${
+            isActive ? activeBg : ""
+          }`}
+        >
+          <Icon className="w-5 h-5" strokeWidth={isActive ? 2.4 : 2} />
+        </div>
+        <span className={`text-[10px] font-anek ${isActive ? "font-bold" : "font-medium"}`}>{label}</span>
+      </div>
+    )}
+  </NavLink>
+);
+
 const MobileMenu = () => {
   const logout = useAuthStore((s) => s.logout);
   const lab = useAuthStore((s) => s.lab);
@@ -87,39 +106,32 @@ const MobileMenu = () => {
     setLoggingOut(false);
   };
 
-  const navBtnClass = ({ isActive }) =>
-    `flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
-      isActive ? "text-white" : "text-slate-400 hover:text-slate-200"
-    }`;
-
   return (
     <>
       {/* ─── Mobile Navbar (bottom, quick-access) ──────────────────────── */}
       <div className="lg:hidden font-anek">
-        {/* Spacer so page content isn't hidden behind the fixed bottom bar */}
-        <div className="h-16" />
+        {/* Spacer — matches the bar's floating offset (16 height + margins) */}
+        <div className="h-20" />
 
         <nav
           className={`
             fixed bottom-0 left-0 right-0 z-50
-            h-16 px-1
-            bg-gradient-to-r from-slate-800 to-slate-900 backdrop-blur-md border-t border-white/10
-            shadow-[0_-2px_12px_rgba(0,0,0,0.15)]
-            transition-all duration-300
-            ${scrollDirection === "down" ? "translate-y-full" : "translate-y-0"}
+            px-3 pb-3
+            transition-transform duration-300
+            ${scrollDirection === "down" ? "translate-y-[150%]" : "translate-y-0"}
           `}
         >
-          <div className="relative h-full flex items-center">
-            <NavLink to="/" end className={navBtnClass}>
-              <HomeIcon className="w-5 h-5" />
-              <span className="text-[10px] font-medium font-anek">হোম</span>
-            </NavLink>
+          <div className="relative mx-auto max-w-md h-16 px-1 flex items-center rounded-3xl bg-white/95 backdrop-blur-xl border border-gray-100 shadow-[0_10px_30px_rgba(15,23,42,0.12)]">
+            <NavItem to="/" end icon={HomeIcon} label="হোম" activeText="text-indigo-600" activeBg="bg-indigo-50" />
 
             {hasReportAccess && (
-              <NavLink to="/report" className={navBtnClass}>
-                <FlaskConical className="w-5 h-5" />
-                <span className="text-[10px] font-medium font-anek">রিপোর্টস</span>
-              </NavLink>
+              <NavItem
+                to="/report"
+                icon={FlaskConical}
+                label="রিপোর্টস"
+                activeText="text-emerald-600"
+                activeBg="bg-emerald-50"
+              />
             )}
 
             {/* Elevated FAB — raised above the bar, common "primary action"
@@ -131,27 +143,40 @@ const MobileMenu = () => {
                   to="/outdoor/invoice/new"
                   onClick={closeMenu}
                   aria-label="নতুন ইনভয়েস"
-                  className="-mt-8 w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-lg shadow-black/20 ring-4 ring-indigo-600 active:scale-95 transition-transform duration-150"
+                  className="-mt-8 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/40 ring-4 ring-white active:scale-95 transition-transform duration-150"
                 >
-                  <Plus className="w-6 h-6 text-indigo-600" strokeWidth={2.5} />
+                  <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
                 </Link>
               </div>
             )}
 
-            <NavLink to="/my-activity" className={navBtnClass}>
-              <Activity className="w-5 h-5" />
-              <span className="text-[10px] font-medium font-anek">এক্টিভিটি</span>
-            </NavLink>
+            <NavItem
+              to="/my-activity"
+              icon={Activity}
+              label="এক্টিভিটি"
+              activeText="text-amber-600"
+              activeBg="bg-amber-50"
+            />
 
             <button
               onClick={toggleMenu}
-              className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
-                isMenuOpen ? "text-white" : "text-slate-400 hover:text-slate-200"
-              }`}
+              className="flex-1 h-full flex items-center justify-center"
               aria-label={isMenuOpen ? "Close menu" : "Open menu"}
             >
-              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              <span className="text-[10px] font-medium font-anek">মেনু</span>
+              <div
+                className={`flex flex-col items-center justify-center gap-1 ${
+                  isMenuOpen ? "text-slate-700" : "text-gray-400"
+                }`}
+              >
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                    isMenuOpen ? "bg-slate-100" : ""
+                  }`}
+                >
+                  {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                </div>
+                <span className={`text-[10px] font-anek ${isMenuOpen ? "font-bold" : "font-medium"}`}>মেনু</span>
+              </div>
             </button>
           </div>
         </nav>
