@@ -405,7 +405,24 @@ const CollectionReport = () => {
 
       <style>{`
         @media print {
+          @page {
+            size: A4;
+            margin: 12mm;
+          }
+
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+          /* Some parent layout (root App/router wrapper) may force
+             min-height:100vh on html/body. That extra forced height is
+             invisible on screen but print engines paginate against it,
+             producing a trailing blank page. Force it back to the
+             content's real height. */
+          html, body {
+            height: auto !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
 
           /* Elements already tagged no-print are simply removed from the
              layout — no leftover invisible flow height, so there's no
@@ -414,8 +431,14 @@ const CollectionReport = () => {
 
           #collection-report-page {
             min-height: 0 !important;
+            height: auto !important;
             background: #fff !important;
             padding: 0 !important;
+            margin: 0 !important;
+          }
+
+          .max-w-2xl {
+            max-width: 100% !important;
             margin: 0 !important;
           }
 
@@ -423,6 +446,8 @@ const CollectionReport = () => {
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
         }
       `}</style>
