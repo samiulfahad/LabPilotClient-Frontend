@@ -672,7 +672,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, lab, 
             accent={SEAL_BLUE}
           />
           <LedgerCell icon={Tag} label="ডিস্কাউন্ট" value={`৳${fmt(totalDiscountAll)}`} accent={RUST} />
-          <LedgerCell icon={BadgeDollarSign} label="নেট কমিশন" value={`৳${fmt(netCommissionAll)}`} accent={TEAL} />
+          <LedgerCell icon={BadgeDollarSign} label="নেট" value={`৳${fmt(netCommissionAll)}`} accent={TEAL} />
         </div>
       </div>
 
@@ -744,7 +744,7 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital
         <LedgerCell icon={Tag} label="ডিস্কাউন্ট" value={`৳${fmt(d.totals.totalDiscount)}`} accent={RUST} />
         <LedgerCell
           icon={BadgeDollarSign}
-          label="নেট কমিশন"
+          label="নেট"
           value={`৳${fmt(d.totals.totalCommission - d.totals.totalDiscount)}`}
           accent={TEAL}
         />
