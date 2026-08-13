@@ -28,8 +28,8 @@ const hasModuleAccess = (user, moduleKey) => {
 
 // Small helper so each bottom-bar item can carry its own accent color and
 // active-state pill background, instead of one flat color for the whole bar.
-const NavItem = ({ to, end, icon: Icon, label, activeText, activeBg }) => (
-  <NavLink to={to} end={end} className="flex-1 h-full flex items-center justify-center">
+const NavItem = ({ to, end, icon: Icon, label, activeText, activeBg, onClick }) => (
+  <NavLink to={to} end={end} onClick={onClick} className="flex-1 h-full flex items-center justify-center">
     {({ isActive }) => (
       <div className={`flex flex-col items-center justify-center gap-1 ${isActive ? activeText : "text-gray-400"}`}>
         <div
@@ -64,6 +64,17 @@ const MobileMenu = () => {
   // so nothing here ever 404s.
   const hasReportAccess = hasModuleAccess(user, "testReport");
   const hasInvoiceAccess = hasModuleAccess(user, "invoice");
+
+  // A raised, centered FAB only reads as intentional when it's the true
+  // middle item of an odd-length row (3 or 5 total: equal items on each
+  // side). If Invoice were added as a FAB on top of an odd side-item count,
+  // the total would land on an even number and the "center" button would
+  // sit off-center — so in that case it renders as a normal flat icon
+  // instead, keeping the row visually balanced either way.
+  const sideItemCount = 3 + (hasReportAccess ? 1 : 0); // Home + Activity + Menu, +Report if granted
+  const totalWithInvoiceFab = hasInvoiceAccess ? sideItemCount + 1 : sideItemCount;
+  const showInvoiceAsFab = hasInvoiceAccess && totalWithInvoiceFab % 2 === 1;
+  const showInvoiceFlat = hasInvoiceAccess && !showInvoiceAsFab;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -134,10 +145,10 @@ const MobileMenu = () => {
               />
             )}
 
-            {/* Elevated FAB — raised above the bar, common "primary action"
-               pattern for mobile bottom nav. Only rendered if the user can
-               actually create invoices (route is gated the same way). */}
-            {hasInvoiceAccess && (
+            {/* Elevated FAB — only when it lands as the true center of an
+               odd-length row (see showInvoiceAsFab above). Otherwise the
+               same action renders as a flat icon further down. */}
+            {showInvoiceAsFab && (
               <div className="flex-1 flex items-center justify-center">
                 <Link
                   to="/outdoor/invoice/new"
@@ -148,6 +159,18 @@ const MobileMenu = () => {
                   <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
                 </Link>
               </div>
+            )}
+
+            {showInvoiceFlat && (
+              <NavItem
+                to="/outdoor/invoice/new"
+                end
+                icon={Plus}
+                label="নতুন"
+                activeText="text-indigo-600"
+                activeBg="bg-indigo-50"
+                onClick={closeMenu}
+              />
             )}
 
             <NavItem
