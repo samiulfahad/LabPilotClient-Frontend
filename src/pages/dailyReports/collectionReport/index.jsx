@@ -396,24 +396,34 @@ const CollectionReport = () => {
   const modeEntries = Object.entries(d.totals.byMode ?? {}).filter(([, value]) => value > 0);
 
   return (
-    <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
+    <section
+      id="collection-report-page"
+      className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto"
+    >
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
       {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <style>{`
         @media print {
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          body * { visibility: hidden; }
-          #transactions-printable, #transactions-printable * { visibility: visible; }
-          #transactions-printable {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            padding: 32px;
-            box-shadow: none;
-          }
+
+          /* Elements already tagged no-print are simply removed from the
+             layout — no leftover invisible flow height, so there's no
+             extra blank page on mobile print engines. */
           .no-print { display: none !important; }
+
+          #collection-report-page {
+            min-height: 0 !important;
+            background: #fff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+
+          #transactions-printable {
+            box-shadow: none !important;
+            border: none !important;
+            border-radius: 0 !important;
+          }
         }
       `}</style>
 
