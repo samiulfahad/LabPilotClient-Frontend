@@ -396,17 +396,21 @@ const CollectionReport = () => {
   const modeEntries = Object.entries(d.totals.byMode ?? {}).filter(([, value]) => value > 0);
 
   return (
-    <section className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
+    <section className="min-h-screen print:min-h-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-6 font-noto">
       {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
       {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
       <style>{`
         @media print {
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          body * { visibility: hidden; }
-          #transactions-printable, #transactions-printable * { visibility: visible; }
-          #transactions-printable { position: fixed; top: 0; left: 0; width: 100%; padding: 32px; box-shadow: none; }
-          .no-print { display: none !important; }
+          body * { display: none !important; }
+          #transactions-printable, #transactions-printable * { display: revert !important; }
+          #transactions-printable {
+            position: static !important;
+            width: 100%;
+            padding: 32px;
+            box-shadow: none;
+          }
         }
       `}</style>
 
