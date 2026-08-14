@@ -242,9 +242,6 @@ const FormatModal = ({ test, onClose, onSave, onNetworkError }) => {
                         </span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A] truncate">
-                              {schema.name}
-                            </p>
                             {!isActive && (
                               <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#94A3B8] bg-[#F1F5F9] px-1.5 py-px rounded-[5px] shrink-0">
                                 নিষ্ক্রিয়

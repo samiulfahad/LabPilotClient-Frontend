@@ -258,6 +258,7 @@ export default function ReportDownload() {
               <ReportViewer
                 report={report}
                 patient={patient}
+                reportName={testName}
                 printType={printType}
                 invoiceId={displayId}
                 isIndoor={isIndoor}

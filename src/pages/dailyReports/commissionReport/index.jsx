@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   ArrowLeft,
   Printer,
@@ -665,12 +665,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, lab, 
 
       <div className="px-6 sm:px-8 py-5 border-b border-[#E3E0D6]">
         <div className="grid grid-cols-3 divide-x divide-[#E3E0D6] border border-[#E3E0D6] rounded-sm">
-          <LedgerCell
-            icon={BadgeDollarSign}
-            label="কমিশন"
-            value={`৳${fmt(totalTestCommission)}`}
-            accent={SEAL_BLUE}
-          />
+          <LedgerCell icon={BadgeDollarSign} label="কমিশন" value={`৳${fmt(totalTestCommission)}`} accent={SEAL_BLUE} />
           <LedgerCell icon={Tag} label="ডিস্কাউন্ট" value={`৳${fmt(totalDiscountAll)}`} accent={RUST} />
           <LedgerCell icon={BadgeDollarSign} label="নেট" value={`৳${fmt(netCommissionAll)}`} accent={TEAL} />
         </div>
@@ -720,9 +715,7 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital
 
     <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
       <div className="min-w-0 flex-1">
-        <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">
-          রোগী ভিত্তিক কমিশন
-        </p>
+        <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">রোগী ভিত্তিক কমিশন</p>
         <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
 
         <div className="flex flex-nowrap divide-x divide-[#E3E0D6] mt-2">
@@ -800,6 +793,34 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital
   </div>
 );
 
+// ─── Print styles (body-class + scoped @media print, matching the pattern
+// used in BillingSummary.jsx / PatientDetails.jsx) ────────────────────────
+// Standard "hide everything, then re-reveal the target subtree" trick.
+// visibility (not display) is used so layout of #commission-printable
+// itself is undisturbed, then it's pulled out of flow and pinned to the
+// page origin for print.
+const PRINT_STYLE_ID = "commission-report-print-style";
+
+const PRINT_CSS = `
+@media print {
+  body.print-commission-only * {
+    visibility: hidden;
+  }
+  body.print-commission-only #commission-printable,
+  body.print-commission-only #commission-printable * {
+    visibility: visible;
+  }
+  body.print-commission-only #commission-printable {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+  @page {
+    margin: 12mm;
+  }
+}
+`;
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const CommissionReport = () => {
@@ -824,10 +845,28 @@ const CommissionReport = () => {
   const [view, setView] = useState("testwise");
   const [permissionDenied, setPermissionDenied] = useState(false);
 
+  // Guards against double-tap / re-entrant prints across re-renders — a
+  // plain `let` in the component body gets reset on every render, a ref
+  // doesn't.
+  const printingRef = useRef(false);
+
   useEffect(() => {
     const range = todayRange();
     setTimeRange(range);
     fetchData(range);
+  }, []);
+
+  // Inject the scoped print stylesheet once on mount, same lifecycle as
+  // the other "print this section only" components.
+  useEffect(() => {
+    if (document.getElementById(PRINT_STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = PRINT_STYLE_ID;
+    style.textContent = PRINT_CSS;
+    document.head.appendChild(style);
+    return () => {
+      document.getElementById(PRINT_STYLE_ID)?.remove();
+    };
   }, []);
 
   const fetchData = async (range) => {
@@ -857,105 +896,36 @@ const CommissionReport = () => {
     fetchData(range);
   };
 
-  // ─── Print via isolated iframe ────────────────────────────────────────────
-  // Printing straight from the page (window.print() + visibility:hidden) still
-  // leaves the rest of the app in the layout tree, which is what causes the
-  // stray blank page on mobile. Instead we clone just the report into a
-  // throwaway iframe and print that in isolation. Works for either view
-  // since both LedgerView and TestWiseView render the same #commission-printable id.
-  //
-  // Two bugs this fixes vs. the old version:
-  //  1. No <base> in the iframe doc meant root-relative stylesheet URLs
-  //     (e.g. "/assets/index-xxxx.css" from a prod build) resolved against
-  //     "about:blank" instead of the app's origin — worked only while the
-  //     browser happened to still have that exact URL warm, so it silently
-  //     broke after the tab sat idle or the cache was evicted.
-  //  2. A fixed 250ms setTimeout doesn't guarantee stylesheets/fonts have
-  //     actually finished loading before print() fires — replaced with real
-  //     load-event waiting on every <link rel="stylesheet">.
-  let printInFlight = false;
-
+  // ─── Print via body-class toggle + scoped @media print CSS ───────────────
+  // No iframe: the report is printed straight out of the live document, so
+  // there's no separate stylesheet-loading race to wait on — everything on
+  // the page has, by definition, already loaded. `afterprint` removes the
+  // class once the print dialog closes (Cancel or Print); a fallback timer
+  // covers the small number of mobile browsers that don't reliably fire it.
   const printReport = () => {
-    if (printInFlight) return; // guard against double-tap / overlapping prints
+    if (printingRef.current) return; // guard against double-tap / overlapping prints
     const printable = document.getElementById("commission-printable");
     if (!printable) return;
 
-    printInFlight = true;
+    printingRef.current = true;
+    document.body.classList.add("print-commission-only");
 
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    document.body.appendChild(iframe);
-
+    let settled = false;
     const cleanup = () => {
-      printInFlight = false;
-      if (iframe.parentNode) document.body.removeChild(iframe);
+      if (settled) return;
+      settled = true;
+      document.body.classList.remove("print-commission-only");
+      printingRef.current = false;
+      window.removeEventListener("afterprint", cleanup);
+      clearTimeout(fallbackTimer);
     };
 
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    window.addEventListener("afterprint", cleanup);
+    const fallbackTimer = setTimeout(cleanup, 5000); // hard cap for browsers that skip afterprint
 
-    const linkNodes = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
-    const styleNodes = Array.from(document.querySelectorAll("style"));
-
-    // Use the resolved absolute .href (DOM property), not the raw attribute —
-    // this is what anchors root-relative URLs to the real origin regardless
-    // of what base the throwaway iframe document ends up with.
-    const linkTags = linkNodes.map((l) => `<link rel="stylesheet" href="${l.href}">`).join("\n");
-    const styleTags = styleNodes.map((s) => s.outerHTML).join("\n");
-
-    doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <base href="${document.baseURI}" />
-          ${linkTags}
-          ${styleTags}
-          <style>
-            @page { margin: 12mm; }
-            html, body { margin: 0; padding: 0; background: #fff; height: auto; }
-          </style>
-        </head>
-        <body>${printable.outerHTML}</body>
-      </html>
-    `);
-    doc.close();
-
-    const triggerPrint = () => {
-      if (!iframe.contentWindow) return cleanup();
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      // Give the print dialog a moment to actually open before we tear
-      // the iframe down (mobile Safari especially needs this).
-      setTimeout(cleanup, 1000);
-    };
-
-    // Wait for every stylesheet <link> the iframe actually needs to finish
-    // loading (or fail) rather than guessing with a fixed delay, then wait
-    // one more frame for layout/fonts to settle.
-    const iframeLinks = Array.from(doc.querySelectorAll('link[rel="stylesheet"]'));
-    const linkLoadPromises = iframeLinks.map(
-      (link) =>
-        new Promise((resolve) => {
-          if (link.sheet) return resolve(); // already loaded (cached)
-          link.addEventListener("load", resolve, { once: true });
-          link.addEventListener("error", resolve, { once: true }); // don't block print on a 404
-        }),
-    );
-
-    const fontsReady = iframe.contentDocument?.fonts?.ready ?? Promise.resolve();
-
-    Promise.race([
-      Promise.all([...linkLoadPromises, fontsReady]),
-      new Promise((resolve) => setTimeout(resolve, 3000)), // hard cap so a stuck fetch can't hang printing forever
-    ]).then(() => {
-      requestAnimationFrame(() => requestAnimationFrame(triggerPrint));
-    });
+    // One frame so the class change (and any layout it triggers) is
+    // committed before the print dialog opens.
+    requestAnimationFrame(() => window.print());
   };
 
   const d = data ?? EMPTY_DATA;
