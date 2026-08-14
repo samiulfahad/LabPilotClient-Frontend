@@ -592,7 +592,7 @@ const AddTestModal = ({ existingTests, onClose, onSaved, onNetworkError }) => {
         name: test.name,
         testId: testKey,
         categoryId: test.categoryId ?? null,
-        schemaId: test.schemaId ?? null,
+        schemaId: test.defaultSchemaId ?? null, // ← was test.schemaId
         price: parseFloat(config.price) || 0,
         commission: parseFloat(config.commission) || 0,
       };
