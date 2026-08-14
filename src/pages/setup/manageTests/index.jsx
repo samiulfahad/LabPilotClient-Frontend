@@ -756,6 +756,18 @@ const AddTestModal = ({ existingTests, onClose, onSaved, onNetworkError }) => {
                               <span className="font-['IBM_Plex_Sans',sans-serif] text-sm font-semibold text-[#0F172A]">
                                 {test.name}
                               </span>
+                              {test.isOnline ? (
+                                <span
+                                  className="inline-flex items-center gap-1 font-['IBM_Plex_Mono',monospace] text-[9px] font-bold text-white rounded-[6px] px-1.5 py-px shrink-0 shadow-[0_2px_5px_#10B98130]"
+                                  style={{ background: "linear-gradient(135deg,#10B981,#059669)" }}
+                                >
+                                  <Wifi className="w-2.5 h-2.5" /> অনলাইন
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 font-['IBM_Plex_Mono',monospace] text-[9px] font-bold text-[#94A3B8] bg-[#F1F5F9] border border-[#E2E8F0] rounded-[6px] px-1.5 py-px shrink-0">
+                                  <WifiOff className="w-2.5 h-2.5" /> অফলাইন
+                                </span>
+                              )}
                               {isAlreadyAdded && (
                                 <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#10B981] bg-[#10B98110] border border-[#10B98125] rounded-[6px] px-1.5 py-px shrink-0">
                                   যোগ করা আছে
