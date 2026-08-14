@@ -295,6 +295,7 @@ function ReportUploadInner() {
               onUpdate={handleUpdate}
               loading={submitting}
               existingReport={isEdit ? existingReport : null}
+              testName={resolvedName}
             />
           )}
         </div>

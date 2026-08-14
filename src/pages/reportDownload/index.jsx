@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Eye, Printer, X } from "lucide-react";
 import ReportViewer from "./ReportViewer";
 import reportService from "../../api/report";
@@ -87,21 +87,23 @@ export default function ReportDownload() {
   }
   // ═════════════════════════════════════════════════════════════════════
 
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const storeLab = useAuthStore((s) => s.lab);
   const labInfo = buildLabInfo(storeLab);
 
-  // ── Params ────────────────────────────────────────────────────────────────
-  const type = searchParams.get("type") ?? "outdoor";
-  const isIndoor = type === "indoor";
+  // ── Params (now sourced from router state, mirrors ReportUpload) ───────────
+  const {
+    invoiceId = null,
+    patientId = null,
+    testId = null,
+    testName = "Report",
+    printType = "PLAIN",
+    type = "outdoor",
+    addedAt = null,
+  } = location.state ?? {};
 
-  const invoiceId = searchParams.get("invoiceId");
-  const patientId = searchParams.get("patientId");
-  const testId = searchParams.get("testId");
-  const testName = searchParams.get("testName") ?? "Report";
-  const printType = searchParams.get("printType") ?? "PLAIN";
+  const isIndoor = type === "indoor";
   const isPad = printType === "PAD";
-  const addedAt = searchParams.get("addedAt");
 
   const [report, setReport] = useState(null);
   const [patient, setPatient] = useState(null);
@@ -258,6 +260,7 @@ export default function ReportDownload() {
               <ReportViewer
                 report={report}
                 patient={patient}
+                reportName={testName}
                 printType={printType}
                 invoiceId={displayId}
                 isIndoor={isIndoor}

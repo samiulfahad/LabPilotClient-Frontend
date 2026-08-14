@@ -526,7 +526,10 @@ function ReportViewer({
 
   const resolvedPatient = patient ?? EMPTY_PATIENT;
   const isPad = printType === "PAD";
-  const resolvedReportName = report.name || reportName || "Lab Report";
+  // The test's own name (passed in as `reportName`) is the source of truth
+  // for the report title — `report.name` can still hold a schema-derived
+  // name on older records, so it's only used as a fallback.
+  const resolvedReportName = reportName || report.name || "Lab Report";
   const filename = `${resolvedReportName.replace(/\s+/g, "_")}_report.pdf`;
   const shortId = invoiceId || report.invoiceId || "";
 

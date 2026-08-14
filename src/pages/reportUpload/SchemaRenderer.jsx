@@ -68,7 +68,11 @@ export function hydrateValuesFromReport(schema, existingReport) {
   return values;
 }
 
-function buildPayload(schema, values, patientAge, patientGender) {
+// ─── Payload builder ────────────────────────────────────────────────────────
+// `name` on the payload now comes from the test itself (test.name / resolvedName),
+// not the schema — a schema can be reused across multiple tests, so its own
+// name isn't the right label for an individual report.
+function buildPayload(schema, values, patientAge, patientGender, testName) {
   const report = {};
   schema.sections.forEach((sec, si) => {
     const sd = {};
@@ -91,7 +95,7 @@ function buildPayload(schema, values, patientAge, patientGender) {
     if (Object.keys(sd).length > 0) report[sec.name] = { ...sd, __showTitle: sec.showTitleInReport !== false };
   });
 
-  return { ...report, name: schema.name };
+  return { ...report, name: testName ?? schema.name };
 }
 
 // ─── Shared UI primitives ──────────────────────────────────────────────────────
@@ -584,8 +588,19 @@ function StatTile({ label, value, tone }) {
 }
 
 // ─── Main component ─────────────────────────────────────────────────────────────
-
-function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, existingReport = null }) {
+// `testName` (the test's own name, e.g. from ReportUpload's `resolvedName` /
+// the Report page's `test.name`) is now the source of truth for the report's
+// `name` field — the schema's own name is only used as a fallback when
+// testName isn't available.
+function SchemaRenderer({
+  schema,
+  invoice,
+  onSubmit,
+  onUpdate,
+  loading = false,
+  existingReport = null,
+  testName = null,
+}) {
   const isEditMode = Boolean(existingReport);
   const computeInitial = () => (isEditMode ? hydrateValuesFromReport(schema, existingReport) : {});
 
@@ -653,7 +668,7 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
       return;
     }
     setErrors({});
-    const payload = buildPayload(schema, values, patientAge, patientGender);
+    const payload = buildPayload(schema, values, patientAge, patientGender, testName);
     if (isEditMode) onUpdate?.(payload);
     else onSubmit?.(payload);
   };
@@ -730,7 +745,9 @@ function SchemaRenderer({ schema, invoice, onSubmit, onUpdate, loading = false, 
                   {schema.isActive ? "● Active" : "○ Inactive"}
                 </span>
               </div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{schema.name || "Untitled Schema"}</h1>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+                {testName || schema.name || "Untitled Schema"}
+              </h1>
               {schema.description && (
                 <p className="text-sm text-slate-500 mt-1 leading-relaxed">{schema.description}</p>
               )}

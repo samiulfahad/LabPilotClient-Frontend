@@ -280,6 +280,17 @@ const RUST = "#B23A2E";
 const INDIGO = "#3730A3";
 const VIOLET = "#7C3AED";
 
+const COMMISSION_VIEW_LABELS = { percentage: "Patient Based", testWise: "Test Based" };
+
+const CommissionBasisBadge = ({ view, accent = OCHRE }) => (
+  <span
+    className="font-['IBM_Plex_Mono'] text-[10px] uppercase px-1.5 py-[1px] rounded-[2px] font-noto border shrink-0"
+    style={{ color: accent, borderColor: `${accent}40`, backgroundColor: `${accent}10` }}
+  >
+    {COMMISSION_VIEW_LABELS[view]}
+  </span>
+);
+
 const DiscountPatientsInline = ({ loading, patients }) => (
   <div className="border border-t-0 border-[#E3D9C6] rounded-b-sm bg-[#FFFDF9] overflow-hidden">
     <div className="max-h-72 overflow-y-auto px-4 divide-y divide-[#F0EEE6]">
@@ -557,7 +568,7 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
       id="cashmemo-printable"
       className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
     >
-      <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5]">
+      <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9F5] print-lab-header">
         <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
           {labName ?? "LabPilot Pro"}
         </h3>
@@ -565,7 +576,7 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
         {labPhone && <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{labPhone}</p>}
       </div>
 
-      <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
+      <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4 print-seal-row">
         <div>
           <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#0F6E5C] mb-1.5 font-noto">{eyebrowLabel}</p>
           <h2 className="font-['IBM_Plex_Sans'] text-2xl font-semibold text-[#1C1F1E] font-noto">{headingLabel}</h2>
@@ -606,7 +617,10 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
         <div className="border border-[#E3D9C6] rounded-sm overflow-hidden mb-4">
           <div className="px-4 py-3 bg-[#FBF7EF] border-l-4" style={{ borderColor: OCHRE }}>
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-[#1C1F1E] font-noto">মোট কমিশন</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-[#1C1F1E] font-noto">মোট কমিশন</p>
+                <CommissionBasisBadge view={commissionView} accent={OCHRE} />
+              </div>
               <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums shrink-0" style={{ color: OCHRE }}>
                 − ৳{fmt(commissionValue)}
               </p>
@@ -811,7 +825,7 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
       id="cashmemo-ipd-printable"
       className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
     >
-      <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#F8F8FC]">
+      <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#F8F8FC] print-lab-header">
         <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
           {labName ?? "LabPilot Pro"}
         </h3>
@@ -819,7 +833,7 @@ const IndoorReceipt = ({ summary, timeRange, labName, labAddress, labPhone }) =>
         {labPhone && <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{labPhone}</p>}
       </div>
 
-      <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
+      <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4 print-seal-row">
         <div>
           <p className="font-['IBM_Plex_Mono'] text-xs uppercase mb-1.5 font-noto" style={{ color: INDIGO }}>
             অন্তঃবিভাগ (আইপিডি) মেমু
@@ -1040,7 +1054,7 @@ const SummaryReceipt = ({
       id="cashmemo-summary-printable"
       className="bg-white border border-[#E3E0D6] rounded-lg shadow-[0_1px_2px_rgba(28,31,30,0.04)] overflow-hidden"
     >
-      <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9FC]">
+      <div className="px-6 sm:px-8 pt-5 pb-4 text-center border-b border-[#E3E0D6] bg-[#FAF9FC] print-lab-header">
         <h3 className="font-['IBM_Plex_Sans'] text-lg font-bold text-[#1C1F1E] tracking-wide font-noto">
           {labName ?? "LabPilot Pro"}
         </h3>
@@ -1048,7 +1062,7 @@ const SummaryReceipt = ({
         {labPhone && <p className="font-['IBM_Plex_Mono'] text-xs text-[#6F756F] mt-1 font-noto">{labPhone}</p>}
       </div>
 
-      <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4">
+      <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-[#E3E0D6] flex items-start justify-between gap-4 print-seal-row">
         <div>
           <p className="font-['IBM_Plex_Mono'] text-xs uppercase mb-1.5 font-noto" style={{ color: VIOLET }}>
             সারসংক্ষেপ
@@ -1071,7 +1085,10 @@ const SummaryReceipt = ({
         <div className="border border-[#E3D9C6] rounded-sm overflow-hidden mb-4">
           <div className="px-4 py-3 border-l-4" style={{ backgroundColor: `${OCHRE}08`, borderColor: OCHRE }}>
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-[#1C1F1E] font-noto">রেফারার কমিশন (বহির্বিভাগ)</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-[#1C1F1E] font-noto">রেফারার কমিশন (বহির্বিভাগ)</p>
+                <CommissionBasisBadge view={commissionView} accent={OCHRE} />
+              </div>
               <p className="font-['IBM_Plex_Mono'] text-lg font-bold tabular-nums shrink-0" style={{ color: OCHRE }}>
                 − ৳{fmt(outdoorCommissionValue)}
               </p>
@@ -1317,6 +1334,25 @@ const CashMemo = () => {
           }
           #${printableId} .mb-3, #${printableId} .mb-4, #${printableId} .my-4, #${printableId} .mt-4, #${printableId} .mt-3 {
             margin-top: 4px !important; margin-bottom: 4px !important;
+          }
+          /* Lab name/address block and the heading+seal row below it: the
+             generic .pt-6/.pb-5/.pt-5/.pb-4 rule above crushes both to 6px
+             top/bottom padding, so with just a 1px border between them they
+             read as touching. Give both their own print padding (higher
+             specificity — 2 classes vs. the single-class rule above — wins),
+             plus a small top margin on the seal row so it doesn't sit flush
+             against the border. Also restores right padding/gap around
+             ReportSeal itself, which the px-6/sm:px-8 rule was also crushing. */
+          #${printableId} .print-lab-header {
+            padding-top: 10px !important;
+            padding-bottom: 10px !important;
+          }
+          #${printableId} .print-seal-row {
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+            padding-right: 20px !important;
+            margin-top: 4px !important;
+            gap: 20px !important;
           }
           #${printableId} .max-h-72 { max-height: none !important; overflow: visible !important; }
           .no-print { display: none !important; }
