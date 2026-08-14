@@ -335,6 +335,28 @@ const InvoiceRow = ({ inv, idx }) => (
   </div>
 );
 
+// ─── Walk-in invoice row (ledger view) — count-only, no money columns ────────
+// Same shell as InvoiceRow but drops final/discount/commission entirely:
+// commission is always 0 for an unregistered referrer, so there's nothing
+// meaningful to show there — just which patient/invoice contributed a test.
+
+const WalkInInvoiceRow = ({ inv, idx }) => (
+  <div className="flex items-center gap-3 py-2 border-b border-dotted border-[#E3E0D6] last:border-b-0">
+    <span className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] tabular-nums w-5 shrink-0">
+      {String(idx + 1).padStart(2, "0")}
+    </span>
+    <div className="min-w-0 flex-1">
+      <p className="text-sm text-[#1C1F1E] font-medium truncate font-noto">{inv.patient?.name}</p>
+      <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] mt-0.5">
+        {inv.invoiceId} · {fmtDate(inv.createdAt)}
+      </p>
+    </div>
+    <span className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] tabular-nums shrink-0">
+      {(inv.tests ?? []).length} টি টেস্ট
+    </span>
+  </div>
+);
+
 // ─── Referrer entry (ledger view) — unchanged ────────────────────────────────
 
 const ReferrerEntry = ({
@@ -429,6 +451,90 @@ const ReferrerEntry = ({
   );
 };
 
+// ─── Walk-in entry (ledger view) — count-only, no commission/discount ────────
+// Unregistered referrers never accrue commission (see commissionReportRoutes),
+// so there's nothing to net out here — just how many tests this walk-in
+// group accounts for, split outdoor/indoor same as the hospital-only badge
+// used elsewhere.
+
+const WalkInEntry = ({ name, invoices, totalIndoorTests, isHospital }) => {
+  const [open, setOpen] = useState(false);
+  const invoiceCount = invoices.length;
+  const outdoorTestCount = invoices.reduce((s, inv) => s + (Array.isArray(inv.tests) ? inv.tests.length : 0), 0);
+  const indoorTestCount = isHospital ? (totalIndoorTests ?? 0) : 0;
+  const totalTestCount = outdoorTestCount + indoorTestCount;
+  const hasBoth = indoorTestCount > 0 && outdoorTestCount > 0;
+  const indoorOnly = indoorTestCount > 0 && outdoorTestCount === 0;
+
+  return (
+    <div className="py-3 border-b border-dashed border-[#E3E0D6] last:border-b-0">
+      <button onClick={() => !indoorOnly && setOpen((p) => !p)} className="w-full text-left" disabled={indoorOnly}>
+        <div className="flex items-baseline gap-3">
+          <span className="flex items-center gap-1.5 text-sm font-medium text-[#1C1F1E] shrink-0 font-noto">
+            <UserX className="w-3.5 h-3.5" style={{ color: OCHRE }} />
+            {name}
+            <span className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#A8ACA3] font-noto">ওয়াক-ইন</span>
+            {hasBoth && (
+              <span
+                className="font-['IBM_Plex_Mono'] text-[10px] uppercase px-1.5 py-[1px] rounded-[2px] font-noto shrink-0"
+                style={{
+                  color: SEAL_BLUE,
+                  backgroundColor: `${SEAL_BLUE}12`,
+                  border: `1px solid ${SEAL_BLUE}33`,
+                }}
+                title={`ইনডোরেও ${indoorTestCount} টি টেস্ট সংযুক্ত`}
+              >
+                + ইনডোর
+              </span>
+            )}
+          </span>
+          <span className="flex-1 border-b border-dotted border-[#D8D5CB] translate-y-[-3px]" />
+          {!indoorOnly && (
+            <span
+              className="font-['IBM_Plex_Mono'] text-sm font-semibold tabular-nums shrink-0"
+              style={{ color: OCHRE }}
+            >
+              {totalTestCount} টেস্ট
+            </span>
+          )}
+          {!indoorOnly &&
+            (open ? (
+              <ChevronUp className="w-3.5 h-3.5 text-[#A8ACA3] shrink-0" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5 text-[#A8ACA3] shrink-0" />
+            ))}
+        </div>
+
+        {indoorOnly ? (
+          <p className="mt-1.5 pl-5 font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] font-noto">
+            ইনডোর রোগীর টেস্টে সংযুক্ত · কোনো ইনভয়েস নেই ({indoorTestCount} টি টেস্ট)
+          </p>
+        ) : (
+          <div className="flex items-center flex-wrap gap-x-2.5 gap-y-1 mt-1.5 pl-5 font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] font-noto">
+            <span>{invoiceCount} টি ইনভয়েস</span>
+            <span className="text-[#D8D5CB]">·</span>
+            <span>আউটডোর {outdoorTestCount} টি টেস্ট</span>
+            {hasBoth && (
+              <>
+                <span className="text-[#D8D5CB]">·</span>
+                <span>ইনডোর {indoorTestCount} টি টেস্ট</span>
+              </>
+            )}
+          </div>
+        )}
+      </button>
+
+      {open && !indoorOnly && (
+        <div className="mt-2 pl-5 pr-1">
+          {invoices.map((inv, i) => (
+            <WalkInInvoiceRow key={inv.invoiceId} inv={inv} idx={i} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const EmptySection = ({ label }) => (
   <p className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] py-3 font-noto">{label}</p>
 );
@@ -498,7 +604,7 @@ const MergedTestRow = ({ name, total, outdoorCount, indoorCount, commissionTotal
 
       <div className="flex items-baseline justify-between gap-3 mt-0.5">
         <span className="font-['IBM_Plex_Mono'] text-xs text-[#A8ACA3] font-noto">
-          {total} বার{splitLabel ? ` (${splitLabel})` : ""}
+          {total} টি{splitLabel ? ` (${splitLabel})` : ""}
         </span>
         {singleRate && (
           <span className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] tabular-nums shrink-0">
@@ -522,10 +628,31 @@ const MergedTestRow = ({ name, total, outdoorCount, indoorCount, commissionTotal
   );
 };
 
+// ─── Test-wise: single test row, walk-in variant — count only ───────────────
+// No commission column, no rate math, no rate-changed badge: commission is
+// always 0 for an unregistered referrer, so none of that carries any
+// information here. Just the test name and how many times it occurred.
+
+const WalkInTestRow = ({ name, total, outdoorCount, indoorCount, isHospital }) => {
+  const splitLabel = isHospital ? `ইনডোর ${indoorCount}, আউটডোর ${outdoorCount}` : null;
+
+  return (
+    <div className="py-2 border-b border-dotted border-[#F0EEE6] last:border-b-0 flex items-baseline justify-between gap-3">
+      <span className="font-noto text-sm text-[#1C1F1E] font-medium truncate">{name}</span>
+      <span className="font-['IBM_Plex_Mono'] text-xs text-[#8A8F89] tabular-nums shrink-0">
+        {total} টি{splitLabel ? ` (${splitLabel})` : ""}
+      </span>
+    </div>
+  );
+};
+
 // ─── Test-wise: single doctor card ──────────────────────────────────────────
 // Card-level summary block after the test rows: total commission, then
 // discount and net — but only when there's an actual discount, so the
 // common (no-discount) case stays a single clean total line.
+// Walk-in referrers (!isRegistered) skip all of this — they only ever get
+// a total test count, never a money figure, since commission never accrues
+// to an unregistered referrer.
 
 const DoctorTestCard = ({ rank, name, type, isRegistered, totalDiscount, outdoorMap, indoorMap, isHospital }) => {
   const accent = isRegistered ? TEAL : OCHRE;
@@ -535,7 +662,7 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, totalDiscount, outdoor
   const mergedTests = useMemo(() => mergeTestAggregates(outdoorMap, indoorMap), [outdoorMap, indoorMap]);
   const totalTests = mergedTests.reduce((s, t) => s + t.total, 0);
   const totalTestCommission = mergedTests.reduce((s, t) => s + t.commissionTotal, 0);
-  const hasDiscount = (totalDiscount ?? 0) > 0;
+  const hasDiscount = isRegistered && (totalDiscount ?? 0) > 0;
   const netCommission = totalTestCommission - (totalDiscount ?? 0);
 
   return (
@@ -557,52 +684,77 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, totalDiscount, outdoor
 
       <div className="pl-8">
         {mergedTests.length > 0 ? (
-          <>
-            {mergedTests.map((t) => (
-              <MergedTestRow
-                key={t.name}
-                name={t.name}
-                total={t.total}
-                outdoorCount={t.outdoorCount}
-                indoorCount={t.indoorCount}
-                commissionTotal={t.commissionTotal}
-                rates={t.rates}
-                rateChanged={t.rateChanged}
-                isHospital={isHospital}
-              />
-            ))}
+          isRegistered ? (
+            <>
+              {mergedTests.map((t) => (
+                <MergedTestRow
+                  key={t.name}
+                  name={t.name}
+                  total={t.total}
+                  outdoorCount={t.outdoorCount}
+                  indoorCount={t.indoorCount}
+                  commissionTotal={t.commissionTotal}
+                  rates={t.rates}
+                  rateChanged={t.rateChanged}
+                  isHospital={isHospital}
+                />
+              ))}
 
-            <div className="flex items-baseline justify-between gap-3 pt-2 mt-1 border-t border-[#E3E0D6]">
-              <span className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#8A8F89] font-noto">মোট কমিশন</span>
-              <span className="font-['IBM_Plex_Mono'] text-sm font-bold tabular-nums" style={{ color: TEAL }}>
-                ৳{fmt(totalTestCommission)}
-              </span>
-            </div>
+              <div className="flex items-baseline justify-between gap-3 pt-2 mt-1 border-t border-[#E3E0D6]">
+                <span className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#8A8F89] font-noto">মোট কমিশন</span>
+                <span className="font-['IBM_Plex_Mono'] text-sm font-bold tabular-nums" style={{ color: TEAL }}>
+                  ৳{fmt(totalTestCommission)}
+                </span>
+              </div>
 
-            {hasDiscount && (
-              <>
-                <div className="flex items-baseline justify-between gap-3 mt-1">
-                  <span className="font-['IBM_Plex_Mono'] text-xs uppercase font-noto" style={{ color: OCHRE }}>
-                    ডিস্কাউন্ট
-                  </span>
-                  <span className="font-['IBM_Plex_Mono'] text-xs font-semibold tabular-nums" style={{ color: OCHRE }}>
-                    − ৳{fmt(totalDiscount)}
-                  </span>
-                </div>
-                <div className="flex items-baseline justify-between gap-3 mt-1 pt-1 border-t border-dotted border-[#E3E0D6]">
-                  <span
-                    className="font-['IBM_Plex_Mono'] text-xs uppercase font-semibold font-noto"
-                    style={{ color: TEAL }}
-                  >
-                    নেট
-                  </span>
-                  <span className="font-['IBM_Plex_Mono'] text-sm font-bold tabular-nums" style={{ color: TEAL }}>
-                    ৳{fmt(netCommission)}
-                  </span>
-                </div>
-              </>
-            )}
-          </>
+              {hasDiscount && (
+                <>
+                  <div className="flex items-baseline justify-between gap-3 mt-1">
+                    <span className="font-['IBM_Plex_Mono'] text-xs uppercase font-noto" style={{ color: OCHRE }}>
+                      ডিস্কাউন্ট
+                    </span>
+                    <span
+                      className="font-['IBM_Plex_Mono'] text-xs font-semibold tabular-nums"
+                      style={{ color: OCHRE }}
+                    >
+                      − ৳{fmt(totalDiscount)}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3 mt-1 pt-1 border-t border-dotted border-[#E3E0D6]">
+                    <span
+                      className="font-['IBM_Plex_Mono'] text-xs uppercase font-semibold font-noto"
+                      style={{ color: TEAL }}
+                    >
+                      নেট
+                    </span>
+                    <span className="font-['IBM_Plex_Mono'] text-sm font-bold tabular-nums" style={{ color: TEAL }}>
+                      ৳{fmt(netCommission)}
+                    </span>
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {mergedTests.map((t) => (
+                <WalkInTestRow
+                  key={t.name}
+                  name={t.name}
+                  total={t.total}
+                  outdoorCount={t.outdoorCount}
+                  indoorCount={t.indoorCount}
+                  isHospital={isHospital}
+                />
+              ))}
+
+              <div className="flex items-baseline justify-between gap-3 pt-2 mt-1 border-t border-[#E3E0D6]">
+                <span className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#8A8F89] font-noto">মোট টেস্ট</span>
+                <span className="font-['IBM_Plex_Mono'] text-sm font-bold tabular-nums text-[#1C1F1E]">
+                  {totalTests}
+                </span>
+              </div>
+            </>
+          )
         ) : (
           <p className="font-['IBM_Plex_Mono'] text-xs text-[#C7C4B8] font-noto">নেই</p>
         )}
@@ -613,7 +765,10 @@ const DoctorTestCard = ({ rank, name, type, isRegistered, totalDiscount, outdoor
 
 // ─── Test-wise view ───────────────────────────────────────────────────────────
 // Summary grid: total test-based commission, discount, net commission.
-// (Test-count cell removed per spec — only money figures shown here.)
+// Note: totalTestCommission/totalDiscountAll sum across ALL rows, but
+// walk-in rows always contribute 0 commission/discount now (see
+// commissionReportRoutes), so this grid is effectively registered-only
+// without needing a separate filter.
 
 const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, lab, isHospital }) => {
   const rows = useMemo(() => buildDoctorTestRows(registered, unregistered), [registered, unregistered]);
@@ -694,7 +849,7 @@ const TestWiseView = ({ registered, unregistered, headingLabel, timeRange, lab, 
   );
 };
 
-// ─── Ledger view — unchanged ─────────────────────────────────────────────────
+// ─── Ledger view — walk-in section now uses WalkInEntry (count-only) ────────
 
 const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital }) => (
   <div
@@ -773,21 +928,16 @@ const LedgerView = ({ d, headingLabel, timeRange, referrerCount, lab, isHospital
       <p className="font-['IBM_Plex_Mono'] text-xs uppercase text-[#6F756F] mb-1 font-noto">অনিবন্ধিত / ওয়াক-ইন</p>
       {d.unregistered.length > 0 ? (
         d.unregistered.map((g) => (
-          <ReferrerEntry
+          <WalkInEntry
             key={String(g.referredBy)}
             name={g.referredBy}
-            typeLabel="ওয়াক-ইন"
-            Icon={UserX}
-            totalCommission={g.totalCommission}
-            totalDiscount={g.totalDiscount}
             invoices={g.invoices}
             totalIndoorTests={g.totalIndoorTests}
-            accent={OCHRE}
             isHospital={isHospital}
           />
         ))
       ) : (
-        <EmptySection label="এই সময়সীমায় কোনো ওয়াক-ইন কমিশন নেই" />
+        <EmptySection label="এই সময়সীমায় কোনো ওয়াক-ইন টেস্ট নেই" />
       )}
     </div>
   </div>

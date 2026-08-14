@@ -4,20 +4,20 @@ import { useAuthStore } from "../../store/authStore";
 
 const buildInvoiceNav = (isHospital) => [
   {
-    label: "ইনভয়েস লিস্ট",
-    path: "/outdoor/invoice/all",
-    icon: LayoutList,
-    description: isHospital ? "সকল আউটডোর রোগীর ইনভয়েস দেখুন" : "সকল রোগীর ইনভয়েস দেখুন",
-    color: "indigo",
-    permission: "invoiceList",
-  },
-  {
     label: "নতুন ইনভয়েস",
     path: "/outdoor/invoice/new",
     icon: FilePlus2,
     description: isHospital ? "আউটডোর রোগীর জন্য নতুন ইনভয়েস তৈরি করুন" : "রোগীর জন্য নতুন ইনভয়েস তৈরি করুন",
     color: "emerald",
     permission: "createInvoice",
+  },
+  {
+    label: "ইনভয়েস লিস্ট",
+    path: "/outdoor/invoice/all",
+    icon: LayoutList,
+    description: isHospital ? "সকল আউটডোর রোগীর ইনভয়েস দেখুন" : "সকল রোগীর ইনভয়েস দেখুন",
+    color: "indigo",
+    permission: "invoiceList",
   },
   {
     label: "ইনভয়েস খুঁজুন",

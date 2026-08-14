@@ -365,7 +365,7 @@ const Home = () => {
               {[
                 { label: "লগইন করেছেন", value: userName },
                 { label: "ভূমিকা", value: userRole },
-                { label: "প্রতিষ্ঠানের ধরন", value: isHospital ? "হাসপাতাল" : "ডায়াগনস্টিক সেন্টার" },
+                { label: "প্রতিষ্ঠানের ধরন", value: isHospital ? "Hospital" : "ডায়াগনস্টিক সেন্টার" },
               ].map(({ label, value }) => (
                 <div key={label}>
                   <p className="text-xs text-gray-400 tracking-wide font-semibold font-noto">{label}</p>
