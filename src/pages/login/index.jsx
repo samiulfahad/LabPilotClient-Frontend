@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, forwardRef } from "react";
 import { useAuthStore } from "../../store/authStore";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/baseAPI";
@@ -26,45 +26,69 @@ const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
 // pattern intentionally; if one changes, the other should too.
 const LOGIN_LAB_KEY_PATTERN = /^\d{1,5}[A-Za-z]{0,5}$/;
 
+// Force the focused field above the virtual keyboard. Native scroll-into-view
+// behavior on focus is inconsistent across iOS Safari / Android Chrome / in-app
+// webviews — some auto-scroll, some don't, some scroll to the wrong place.
+// Driving it ourselves after a short delay (letting the keyboard animate in
+// first) gives the same behavior everywhere.
+const scrollFieldIntoView = (e) => {
+  const target = e.target;
+  setTimeout(() => {
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 300);
+};
+
 /* ─── Icon input — placeholder doubles as the label ──────────────────────── */
-const IconInput = ({ icon: Icon, error, rightSlot, className = "", ...props }) => (
-  <div className="flex flex-col gap-1.5">
-    <div className="relative">
-      <Icon
-        size={15}
-        className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
-      />
-      <input
-        className={`w-full bg-gray-50/70 border rounded-2xl py-3.5 text-base text-slate-800 outline-none transition-all duration-200 placeholder:text-gray-400 placeholder:font-normal focus:bg-white sm:py-2.5 sm:text-sm ${
-          error
-            ? "border-red-300 ring-4 ring-red-100/60 focus:border-red-400 focus:ring-red-100/60"
-            : "border-gray-200/80 focus:border-blue-400 focus:ring-4 focus:ring-blue-100/60"
-        } ${className}`}
-        style={{ paddingLeft: "45px", paddingRight: rightSlot ? "55px" : "16px" }}
-        {...props}
-      />
-      {rightSlot}
+const IconInput = forwardRef(({ icon: Icon, error, rightSlot, className = "", onFocus, ...props }, ref) => {
+  const handleFocus = (e) => {
+    onFocus?.(e);
+    scrollFieldIntoView(e);
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="relative">
+        <Icon
+          size={15}
+          className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
+        />
+        <input
+          ref={ref}
+          onFocus={handleFocus}
+          className={`w-full bg-gray-50/70 border rounded-2xl py-3.5 text-base text-slate-800 outline-none transition-all duration-200 placeholder:text-gray-400 placeholder:font-normal focus:bg-white sm:py-2.5 sm:text-sm ${
+            error
+              ? "border-red-300 ring-4 ring-red-100/60 focus:border-red-400 focus:ring-red-100/60"
+              : "border-gray-200/80 focus:border-blue-400 focus:ring-4 focus:ring-blue-100/60"
+          } ${className}`}
+          style={{ paddingLeft: "45px", paddingRight: rightSlot ? "55px" : "16px" }}
+          {...props}
+        />
+        {rightSlot}
+      </div>
+      {error && (
+        <p
+          className="flex items-center gap-1 text-[11.5px] text-red-400 font-medium pl-1"
+          style={{ animation: "lpFadeUp 0.25s cubic-bezier(.22,1,.36,1) both" }}
+        >
+          <AlertCircle size={11} />
+          {error}
+        </p>
+      )}
     </div>
-    {error && (
-      <p
-        className="flex items-center gap-1 text-[11.5px] text-red-400 font-medium pl-1"
-        style={{ animation: "lpFadeUp 0.25s cubic-bezier(.22,1,.36,1) both" }}
-      >
-        <AlertCircle size={11} />
-        {error}
-      </p>
-    )}
-  </div>
-);
+  );
+});
+IconInput.displayName = "IconInput";
 
 /* ─── OTP Box Input ───────────────────────────────────────────────────────── */
-const OtpInput = ({ value, onChange }) => {
+const OtpInput = ({ value, onChange, onComplete }) => {
   const setDigit = (i, val, refs) => {
     const digit = val.replace(/\D/g, "").slice(-1);
     const arr = value.split("");
     arr[i] = digit;
-    onChange(arr.join(""));
+    const next = arr.join("");
+    onChange(next);
     if (digit && i < 5) refs[i + 1]?.focus();
+    else if (digit && i === 5) onComplete?.();
   };
 
   return (
@@ -78,6 +102,7 @@ const OtpInput = ({ value, onChange }) => {
           maxLength={1}
           value={value[i] || ""}
           autoFocus={i === 0}
+          onFocus={scrollFieldIntoView}
           onChange={(e) => {
             const refs = Array.from({ length: 6 }, (_, j) => document.getElementById(`otp-${j}`));
             setDigit(i, e.target.value, refs);
@@ -126,6 +151,12 @@ export default function Login() {
 
   // Offline popup state
   const [offlinePopup, setOfflinePopup] = useState(false);
+
+  // Focus-chain refs — Enter moves field → field → submit
+  const phoneRef = useRef(null);
+  const passwordRef = useRef(null);
+  const resetPhoneRef = useRef(null);
+  const newPasswordRef = useRef(null);
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 60);
@@ -275,7 +306,7 @@ export default function Login() {
 
   return (
     <div
-      className="fixed inset-0 h-[100dvh] w-full flex items-center justify-center px-2 py-4 sm:p-6 overflow-hidden"
+      className="fixed inset-0 h-[100dvh] w-full overflow-y-auto overflow-x-hidden overscroll-contain"
       style={{
         background: "linear-gradient(145deg, #f0f4ff 0%, #f0f1f7 40%, #e8f5ff 100%)",
         fontFamily: "'Inter', system-ui, sans-serif",
@@ -284,8 +315,9 @@ export default function Login() {
       {/* Offline popup */}
       {offlinePopup && <Popup type="offline" onClose={() => setOfflinePopup(false)} />}
 
-      {/* Background blobs */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Background blobs — fixed, not absolute, so they never expand the
+          now-scrollable outer container's scroll height */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div
           className="absolute -top-48 -left-48 w-[560px] h-[560px] rounded-full opacity-[0.18] blur-3xl"
           style={{ background: "radial-gradient(circle, #818cf8, transparent 70%)" }}
@@ -296,7 +328,7 @@ export default function Login() {
         />
       </div>
       <div
-        className="pointer-events-none absolute inset-0"
+        className="pointer-events-none fixed inset-0"
         style={{
           backgroundImage:
             "linear-gradient(rgba(99,102,241,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.035) 1px, transparent 1px)",
@@ -304,292 +336,304 @@ export default function Login() {
         }}
       />
 
-      <div
-        className="relative z-10 w-full max-w-[420px]"
-        style={{
-          opacity: mounted ? 1 : 0,
-          transform: mounted ? "translateY(0)" : "translateY(20px)",
-          transition: "opacity 0.5s, transform 0.5s",
-        }}
-      >
-        {/* Brand Header */}
+      {/* min-h-full lets this wrapper grow past the viewport (and become
+          scrollable) once the keyboard shrinks the visible area, instead of
+          clipping content that can't be reached */}
+      <div className="relative z-10 min-h-full w-full flex items-center justify-center px-2 py-6 sm:p-6">
         <div
-          className="flex items-center gap-3 px-4 sm:px-6 py-4 rounded-t-3xl border-b border-slate-200"
-          style={{ background: "linear-gradient(135deg, #dbeafe 0%, #e2e8f0 100%)" }}
+          className="w-full max-w-[420px]"
+          style={{
+            opacity: mounted ? 1 : 0,
+            transform: mounted ? "translateY(0)" : "translateY(20px)",
+            transition: "opacity 0.5s, transform 0.5s",
+          }}
         >
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-md shadow-blue-500/20">
-            <span className="text-white font-bold text-sm">LP</span>
+          {/* Brand Header */}
+          <div
+            className="flex items-center gap-3 px-4 sm:px-6 py-4 rounded-t-3xl border-b border-slate-200"
+            style={{ background: "linear-gradient(135deg, #dbeafe 0%, #e2e8f0 100%)" }}
+          >
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-md shadow-blue-500/20">
+              <span className="text-white font-bold text-sm">LP</span>
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-slate-900 font-bold text-base leading-none">
+                LabPilot<span className="font-light">Pro</span>
+              </span>
+              <span className="text-[10px] text-slate-500 font-medium leading-tight mt-1 tracking-wider">
+                by Engr. Samiul Fahad
+              </span>
+            </div>
+            <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[10px] font-bold text-emerald-600">Online</span>
+            </div>
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-slate-900 font-bold text-base leading-none">
-              LabPilot<span className="font-light">Pro</span>
-            </span>
-            <span className="text-[10px] text-slate-500 font-medium leading-tight mt-1 tracking-wider">
-              by Engr. Samiul Fahad
-            </span>
-          </div>
-          <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[10px] font-bold text-emerald-600">Online</span>
-          </div>
-        </div>
 
-        {/* Card Body */}
-        <div
-          className="bg-white/85 backdrop-blur-md border border-gray-200/80 border-t-0 shadow-lg"
-          style={{ borderRadius: "0 0 24px 24px" }}
-        >
-          <div className="px-4 sm:px-7 pt-6 pb-6">
-            {/* ── LOGIN VIEW ── */}
-            {view === "login" && (
-              <div className="flex flex-col gap-4">
-                <div className="mb-2 text-center">
-                  <h1 className="text-[26px] sm:text-[22px] font-black text-gray-900 tracking-tight leading-tight mb-0.5">
-                    Welcome back<span className="text-blue-600">.</span>
-                  </h1>
-                  <p className="text-sm sm:text-[13px] text-gray-400 font-light">
-                    Sign in to access your lab workspace
-                  </p>
-                </div>
+          {/* Card Body */}
+          <div
+            className="bg-white/85 backdrop-blur-md border border-gray-200/80 border-t-0 shadow-lg"
+            style={{ borderRadius: "0 0 24px 24px" }}
+          >
+            <div className="px-4 sm:px-7 pt-6 pb-6">
+              {/* ── LOGIN VIEW ── */}
+              {view === "login" && (
+                <div className="flex flex-col gap-4">
+                  <div className="mb-2 text-center">
+                    <h1 className="text-[26px] sm:text-[22px] font-black text-gray-900 tracking-tight leading-tight mb-0.5">
+                      Welcome back<span className="text-blue-600">.</span>
+                    </h1>
+                    <p className="text-sm sm:text-[13px] text-gray-400 font-light">
+                      Sign in to access your lab workspace
+                    </p>
+                  </div>
 
-                <IconInput
-                  icon={Hash}
-                  error={errors.labKey}
-                  type="text"
-                  inputMode="text"
-                  autoCapitalize="characters"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  placeholder="Lab ID"
-                  value={labKey}
-                  onChange={(e) => setLabKey(e.target.value.replace(/[^0-9a-zA-Z]/g, "").slice(0, 11))}
-                />
+                  <IconInput
+                    icon={Hash}
+                    error={errors.labKey}
+                    type="text"
+                    inputMode="text"
+                    autoCapitalize="characters"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="Lab ID"
+                    value={labKey}
+                    onChange={(e) => setLabKey(e.target.value.replace(/[^0-9a-zA-Z]/g, "").slice(0, 11))}
+                    onKeyDown={(e) => e.key === "Enter" && phoneRef.current?.focus()}
+                  />
 
-                <IconInput
-                  icon={Phone}
-                  error={errors.phone}
-                  type="tel"
-                  inputMode="numeric"
-                  placeholder="Phone Number"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
-                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                />
+                  <IconInput
+                    ref={phoneRef}
+                    icon={Phone}
+                    error={errors.phone}
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="Phone Number"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                    onKeyDown={(e) => e.key === "Enter" && passwordRef.current?.focus()}
+                  />
 
-                <IconInput
-                  icon={Lock}
-                  error={errors.password}
-                  type={showPw ? "text" : "password"}
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                  rightSlot={
+                  <IconInput
+                    ref={passwordRef}
+                    icon={Lock}
+                    error={errors.password}
+                    type={showPw ? "text" : "password"}
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                    rightSlot={
+                      <button
+                        type="button"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-all active:scale-90"
+                        onClick={() => setShowPw((p) => !p)}
+                      >
+                        {showPw ? <EyeOff size={18} strokeWidth={2.2} /> : <Eye size={18} strokeWidth={2.2} />}
+                      </button>
+                    }
+                  />
+
+                  <div className="flex justify-center -mt-1">
                     <button
                       type="button"
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-all active:scale-90"
-                      onClick={() => setShowPw((p) => !p)}
+                      className="text-[12.5px] font-semibold text-blue-600"
+                      onClick={() => setView("reset")}
                     >
-                      {showPw ? <EyeOff size={18} strokeWidth={2.2} /> : <Eye size={18} strokeWidth={2.2} />}
+                      Forgot password?
                     </button>
-                  }
-                />
+                  </div>
 
-                <div className="flex justify-center -mt-1">
+                  {loginError && (
+                    <div className="flex items-center gap-2 justify-center px-3 py-2.5 rounded-2xl text-[12.5px] text-red-600 bg-red-50 border border-red-200">
+                      <AlertCircle size={13} />
+                      {loginError}
+                    </div>
+                  )}
+
                   <button
-                    type="button"
-                    className="text-[12.5px] font-semibold text-blue-600"
-                    onClick={() => setView("reset")}
+                    onClick={handleLogin}
+                    disabled={loading}
+                    className="group w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-semibold text-white transition-all hover:-translate-y-0.5"
+                    style={{
+                      background: "linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)",
+                      boxShadow: "0 4px 16px rgba(37,99,235,0.28)",
+                    }}
                   >
-                    Forgot password?
+                    {loading ? (
+                      <Loader2 size={17} className="animate-spin" />
+                    ) : (
+                      <>
+                        <span>Sign In</span>
+                        <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+                      </>
+                    )}
                   </button>
                 </div>
+              )}
 
-                {loginError && (
-                  <div className="flex items-center gap-2 justify-center px-3 py-2.5 rounded-2xl text-[12.5px] text-red-600 bg-red-50 border border-red-200">
-                    <AlertCircle size={13} />
-                    {loginError}
+              {/* ── RESET VIEW — enter lab key + phone ── */}
+              {view === "reset" && (
+                <div className="flex flex-col gap-4">
+                  <div className="text-center">
+                    <h1 className="text-[22px] font-black text-gray-900">Forgot password?</h1>
+                    <p className="text-sm text-gray-400 mt-1">Enter your Lab ID and phone — we'll send an OTP</p>
                   </div>
-                )}
 
-                <button
-                  onClick={handleLogin}
-                  disabled={loading}
-                  className="group w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-semibold text-white transition-all hover:-translate-y-0.5"
-                  style={{
-                    background: "linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)",
-                    boxShadow: "0 4px 16px rgba(37,99,235,0.28)",
-                  }}
-                >
-                  {loading ? (
-                    <Loader2 size={17} className="animate-spin" />
-                  ) : (
-                    <>
-                      <span>Sign In</span>
-                      <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
-                    </>
+                  <IconInput
+                    icon={Hash}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Lab ID"
+                    value={resetLabKey}
+                    onChange={(e) => setResetLabKey(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                    onKeyDown={(e) => e.key === "Enter" && resetPhoneRef.current?.focus()}
+                    autoFocus
+                  />
+
+                  <IconInput
+                    ref={resetPhoneRef}
+                    icon={Phone}
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="Phone Number"
+                    value={resetPhone}
+                    onChange={(e) => setResetPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                    onKeyDown={(e) => e.key === "Enter" && handleRequestOtp()}
+                  />
+
+                  {resetError && (
+                    <div className="flex items-center gap-2 justify-center px-3 py-2.5 rounded-2xl text-[12.5px] text-red-600 bg-red-50 border border-red-200">
+                      <AlertCircle size={13} />
+                      {resetError}
+                    </div>
                   )}
-                </button>
-              </div>
-            )}
 
-            {/* ── RESET VIEW — enter lab key + phone ── */}
-            {view === "reset" && (
-              <div className="flex flex-col gap-4">
-                <div className="text-center">
-                  <h1 className="text-[22px] font-black text-gray-900">Forgot password?</h1>
-                  <p className="text-sm text-gray-400 mt-1">Enter your Lab ID and phone — we'll send an OTP</p>
+                  <button
+                    onClick={handleRequestOtp}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all disabled:opacity-60"
+                  >
+                    {loading ? <Loader2 size={17} className="animate-spin" /> : "Send OTP"}
+                  </button>
+
+                  <button
+                    onClick={goBackToLogin}
+                    className="flex items-center justify-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <ChevronLeft size={15} /> Back to Sign In
+                  </button>
                 </div>
+              )}
 
-                <IconInput
-                  icon={Hash}
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="Lab ID"
-                  value={resetLabKey}
-                  onChange={(e) => setResetLabKey(e.target.value.replace(/\D/g, "").slice(0, 5))}
-                />
-
-                <IconInput
-                  icon={Phone}
-                  type="tel"
-                  inputMode="numeric"
-                  placeholder="Phone Number"
-                  value={resetPhone}
-                  onChange={(e) => setResetPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
-                  autoFocus
-                />
-
-                {resetError && (
-                  <div className="flex items-center gap-2 justify-center px-3 py-2.5 rounded-2xl text-[12.5px] text-red-600 bg-red-50 border border-red-200">
-                    <AlertCircle size={13} />
-                    {resetError}
+              {/* ── OTP VIEW — enter OTP + new password ── */}
+              {view === "otp" && (
+                <div className="flex flex-col gap-5">
+                  <div className="text-center">
+                    <h1 className="text-[22px] font-black text-gray-900">Enter OTP</h1>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Sent to <span className="font-semibold text-gray-600">{resetPhone}</span>
+                    </p>
                   </div>
-                )}
 
-                <button
-                  onClick={handleRequestOtp}
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all disabled:opacity-60"
-                >
-                  {loading ? <Loader2 size={17} className="animate-spin" /> : "Send OTP"}
-                </button>
+                  <OtpInput value={otp} onChange={setOtp} onComplete={() => newPasswordRef.current?.focus()} />
 
-                <button
-                  onClick={goBackToLogin}
-                  className="flex items-center justify-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <ChevronLeft size={15} /> Back to Sign In
-                </button>
-              </div>
-            )}
+                  <IconInput
+                    ref={newPasswordRef}
+                    icon={Lock}
+                    type={showNewPw ? "text" : "password"}
+                    placeholder="New Password (min 6 characters)"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleResetPassword()}
+                    rightSlot={
+                      <button
+                        type="button"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-all"
+                        onClick={() => setShowNewPw((p) => !p)}
+                      >
+                        {showNewPw ? <EyeOff size={18} strokeWidth={2.2} /> : <Eye size={18} strokeWidth={2.2} />}
+                      </button>
+                    }
+                  />
 
-            {/* ── OTP VIEW — enter OTP + new password ── */}
-            {view === "otp" && (
-              <div className="flex flex-col gap-5">
-                <div className="text-center">
-                  <h1 className="text-[22px] font-black text-gray-900">Enter OTP</h1>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Sent to <span className="font-semibold text-gray-600">{resetPhone}</span>
-                  </p>
-                </div>
+                  {otpError && (
+                    <div className="flex items-center gap-2 justify-center px-3 py-2.5 rounded-2xl text-[12.5px] text-red-600 bg-red-50 border border-red-200">
+                      <AlertCircle size={13} />
+                      {otpError}
+                    </div>
+                  )}
 
-                <OtpInput value={otp} onChange={setOtp} />
-
-                <IconInput
-                  icon={Lock}
-                  type={showNewPw ? "text" : "password"}
-                  placeholder="New Password (min 6 characters)"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleResetPassword()}
-                  rightSlot={
-                    <button
-                      type="button"
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-all"
-                      onClick={() => setShowNewPw((p) => !p)}
-                    >
-                      {showNewPw ? <EyeOff size={18} strokeWidth={2.2} /> : <Eye size={18} strokeWidth={2.2} />}
-                    </button>
-                  }
-                />
-
-                {otpError && (
-                  <div className="flex items-center gap-2 justify-center px-3 py-2.5 rounded-2xl text-[12.5px] text-red-600 bg-red-50 border border-red-200">
-                    <AlertCircle size={13} />
-                    {otpError}
-                  </div>
-                )}
-
-                {/* ── Resend OTP ── */}
-                <div className="flex items-center justify-center gap-2 text-sm">
-                  {resendTimer > 0 ? (
-                    <span className="text-gray-400">
-                      Resend OTP in{" "}
-                      <span className="font-bold tabular-nums text-blue-500">
-                        {String(Math.floor(resendTimer / 60)).padStart(2, "0")}:
-                        {String(resendTimer % 60).padStart(2, "0")}
+                  {/* ── Resend OTP ── */}
+                  <div className="flex items-center justify-center gap-2 text-sm">
+                    {resendTimer > 0 ? (
+                      <span className="text-gray-400">
+                        Resend OTP in{" "}
+                        <span className="font-bold tabular-nums text-blue-500">
+                          {String(Math.floor(resendTimer / 60)).padStart(2, "0")}:
+                          {String(resendTimer % 60).padStart(2, "0")}
+                        </span>
                       </span>
-                    </span>
-                  ) : (
-                    <button
-                      onClick={handleResendOtp}
-                      disabled={loading}
-                      className="text-blue-600 font-semibold hover:underline disabled:opacity-50 transition-opacity"
-                    >
-                      Resend OTP
-                    </button>
-                  )}
+                    ) : (
+                      <button
+                        onClick={handleResendOtp}
+                        disabled={loading}
+                        className="text-blue-600 font-semibold hover:underline disabled:opacity-50 transition-opacity"
+                      >
+                        Resend OTP
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleResetPassword}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all disabled:opacity-60"
+                  >
+                    {loading ? <Loader2 size={17} className="animate-spin" /> : "Reset Password"}
+                  </button>
+
+                  <button
+                    onClick={() => setView("reset")}
+                    className="flex items-center justify-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <ChevronLeft size={15} /> Back
+                  </button>
                 </div>
+              )}
 
-                <button
-                  onClick={handleResetPassword}
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all disabled:opacity-60"
-                >
-                  {loading ? <Loader2 size={17} className="animate-spin" /> : "Reset Password"}
-                </button>
-
-                <button
-                  onClick={() => setView("reset")}
-                  className="flex items-center justify-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <ChevronLeft size={15} /> Back
-                </button>
-              </div>
-            )}
-
-            {/* ── SUCCESS VIEW ── */}
-            {view === "success" && (
-              <div className="flex flex-col items-center gap-6 py-4">
-                <div className="w-16 h-16 rounded-3xl flex items-center justify-center bg-emerald-50 border border-emerald-100">
-                  <CheckCircle2 size={28} color="#16a34a" />
+              {/* ── SUCCESS VIEW ── */}
+              {view === "success" && (
+                <div className="flex flex-col items-center gap-6 py-4">
+                  <div className="w-16 h-16 rounded-3xl flex items-center justify-center bg-emerald-50 border border-emerald-100">
+                    <CheckCircle2 size={28} color="#16a34a" />
+                  </div>
+                  <div className="text-center">
+                    <h2 className="text-lg font-black text-gray-900">Password Reset!</h2>
+                    <p className="text-sm text-slate-500 mt-1">You've been logged out of all devices.</p>
+                    <p className="text-sm text-slate-500">Please sign in with your new password.</p>
+                  </div>
+                  <button
+                    onClick={goBackToLogin}
+                    className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all"
+                  >
+                    Back to Sign In
+                  </button>
                 </div>
-                <div className="text-center">
-                  <h2 className="text-lg font-black text-gray-900">Password Reset!</h2>
-                  <p className="text-sm text-slate-500 mt-1">You've been logged out of all devices.</p>
-                  <p className="text-sm text-slate-500">Please sign in with your new password.</p>
-                </div>
-                <button
-                  onClick={goBackToLogin}
-                  className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all"
-                >
-                  Back to Sign In
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Card Footer */}
-          <div className="flex items-center justify-between px-4 sm:px-7 py-3.5 rounded-b-3xl border-t border-gray-100 bg-gray-50/50">
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck size={12} className="text-blue-400" />
-              <span className="text-[11px] text-gray-400 font-medium">256-bit encrypted</span>
+              )}
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span className="text-[11px] text-gray-400">Authorized access</span>
+
+            {/* Card Footer */}
+            <div className="flex items-center justify-between px-4 sm:px-7 py-3.5 rounded-b-3xl border-t border-gray-100 bg-gray-50/50">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck size={12} className="text-blue-400" />
+                <span className="text-[11px] text-gray-400 font-medium">256-bit encrypted</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="text-[11px] text-gray-400">Authorized access</span>
+              </div>
             </div>
           </div>
         </div>

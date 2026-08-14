@@ -85,6 +85,12 @@ const normalizeIndoor = (patient) => ({
     isCompleted: r.isCompleted ?? false,
     report: r.report ?? {},
     addedAt: r.addedAt ?? null,
+    // "Added By" — who added this test entry to the admission (indoor
+    // only; outdoor invoice tests carry no addedBy in the schema). The
+    // backend's GET /indoorReport/:admissionId projects the full reports
+    // array, so this was already in the API response — it just wasn't
+    // being mapped through here.
+    addedBy: r.addedBy ?? null,
     completedAt: r.completedAt ?? null,
     completedBy: r.completedBy ?? null,
     updatedAt: r.updatedAt ?? null,
@@ -262,47 +268,36 @@ const BridgeDivider = () => (
   </div>
 );
 
-// ─── Meta Modal (dates + created / edited / added info) ───────────────────────
+// ─── Editable date row — its own inline edit state + its own Update/Save/Cancel ──
 
-const MetaModal = ({ record, test, onClose, onSaved, onNetworkError }) => {
-  const added = test.addedAt ? formatDateTime(test.addedAt) : null;
-  const created = test.completedAt ? formatDateTime(test.completedAt) : null;
-  const edited = test.updatedAt ? formatDateTime(test.updatedAt) : null;
-
-  const [sampleDate, setSampleDate] = useState(toInputDate(test.report?.sampleCollectionDate));
-  const [reportDate, setReportDate] = useState(toInputDate(test.report?.reportDate));
+const EditableDateRow = ({ icon: Icon, iconColor, token, label, storedValue, onSave, onNetworkError }) => {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(toInputDate(storedValue));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [saved, setSaved] = useState(false);
 
-  const isDirty =
-    toInputDate(test.report?.sampleCollectionDate) !== sampleDate ||
-    toInputDate(test.report?.reportDate) !== reportDate;
+  const displayDate = storedValue ? formatDateTime(storedValue) : null;
+  const isDirty = toInputDate(storedValue) !== value;
+
+  const startEdit = () => {
+    setValue(toInputDate(storedValue));
+    setError(null);
+    setEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setValue(toInputDate(storedValue));
+    setError(null);
+    setEditing(false);
+  };
 
   const handleSave = async () => {
-    if (!sampleDate && !reportDate) return;
+    if (!value) return;
     try {
       setSaving(true);
       setError(null);
-      setSaved(false);
-      if (record._type === "indoor") {
-        await reportService.updateIndoorDates({
-          patientId: record._patientId,
-          testId: test.testId,
-          addedAt: test.addedAt,
-          sampleCollectionDate: sampleDate || null,
-          reportDate: reportDate || null,
-        });
-      } else {
-        await reportService.updateDates({
-          invoiceId: record.displayId,
-          testId: test.testId,
-          sampleCollectionDate: sampleDate || null,
-          reportDate: reportDate || null,
-        });
-      }
-      onSaved(test.testId, test.addedAt, { sampleCollectionDate: sampleDate || null, reportDate: reportDate || null });
-      setSaved(true);
+      await onSave(new Date(value).getTime());
+      setEditing(false);
     } catch (err) {
       if (isNetworkError(err)) {
         setError("ইন্টারনেট সংযোগ নেই। দয়া করে সংযোগ চেক করুন।");
@@ -313,6 +308,110 @@ const MetaModal = ({ record, test, onClose, onSaved, onNetworkError }) => {
     } finally {
       setSaving(false);
     }
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${token.icon}`}>
+          <Icon className="w-4 h-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+          {displayDate ? (
+            <p className="font-['IBM_Plex_Mono'] text-sm font-bold text-gray-800">{displayDate.date}</p>
+          ) : (
+            <p className="text-sm font-medium text-gray-300">তথ্য নেই</p>
+          )}
+        </div>
+        <button
+          onClick={startEdit}
+          className="shrink-0 flex items-center gap-1 text-[11px] font-bold text-gray-400 hover:text-gray-700 transition-colors mt-0.5"
+        >
+          <Pencil className="w-3 h-3" /> Update
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-3 border-b border-gray-100 last:border-0">
+      <div className={`flex items-end gap-2 p-3 rounded-xl border ${token.border} ${token.bg}`}>
+        <DateField icon={Icon} iconColor={iconColor} label={label} value={value} onChange={setValue} />
+        <div className="flex gap-1.5 shrink-0">
+          <button
+            onClick={cancelEdit}
+            disabled={saving}
+            className="p-2 rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-all disabled:opacity-40"
+            title="Cancel"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !isDirty || !value}
+            className={`p-2 rounded-lg bg-gradient-to-r ${token.grad} text-white shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed`}
+            title="Save"
+          >
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+      </div>
+      {error && <p className="text-[11px] text-rose-600 font-medium mt-2">{error}</p>}
+    </div>
+  );
+};
+
+// ─── Static (non-editable) date row — shown when editing wouldn't stick ───────
+// Used for Report Date before a test is completed: the backend hardcodes
+// report.reportDate to the upload timestamp on first POST /report/add,
+// so any value set here would be silently overwritten the moment the
+// report is actually submitted. Editing only makes sense post-completion.
+
+const StaticDateRow = ({ icon: Icon, token, label, note }) => (
+  <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
+    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${token.icon}`}>
+      <Icon className="w-4 h-4" />
+    </div>
+    <div className="min-w-0 flex-1">
+      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+      <p className="text-sm font-medium text-gray-300">{note}</p>
+    </div>
+  </div>
+);
+
+// ─── Meta Modal (dates + created / edited / added info) ───────────────────────
+
+const MetaModal = ({ record, test, onClose, onSaved, onNetworkError }) => {
+  const isIndoor = record._type === "indoor";
+
+  const added = test.addedAt ? formatDateTime(test.addedAt) : null;
+  const created = test.completedAt ? formatDateTime(test.completedAt) : null;
+  const edited = test.updatedAt ? formatDateTime(test.updatedAt) : null;
+
+  const saveDateField = async (fieldKey, timestamp) => {
+    const payload = { [fieldKey]: timestamp };
+
+    if (record._type === "indoor") {
+      await reportService.updateIndoorDates({
+        patientId: record._patientId,
+        testId: test.testId,
+        addedAt: test.addedAt,
+        ...payload,
+      });
+    } else {
+      await reportService.updateDates({
+        invoiceId: record.displayId,
+        testId: test.testId,
+        ...payload,
+      });
+    }
+
+    onSaved(test.testId, test.addedAt, {
+      sampleCollectionDate: test.report?.sampleCollectionDate ?? null,
+      reportDate: test.report?.reportDate ?? null,
+      ...payload,
+    });
   };
 
   const Row = ({ icon: Icon, token, label, name, date }) => (
@@ -361,52 +460,48 @@ const MetaModal = ({ record, test, onClose, onSaved, onNetworkError }) => {
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-8">
-          <SectionHeader icon={Calendar} label="তারিখ পরিবর্তন" token={TEAL} />
-          <div className={`flex flex-wrap gap-3 p-4 rounded-xl border ${TEAL.border} ${TEAL.bg}`}>
-            <DateField
+          {/* ── Dates ── */}
+          <div className="px-1">
+            <EditableDateRow
               icon={Calendar}
               iconColor="text-teal-600"
-              label="Sample Date"
-              value={sampleDate}
-              onChange={setSampleDate}
+              token={TEAL}
+              label="Sample Collection Date"
+              storedValue={test.report?.sampleCollectionDate}
+              onSave={(ts) => saveDateField("sampleCollectionDate", ts)}
+              onNetworkError={onNetworkError}
             />
-            <DateField
-              icon={ClipboardList}
-              iconColor="text-orange-600"
-              label="Report Date"
-              value={reportDate}
-              onChange={setReportDate}
-            />
+            {test.isCompleted ? (
+              <EditableDateRow
+                icon={ClipboardList}
+                iconColor="text-orange-600"
+                token={OCHRE}
+                label="Report Date"
+                storedValue={test.report?.reportDate}
+                onSave={(ts) => saveDateField("reportDate", ts)}
+                onNetworkError={onNetworkError}
+              />
+            ) : (
+              <StaticDateRow
+                icon={ClipboardList}
+                token={OCHRE}
+                label="Report Date"
+                note="আপলোডের সময় স্বয়ংক্রিয়ভাবে সেট হবে"
+              />
+            )}
           </div>
-          {error && <p className="text-[11px] text-rose-600 font-medium mt-3">{error}</p>}
-          {saved && !isDirty && <p className="text-[11px] text-teal-700 font-medium mt-3">সেভ হয়েছে</p>}
-
-          <div className="mt-4">
-            <button
-              onClick={handleSave}
-              disabled={saving || !isDirty || (!sampleDate && !reportDate)}
-              className={`w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold rounded-xl bg-gradient-to-r ${TEAL.grad} text-white shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed`}
-            >
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-              {saving ? "Saving…" : "Save Dates"}
-            </button>
-          </div>
-
-          <div className="my-8">
-            <BridgeDivider />
-          </div>
-
-          <SectionHeader icon={Info} label="বিস্তারিত তথ্য" token={INDIGO} />
           <div className="px-1">
-            <Row
-              icon={Hash}
-              token={OCHRE}
-              label="Added"
-              name={added ? "রিপোর্ট এন্ট্রি যোগ করা হয়েছে" : null}
-              date={added}
-            />
-            <Row icon={Upload} token={TEAL} label="Created by" name={test.completedBy?.name} date={created} />
-            <Row icon={Pencil} token={RUST} label="Last edited by" name={test.updatedBy?.name} date={edited} />
+            <Row icon={Upload} token={TEAL} label="Report Uploaded By" name={test.completedBy?.name} date={created} />
+            <Row icon={Pencil} token={RUST} label="Last Edited By" name={test.updatedBy?.name} date={edited} />
+            {isIndoor && (
+              <Row
+                icon={Hash}
+                token={OCHRE}
+                label="Added"
+                name={added ? (test.addedBy?.name ?? "রিপোর্ট এন্ট্রি যোগ করা হয়েছে") : null}
+                date={added}
+              />
+            )}
           </div>
         </div>
 
@@ -750,7 +845,18 @@ const RecordDetail = ({ record, onDatesSaved, onNetworkError }) => {
           record={record}
           test={metaTest}
           onClose={() => setMetaTest(null)}
-          onSaved={onDatesSaved}
+          onSaved={(testId, addedAt, dates) => {
+            // Keep the currently-open modal's test object in sync too —
+            // otherwise the row still shows the pre-save date until the
+            // modal is closed and reopened, since metaTest is a snapshot
+            // taken when the Info button was clicked.
+            setMetaTest((prev) =>
+              prev && prev.testId === testId && prev.addedAt === addedAt
+                ? { ...prev, report: { ...(prev.report ?? {}), ...dates } }
+                : prev,
+            );
+            onDatesSaved(testId, addedAt, dates);
+          }}
           onNetworkError={onNetworkError}
         />
       )}
@@ -806,10 +912,7 @@ const Report = () => {
 
   // Keyed on location.key (not []) so this refires on EVERY navigation
   // into /report — including browser-back / mobile swipe-back / the X
-  // button in ReportUpload — not just the very first mount. Previously
-  // an empty dep array meant returning here via history pop (common on
-  // mobile) silently skipped the refetch, leaving stale data on screen
-  // until the user retyped the ID.
+  // button in ReportUpload — not just the very first mount.
   useEffect(() => {
     const id = location.state?.invoiceId ?? location.state?.admissionId;
     if (id) {

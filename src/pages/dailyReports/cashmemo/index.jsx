@@ -590,7 +590,7 @@ const OutdoorReceipt = ({ summary, expenseSummary, timeRange, labName, labAddres
       <div className="px-6 sm:px-8 py-5">
         <div className="divide-y divide-[#F0EEE6]">
           <ReceiptLine label="মোট বিক্রি" value={`৳${fmt(d.initial)}`} bold />
-          <ReceiptLine label="ল্যাব ডিস্কাউন্ট" value={`− ৳${fmt(d.labAdjustment)}`} tone={OCHRE} />
+          <ReceiptLine label="ল্যাব ডিস্কাউন্ট/অ্যাডজাস্টমেন্ট" value={`− ৳${fmt(d.labAdjustment)}`} tone={OCHRE} />
           <ReceiptLine label="রেফারার ডিস্কাউন্ট" value={`− ৳${fmt(d.referrerDiscount)}`} tone={OCHRE} />
           <ReceiptLine label="অনলাইন ইনভয়েস ফি" value={`+ ৳${fmt(d.totalInvoiceFee)}`} tone={TEAL} />
         </div>
@@ -1033,15 +1033,15 @@ const SummaryReceipt = ({
     (o.initial ?? 0) - (o.labAdjustment ?? 0) - (o.referrerDiscount ?? 0) + (o.totalInvoiceFee ?? 0);
 
   const outdoorRows = [
-    { label: "মোট বিলড", value: `৳${fmt(o.initial)}`, bold: true },
+    { label: "মোট বিল", value: `৳${fmt(o.initial)}`, bold: true },
     { label: "অনলাইন ইনভয়েস ফি", value: `+ ৳${fmt(o.totalInvoiceFee)}`, tone: TEAL },
-    { label: "সকল ডিসকাউন্ট  নিট টোটাল", value: `৳${fmt(outdoorGrossCounterAmount)}`, bold: true },
+    { label: "সকল ডিসকাউন্ট বাদে নিট টোটাল", value: `৳${fmt(outdoorGrossCounterAmount)}`, bold: true },
     { label: "আদায়", value: `৳${fmt(o.totalPaid)}`, tone: TEAL },
     { label: "বাকি", value: `৳${fmt(o.totalDue)}`, tone: RUST },
   ];
 
   const indoorRows = [
-    { label: "মোট বিলড", value: `৳${fmt(i.totalBilled)}`, bold: true },
+    { label: "মোট বিল", value: `৳${fmt(i.totalBilled)}`, bold: true },
     { label: "আদায়", value: `৳${fmt(i.totalCollected)}`, tone: TEAL },
     { label: "মোট ডিসকাউন্ট", value: `− ৳${fmt(i.totalDiscounts)}`, tone: OCHRE },
     { label: "রেফারার কমিশন (টেস্ট ভিত্তিক)", value: `− ৳${fmt(i.totalCommission)}`, tone: OCHRE },
