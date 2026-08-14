@@ -108,6 +108,13 @@ function ReportUploadInner() {
   const [offlinePopup, setOfflinePopup] = useState(false); // ← new
   const [closing, setClosing] = useState(false);
 
+  // Always navigate back to /report with an explicit id in state, rather
+  // than relying on history — this is the single source of truth for
+  // "return to report list with fresh data." Used by both the success
+  // path (goBack, after submit/update) and the manual-close path
+  // (handleClose, below) so every exit from this screen behaves the
+  // same way regardless of platform or input method (X button, Escape,
+  // swipe-back, etc).
   const goBack = () => {
     setClosing(true);
     setTimeout(() => {
@@ -119,9 +126,25 @@ function ReportUploadInner() {
     }, 250);
   };
 
+  // Previously this used navigate(-1), a plain history pop with no
+  // guaranteed fresh state. On mobile (X button tap, swipe-back, or the
+  // browser/WebView restoring a bfcache'd entry) this could land back on
+  // /report without re-triggering its fetch, showing stale data until
+  // the user retyped the ID. Now it explicitly pushes the same id-bearing
+  // state as goBack, so /report's location.key-based refetch always fires.
   const handleClose = () => {
     setClosing(true);
-    setTimeout(() => navigate(-1), 250);
+    setTimeout(() => {
+      if (isIndoor && admissionId) {
+        navigate("/report", { state: { admissionId } });
+      } else if (!isIndoor && invoiceId) {
+        navigate("/report", { state: { invoiceId } });
+      } else {
+        // No id resolved yet (e.g. closed before fetchData finished) —
+        // nothing to refetch anyway, so a plain back is fine here.
+        navigate(-1);
+      }
+    }, 250);
   };
 
   useEffect(() => {

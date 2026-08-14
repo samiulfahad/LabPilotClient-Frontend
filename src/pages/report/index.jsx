@@ -804,6 +804,12 @@ const Report = () => {
     }
   };
 
+  // Keyed on location.key (not []) so this refires on EVERY navigation
+  // into /report — including browser-back / mobile swipe-back / the X
+  // button in ReportUpload — not just the very first mount. Previously
+  // an empty dep array meant returning here via history pop (common on
+  // mobile) silently skipped the refetch, leaving stale data on screen
+  // until the user retyped the ID.
   useEffect(() => {
     const id = location.state?.invoiceId ?? location.state?.admissionId;
     if (id) {
@@ -811,7 +817,7 @@ const Report = () => {
       setSearchQuery(idStr);
       fetchRecord(idStr);
     }
-  }, []);
+  }, [location.key]);
 
   const handleSearch = () => {
     const q = searchQuery.trim();
