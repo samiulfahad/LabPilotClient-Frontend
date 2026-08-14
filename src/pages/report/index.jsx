@@ -445,17 +445,16 @@ const TestActions = ({ record, test }) => {
     navigate("/report-upload", { state });
   };
 
-  const printBase =
-    _type === "indoor"
-      ? `/report-download?patientId=${_patientId}&testId=${testId}&testName=${encodeURIComponent(name)}&type=indoor&addedAt=${addedAt ?? ""}`
-      : `/report-download?invoiceId=${displayId}&testId=${testId}&testName=${encodeURIComponent(name)}`;
-
   // Same-tab navigation, same as goToUpload — avoids the auth race that
   // happens with target="_blank" (a new tab starts with isAuthenticated:
   // false until the /refresh call resolves, and ProtectedRoutes doesn't
   // wait for it, so it briefly bounces to /login).
   const goToPrint = (printType) => {
-    navigate(`${printBase}&printType=${printType}`);
+    const state =
+      _type === "indoor"
+        ? { patientId: _patientId, testId, testName: name, type: "indoor", addedAt, printType }
+        : { invoiceId: displayId, testId, testName: name, printType };
+    navigate("/report-download", { state });
   };
 
   const actionBtnClass = (enabled) =>
