@@ -209,7 +209,6 @@ const InvoicePDF = ({ invoice, qrCodeUrl, date, time, labInfo }) => {
               </View>
               <View>
                 <Text style={pdf$.labName}>{labInfo.name}</Text>
-                <Text style={pdf$.labSub}>Professional Diagnostic Services</Text>
               </View>
             </View>
             <Text style={pdf$.headerMeta}>{labInfo.address}</Text>
@@ -377,7 +376,6 @@ const InvoiceCard = ({ invoice, qrCodeUrl, date, time, labInfo }) => {
               </div>
               <div className="min-w-0">
                 <h1 className="text-lg font-bold text-white leading-tight">{labInfo.name}</h1>
-                <p className="text-blue-100 text-xs">Professional Diagnostic Services</p>
               </div>
             </div>
             <div className="mt-2 space-y-1 text-blue-50 text-xs">
