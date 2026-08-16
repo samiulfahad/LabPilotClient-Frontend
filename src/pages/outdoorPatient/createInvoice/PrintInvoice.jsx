@@ -52,6 +52,10 @@ const normaliseInvoice = (raw) => ({
     contactNumber: raw.patient?.contactNumber || "N/A",
   },
   referrer: raw.referrer || null,
+  // Independent of `referrer` — carries `degree`, which `referrer.name`
+  // never does. Used on its own to build the "Referred By" display —
+  // referrer is no longer consulted for that field at all.
+  doctor: raw.doctor || null,
   tests: Array.isArray(raw.tests) ? raw.tests : [],
   products: Array.isArray(raw.products) ? raw.products : [],
   amount: {
@@ -66,15 +70,26 @@ const normaliseInvoice = (raw) => ({
   reportLink: raw.reportLink || raw.link || "https://labpilotpro.com",
 });
 
+// Builds the "Referred By" display string — sourced only from `doctor`
+// (name + degree). `referrer.name` is never used here, even when
+// referrer.type is "doctor" but no doctor is actually attached to the
+// invoice — in that case "Referred By" simply doesn't show.
+const getReferredByLabel = ({ doctor }) => {
+  if (!doctor?.name) return null;
+  return doctor.degree ? `${doctor.name}, ${doctor.degree}` : doctor.name;
+};
+
 /** Derive display flags from the normalised invoice. */
-const getPricingFlags = ({ amount, referrer }) => {
+const getPricingFlags = ({ amount, doctor }) => {
   const due = Math.max(0, amount.final - amount.paid);
+  const referredByLabel = getReferredByLabel({ doctor });
   return {
     showReferrerDiscount: amount.referrerDiscount > 0,
     showInvoiceFee: amount.invoiceFee > 0,
     showLabAdjustment: amount.labAdjustment > 0,
     showSubtotal: amount.referrerDiscount > 0 || amount.labAdjustment > 0,
-    showReferredBy: Boolean(referrer?.name) && referrer?.type !== "agent",
+    showReferredBy: Boolean(referredByLabel),
+    referredByLabel,
     due,
     isFullyPaid: due === 0,
   };
@@ -193,7 +208,7 @@ const pdf$ = StyleSheet.create({
 // ─── PDF Document ─────────────────────────────────────────────────────────────
 
 const InvoicePDF = ({ invoice, qrCodeUrl, date, time, labInfo }) => {
-  const { patient, amount, referrer, tests, products, reportLink, invoiceId } = invoice;
+  const { patient, amount, tests, products, reportLink, invoiceId } = invoice;
   const flags = getPricingFlags(invoice);
   const hasProducts = products.length > 0;
 
@@ -235,7 +250,7 @@ const InvoicePDF = ({ invoice, qrCodeUrl, date, time, labInfo }) => {
               <PDFField label="Age" value={`${patient.age} years`} style={pdf$.patientField} />
               <PDFField label="Contact" value={patient.contactNumber} style={pdf$.patientField} />
               {flags.showReferredBy && (
-                <PDFField label="Referred By" value={referrer.name} style={pdf$.patientFieldFull} />
+                <PDFField label="Referred By" value={flags.referredByLabel} style={pdf$.patientFieldFull} />
               )}
             </View>
             {qrCodeUrl && (
@@ -360,7 +375,7 @@ const PDFPricingRow = ({ label, value, valueStyle }) => (
 // ─── Invoice screen card ──────────────────────────────────────────────────────
 
 const InvoiceCard = ({ invoice, qrCodeUrl, date, time, labInfo }) => {
-  const { patient, amount, referrer, tests, products, reportLink, invoiceId } = invoice;
+  const { patient, amount, tests, products, reportLink, invoiceId } = invoice;
   const flags = getPricingFlags(invoice);
   const hasProducts = products.length > 0;
 
@@ -418,7 +433,7 @@ const InvoiceCard = ({ invoice, qrCodeUrl, date, time, labInfo }) => {
             <PatientField label="Contact" value={patient.contactNumber} />
             {flags.showReferredBy && (
               <div className="col-span-2">
-                <PatientField label="Referred By" value={referrer.name} />
+                <PatientField label="Referred By" value={flags.referredByLabel} />
               </div>
             )}
           </div>
