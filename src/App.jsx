@@ -112,13 +112,13 @@ function App() {
   const isInitializing = useAuthStore((s) => s.isInitializing);
   const initialize = useAuthStore((s) => s.initialize);
 
-  // Runs once per tab/mount. `token` is intentionally NOT persisted (see
-  // authStore.js), so a fresh tab or a hard reload always starts with
-  // token: null even though `user`/`lab` are already hydrated from
-  // localStorage. This exchanges the httpOnly refresh cookie for a new
-  // access token so the existing session is picked up instead of bouncing
-  // to /login. isInitializing starts true and flips false once this
-  // resolves (success or failure) — see the gate below.
+  // Runs once per tab/mount. `user`/`token` are intentionally NOT persisted
+  // (see authStore.js), so a fresh tab or a hard reload always starts with
+  // those null even though `lab` is already hydrated from localStorage.
+  // This exchanges the httpOnly refresh cookie for a new access token so
+  // the existing session is picked up instead of bouncing to /login.
+  // isInitializing starts true and flips false once this resolves (success
+  // or failure) — see the gate below.
   useEffect(() => {
     initialize();
   }, [initialize]);

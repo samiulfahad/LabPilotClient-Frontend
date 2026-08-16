@@ -2,6 +2,7 @@ import api from "./baseAPI";
 
 const invoiceService = {
   getRequiredData: () => api.get("/invoice/required-data"),
+  getDoctors: () => api.get("/invoice/doctors"),
   createInvoice: (data) => api.post("/invoice/add", data),
   getInvoices: ({ cursor = null, limit = 20, startDate = null, endDate = null } = {}) => {
     const params = new URLSearchParams({ limit });

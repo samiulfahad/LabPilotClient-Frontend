@@ -582,7 +582,7 @@ const CommissionModal = ({ doctor, onClose, onSaved }) => {
   };
 
   const handleSubmit = async () => {
-    if (!commissionValue || Number(commissionValue) <= 0) {
+    if (commissionValue === "" || commissionValue === null || Number(commissionValue) < 0) {
       return setApiError("কমিশনের পরিমাণ প্রয়োজন।");
     }
     try {
@@ -680,7 +680,7 @@ const CommissionModal = ({ doctor, onClose, onSaved }) => {
                   min="0"
                   step={commissionType === "percentage" ? "0.1" : "1"}
                   max={commissionType === "percentage" ? 100 : undefined}
-                  value={commissionValue === 0 ? "" : commissionValue}
+                  value={commissionValue}
                   onChange={handleValueChange}
                   placeholder={commissionType === "percentage" ? "০ – ১০০" : "পরিমাণ লিখুন"}
                   className={`${inputBase} text-sm ${commissionType === "percentage" ? "pl-3.5 pr-9" : "pl-8 pr-3.5"} py-2.5`}

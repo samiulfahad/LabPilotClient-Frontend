@@ -25,6 +25,7 @@ import {
   Wallet,
   Package,
   CreditCard,
+  Stethoscope,
 } from "lucide-react";
 import Modal from "../../../components/modal";
 import Popup from "../../../components/popup";
@@ -47,6 +48,13 @@ const PAYMENT_MODES = [
 
 const INITIAL_FORM = {
   patient: { name: "", gender: "", age: "", contactNumber: "" },
+  // The doctor associated with this invoice — independent of `referredBy`.
+  // Object (selected from availableDoctors) | string (typed, unmatched) | null.
+  doctor: null,
+  // When true, `doctor` stands in for `referredBy` on submission (id/name,
+  // type "doctor") and drives the referrer-discount/commission math off the
+  // doctor's own commissionType/commissionValue instead of `referredBy`'s.
+  useDoctorAsReferrer: false,
   referredBy: null,
   selectedTests: [],
   selectedProducts: [],
@@ -84,26 +92,20 @@ const getErrorMessage = (err, fallback) => {
 // ── Axios‑native network error detection (same as all other pages) ──────────
 const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
 
-const formatReferrerName = (referrer) => {
-  if (!referrer || typeof referrer !== "object") return referrer ?? "";
-  if (referrer.type === "doctor" && referrer.degree?.trim()) return `${referrer.name} ( ${referrer.degree.trim()} )`;
-  return referrer.name;
-};
-
-const calcReferrerDiscount = ({ referredBy, hasReferrerDiscount, referrerDiscount, initial }) => {
-  if (!hasReferrerDiscount || typeof referredBy !== "object" || !referredBy) return 0;
-  if (referredBy.commissionType === "percentage" && referrerDiscount > 0)
+const calcReferrerDiscount = ({ referrer, hasReferrerDiscount, referrerDiscount, initial }) => {
+  if (!hasReferrerDiscount || typeof referrer !== "object" || !referrer) return 0;
+  if (referrer.commissionType === "percentage" && referrerDiscount > 0)
     return toFixed2((initial * referrerDiscount) / 100);
-  if (referredBy.commissionType === "fixed") return toFixed2(parseFloat(referrerDiscount) || 0);
+  if (referrer.commissionType === "fixed") return toFixed2(parseFloat(referrerDiscount) || 0);
   return 0;
 };
 
-const calcReferrerCommission = (referredBy, initial, referrerDiscountAmt) => {
-  if (!referredBy?.commissionType || !referredBy?.commissionValue) return 0;
+const calcReferrerCommission = (referrer, initial, referrerDiscountAmt) => {
+  if (!referrer?.commissionType || !referrer?.commissionValue) return 0;
   const gross =
-    referredBy.commissionType === "percentage"
-      ? toFixed2((initial * referredBy.commissionValue) / 100)
-      : referredBy.commissionValue;
+    referrer.commissionType === "percentage"
+      ? toFixed2((initial * referrer.commissionValue) / 100)
+      : referrer.commissionValue;
   return Math.max(0, toFixed2(gross - referrerDiscountAmt));
 };
 
@@ -119,13 +121,24 @@ const computeAmount = (form, feeConfig = {}) => {
   const productsTotal = form.selectedProducts.reduce((s, p) => s + (p.price || 0) * (p.quantity || 1), 0);
   const initial = testsTotal + productsTotal;
 
-  const referrerDiscount = calcReferrerDiscount({ ...form, initial });
+  // When "use doctor as referrer" is on, the doctor's own commission fields
+  // (from the doctors collection — same commissionType/commissionValue shape
+  // as a referrer) drive the discount/commission math instead of whatever's
+  // in the separate Referred By field.
+  const effectiveReferrer = form.useDoctorAsReferrer ? form.doctor : form.referredBy;
+
+  const referrerDiscount = calcReferrerDiscount({
+    referrer: effectiveReferrer,
+    hasReferrerDiscount: form.hasReferrerDiscount,
+    referrerDiscount: form.referrerDiscount,
+    initial,
+  });
   const afterReferrerDiscount = Math.max(0, initial - referrerDiscount);
 
   const labAdjustmentRaw = form.hasLabAdjustment ? parseFloat(form.labAdjustmentAmount) || 0 : 0;
   const labAdjustment = Math.min(Math.max(0, labAdjustmentRaw), afterReferrerDiscount);
 
-  const referrerCommission = calcReferrerCommission(form.referredBy, initial, referrerDiscount);
+  const referrerCommission = calcReferrerCommission(effectiveReferrer, initial, referrerDiscount);
 
   const feeApplied = feePerInvoice > 0 && (forceInvoiceFee || form.onlineFeeEnabled);
   const invoiceFee = feeApplied ? feePerInvoice : 0;
@@ -214,13 +227,14 @@ const ProductTypeBadge = ({ type }) => (
 
 // ─── Toggle switch ─────────────────────────────────────────────────────────
 
-const ToggleSwitch = ({ checked, onChange, icon: Icon, label }) => (
+const ToggleSwitch = ({ checked, onChange, icon: Icon, label, disabled }) => (
   <button
     type="button"
     role="switch"
     aria-checked={checked}
-    onClick={() => onChange(!checked)}
-    className="flex items-center justify-between w-full gap-3"
+    disabled={disabled}
+    onClick={() => !disabled && onChange(!checked)}
+    className={`flex items-center justify-between w-full gap-3 ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
   >
     <div className="flex items-center gap-1.5">
       <div className={`p-1.5 rounded transition-colors duration-200 ${checked ? "bg-blue-600" : "bg-gray-100"}`}>
@@ -278,6 +292,8 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
   const {
     patient,
     referredBy,
+    doctor,
+    useDoctorAsReferrer,
     selectedTests,
     selectedProducts,
     hasReferrerDiscount,
@@ -285,6 +301,7 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
     hasLabAdjustment,
     paymentMode,
   } = formData;
+  const effectiveReferrer = useDoctorAsReferrer ? doctor : referredBy;
   const due = Math.max(0, amount.final - amount.paid);
 
   return (
@@ -308,15 +325,27 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
             <Detail label="Gender" value={<span className="capitalize">{patient.gender}</span>} />
             <Detail label="Age" value={`${patient.age} years`} />
             <Detail label="Contact" value={patient.contactNumber} />
-            {referredBy && (
+            {doctor && (
+              <div className="col-span-2">
+                <p className="text-gray-500">Doctor</p>
+                <p className="font-medium text-gray-900">{typeof doctor === "object" ? doctor.name : doctor}</p>
+                {typeof doctor === "object" && doctor.degree && (
+                  <p className="text-xs text-gray-500 mt-0.5">{doctor.degree}</p>
+                )}
+              </div>
+            )}
+            {effectiveReferrer && (
               <div className="col-span-2">
                 <p className="text-gray-500">Referred By</p>
-                <p className="font-medium text-gray-900">{formatReferrerName(referredBy)}</p>
-                {referredBy?.commissionValue > 0 && (
+                <p className="font-medium text-gray-900">
+                  {typeof effectiveReferrer === "object" ? effectiveReferrer.name : effectiveReferrer}
+                  {useDoctorAsReferrer && <span className="text-xs text-gray-400 ml-1">(Doctor)</span>}
+                </p>
+                {typeof effectiveReferrer === "object" && effectiveReferrer?.commissionValue > 0 && (
                   <p className="text-xs text-blue-600 mt-0.5">
                     Commission:{" "}
-                    {referredBy.commissionType === "percentage"
-                      ? `${referredBy.commissionValue}% = ${fmt(amount.referrerCommission)}`
+                    {effectiveReferrer.commissionType === "percentage"
+                      ? `${effectiveReferrer.commissionValue}% = ${fmt(amount.referrerCommission)}`
                       : `Fixed ${fmt(amount.referrerCommission)}`}
                   </p>
                 )}
@@ -372,7 +401,7 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
             {hasReferrerDiscount && amount.referrerDiscount > 0 && (
               <>
                 <AmountRow
-                  label={`Referrer Discount ${referredBy?.commissionType === "percentage" ? `(${referrerDiscount}%)` : "(Fixed)"}`}
+                  label={`${useDoctorAsReferrer ? "Doctor" : "Referrer"} Discount ${effectiveReferrer?.commissionType === "percentage" ? `(${referrerDiscount}%)` : "(Fixed)"}`}
                   value={`- ${fmt(amount.referrerDiscount)}`}
                   accent="text-red-600"
                 />
@@ -468,6 +497,7 @@ const InvoiceForm = ({
   availableReferrers,
   availableTests,
   availableProducts,
+  availableDoctors,
   onChange,
   onPatientChange,
   onTestToggle,
@@ -475,16 +505,21 @@ const InvoiceForm = ({
   onProductQtyChange,
   onSubmit,
   pendingReferrerNameRef,
+  pendingDoctorNameRef,
 }) => {
   const [referrerQuery, setReferrerQuery] = useState("");
+  const [doctorQuery, setDoctorQuery] = useState("");
   const [itemQuery, setItemQuery] = useState("");
   const [showReferrerDrop, setShowReferrerDrop] = useState(false);
+  const [showDoctorDrop, setShowDoctorDrop] = useState(false);
   const [showItemDrop, setShowItemDrop] = useState(false);
   const itemDropRef = useRef(null);
 
   const {
     patient,
     referredBy,
+    doctor,
+    useDoctorAsReferrer,
     selectedTests,
     selectedProducts,
     hasReferrerDiscount,
@@ -495,6 +530,11 @@ const InvoiceForm = ({
     paymentMode,
     onlineFeeEnabled,
   } = formData;
+
+  // Drives both the discount/commission math (via `amount`, computed
+  // upstream) and the "Apply Discount" UI below — whichever of doctor /
+  // referredBy is currently in effect as the referrer.
+  const effectiveReferrer = useDoctorAsReferrer ? doctor : referredBy;
   const due = Math.max(0, amount.final - amount.paid);
 
   // Close item dropdown on outside click
@@ -516,14 +556,24 @@ const InvoiceForm = ({
     ? availableReferrers.filter((r) => r.name.toLowerCase().includes(referrerQuery.toLowerCase()))
     : availableReferrers;
 
+  const filteredDoctors = doctorQuery.trim()
+    ? availableDoctors.filter((d) => d.name.toLowerCase().includes(doctorQuery.toLowerCase()))
+    : availableDoctors;
+
   const selectReferrer = (r) => {
     onChange("referredBy", r);
     setShowReferrerDrop(false);
     setReferrerQuery("");
   };
 
-  const referrerDisplayValue =
-    referredBy && typeof referredBy === "object" ? formatReferrerName(referredBy) : referrerQuery;
+  const selectDoctor = (d) => {
+    onChange("doctor", d);
+    setShowDoctorDrop(false);
+    setDoctorQuery("");
+  };
+
+  const referrerDisplayValue = referredBy && typeof referredBy === "object" ? referredBy.name : referrerQuery;
+  const doctorDisplayValue = doctor && typeof doctor === "object" ? doctor.name : doctorQuery;
 
   const clearReferrer = (e) => {
     e.preventDefault();
@@ -532,9 +582,17 @@ const InvoiceForm = ({
     if (pendingReferrerNameRef) pendingReferrerNameRef.current = "";
   };
 
+  const clearDoctor = (e) => {
+    e.preventDefault();
+    onChange("doctor", null);
+    setDoctorQuery("");
+    if (pendingDoctorNameRef) pendingDoctorNameRef.current = "";
+    if (useDoctorAsReferrer) onChange("useDoctorAsReferrer", false);
+  };
+
   const handleReferrerDiscountToggle = (checked) => {
     onChange("hasReferrerDiscount", checked);
-    onChange("referrerDiscount", checked ? referredBy?.commissionValue || 0 : 0);
+    onChange("referrerDiscount", checked ? effectiveReferrer?.commissionValue || 0 : 0);
   };
 
   // Lab adjustment is gated by canAdjustLab (hidden entirely if a staff has
@@ -559,7 +617,8 @@ const InvoiceForm = ({
 
   const clampDiscount = (val) => {
     if (val === "") return onChange("referrerDiscount", "");
-    const max = referredBy?.commissionValue ?? (referredBy?.commissionType === "percentage" ? 100 : Infinity);
+    const max =
+      effectiveReferrer?.commissionValue ?? (effectiveReferrer?.commissionType === "percentage" ? 100 : Infinity);
     onChange("referrerDiscount", Math.min(parseFloat(val) || 0, max));
   };
 
@@ -629,6 +688,102 @@ const InvoiceForm = ({
             </div>
           </Field>
 
+          {/* ── Doctor field — independent of Referred By below ─────── */}
+          <div className="md:col-span-2">
+            <Field label="Doctor" optional>
+              <div className="relative">
+                <div className="relative">
+                  <Stethoscope className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+                  <input
+                    type="text"
+                    value={doctorDisplayValue}
+                    onChange={(e) => {
+                      setDoctorQuery(e.target.value);
+                      if (pendingDoctorNameRef) pendingDoctorNameRef.current = e.target.value;
+                      if (typeof doctor === "object" && doctor !== null) {
+                        onChange("doctor", null);
+                        if (useDoctorAsReferrer) onChange("useDoctorAsReferrer", false);
+                      }
+                      setShowDoctorDrop(true);
+                    }}
+                    onFocus={() => setShowDoctorDrop(true)}
+                    onBlur={() => {
+                      if (doctorQuery.trim() && typeof doctor !== "object") onChange("doctor", doctorQuery.trim());
+                      setShowDoctorDrop(false);
+                    }}
+                    className="w-full pl-9 pr-9 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    placeholder="Search doctor by name"
+                  />
+                  {doctor && (
+                    <button
+                      type="button"
+                      onMouseDown={clearDoctor}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                {showDoctorDrop && doctorQuery && (
+                  <div className="absolute top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
+                    {filteredDoctors.length > 0 ? (
+                      filteredDoctors.map((d) => (
+                        <button
+                          key={d._id}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            selectDoctor(d);
+                          }}
+                          className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                        >
+                          <p className="font-medium text-gray-900 text-sm">{d.name}</p>
+                          {d.degree && <p className="text-xs text-gray-500 mt-0.5">{d.degree}</p>}
+                          {d.commissionValue > 0 && (
+                            <p className="text-xs text-blue-500 mt-0.5">
+                              Commission:{" "}
+                              {d.commissionType === "percentage"
+                                ? `${d.commissionValue}%`
+                                : `Fixed ${fmt(d.commissionValue)}`}
+                            </p>
+                          )}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-3 text-center text-xs text-gray-400">No matching doctors</div>
+                    )}
+                  </div>
+                )}
+              </div>
+              {doctor && typeof doctor === "object" && (doctor.degree || doctor.commissionValue > 0) && (
+                <div className="mt-1 pl-1 space-y-0.5">
+                  {doctor.degree && <p className="text-xs text-gray-500">{doctor.degree}</p>}
+                  {doctor.commissionValue > 0 && (
+                    <p className="text-xs text-blue-600">
+                      Commission:{" "}
+                      {doctor.commissionType === "percentage"
+                        ? `${doctor.commissionValue}% of subtotal`
+                        : `Fixed ${fmt(doctor.commissionValue)}`}
+                      {!useDoctorAsReferrer && (
+                        <span className="text-gray-400"> — applies only if used as referrer</span>
+                      )}
+                    </p>
+                  )}
+                </div>
+              )}
+            </Field>
+
+            <div className="mt-2.5">
+              <ToggleSwitch
+                checked={useDoctorAsReferrer}
+                onChange={(val) => onChange("useDoctorAsReferrer", val)}
+                icon={UserCircle}
+                label="Use Doctor as Referrer"
+                disabled={!doctor}
+              />
+            </div>
+          </div>
+
           <div className="md:col-span-2">
             <Field label="Referred By" optional>
               <div className="relative">
@@ -637,6 +792,7 @@ const InvoiceForm = ({
                   <input
                     type="text"
                     value={referrerDisplayValue}
+                    disabled={useDoctorAsReferrer}
                     onChange={(e) => {
                       setReferrerQuery(e.target.value);
                       if (pendingReferrerNameRef) pendingReferrerNameRef.current = e.target.value;
@@ -649,10 +805,10 @@ const InvoiceForm = ({
                         onChange("referredBy", referrerQuery.trim());
                       setShowReferrerDrop(false);
                     }}
-                    className="w-full pl-9 pr-9 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    placeholder="Search by name"
+                    className={`w-full pl-9 pr-9 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 ${useDoctorAsReferrer ? "bg-gray-50 text-gray-400 cursor-not-allowed" : ""}`}
+                    placeholder={useDoctorAsReferrer ? "Using doctor as referrer" : "Search by name"}
                   />
-                  {referredBy && (
+                  {referredBy && !useDoctorAsReferrer && (
                     <button
                       type="button"
                       onMouseDown={clearReferrer}
@@ -662,7 +818,7 @@ const InvoiceForm = ({
                     </button>
                   )}
                 </div>
-                {showReferrerDrop && referrerQuery && (
+                {showReferrerDrop && referrerQuery && !useDoctorAsReferrer && (
                   <div className="absolute top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
                     {filteredReferrers.length > 0 ? (
                       filteredReferrers.map((r) => (
@@ -677,7 +833,10 @@ const InvoiceForm = ({
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="font-medium text-gray-900 text-sm">{formatReferrerName(r)}</p>
+                              <p className="font-medium text-gray-900 text-sm">{r.name}</p>
+                              {r.type === "doctor" && r.degree && (
+                                <p className="text-xs text-gray-400 mt-0.5">{r.degree}</p>
+                              )}
                               {r.commissionValue > 0 && (
                                 <p className="text-xs text-blue-500 mt-0.5">
                                   Commission:{" "}
@@ -716,6 +875,9 @@ const InvoiceForm = ({
                     ? `${referredBy.commissionValue}% of subtotal`
                     : `Fixed ${fmt(referredBy.commissionValue)}`}
                 </p>
+              )}
+              {referredBy?.type === "doctor" && referredBy?.degree && (
+                <p className="mt-0.5 text-xs text-gray-500 pl-1">{referredBy.degree}</p>
               )}
             </Field>
           </div>
@@ -948,38 +1110,38 @@ const InvoiceForm = ({
             <span className="text-xl font-semibold text-gray-900">{fmt(amount.initial)}</span>
           </div>
 
-          {/* Referrer Discount */}
-          {referredBy && typeof referredBy === "object" && (
+          {/* Referrer / Doctor Discount */}
+          {effectiveReferrer && typeof effectiveReferrer === "object" && (
             <div className="space-y-3">
               <ToggleSwitch
                 checked={hasReferrerDiscount}
                 onChange={handleReferrerDiscountToggle}
                 icon={Percent}
-                label="Apply Referrer Discount"
+                label={`Apply ${useDoctorAsReferrer ? "Doctor" : "Referrer"} Discount`}
               />
               {hasReferrerDiscount && (
                 <div className="ml-6 p-4 bg-blue-50 rounded-lg border border-blue-100 space-y-3">
                   <Field
                     label={
                       <>
-                        {referredBy.commissionType === "percentage" ? "Discount Percentage" : "Discount Amount"}
+                        {effectiveReferrer.commissionType === "percentage" ? "Discount Percentage" : "Discount Amount"}
                         <span className="ml-1.5 text-xs font-normal text-blue-600">
                           (max{" "}
-                          {referredBy.commissionType === "percentage"
-                            ? `${referredBy.commissionValue}%`
-                            : fmt(referredBy.commissionValue)}
+                          {effectiveReferrer.commissionType === "percentage"
+                            ? `${effectiveReferrer.commissionValue}%`
+                            : fmt(effectiveReferrer.commissionValue)}
                           )
                         </span>
                       </>
                     }
                   >
                     <IconInput
-                      icon={referredBy.commissionType === "percentage" ? Percent : DollarSign}
+                      icon={effectiveReferrer.commissionType === "percentage" ? Percent : DollarSign}
                       type="number"
                       value={referrerDiscount}
                       onChange={(e) => clampDiscount(e.target.value)}
                       min="0"
-                      max={referredBy.commissionValue}
+                      max={effectiveReferrer.commissionValue}
                       step="0.01"
                     />
                   </Field>
@@ -1173,6 +1335,7 @@ const CreateInvoice = () => {
   const [availableReferrers, setAvailableReferrers] = useState([]);
   const [availableTests, setAvailableTests] = useState([]);
   const [availableProducts, setAvailableProducts] = useState([]);
+  const [availableDoctors, setAvailableDoctors] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [popup, setPopup] = useState(null);
@@ -1180,17 +1343,18 @@ const CreateInvoice = () => {
   const [showSummary, setShowSummary] = useState(false);
   const [formData, setFormData] = useState(INITIAL_FORM);
   const pendingReferrerNameRef = useRef("");
+  const pendingDoctorNameRef = useRef("");
 
   const amount = computeAmount(formData, { feePerInvoice, forceInvoiceFee });
 
   // Fetch initial data with network error detection
   useEffect(() => {
-    invoiceService
-      .getRequiredData()
-      .then((res) => {
-        setAvailableReferrers(res.data.referrers || []);
-        setAvailableTests(res.data.tests || []);
-        setAvailableProducts(res.data.products || []);
+    Promise.all([invoiceService.getRequiredData(), invoiceService.getDoctors()])
+      .then(([reqRes, docRes]) => {
+        setAvailableReferrers(reqRes.data.referrers || []);
+        setAvailableTests(reqRes.data.tests || []);
+        setAvailableProducts(reqRes.data.products || []);
+        setAvailableDoctors(docRes.data.doctors || []);
       })
       .catch((err) => {
         if (isNetworkError(err)) {
@@ -1206,6 +1370,16 @@ const CreateInvoice = () => {
     setFormData((prev) => {
       const next = { ...prev, [field]: value };
       if (field === "referredBy") {
+        next.hasReferrerDiscount = false;
+        next.referrerDiscount = 0;
+      }
+      if (field === "doctor" && prev.useDoctorAsReferrer) {
+        // Doctor changed while it was powering the referrer discount — the
+        // old discount amount no longer matches the new doctor's commission.
+        next.hasReferrerDiscount = false;
+        next.referrerDiscount = 0;
+      }
+      if (field === "useDoctorAsReferrer") {
         next.hasReferrerDiscount = false;
         next.referrerDiscount = 0;
       }
@@ -1262,20 +1436,45 @@ const CreateInvoice = () => {
   const handleConfirm = async () => {
     try {
       setSubmitting(true);
-      const { patient, referredBy, selectedTests, selectedProducts, paymentMode } = formData;
+      const { patient, referredBy, doctor, useDoctorAsReferrer, selectedTests, selectedProducts, paymentMode } =
+        formData;
+
+      // When "use doctor as referrer" is on, the doctor stands in for the
+      // Referred By field entirely — its id/name (and commission math,
+      // already folded into `amount` by computeAmount) drive the referrer
+      // side of the invoice. The separate `doctor` object below is always
+      // sent regardless of this toggle.
+      const effectiveReferrer = useDoctorAsReferrer ? doctor : referredBy;
+
+      const referrer = {
+        id:
+          typeof effectiveReferrer === "object" && effectiveReferrer !== null ? (effectiveReferrer._id ?? null) : null,
+        name:
+          typeof effectiveReferrer === "object" && effectiveReferrer !== null
+            ? effectiveReferrer.name
+            : typeof effectiveReferrer === "string" && effectiveReferrer.trim()
+              ? effectiveReferrer.trim()
+              : (useDoctorAsReferrer ? pendingDoctorNameRef.current.trim() : pendingReferrerNameRef.current.trim()) ||
+                null,
+        type: useDoctorAsReferrer
+          ? "doctor"
+          : typeof effectiveReferrer === "object" && effectiveReferrer !== null
+            ? (effectiveReferrer.type ?? null)
+            : null,
+      };
+
+      const doctorPayload = doctor
+        ? {
+            id: typeof doctor === "object" ? (doctor._id ?? null) : null,
+            name: typeof doctor === "object" ? doctor.name : doctor,
+            degree: typeof doctor === "object" ? (doctor.degree ?? null) : null,
+          }
+        : { id: null, name: null, degree: null };
 
       const invoiceData = {
         patient,
-        referrer: {
-          id: referredBy?._id ?? null,
-          name:
-            typeof referredBy === "object" && referredBy !== null
-              ? formatReferrerName(referredBy)
-              : typeof referredBy === "string"
-                ? referredBy
-                : pendingReferrerNameRef.current.trim() || null,
-          type: referredBy?.type ?? null,
-        },
+        referrer,
+        doctor: doctorPayload,
         tests: selectedTests.map(({ testId, name, price, schemaId, commission }) => ({
           testId,
           name,
@@ -1315,6 +1514,7 @@ const CreateInvoice = () => {
             tests: selectedTests,
             selectedProducts,
             referredBy,
+            doctor,
           },
         },
       });
@@ -1364,6 +1564,7 @@ const CreateInvoice = () => {
               availableReferrers={availableReferrers}
               availableTests={availableTests}
               availableProducts={availableProducts}
+              availableDoctors={availableDoctors}
               onChange={handleChange}
               onPatientChange={handlePatientChange}
               onTestToggle={handleTestToggle}
@@ -1371,6 +1572,7 @@ const CreateInvoice = () => {
               onProductQtyChange={handleProductQtyChange}
               onSubmit={handlePreview}
               pendingReferrerNameRef={pendingReferrerNameRef}
+              pendingDoctorNameRef={pendingDoctorNameRef}
             />
           )}
         </div>

@@ -27,11 +27,13 @@ export const useAuthStore = create(
       // flow in baseAPI.js — so the session survives a reload without ever
       // putting the token in localStorage.
       //
-      // `user`/`lab` ARE persisted (non-sensitive display info), so on a
-      // normal reload they're already populated from storage before this
-      // resolves — we just refresh them from the server response as the
-      // source of truth, and fall back to whatever's already in the store
-      // if the backend doesn't hand back `lab` for some reason.
+      // `lab` IS persisted in full (see partialize below) so Home.jsx and
+      // similar screens have contact/isActive/labKey etc. immediately on
+      // reload, without the backend needing an extra DB lookup on /refresh.
+      // `user` (permissions, role, labKey, labId, maxLabAdjustment) stays
+      // memory-only and is null until this resolves — we always overwrite
+      // both with the server response as source of truth, falling back to
+      // the persisted `lab` only if the backend doesn't hand one back.
       initialize: async () => {
         try {
           const { data } = await api.post("/refresh");
@@ -89,6 +91,11 @@ export const useAuthStore = create(
           console.error("Logout API failed, but clearing local state anyway", error);
         } finally {
           set({ user: null, lab: null, token: null, isAuthenticated: false, billingStatus: null });
+          // set({ lab: null }) above already makes the next persist write
+          // {lab: null}, but that write only happens on the next tick — this
+          // clears the localStorage entry immediately so nothing lingers if
+          // the tab closes right after logout.
+          localStorage.removeItem("labpilot-auth");
         }
       },
 
@@ -100,6 +107,7 @@ export const useAuthStore = create(
           console.error("Logout-all API failed, but clearing local state anyway", error);
         } finally {
           set({ user: null, lab: null, token: null, isAuthenticated: false, billingStatus: null });
+          localStorage.removeItem("labpilot-auth");
         }
       },
 
@@ -134,16 +142,24 @@ export const useAuthStore = create(
     }),
     {
       name: "labpilot-auth",
-      // Only non-sensitive display info survives a reload. `token` is
-      // deliberately excluded — an access token in localStorage is
-      // readable by any injected script (XSS, malicious extension, a
-      // compromised dependency). `isAuthenticated` is excluded too, so a
-      // stale "true" can't flash protected UI before initialize() confirms
-      // the session is actually still valid.
-      partialize: (state) => ({
-        user: state.user,
-        lab: state.lab,
-      }),
+      // Only `lab` is persisted — full object except `_id` (internal Mongo
+      // id, no use to the frontend) — so screens like Home.jsx have
+      // everything they need right after reload, before /refresh resolves,
+      // without the backend needing an extra DB lookup just to hand it back.
+      // `user` (permissions, role, labKey, labId, maxLabAdjustment) and
+      // `token` are deliberately kept out of localStorage:
+      //   - `token`: an access token readable by any injected script (XSS,
+      //     malicious extension, a compromised dependency) is a real risk.
+      //   - `isAuthenticated`: excluded so a stale "true" can't flash
+      //     protected UI before initialize() confirms the session is valid.
+      //   - `user`: this is a hospital/diagnostic SaaS, so permission maps
+      //     stay out of storage too — initialize() re-derives the full
+      //     `user` from the server on every mount anyway.
+      partialize: (state) => {
+        if (!state.lab) return { lab: null };
+        const { _id, ...labWithoutId } = state.lab;
+        return { lab: labWithoutId };
+      },
     },
   ),
 );
