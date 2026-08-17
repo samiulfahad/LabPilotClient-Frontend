@@ -35,7 +35,7 @@ import { useAuthStore } from "../../../store/authStore"; // adjust path to your 
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const GENDERS = ["male", "female"];
+const GENDERS = ["male", "female", "other"];
 
 const PAYMENT_MODES = [
   { value: "cash", label: "Cash" },
@@ -324,7 +324,7 @@ const InvoiceSummary = ({ formData, amount, onConfirm, onClose }) => {
             <Detail label="Full Name" value={patient.name} />
             <Detail label="Gender" value={<span className="capitalize">{patient.gender}</span>} />
             <Detail label="Age" value={`${patient.age} years`} />
-            <Detail label="Contact" value={patient.contactNumber} />
+            <Detail label="Contact" value={patient.contactNumber || "—"} />
             {doctor && (
               <div className="col-span-2">
                 <p className="text-gray-500">Doctor</p>
@@ -650,7 +650,7 @@ const InvoiceForm = ({
             />
           </Field>
 
-          <Field label="Contact Number" required>
+          <Field label="Contact Number" optional>
             <IconInput
               icon={Phone}
               type="tel"
@@ -658,7 +658,6 @@ const InvoiceForm = ({
               onChange={(e) => onPatientChange("contactNumber", e.target.value)}
               placeholder="01XXXXXXXXX"
               maxLength={11}
-              required
             />
           </Field>
 
@@ -1427,7 +1426,6 @@ const CreateInvoice = () => {
     if (!patient.name?.trim()) return setPopup({ type: "error", message: "Patient name is required" });
     if (!patient.gender) return setPopup({ type: "error", message: "Gender is required" });
     if (!patient.age) return setPopup({ type: "error", message: "Age is required" });
-    if (!patient.contactNumber?.trim()) return setPopup({ type: "error", message: "Contact number is required" });
     if (!selectedTests.length && !selectedProducts.length)
       return setPopup({ type: "error", message: "Please select at least one test or product" });
     setShowSummary(true);
@@ -1463,6 +1461,10 @@ const CreateInvoice = () => {
             : null,
       };
 
+      // Doctor field is independent of the Referred By field above. When the
+      // doctor was picked from the list, send its id/name/degree. When the
+      // staff typed a name that didn't match anyone (unregistered doctor),
+      // send only the plain name — id and degree stay null.
       const doctorPayload = doctor
         ? {
             id: typeof doctor === "object" ? (doctor._id ?? null) : null,
@@ -1472,7 +1474,7 @@ const CreateInvoice = () => {
         : { id: null, name: null, degree: null };
 
       const invoiceData = {
-        patient,
+        patient: { ...patient, contactNumber: patient.contactNumber?.trim() || "" },
         referrer,
         doctor: doctorPayload,
         tests: selectedTests.map(({ testId, name, price, schemaId, commission }) => ({
