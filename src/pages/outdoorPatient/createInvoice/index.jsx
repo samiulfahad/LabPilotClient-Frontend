@@ -707,7 +707,12 @@ const InvoiceForm = ({
                     }}
                     onFocus={() => setShowDoctorDrop(true)}
                     onBlur={() => {
-                      if (doctorQuery.trim() && typeof doctor !== "object") onChange("doctor", doctorQuery.trim());
+                      // NOTE: typeof null === "object" in JS, so `doctor` being
+                      // its initial `null` value must be checked explicitly —
+                      // relying on `typeof doctor !== "object"` alone silently
+                      // drops typed-but-unregistered doctor names.
+                      if (doctorQuery.trim() && (doctor === null || typeof doctor === "string"))
+                        onChange("doctor", doctorQuery.trim());
                       setShowDoctorDrop(false);
                     }}
                     className="w-full pl-9 pr-9 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -800,7 +805,10 @@ const InvoiceForm = ({
                     }}
                     onFocus={() => setShowReferrerDrop(true)}
                     onBlur={() => {
-                      if (referrerQuery.trim() && typeof referredBy !== "object")
+                      // Same null-vs-"object" gotcha as the Doctor field above —
+                      // `referredBy` starts as `null`, and `typeof null` is
+                      // "object", so it must be checked for explicitly.
+                      if (referrerQuery.trim() && (referredBy === null || typeof referredBy === "string"))
                         onChange("referredBy", referrerQuery.trim());
                       setShowReferrerDrop(false);
                     }}
