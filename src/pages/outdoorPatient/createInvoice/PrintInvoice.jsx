@@ -51,10 +51,8 @@ const normaliseInvoice = (raw) => ({
     age: raw.patient?.age || "N/A",
     contactNumber: raw.patient?.contactNumber || "N/A",
   },
-  referrer: raw.referrer || null,
-  // Independent of `referrer` — carries `degree`, which `referrer.name`
-  // never does. Used on its own to build the "Referred By" display —
-  // referrer is no longer consulted for that field at all.
+  // Only field consulted for the "Doctor's Name" display — referrer is
+  // never fetched or stored here since it isn't shown anywhere on this view.
   doctor: raw.doctor || null,
   tests: Array.isArray(raw.tests) ? raw.tests : [],
   products: Array.isArray(raw.products) ? raw.products : [],
@@ -70,26 +68,28 @@ const normaliseInvoice = (raw) => ({
   reportLink: raw.reportLink || raw.link || "https://labpilotpro.com",
 });
 
-// Builds the "Referred By" display string — sourced only from `doctor`
-// (name + degree). `referrer.name` is never used here, even when
-// referrer.type is "doctor" but no doctor is actually attached to the
-// invoice — in that case "Referred By" simply doesn't show.
-const getReferredByLabel = ({ doctor }) => {
-  if (!doctor?.name) return null;
+// Builds the "Doctor's Name" display string — sourced only from `doctor`
+// (name + degree). Referrer is never consulted for this field.
+const getDoctorNameLabel = ({ doctor }) => {
+  if (!doctor) return null;
+  // doctor may arrive as a plain string ("Dr. Kawsar Ahmed") from some
+  // invoice payloads, or as an object ({ name, degree }) from others.
+  if (typeof doctor === "string") return doctor.trim() || null;
+  if (!doctor.name) return null;
   return doctor.degree ? `${doctor.name}, ${doctor.degree}` : doctor.name;
 };
 
 /** Derive display flags from the normalised invoice. */
 const getPricingFlags = ({ amount, doctor }) => {
   const due = Math.max(0, amount.final - amount.paid);
-  const referredByLabel = getReferredByLabel({ doctor });
+  const doctorNameLabel = getDoctorNameLabel({ doctor });
   return {
     showReferrerDiscount: amount.referrerDiscount > 0,
     showInvoiceFee: amount.invoiceFee > 0,
     showLabAdjustment: amount.labAdjustment > 0,
     showSubtotal: amount.referrerDiscount > 0 || amount.labAdjustment > 0,
-    showReferredBy: Boolean(referredByLabel),
-    referredByLabel,
+    showDoctorName: Boolean(doctorNameLabel),
+    doctorNameLabel,
     due,
     isFullyPaid: due === 0,
   };
@@ -123,6 +123,7 @@ const pdf$ = StyleSheet.create({
   },
   logoText: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 11 },
   labName: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 13 },
+  poweredBy: { color: "#bfdbfe", fontSize: 6.5, marginTop: 1 },
   labSub: { color: "#bfdbfe", fontSize: 8 },
   headerMeta: { color: "#dbeafe", fontSize: 7.5, marginTop: 2 },
   headerRight: { alignItems: "flex-end" },
@@ -224,6 +225,7 @@ const InvoicePDF = ({ invoice, qrCodeUrl, date, time, labInfo }) => {
               </View>
               <View>
                 <Text style={pdf$.labName}>{labInfo.name}</Text>
+                <Text style={pdf$.poweredBy}>Powered by LabPilot Pro</Text>
               </View>
             </View>
             <Text style={pdf$.headerMeta}>{labInfo.address}</Text>
@@ -249,8 +251,8 @@ const InvoicePDF = ({ invoice, qrCodeUrl, date, time, labInfo }) => {
               <PDFField label="Gender" value={patient.gender} style={pdf$.patientField} />
               <PDFField label="Age" value={`${patient.age} years`} style={pdf$.patientField} />
               <PDFField label="Contact" value={patient.contactNumber} style={pdf$.patientField} />
-              {flags.showReferredBy && (
-                <PDFField label="Referred By" value={flags.referredByLabel} style={pdf$.patientFieldFull} />
+              {flags.showDoctorName && (
+                <PDFField label="Doctor's Name" value={flags.doctorNameLabel} style={pdf$.patientFieldFull} />
               )}
             </View>
             {qrCodeUrl && (
@@ -391,6 +393,7 @@ const InvoiceCard = ({ invoice, qrCodeUrl, date, time, labInfo }) => {
               </div>
               <div className="min-w-0">
                 <h1 className="text-lg font-bold text-white leading-tight">{labInfo.name}</h1>
+                <p className="text-blue-100 text-[10px] leading-tight">Powered by LabPilot Pro</p>
               </div>
             </div>
             <div className="mt-2 space-y-1 text-blue-50 text-xs">
@@ -431,9 +434,9 @@ const InvoiceCard = ({ invoice, qrCodeUrl, date, time, labInfo }) => {
             <PatientField label="Gender" value={<span className="capitalize">{patient.gender}</span>} />
             <PatientField label="Age" value={`${patient.age} years`} />
             <PatientField label="Contact" value={patient.contactNumber} />
-            {flags.showReferredBy && (
+            {flags.showDoctorName && (
               <div className="col-span-2">
-                <PatientField label="Referred By" value={flags.referredByLabel} />
+                <PatientField label="Doctor's Name" value={flags.doctorNameLabel} />
               </div>
             )}
           </div>
@@ -606,7 +609,7 @@ const PrintInvoice = () => {
           }
           raw = (await invoiceService.getInvoiceByInvoiceId(invoiceId)).data;
         }
-
+        console.log(raw);
         const normalised = normaliseInvoice(raw);
         setInvoice(normalised);
 
