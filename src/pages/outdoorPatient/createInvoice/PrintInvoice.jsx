@@ -65,7 +65,7 @@ const normaliseInvoice = (raw) => ({
     paid: Number(raw.amount?.paid) || 0,
     invoiceFee: Number(raw.amount?.invoiceFee) || 0,
   },
-  reportLink: raw.reportLink || raw.link || "https://labpilotpro.com",
+  reportLink: raw.reportLink || raw.link || "https://scan.labpilotpro.com",
 });
 
 // Builds the "Doctor's Name" display string — sourced only from `doctor`
