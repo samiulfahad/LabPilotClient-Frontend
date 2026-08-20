@@ -608,6 +608,7 @@ const PrintInvoice = () => {
             return;
           }
           raw = (await invoiceService.getInvoiceByInvoiceId(invoiceId)).data;
+          console.log(raw);
         }
         console.log(raw);
         const normalised = normaliseInvoice(raw);
