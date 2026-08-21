@@ -217,17 +217,14 @@ const FormatModal = ({ test, onClose, onSave, onNetworkError }) => {
               <div className="space-y-2">
                 {schemas.map((schema) => {
                   const isSelected = selectedSchemaId === schema._id;
-                  const isActive = schema.isActive;
                   return (
                     <div
                       key={schema._id}
-                      onClick={() => isActive && setSelectedSchemaId(schema._id)}
-                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl border-[1.5px] transition-all ${
-                        !isActive
-                          ? "border-[#E2E8F0] bg-[#F8FAFC] opacity-50 cursor-not-allowed"
-                          : isSelected
-                            ? "border-[#0D9488] bg-[#0D948808] cursor-pointer"
-                            : "border-[#E2E8F0] bg-white hover:border-[#CBD5E1] cursor-pointer"
+                      onClick={() => setSelectedSchemaId(schema._id)}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl border-[1.5px] transition-all cursor-pointer ${
+                        isSelected
+                          ? "border-[#0D9488] bg-[#0D948808]"
+                          : "border-[#E2E8F0] bg-white hover:border-[#CBD5E1]"
                       }`}
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -241,13 +238,6 @@ const FormatModal = ({ test, onClose, onSave, onNetworkError }) => {
                           {isSelected && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            {!isActive && (
-                              <span className="font-['IBM_Plex_Mono',monospace] text-[10px] font-bold text-[#94A3B8] bg-[#F1F5F9] px-1.5 py-px rounded-[5px] shrink-0">
-                                নিষ্ক্রিয়
-                              </span>
-                            )}
-                          </div>
                           {schema.description && (
                             <p className="font-['IBM_Plex_Mono',monospace] text-[11px] text-[#94A3B8] truncate mt-0.5">
                               {schema.description}
