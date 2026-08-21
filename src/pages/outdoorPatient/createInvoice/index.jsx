@@ -1525,6 +1525,7 @@ const CreateInvoice = () => {
             selectedProducts,
             referredBy,
             doctor,
+            link: data.link
           },
         },
       });
