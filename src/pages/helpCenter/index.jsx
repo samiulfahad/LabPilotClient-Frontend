@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { PhoneCall, MessageSquareText, Send, HelpCircle } from "lucide-react";
 import supportService from "../../api/support";
-import Popup from "../../components/Popup";
+import Popup from "../../components/popup";
 
 const PHONE_NUMBER = "+880 1518-918551";
 const PHONE_TEL = "+8801518918551";
