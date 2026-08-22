@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PhoneCall, MessageSquareText, Send, HelpCircle, Phone } from "lucide-react";
-import supportService from "../../api/support";
+import helpCenterService from "../../api/helpCenter";
 import Popup from "../../components/popup";
 
 const PHONE_NUMBER = "+880 1518-918551";
@@ -32,7 +32,7 @@ export default function HelpCenter() {
     }
     setStatus("sending");
     try {
-      await supportService.sendMessage(message.trim(), contact.trim());
+      await helpCenterService.sendMessage(message.trim(), contact.trim());
       setMessage("");
       setContact("");
       setContactTouched(false);

@@ -1,7 +1,7 @@
 import api from "./baseAPI";
 
-const supportService = {
+const helpCenterService = {
   sendMessage: (message, contact) => api.post("/support", { message, contact }),
 };
 
-export default supportService;
+export default helpCenterService;
