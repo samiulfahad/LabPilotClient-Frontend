@@ -32,6 +32,7 @@ import {
   CreditCard,
   BedDouble,
   Lock,
+  Send,
 } from "lucide-react";
 import Popup from "../../../components/popup";
 import staffService from "../../../api/staff";
@@ -891,7 +892,17 @@ const ROLE_META = {
   staff: { label: "স্টাফ", color: TEAL, tint: TEAL_TINT },
 };
 
-const StaffRow = ({ member, permissionsList, onEdit, onAdjust, onDelete, onDeactivate, onActivate }) => {
+const StaffRow = ({
+  member,
+  permissionsList,
+  onEdit,
+  onAdjust,
+  onDelete,
+  onDeactivate,
+  onActivate,
+  onResend,
+  resending,
+}) => {
   const [expanded, setExpanded] = useState(false);
 
   // Admins may not carry a `permissions` object from the backend at all
@@ -901,6 +912,10 @@ const StaffRow = ({ member, permissionsList, onEdit, onAdjust, onDelete, onDeact
   const activePerms = permissionsList.filter((p) => memberPermissions[p.key]);
   const hasFullAccess = activePerms.length === permissionsList.length;
   const roleMeta = ROLE_META[member.role] ?? { label: "অন্যান্য", color: INK_MUTE, tint: GROUND };
+
+  // Staff who haven't set a password yet (never used their SMS link, or it
+  // failed to send) can have a fresh one issued via the resend action below.
+  const needsPasswordSetup = member.role !== "admin" && !member.hasPasswordSet;
 
   return (
     <div
@@ -931,6 +946,14 @@ const StaffRow = ({ member, permissionsList, onEdit, onAdjust, onDelete, onDeact
               {roleMeta.label}
             </span>
             {!member.isActive && <StatusStamp active={false} />}
+            {needsPasswordSetup && (
+              <span
+                className={`inline-flex items-center gap-1 text-[9.5px] font-bold px-1.5 py-px shrink-0 ${mono}`}
+                style={{ color: AMBER, background: AMBER_TINT, borderRadius: "3px" }}
+              >
+                <Lock size={9} /> পাসওয়ার্ড সেট হয়নি
+              </span>
+            )}
           </div>
           <p className={`text-[10.5px] mt-0.5 truncate ${mono}`} style={{ color: INK_MUTE }}>
             {member.phone || member.email || "—"}
@@ -1010,6 +1033,16 @@ const StaffRow = ({ member, permissionsList, onEdit, onAdjust, onDelete, onDeact
             <div className="flex items-center gap-2 flex-wrap pt-1">
               {member.role !== "admin" && (
                 <>
+                  {needsPasswordSetup && (
+                    <ActionBtn
+                      icon={Send}
+                      label={resending ? "পাঠানো হচ্ছে..." : "Resend Link"}
+                      tone={AMBER}
+                      tint={AMBER_TINT}
+                      onClick={onResend}
+                      disabled={resending}
+                    />
+                  )}
                   <ActionBtn icon={Pencil} label="Permissions" tone={TEAL} tint={TEAL_TINT} onClick={onEdit} />
                   <ActionBtn icon={Wallet} label="Adjustment Limit" tone={AMBER} tint={AMBER_TINT} onClick={onAdjust} />
                   {member.isActive ? (
@@ -1067,6 +1100,7 @@ const ManageStaff = () => {
   const [search, setSearch] = useState("");
   const [permFilter, setPermFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [resendingId, setResendingId] = useState(null);
 
   useEffect(() => {
     const boot = async () => {
@@ -1183,6 +1217,31 @@ const ManageStaff = () => {
     }
   };
 
+  // Resends the one-time password-set SMS link for a staff member who
+  // hasn't set a password yet. The backend refuses (409) once a password
+  // exists, so this is only ever wired to the button that's already gated
+  // on !member.hasPasswordSet — but the error message still surfaces
+  // correctly via getErrorMessage if that ever races with another admin's
+  // action.
+  const handleResend = async (member) => {
+    setResendingId(member._id);
+    try {
+      const res = await staffService.resendPasswordSetup(member._id);
+      setPopup({
+        type: res.data.smsSent ? "success" : "error",
+        message: res.data.message,
+      });
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setOfflinePopup(true);
+      } else {
+        setPopup({ type: "error", message: getErrorMessage(err, "লিংক পাঠাতে ব্যর্থ।") });
+      }
+    } finally {
+      setResendingId(null);
+    }
+  };
+
   // Guarded entry point for opening the "add staff" modal — used by both
   // the header button and the empty-state CTA so the limit check lives in
   // one place.
@@ -1207,6 +1266,8 @@ const ManageStaff = () => {
     onDelete: () => setModal({ type: "delete", member }),
     onDeactivate: () => setModal({ type: "deactivate", member }),
     onActivate: () => setModal({ type: "activate", member }),
+    onResend: () => handleResend(member),
+    resending: resendingId === member._id,
   });
 
   return (

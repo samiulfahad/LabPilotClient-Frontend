@@ -9,6 +9,8 @@ const isNetworkError = (err) => err?.isAxiosError === true && !err.response;
 
 const STATE = { LOADING: "loading", INVALID: "invalid", READY: "ready", DONE: "done" };
 
+const bn = "font-['Noto_Sans_Bengali',sans-serif]";
+
 /* ─── Icon input — same as login ─────────────────────────────────────────── */
 const IconInput = ({ icon: Icon, error, rightSlot, className = "", ...props }) => (
   <div className="flex flex-col gap-1.5">
@@ -18,7 +20,7 @@ const IconInput = ({ icon: Icon, error, rightSlot, className = "", ...props }) =
         className="absolute left-4 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
       />
       <input
-        className={`w-full bg-gray-50/70 border rounded-2xl py-3.5 text-base text-slate-800 outline-none transition-all duration-200 placeholder:text-gray-400 placeholder:font-normal focus:bg-white sm:py-2.5 sm:text-sm ${
+        className={`w-full bg-gray-50/70 border rounded-2xl py-3.5 text-base text-slate-800 outline-none transition-all duration-200 placeholder:text-gray-400 placeholder:font-normal focus:bg-white sm:py-2.5 sm:text-sm ${bn} ${
           error
             ? "border-red-300 ring-4 ring-red-100/60 focus:border-red-400 focus:ring-red-100/60"
             : "border-gray-200/80 focus:border-blue-400 focus:ring-4 focus:ring-blue-100/60"
@@ -30,7 +32,7 @@ const IconInput = ({ icon: Icon, error, rightSlot, className = "", ...props }) =
     </div>
     {error && (
       <p
-        className="flex items-center gap-1 text-[11.5px] text-red-400 font-medium pl-1"
+        className={`flex items-center gap-1 text-[11.5px] text-red-400 font-medium pl-1 ${bn}`}
         style={{ animation: "lpFadeUp 0.25s cubic-bezier(.22,1,.36,1) both" }}
       >
         <AlertCircle size={11} />
@@ -88,13 +90,13 @@ function Shell({ mounted, children }) {
             <span className="text-slate-900 font-bold text-base leading-none">
               LabPilot<span className="font-light">Pro</span>
             </span>
-            <span className="text-[10px] text-slate-500 font-medium leading-tight mt-1 tracking-wider">
-              Your Smart Partner
+            <span className={`text-[10px] text-slate-500 font-medium leading-tight mt-1 tracking-wider ${bn}`}>
+              আপনার স্মার্ট পার্টনার
             </span>
           </div>
           <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[10px] font-bold text-emerald-600">Online</span>
+            <span className={`text-[10px] font-bold text-emerald-600 ${bn}`}>সংযুক্ত</span>
           </div>
         </div>
 
@@ -107,11 +109,11 @@ function Shell({ mounted, children }) {
           <div className="flex items-center justify-between px-4 sm:px-7 py-3.5 rounded-b-3xl border-t border-gray-100 bg-gray-50/50">
             <div className="flex items-center gap-1.5">
               <ShieldCheck size={12} className="text-blue-400" />
-              <span className="text-[11px] text-gray-400 font-medium">256-bit encrypted</span>
+              <span className={`text-[11px] text-gray-400 font-medium ${bn}`}>২৫৬-বিট এনক্রিপ্টেড</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span className="text-[11px] text-gray-400">Authorized access</span>
+              <span className={`text-[11px] text-gray-400 ${bn}`}>অনুমোদিত অ্যাক্সেস</span>
             </div>
           </div>
         </div>
@@ -152,7 +154,7 @@ export default function SetPassword() {
   useEffect(() => {
     if (!token) {
       setStatus(STATE.INVALID);
-      setInvalidMsg("This link is missing its token.");
+      setInvalidMsg("এই লিংকে কোনো টোকেন পাওয়া যায়নি।");
       return;
     }
     api
@@ -167,14 +169,14 @@ export default function SetPassword() {
           return;
         }
         setStatus(STATE.INVALID);
-        setInvalidMsg(err?.response?.data?.message ?? "This link is invalid or has expired.");
+        setInvalidMsg(err?.response?.data?.message ?? "এই লিংকটি অবৈধ অথবা মেয়াদ শেষ হয়ে গেছে।");
       });
   }, [token]);
 
   const validate = () => {
     const e = {};
-    if (password.length < 6) e.password = "At least 6 characters";
-    if (confirm !== password) e.confirm = "Passwords don't match";
+    if (password.length < 6) e.password = "কমপক্ষে ৬ অক্ষরের হতে হবে";
+    if (confirm !== password) e.confirm = "পাসওয়ার্ড দুটি মিলছে না";
     setErrors(e);
     return !Object.keys(e).length;
   };
@@ -190,7 +192,7 @@ export default function SetPassword() {
       if (isNetworkError(err)) {
         setOfflinePopup(true);
       } else {
-        setSubmitError(err?.response?.data?.message ?? "Failed to set password. Please try again.");
+        setSubmitError(err?.response?.data?.message ?? "পাসওয়ার্ড সেট করতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।");
       }
     } finally {
       setSubmitting(false);
@@ -205,7 +207,7 @@ export default function SetPassword() {
       {status === STATE.LOADING && (
         <div className="flex flex-col items-center gap-4 py-10">
           <Loader2 size={26} className="animate-spin text-blue-500" />
-          <p className="text-sm text-gray-400">Verifying your link…</p>
+          <p className={`text-sm text-gray-400 ${bn}`}>আপনার লিংক যাচাই করা হচ্ছে…</p>
         </div>
       )}
 
@@ -216,14 +218,14 @@ export default function SetPassword() {
             <XCircle size={28} color="#dc2626" />
           </div>
           <div className="text-center">
-            <h2 className="text-lg font-black text-gray-900">Link invalid</h2>
-            <p className="text-sm text-slate-500 mt-1">{invalidMsg}</p>
+            <h2 className={`text-lg font-black text-gray-900 ${bn}`}>লিংকটি অবৈধ</h2>
+            <p className={`text-sm text-slate-500 mt-1 ${bn}`}>{invalidMsg}</p>
           </div>
           <Link
             to="/login"
-            className="w-full text-center py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all"
+            className={`w-full text-center py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all ${bn}`}
           >
-            Go to Sign In
+            লগইন পেজে যান
           </Link>
         </div>
       )}
@@ -232,12 +234,14 @@ export default function SetPassword() {
       {status === STATE.READY && (
         <div className="flex flex-col gap-4">
           <div className="mb-1 text-center">
-            <h1 className="text-[26px] sm:text-[22px] font-black text-gray-900 tracking-tight leading-tight mb-0.5">
-              Set your password<span className="text-blue-600">.</span>
+            <h1
+              className={`text-[26px] sm:text-[22px] font-black text-gray-900 tracking-tight leading-tight mb-0.5 ${bn}`}
+            >
+              আপনার পাসওয়ার্ড সেট করুন<span className="text-blue-600">।</span>
             </h1>
             {staffInfo && (
-              <p className="text-sm sm:text-[13px] text-gray-400 font-light">
-                {staffInfo.name} — Lab {staffInfo.labKey}
+              <p className={`text-sm sm:text-[13px] text-gray-400 font-light ${bn}`}>
+                {staffInfo.name} — ল্যাব {staffInfo.labKey}
               </p>
             )}
           </div>
@@ -246,7 +250,7 @@ export default function SetPassword() {
             icon={Lock}
             error={errors.password}
             type={showPw ? "text" : "password"}
-            placeholder="New password (min 6 characters)"
+            placeholder="নতুন পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
@@ -266,7 +270,7 @@ export default function SetPassword() {
             icon={Lock}
             error={errors.confirm}
             type={showConfirmPw ? "text" : "password"}
-            placeholder="Confirm password"
+            placeholder="পাসওয়ার্ড নিশ্চিত করুন"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
@@ -282,7 +286,9 @@ export default function SetPassword() {
           />
 
           {submitError && (
-            <div className="flex items-center gap-2 justify-center px-3 py-2.5 rounded-2xl text-[12.5px] text-red-600 bg-red-50 border border-red-200">
+            <div
+              className={`flex items-center gap-2 justify-center px-3 py-2.5 rounded-2xl text-[12.5px] text-red-600 bg-red-50 border border-red-200 ${bn}`}
+            >
               <AlertCircle size={13} />
               {submitError}
             </div>
@@ -291,7 +297,7 @@ export default function SetPassword() {
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="group w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-semibold text-white transition-all hover:-translate-y-0.5 disabled:opacity-60"
+            className={`group w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-semibold text-white transition-all hover:-translate-y-0.5 disabled:opacity-60 ${bn}`}
             style={{
               background: "linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)",
               boxShadow: "0 4px 16px rgba(37,99,235,0.28)",
@@ -301,7 +307,7 @@ export default function SetPassword() {
               <Loader2 size={17} className="animate-spin" />
             ) : (
               <>
-                <span>Set Password</span>
+                <span>পাসওয়ার্ড সেট করুন</span>
                 <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
               </>
             )}
@@ -316,14 +322,16 @@ export default function SetPassword() {
             <CheckCircle2 size={28} color="#16a34a" />
           </div>
           <div className="text-center">
-            <h2 className="text-lg font-black text-gray-900">Password Set!</h2>
-            <p className="text-sm text-slate-500 mt-1">You can now sign in with your new password.</p>
+            <h2 className={`text-lg font-black text-gray-900 ${bn}`}>পাসওয়ার্ড সেট হয়েছে!</h2>
+            <p className={`text-sm text-slate-500 mt-1 ${bn}`}>
+              আপনি এখন আপনার নতুন পাসওয়ার্ড দিয়ে Login করতে পারবেন।
+            </p>
           </div>
           <button
             onClick={() => navigate("/login")}
-            className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all"
+            className={`w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all ${bn}`}
           >
-            Go to Sign In
+            Login পেজে যান
           </button>
         </div>
       )}
