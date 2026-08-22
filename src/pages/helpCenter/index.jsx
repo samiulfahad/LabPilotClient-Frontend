@@ -1,23 +1,41 @@
 import { useState } from "react";
-import { PhoneCall, MessageSquareText, Send, HelpCircle } from "lucide-react";
+import { PhoneCall, MessageSquareText, Send, HelpCircle, Phone } from "lucide-react";
 import supportService from "../../api/support";
 import Popup from "../../components/popup";
 
 const PHONE_NUMBER = "+880 1518-918551";
 const PHONE_TEL = "+8801518918551";
 
+const CONTACT_PATTERN = /^\d{11}$/;
+
 export default function HelpCenter() {
   const [activeTab, setActiveTab] = useState("message"); // "call" | "message"
   const [message, setMessage] = useState("");
+  const [contact, setContact] = useState("");
+  const [contactTouched, setContactTouched] = useState(false);
   const [status, setStatus] = useState("idle"); // idle | sending | error
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
+  const isContactValid = CONTACT_PATTERN.test(contact.trim());
+  const canSubmit = message.trim() && isContactValid && status !== "sending";
+
+  const handleContactChange = (e) => {
+    // Digits only, capped at 11 — keeps the field honest as they type.
+    const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 11);
+    setContact(digitsOnly);
+  };
+
   const handleSubmit = async () => {
-    if (!message.trim()) return;
+    if (!message.trim() || !isContactValid) {
+      setContactTouched(true);
+      return;
+    }
     setStatus("sending");
     try {
-      await supportService.sendMessage(message.trim());
+      await supportService.sendMessage(message.trim(), contact.trim());
       setMessage("");
+      setContact("");
+      setContactTouched(false);
       setStatus("idle");
       setShowSuccessPopup(true);
     } catch {
@@ -118,6 +136,30 @@ export default function HelpCenter() {
               <p className="text-sm font-bold text-gray-900 mb-1">আমাদের মেসেজ পাঠান</p>
               <p className="text-[11.5px] text-gray-400 mb-4">অভিযোগ, প্রশ্ন, যেকোনো কিছু — আমরা যোগাযোগ করব।</p>
 
+              <label className="block text-[11.5px] font-bold text-gray-600 mb-1.5">যোগাযোগ নম্বর</label>
+              <div className="relative mb-1">
+                <Phone className="w-4 h-4 text-gray-300 absolute left-4 top-1/2 -translate-y-1/2" />
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={contact}
+                  onChange={handleContactChange}
+                  onBlur={() => setContactTouched(true)}
+                  placeholder="01XXXXXXXXX"
+                  maxLength={11}
+                  className={`w-full rounded-2xl border p-4 pl-11 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 resize-none ${
+                    contactTouched && !isContactValid
+                      ? "border-red-300 focus:ring-red-200"
+                      : "border-gray-200 focus:ring-indigo-200"
+                  }`}
+                />
+              </div>
+              {contactTouched && !isContactValid && (
+                <p className="text-[11px] text-red-500 mb-3">সঠিক ১১ সংখ্যার নম্বর দিন।</p>
+              )}
+              {!(contactTouched && !isContactValid) && <div className="mb-3" />}
+
+              <label className="block text-[11.5px] font-bold text-gray-600 mb-1.5">মেসেজ</label>
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -131,7 +173,7 @@ export default function HelpCenter() {
                 <p className="text-[10px] text-gray-300">{message.length}/2000</p>
                 <button
                   onClick={handleSubmit}
-                  disabled={!message.trim() || status === "sending"}
+                  disabled={!canSubmit}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-sm font-bold disabled:opacity-40 transition-opacity"
                 >
                   <Send className="w-4 h-4" /> {status === "sending" ? "পাঠানো হচ্ছে..." : "পাঠান"}

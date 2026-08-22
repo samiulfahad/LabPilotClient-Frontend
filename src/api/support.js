@@ -1,7 +1,7 @@
 import api from "./baseAPI";
 
 const supportService = {
-  sendMessage: (message) => api.post("/support", { message }),
+  sendMessage: (message, contact) => api.post("/support", { message, contact }),
 };
 
 export default supportService;
