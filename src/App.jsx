@@ -8,7 +8,7 @@ import Layout from "./components/layout";
 import Report from "./pages/report";
 import ReportUpload from "./pages/reportUpload";
 import ReportDownload from "./pages/reportDownload";
-import Help from "./pages/help";
+import HelpCenter from "./pages/helpCenter";
 import Popup from "./components/popup";
 import AuthLoadingScreen from "./components/AuthLoadingScreen";
 
@@ -143,7 +143,7 @@ function App() {
       {/* ════ PROTECTED ROUTES (Login required) ════ */}
       <Route element={<ProtectedRoutes />}>
         <Route path="/" element={<Home />} />
-        <Route path="/help" element={<Help />} />
+        <Route path="/help" element={<HelpCenter />} />
 
         {/* Daily Reports — module: dailyReport */}
         <Route element={<RequireModules modules={["dailyReport"]} />}>

@@ -31,7 +31,7 @@ export const hospitalMenu = [
   { label: "মাসিক বিলিং", path: "/billing", icon: CreditCard, module: "billing" },
   { label: "অ্যাকাউন্ট", path: "/account", icon: UserCircle, module: null },
   { label: "সেটআপ", path: "/setup", icon: Settings, module: "setup" },
-  { label: "সাহায্য", path: "/help", icon: HelpCircle, module: null },
+  { label: "হেল্প সেন্টার", path: "/help", icon: HelpCircle, module: null },
 ];
 
 export const diagnosticCenterMenu = [
@@ -45,7 +45,7 @@ export const diagnosticCenterMenu = [
   { label: "মাসিক বিলিং", path: "/billing", icon: CreditCard, module: "billing" },
   { label: "অ্যাকাউন্ট", path: "/account", icon: UserCircle, module: null },
   { label: "সেটআপ", path: "/setup", icon: Settings, module: "setup" },
-  { label: "সাহায্য", path: "/help", icon: HelpCircle, module: null },
+  { label: "হেল্প সেন্টার", path: "/help", icon: HelpCircle, module: null },
 ];
 
 // Plain helper (not a hook) — picks the right array by lab.type, then
