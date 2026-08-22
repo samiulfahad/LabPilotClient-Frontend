@@ -270,7 +270,7 @@ export default function SetPassword() {
             icon={Lock}
             error={errors.confirm}
             type={showConfirmPw ? "text" : "password"}
-            placeholder="পাসওয়ার্ড নিশ্চিত করুন"
+            placeholder="আবার পাসওয়ার্ড লিখুন"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
